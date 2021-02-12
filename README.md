@@ -1,6 +1,6 @@
-# Axios API Handler
+# Axios Multi API
 
-[![NPM](https://nodei.co/npm/axios-api-handler.png)](https://npmjs.org/package/axios-api-handler
+[![NPM](https://nodei.co/npm/axios-multi-api.png)](https://npmjs.org/package/axios-multi-api
 )
 
 Often times projects require complex APIs setups, middlewares and another stuff just to handle lots of API requests. Axios API Handler simplifies API handling to the extent that developers can focus on operating on the fetched data from their APIs rather than on complex initial setups.
@@ -18,13 +18,13 @@ You can also set up multiple API handlers for different collection of APIs from 
 
 Install package:
 ```bash
-npm i axios-api-handler
+npm i axios-multi-api
 ```
 
 ## Usage
 
 ```typescript
-import { ApiHandler } from 'axios-api-handler';
+import { ApiHandler } from 'axios-multi-api';
 
 const api = new ApiHandler({
     apiUrl: 'http://example.com/api/',
@@ -101,7 +101,7 @@ As you may notice there's also a `setupInterceptor` and `httpRequestHandler` exp
 
 
 ```typescript
-import { ApiHandler } from 'axios-api-handler';
+import { ApiHandler } from 'axios-multi-api';
 
 export class ApiService extends ApiHandler {
     /**
