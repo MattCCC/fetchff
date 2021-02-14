@@ -1,11 +1,26 @@
 {
   "version": "1.0.0",
   "license": "MIT",
+  "name": "axios-multi-api",
+  "author": "Mateusz Czapliński <deindesign.pl@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MattCCC/axios-multi-api.git"
+  },
   "main": "dist/index.js",
   "typings": "dist/index.d.ts",
   "files": [
     "dist",
     "src"
+  ],
+  "keywords": [
+    "axios-api",
+    "axios-api-handler",
+    "axios-multi-api",
+    "api",
+    "api-handler",
+    "browser",
+    "node"
   ],
   "engines": {
     "node": ">=10"
