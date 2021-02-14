@@ -25,6 +25,11 @@ import {
 @applyMagic
 export class ApiHandler implements MagicalClass {
     /**
+     * TS Index signature
+     */
+    [x: string]: any;
+
+    /**
      * Api Url
      *
      * @memberof ApiHandler

@@ -56,7 +56,7 @@ Under the hood, a new Axios instance is created when handler is initialized. You
 
 ## Full TypeScript support
 
-For TypeScript support you could modify interface of `api` and use your own for the API Endpoints provided.
+Axios-multi-api includes necessary [TypeScript](http://typescriptlang.org) definitions. For full TypeScript support for your endpoints, you could modify interface of your `ApiHandler` and use your own for the API Endpoints provided.
 
 ## Additional Configuration
 `strategy`

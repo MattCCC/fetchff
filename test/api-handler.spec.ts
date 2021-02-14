@@ -39,8 +39,7 @@ describe('API Handler', () => {
 
         api.handleRequest = jest.fn().mockResolvedValueOnce(userDataMock);
 
-        const endpoints = api as unknown as any;
-        const response = await endpoints.getUserAddress({ userId: 1 });
+        const response = await api.getUserAddress({ userId: 1 });
 
         expect(api.handleRequest).not.toHaveBeenCalled();
         expect(response).toBeNull();
