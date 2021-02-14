@@ -1,22 +1,19 @@
 # Axios Multi API
 
-[![NPM](https://nodei.co/npm/axios-multi-api.png)](https://npmjs.org/package/axios-multi-api
-)
+Oftentimes projects require complex APIs setups, middlewares and another stuff to accomodate a lot of API requests. Axios API Handler simplifies API handling to the extent that developers can focus on operating on the fetched data from their APIs rather than on complex initial setups.
 
-Often times projects require complex APIs setups, middlewares and another stuff just to handle lots of API requests. Axios API Handler simplifies API handling to the extent that developers can focus on operating on the fetched data from their APIs rather than on complex initial setups.
+This package helps in handling of many API endpoints in a simple, declarative fashion. It also aims to provide a possibility to use a global error handling in an easy manner.
 
-This package helps achieving that in a simplistic declarative fashion. It also aims to provide a possibility to use global error handling in an easy manner. It uses very simple magic methods and catch decorators in order to achieve that.
-
-You can also set up multiple API handlers for different collection of APIs from different services.
-
+You can set up multiple API handlers for different sets of APIs from different services. This provides much better scalability for many projects.
 
 > If you’re new to Axios, please checkout [this handy Axios readme](https://github.com/axios/axios)
 
 > Package was originally written to accomodate many API requests in an orderly fashion.
 
 ## Installation
+[![NPM](https://nodei.co/npm/axios-multi-api.png)](https://npmjs.org/package/axios-multi-api)
 
-Install package:
+Run following command to install the package:
 ```bash
 npm i axios-multi-api
 ```
@@ -148,6 +145,7 @@ const api = new ApiService({
 2) Improve Readme by adding more information.
 3) Cancellation strategies support.
 4) Better API exposure.
+5) More tests.
 
 ## Support & collaboration
 
