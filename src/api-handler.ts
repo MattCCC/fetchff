@@ -43,6 +43,13 @@ export class ApiHandler implements MagicalClass {
      */
     public apiEndpoints: Record<string, any>;
 
+    /**
+     * Logger
+     *
+     * @memberof ApiHandler
+     */
+    public logger: any;
+
     public constructor({
         apiUrl,
         apiEndpoints,
@@ -52,6 +59,7 @@ export class ApiHandler implements MagicalClass {
     }) {
         this.apiUrl = apiUrl;
         this.apiEndpoints = apiEndpoints;
+        this.logger = logger;
 
         this.httpRequestHandler = new HttpRequestHandler({
             baseURL: this.apiUrl,
@@ -83,6 +91,11 @@ export class ApiHandler implements MagicalClass {
             return this[prop];
         }
 
+        // Prevent handler from running for non-existent endpoints
+        if (!this.apiEndpoints[prop]) {
+            return this.handleNonImplemented.bind(this, prop)
+        }
+
         return this.handleRequest.bind(this, prop);
     }
 
@@ -108,5 +121,17 @@ export class ApiHandler implements MagicalClass {
         responseData = await this.httpRequestHandler[api.method](uri, requestData);
 
         return responseData;
+    }
+
+    /**
+     * Triggered when trying to use non-existent endpoints
+     * @param prop Method Name
+     */
+    protected handleNonImplemented(prop: string) {
+        if (this.logger && this.logger.log) {
+            this.logger.log(`${prop} endpoint not implemented.`)
+        }
+
+        return Promise.resolve(null);
     }
 }
