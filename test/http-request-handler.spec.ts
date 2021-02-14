@@ -1,5 +1,5 @@
 import PromiseAny from 'promise-any';
-import { HttpRequestHandler } from '../package/src/http-request-handler';
+import { HttpRequestHandler } from '../src/http-request-handler';
 
 describe('API Handler', () => {
     const apiUrl = 'http://example.com/api/';
