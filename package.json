@@ -46,17 +46,15 @@
     "singleQuote": true,
     "trailingComma": "es5"
   },
-  "name": "axios-multi-api",
-  "author": "Mateusz Czapliński",
   "module": "dist/axios-multi-api.esm.js",
   "size-limit": [
     {
       "path": "dist/axios-multi-api.cjs.production.min.js",
-      "limit": "10 KB"
+      "limit": "15 KB"
     },
     {
       "path": "dist/axios-multi-api.esm.js",
-      "limit": "10 KB"
+      "limit": "50 KB"
     }
   ],
   "devDependencies": {
