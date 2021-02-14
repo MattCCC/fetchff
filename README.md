@@ -10,6 +10,14 @@ You can set up multiple API handlers for different sets of APIs from different s
 
 > Package was originally written to accomodate many API requests in an orderly fashion.
 
+## Features
+- Multi APIs support
+- Support for multiple response resolving strategies
+- Supports dynamic urls
+- Multiple requests chaining (using promises)
+- Browsers & Node 10+ compatibile
+- TypeScript compatibile
+
 ## Installation
 [![NPM](https://nodei.co/npm/axios-multi-api.png)](https://npmjs.org/package/axios-multi-api)
 
