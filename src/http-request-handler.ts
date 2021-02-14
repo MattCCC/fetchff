@@ -190,6 +190,44 @@ export class HttpRequestHandler implements IHttpRequestHandler {
     }
 
     /**
+     * PATCH Request
+     *
+     * @param {string} url                  Url
+     * @param {*} data                      Payload
+     * @param {AxiosRequestConfig} config   Config
+     * @throws {Error}                      If request fails
+     * @returns {Promise}                   Request response or error info
+     * @memberof HttpRequestHandler
+     */
+    public patch(url: string, data: any = null, config: AxiosRequestConfig = null): Promise<IRequestResponse> {
+        return this.handleRequest({
+            type: 'patch',
+            url,
+            data,
+            config,
+        });
+    }
+
+    /**
+     * HEAD Request
+     *
+     * @param {string} url                  Url
+     * @param {*} data                      Payload
+     * @param {AxiosRequestConfig} config   Config
+     * @throws {Error}                      If request fails
+     * @returns {Promise}                   Request response or error info
+     * @memberof HttpRequestHandler
+     */
+    public head(url: string, data: any = null, config: AxiosRequestConfig = null): Promise<IRequestResponse> {
+        return this.handleRequest({
+            type: 'head',
+            url,
+            data,
+            config,
+        });
+    }
+
+    /**
      * Get Provider Instance
      *
      * @param {Error} err      Error instance
