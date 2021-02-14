@@ -45,10 +45,10 @@ export class ApiHandler implements MagicalClass {
 
     public constructor({
         apiUrl,
-        strategy = null,
         apiEndpoints,
-        logger,
-        httpRequestErrorService,
+        strategy = null,
+        logger = null,
+        httpRequestErrorService = null,
     }) {
         this.apiUrl = apiUrl;
         this.apiEndpoints = apiEndpoints;
