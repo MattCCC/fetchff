@@ -21,6 +21,7 @@ import {
     IRequestResponse,
     InterceptorCallback,
     ErrorHandlingStrategy,
+    RequestHandlerConfig,
 } from './types/http-request-handler';
 
 /**
@@ -52,6 +53,13 @@ export class HttpRequestHandler implements IHttpRequestHandler {
     public strategy: ErrorHandlingStrategy = 'silent';
 
     /**
+     * @var flattenResponse Response flattening
+     *
+     * @memberof HttpRequestHandler
+     */
+    public flattenResponse: boolean = true;
+
+    /**
      * @var logger Logger
      *
      * @memberof HttpRequestHandler
@@ -67,26 +75,33 @@ export class HttpRequestHandler implements IHttpRequestHandler {
 
     /**
      * Creates an instance of HttpRequestHandler
+     *
      * @param {string} baseURL      Base URL for all API calls
      * @param {number} timeout      Request timeout
      * @param {string} strategy     Error Handling Strategy
+     * @param {string} flattenResponse     Whether to flatten response "data" object within "data" one
      * @param {*} logger            Instance of Logger Class
      * @param {*} httpRequestErrorService  Instance of Error Service Class
+     *
      * @memberof HttpRequestHandler
      */
     public constructor({
         baseURL = '',
         timeout = null,
         strategy = null,
+        flattenResponse = null,
         logger = null,
         httpRequestErrorService = null,
-    }) {
+        ...config
+    }: RequestHandlerConfig) {
         this.timeout = timeout || this.timeout;
         this.strategy = strategy || this.strategy;
+        this.flattenResponse = flattenResponse || this.flattenResponse;
         this.logger = logger || global.console || window.console || null;
         this.httpRequestErrorService = httpRequestErrorService;
 
         this.requestInstance = axios.create({
+            ...config,
             baseURL,
             timeout: this.timeout,
         });
@@ -314,7 +329,7 @@ export class HttpRequestHandler implements IHttpRequestHandler {
             // Special case of data property within Axios data object
             // This is in fact a proper response but we may want to flatten it
             // To ease developers' lives when obtaining the response
-            if (typeof response.data === 'object' && response.data.data && Object.keys(response.data).length === 1) {
+            if (this.flattenResponse && typeof response.data === 'object' && response.data.data && Object.keys(response.data).length === 1) {
                 return response.data.data;
             }
 
