@@ -2,6 +2,10 @@ import { AxiosInstance, AxiosRequestConfig, AxiosResponse } from "axios";
 
 export type IRequestResponse<T = any> = Promise<AxiosResponse<T>>;
 
+export type InterceptorCallback = (value: AxiosRequestConfig) => AxiosRequestConfig | Promise<AxiosRequestConfig>;
+
+export type ErrorHandlingStrategy = 'throwError' | 'reject' | 'silent';
+
 export interface IRequestData {
     type: string;
     url: string;
@@ -9,9 +13,17 @@ export interface IRequestData {
     config: AxiosRequestConfig;
 }
 
-export type InterceptorCallback = (value: AxiosRequestConfig) => AxiosRequestConfig | Promise<AxiosRequestConfig>;
+export interface RequestHandlerConfig extends AxiosRequestConfig {
+    strategy?: ErrorHandlingStrategy;
+    flattenResponse?: boolean;
+    logger?: any;
+    httpRequestErrorService?: any;
+}
 
-export type ErrorHandlingStrategy = 'throwError' | 'reject' | 'silent';
+export interface APIHandlerConfig extends RequestHandlerConfig {
+    apiUrl: string;
+    apiEndpoints: Record<string, any>;
+}
 
 export interface IHttpRequestHandler {
     requestInstance: AxiosInstance;

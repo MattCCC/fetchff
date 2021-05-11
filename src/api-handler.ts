@@ -12,6 +12,7 @@ import {
 import {
     IHttpRequestHandler,
     IRequestResponse,
+    APIHandlerConfig,
 } from './types/http-request-handler';
 
 // Shared Modules
@@ -55,20 +56,38 @@ export class ApiHandler implements MagicalClass {
      */
     public logger: any;
 
+    /**
+     * Creates an instance of API Handler
+     *
+     * @param {string} apiUrl               Base URL for all API calls
+     * @param {number} timeout              Request timeout
+     * @param {string} strategy             Error Handling Strategy
+     * @param {string} flattenResponse      Whether to flatten response "data" object within "data" one
+     * @param {*} logger                    Instance of Logger Class
+     * @param {*} httpRequestErrorService   Instance of Error Service Class
+     *
+     * @memberof HttpRequestHandler
+     */
     public constructor({
         apiUrl,
         apiEndpoints,
+        timeout = null,
         strategy = null,
+        flattenResponse = null,
         logger = null,
         httpRequestErrorService = null,
-    }) {
+        ...config
+    }: APIHandlerConfig) {
         this.apiUrl = apiUrl;
         this.apiEndpoints = apiEndpoints;
         this.logger = logger;
 
         this.httpRequestHandler = new HttpRequestHandler({
+            ...config,
             baseURL: this.apiUrl,
+            timeout,
             strategy,
+            flattenResponse,
             logger,
             httpRequestErrorService,
         });
