@@ -8,15 +8,15 @@ You can set up multiple API handlers for different sets of APIs from different s
 
 > If you’re new to Axios, please checkout [this handy Axios readme](https://github.com/axios/axios)
 
-> Package was originally written to accomodate many API requests in an orderly fashion.
+Package was originally written to accomodate many API requests in an orderly fashion.
 
 ## Features
 - Multi APIs support
 - Support for multiple response resolving strategies
-- Supports dynamic urls
+- Support for dynamic urls
 - Multiple requests chaining (using promises)
-- Browsers & Node 10+ compatibile
-- TypeScript compatibile
+- Browsers & Node 10+ compatible
+- TypeScript compatible
 
 ## Installation
 [![NPM](https://nodei.co/npm/axios-multi-api.png)](https://npmjs.org/package/axios-multi-api)
@@ -32,7 +32,7 @@ npm i axios-multi-api
 import { ApiHandler } from 'axios-multi-api';
 
 const api = new ApiHandler({
-    apiUrl: 'http://example.com/api/',
+    apiUrl: 'https://example.com/api/',
     apiEndpoints: {
       getUserDetails: {
         method: 'get',
@@ -45,9 +45,7 @@ const api = new ApiHandler({
     },
 });
 
-const response = api.getUserDetails({
-  userId: 1
-});
+const data = api.getUserDetails({ userId: 1 });
 
 api.updateUserDetails({ name: 'Mark' }, { userId: 1 });
 ```
@@ -82,6 +80,11 @@ Available: `silent` | `reject` | `throwError`
 
 > `throwError`
 > An exception with Error object will be triggered. Using this approach you need to remember to set try/catch per each request to catch exceptions properly.
+
+`flattenResponse`
+Default `true`
+
+Flattens nested response.data so you can avoid writing `response.data.data` and obtain response directly. Response is flattened when there is a "data" within Axios' response "data", and no other object properties set.
 
 `timeout`
 Default `30000`
