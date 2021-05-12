@@ -94,9 +94,9 @@ export class HttpRequestHandler implements IHttpRequestHandler {
         httpRequestErrorService = null,
         ...config
     }: RequestHandlerConfig) {
-        this.timeout = timeout || this.timeout;
-        this.strategy = strategy || this.strategy;
-        this.flattenResponse = flattenResponse || this.flattenResponse;
+        this.timeout = timeout !== null ? timeout : this.timeout;
+        this.strategy = strategy !== null ? strategy : this.strategy;
+        this.flattenResponse = flattenResponse !== null ? flattenResponse : this.flattenResponse;
         this.logger = logger || global.console || window.console || null;
         this.httpRequestErrorService = httpRequestErrorService;
 
@@ -276,7 +276,7 @@ export class HttpRequestHandler implements IHttpRequestHandler {
         config = null,
     }: IRequestData): Promise<IRequestResponse> {
         let response = null;
-        let requestConfig: AxiosRequestConfig = config || {};
+        let requestConfig = config || {};
         const key = type === 'get' || type === 'head' ? 'params' : 'data';
 
         requestConfig = {
@@ -317,7 +317,6 @@ export class HttpRequestHandler implements IHttpRequestHandler {
             case 'throwError':
             default:
                 response = await this.requestInstance.request(requestConfig);
-                break;
         }
 
         return this.processResponseData(response);
