@@ -65,7 +65,7 @@ export class ApiHandler implements MagicalClass {
      * @param {*} logger                    Instance of Logger Class
      * @param {*} httpRequestErrorService   Instance of Error Service Class
      *
-     * @memberof HttpRequestHandler
+     * @memberof ApiHandler
      */
     public constructor({
         apiUrl,
@@ -96,7 +96,7 @@ export class ApiHandler implements MagicalClass {
      * Get Provider Instance
      *
      * @returns {AxiosInstance} Provider's instance
-     * @memberof HttpRequestHandler
+     * @memberof ApiHandler
      */
     public getInstance(): AxiosInstance {
         return this.httpRequestHandler.getInstance();
@@ -132,16 +132,20 @@ export class ApiHandler implements MagicalClass {
     public async handleRequest(...args: any): Promise<IRequestResponse> {
         const prop = args[0];
         const api = this.apiEndpoints[prop];
+
         const queryParams = args[1] || {};
         const uriParams = args[2] || {};
+        const requestConfig = args[3] || {};
+
         const uri = api.url.replace(/:[a-z]+/ig, (str: string) => (uriParams[str.substr(1)] ? uriParams[str.substr(1)] : str));
+
         const requestData = {
             ...queryParams,
         };
 
         let responseData = null;
 
-        responseData = await this.httpRequestHandler[api.method](uri, requestData);
+        responseData = await this.httpRequestHandler[api.method](uri, requestData, requestConfig);
 
         return responseData;
     }
@@ -149,8 +153,10 @@ export class ApiHandler implements MagicalClass {
     /**
      * Triggered when trying to use non-existent endpoints
      * @param prop Method Name
+     * @returns {Promise}
+     * @memberof ApiHandler
      */
-    protected handleNonImplemented(prop: string) {
+    protected handleNonImplemented(prop: string): Promise<any> {
         if (this.logger && this.logger.log) {
             this.logger.log(`${prop} endpoint not implemented.`)
         }
