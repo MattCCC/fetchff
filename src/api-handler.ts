@@ -10,7 +10,6 @@ import {
 } from 'axios';
 
 import {
-    IHttpRequestHandler,
     IRequestResponse,
     APIHandlerConfig,
 } from './types/http-request-handler';
@@ -40,7 +39,7 @@ export class ApiHandler implements MagicalClass {
     /**
      * @var httpRequestHandler Request Wrapper Instance
      */
-    public httpRequestHandler: IHttpRequestHandler;
+    public httpRequestHandler: HttpRequestHandler;
 
     /**
      * Endpoints
@@ -133,11 +132,11 @@ export class ApiHandler implements MagicalClass {
     public async handleRequest(...args: any): Promise<IRequestResponse> {
         const prop = args[0];
         const api = this.apiEndpoints[prop];
-        const apiData = args[1] || {};
+        const queryParams = args[1] || {};
         const uriParams = args[2] || {};
         const uri = api.url.replace(/:[a-z]+/ig, (str: string) => (uriParams[str.substr(1)] ? uriParams[str.substr(1)] : str));
         const requestData = {
-            ...apiData,
+            ...queryParams,
         };
 
         let responseData = null;
