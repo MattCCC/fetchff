@@ -326,10 +326,14 @@ export class HttpRequestHandler implements IHttpRequestHandler {
     // eslint-disable-next-line class-methods-use-this
     protected processResponseData(response) {
         if (response.data) {
+            if (!this.flattenResponse) {
+                return response;
+            }
+
             // Special case of data property within Axios data object
             // This is in fact a proper response but we may want to flatten it
             // To ease developers' lives when obtaining the response
-            if (this.flattenResponse && typeof response.data === 'object' && response.data.data && Object.keys(response.data).length === 1) {
+            if (typeof response.data === 'object' && response.data.data && Object.keys(response.data).length === 1) {
                 return response.data.data;
             }
 
