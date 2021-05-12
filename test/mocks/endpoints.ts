@@ -1,7 +1,17 @@
+import {
+    Endpoint,
+    APIQueryParams as QueryParams,
+    APIUrlParams as UrlParams,
+} from '../../src/types/api';
+
 export const apiEndpoints = {
     getUserDetails: {
         method: 'get',
         url: '/user-details/get',
+    },
+    getUserDetailsByIdAndName: {
+        method: 'get',
+        url: '/user-details/get/:id/:name',
     },
     updateUserDetails: {
         method: 'post',
@@ -9,7 +19,18 @@ export const apiEndpoints = {
     },
 };
 
+interface CustomURLParams {
+    id: number;
+    name: string;
+}
+
+interface CustomResponse {
+    name: string;
+    age: number;
+}
+
 export interface IEndpoints {
-    getUserDetails: (queryParams?: Record<string, any>, urlParams?: Record<string, any>) => Promise<any>;
-    updateUserDetails: (queryParams: Record<string, any>, urlParams?: Record<string, any>) => Promise<any>;
+    getUserDetails: Endpoint;
+    updateUserDetails: Endpoint<QueryParams, UrlParams>;
+    getUserDetailsByIdAndName: Endpoint<QueryParams, CustomURLParams, CustomResponse>;
 }

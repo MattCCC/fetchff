@@ -7,7 +7,7 @@ describe('API Handler', () => {
         apiUrl,
         apiEndpoints,
     };
-    const userDataMock = { "name": "Mark" };
+    const userDataMock = { "name": "Mark", "age": 20 };
 
     console.warn = jest.fn();
 
@@ -21,27 +21,62 @@ describe('API Handler', () => {
         expect(typeof api.getInstance().request).toBe("function");
     });
 
-    it('__get() - should trigger request handler for an existent endpoint', async () => {
-        const api = new ApiHandler(config);
+    describe('__get()', () => {
+        it('should trigger request handler for an existent endpoint', async () => {
+            const api = new ApiHandler(config);
 
-        api.handleRequest = jest.fn().mockResolvedValueOnce(userDataMock);
+            api.handleRequest = jest.fn().mockResolvedValueOnce(userDataMock);
 
-        const endpoints = api as unknown as IEndpoints;
-        const response = await endpoints.getUserDetails({ userId: 1 });
+            const endpoints = api as unknown as IEndpoints;
+            const response = await endpoints.getUserDetails({ userId: 1 });
 
-        expect(api.handleRequest).toHaveBeenCalledTimes(1);
-        expect(api.handleRequest).toHaveBeenCalledWith("getUserDetails", { "userId": 1 });
-        expect(response).toBe(userDataMock);
-    });
+            expect(api.handleRequest).toHaveBeenCalledTimes(1);
+            expect(api.handleRequest).toHaveBeenCalledWith("getUserDetails", { "userId": 1 });
+            expect(response).toBe(userDataMock);
+        });
 
-    it('__get() - should not trigger request handler for non-existent endpoint', async () => {
-        const api = new ApiHandler(config);
+        it('should not trigger request handler for non-existent endpoint', async () => {
+            const api = new ApiHandler(config);
 
-        api.handleRequest = jest.fn().mockResolvedValueOnce(userDataMock);
+            api.handleRequest = jest.fn().mockResolvedValueOnce(userDataMock);
 
-        const response = await api.getUserAddress({ userId: 1 });
+            const response = await api.getUserAddress({ userId: 1 });
 
-        expect(api.handleRequest).not.toHaveBeenCalled();
-        expect(response).toBeNull();
+            expect(api.handleRequest).not.toHaveBeenCalled();
+            expect(response).toBeNull();
+        });
+    })
+
+    describe('handleRequest()', () => {
+        it('should properly replace multiple URL params', async () => {
+            const api = new ApiHandler(config);
+
+            api.httpRequestHandler.get = jest.fn().mockResolvedValueOnce(userDataMock);
+
+            const endpoints = api as unknown as IEndpoints;
+            const response = await endpoints.getUserDetailsByIdAndName(null, { id: 1, "name": "Mark" });
+
+            expect(api.httpRequestHandler.get).toHaveBeenCalledTimes(1);
+            expect(api.httpRequestHandler.get).toHaveBeenCalledWith('/user-details/get/1/Mark', {}, {});
+            expect(response).toBe(userDataMock);
+        });
+
+        it('should properly fill Axios compatible config', async () => {
+            const api = new ApiHandler(config);
+            const headers = {
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            };
+
+            api.httpRequestHandler.get = jest.fn().mockResolvedValueOnce(userDataMock);
+
+            const endpoints = api as unknown as IEndpoints;
+            const response = await endpoints.getUserDetailsByIdAndName(null, { id: 1, "name": "Mark" }, headers);
+
+            expect(api.httpRequestHandler.get).toHaveBeenCalledTimes(1);
+            expect(api.httpRequestHandler.get).toHaveBeenCalledWith('/user-details/get/1/Mark', {}, headers);
+            expect(response).toBe(userDataMock);
+        });
     });
 });
