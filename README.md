@@ -55,12 +55,15 @@ In this basic demo we fetch data from an API for user with an ID of 1. We also u
 ##### api.yourEndpointName(queryParams, urlParams, requestConfig)
 
 `queryParams` (optional)
+
 First argument of APIs functions is an object with query params for `GET` requests, or with a payload for `POST` requests. Another request types are supported as well.
 
 `urlParams` (optional)
+
 It gives possibility to modify urls structure in a declarative way. In our example `/user-details/update/:userId` will become `/user-details/update/1` when API request will be made.
 
 `requestConfig` (optional)
+
 The specified Axios compatible config will be merged with the instance config.
 
 ## Accessing Axios instance
@@ -106,20 +109,24 @@ Available: `silent` | `reject` | `throwError`
 > `throwError`
 > An exception with Error object will be triggered. Using this approach you need to remember to set try/catch per each request to catch exceptions properly.
 
+
 `flattenResponse`
 Default `true`
 
 Flattens nested response.data so you can avoid writing `response.data.data` and obtain response directly. Response is flattened when there is a "data" within Axios' response "data", and no other object properties set.
+
 
 `timeout`
 Default `30000`
 
 You can set a timeout in milliseconds.
 
+
 `logger`
 Default `console`
 
 You can additionally specify logger property with your custom logger to automatically log the errors to the console.
+
 
 `httpRequestErrorService`
 Default `null`
