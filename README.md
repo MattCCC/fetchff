@@ -77,6 +77,13 @@ Axios-multi-api includes necessary [TypeScript](http://typescriptlang.org) defin
 
 ### Example of interface
 ```typescript
+import {
+    Endpoints,
+    Endpoint,
+    APIQueryParams,
+    APIUrlParams,
+} from 'axios-multi-api/dist/types/api';
+
 import { ApiHandler } from 'axios-multi-api';
 
 interface EndpointsList extends Endpoints {
@@ -85,7 +92,7 @@ interface EndpointsList extends Endpoints {
 };
 
 const api = new ApiService({
-// Your config
+  // Your config
 }) as unknown as EndpointsList;
 
 ```
