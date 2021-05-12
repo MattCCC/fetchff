@@ -158,3 +158,5 @@ export class ApiHandler implements MagicalClass {
         return Promise.resolve(null);
     }
 }
+
+export const createApiFetcher = (options: APIHandlerConfig) => new ApiHandler(options);

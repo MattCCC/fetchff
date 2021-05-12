@@ -10,6 +10,20 @@ You can set up multiple API handlers for different sets of APIs from different s
 
 Package was originally written to accomodate many API requests in an orderly fashion.
 
+## Table of Contents
+
+- [Features](#features)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Endpoint methods](#endpoint-methods)
+- [Accessing Axios instance](#accessing-axios-instance)
+- [Full TypeScript support](#full-typescript-support)
+- [Additional Configuration](#additional-configuration)
+- [Advanced example](#advanced-example)
+- [ToDo](#todo)
+- [Support & collaboration](#support-collaboration)
+
+
 ## Features
 - Multi APIs support
 - Support for multiple response resolving strategies
@@ -29,9 +43,9 @@ npm i axios-multi-api
 ## Usage
 
 ```typescript
-import { ApiHandler } from 'axios-multi-api';
+import { createApiFetcher } from 'axios-multi-api';
 
-const api = new ApiHandler({
+const api = createApiFetcher({
     apiUrl: 'https://example.com/api/',
     apiEndpoints: {
       getUserDetails: {
@@ -49,7 +63,7 @@ const data = api.getUserDetails({ userId: 1 });
 
 api.updateUserDetails({ name: 'Mark' }, { userId: 1 });
 ```
-In this basic demo we fetch data from an API for user with an ID of 1. We also update user's name to Mark.
+In this basic example we fetch data from an API for user with an ID of 1. We also update user's name to Mark. If you prefer OOP you can import `ApiHandler` and initialize the handler using `new ApiHandler` instead.
 
 ## Endpoint methods
 ##### api.yourEndpointName(queryParams, urlParams, requestConfig)
@@ -84,14 +98,14 @@ import {
     APIUrlParams,
 } from 'axios-multi-api/dist/types/api';
 
-import { ApiHandler } from 'axios-multi-api';
+import { createApiFetcher } from 'axios-multi-api';
 
 interface EndpointsList extends Endpoints {
     fetchMovies: Endpoint<myQueryParams, myURLParams, myResponse>;
     fetchTVSeries: Endpoint;
 };
 
-const api = new ApiService({
+const api = createApiFetcher({
   // Your config
 }) as unknown as EndpointsList;
 
@@ -138,9 +152,9 @@ You can additionally specify logger property with your custom logger to automati
 `httpRequestErrorService`
 Default `null`
 
-You can specify either class or a function that will be triggered whenever an endpoint fails. If it's a class it should expose a `process` method Axios Error Object will be sent as a first argument of it.
+You can specify either class or a function that will be triggered whenever an endpoint fails. If it's a class it should expose a `process` method. Axios Error Object will be sent as a first argument of it.
 
-## Advanced demo
+## Advanced example
 
 You could for example create an API service class that extends the handler, inject an error service class to handle with a store that would collect the errors.
 
@@ -157,7 +171,7 @@ export class ApiService extends ApiHandler {
      * @param {string} payload.apiUrl            Api url
      * @param {string} payload.apiEndpoints      Api endpoints
      * @param {*} payload.logger                 Logger instance
-     * @param {*} payload.storeDispatcher        A dispatcher function to dispatch data to the store
+     * @param {*} payload.storeDispatcher        A dispatcher function to dispatch data to a store
      * @memberof ApiService
      */
     public constructor({
@@ -186,7 +200,7 @@ export class ApiService extends ApiHandler {
 }
 
 const api = new ApiService({
-  //...
+  // Your config
 });
 ```
 
