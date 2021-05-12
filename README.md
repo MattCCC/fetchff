@@ -51,9 +51,17 @@ api.updateUserDetails({ name: 'Mark' }, { userId: 1 });
 ```
 In this basic demo we fetch data from an API for user with an ID of 1. We also update user's name to Mark.
 
+## Endpoint methods
+##### api.yourEndpointName(queryParams, urlParams, requestConfig)
+
+`queryParams` (optional)
 First argument of APIs functions is an object with query params for `GET` requests, or with a payload for `POST` requests. Another request types are supported as well.
 
-Second argument is optional, and gives possibility to modify urls structure in a declarative way. In our example `/user-details/update/:userId` will become `/user-details/update/1` when API request will be made.
+`urlParams` (optional)
+It gives possibility to modify urls structure in a declarative way. In our example `/user-details/update/:userId` will become `/user-details/update/1` when API request will be made.
+
+`requestConfig` (optional)
+The specified Axios compatible config will be merged with the instance config.
 
 ## Accessing Axios instance
 
@@ -62,7 +70,24 @@ Under the hood, a new Axios instance is created when handler is initialized. You
 
 ## Full TypeScript support
 
-Axios-multi-api includes necessary [TypeScript](http://typescriptlang.org) definitions. For full TypeScript support for your endpoints, you could modify interface of your `ApiHandler` and use your own for the API Endpoints provided.
+Axios-multi-api includes necessary [TypeScript](http://typescriptlang.org) definitions. For full TypeScript support for your endpoints, you could overwrite interface using Type Assertion of your `ApiHandler` and use your own for the API Endpoints provided.
+
+### Example of interface
+```typescript
+import { ApiHandler } from 'axios-multi-api';
+
+interface EndpointsList extends Endpoints {
+    fetchMovies: Endpoint<myQueryParams, myURLParams, myResponse>;
+    fetchTVSeries: Endpoint;
+};
+
+const api = new ApiService({
+// Your config
+}) as unknown as EndpointsList;
+
+```
+
+Package ships interfaces with responsible defaults making it easier to add new endpoints. It exposes `Endpoints` and `Endpoint` types.
 
 ## Additional Configuration
 `strategy`

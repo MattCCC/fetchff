@@ -29,10 +29,21 @@ export interface IHttpRequestHandler {
     requestInstance: AxiosInstance;
     timeout: NonNullable<number>;
     strategy: ErrorHandlingStrategy;
+    flattenResponse: boolean;
+
     getInstance(): AxiosInstance;
+
     interceptRequest(callback: InterceptorCallback): void;
+
     post(url: string, data?: any, config?: AxiosRequestConfig): Promise<IRequestResponse>;
+
     get(url: string, data?: any, config?: AxiosRequestConfig): Promise<IRequestResponse>;
+
     put(url: string, data?: any, config?: AxiosRequestConfig): Promise<IRequestResponse>;
+
     delete(url: string, data?: any, config?: AxiosRequestConfig): Promise<IRequestResponse>;
+
+    head(url: string, data?: any, config?: AxiosRequestConfig): Promise<IRequestResponse>;
+
+    patch(url: string, data?: any, config?: AxiosRequestConfig): Promise<IRequestResponse>;
 }
