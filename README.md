@@ -121,8 +121,8 @@ Global settings are passed to `createApiFetcher()` function. You can pass all [A
 | flattenResponse | boolean | `true` | Flattens nested response.data so you can avoid writing `response.data.data` and obtain response directly. Response is flattened whenever there is a "data" within response "data", and no other object properties set. |
 | defaultResponse | any | `null` | Default response when there is no data or when endpoint fails depending on the chosen `strategy` |
 | timeout | int | `30000` | You can set a timeout in milliseconds. |
-| logger | any | `console` | You can additionally specify logger property with your custom logger to automatically log the errors to the console. |
-| onError | any | | You can specify a function or class that will be triggered when an endpoint fails. If it's a class it should expose a `process` method. Axios Error Object will be sent as a first argument of it. |
+| logger | object | `console` | You can additionally specify logger object with your custom logger to automatically log the errors to the console. It should contain at least `error` and `warn` functions. `console.log` is used by default. |
+| onError | function | | You can specify a function or class that will be triggered when an endpoint fails. If it's a class it should expose a `process` method. Axios Error Object will be sent as a first argument of it. |
 
 ## Per Endpoint Settings
 
