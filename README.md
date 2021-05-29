@@ -88,7 +88,7 @@ In this basic example we fetch data from an API for user with an ID of 1. We als
 
 First argument of APIs functions is an object with query params for `GET` requests, or with a payload for `POST` requests. Another request types are supported as well.
 
-Query params accept arrays. If you pass { foo: [1, 2] }, it will become: foo[]=1&foo[]=2 automatically.
+Query params accepts strings, numbers, and even arrays so you pass { foo: [1, 2] } and it will become: foo[]=1&foo[]=2 automatically.
 
 `urlParams` (optional)
 
