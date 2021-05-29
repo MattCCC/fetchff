@@ -12,6 +12,7 @@ import {
 import {
     IRequestResponse,
     APIHandlerConfig,
+    EndpointConfig,
 } from './types/http-request-handler';
 
 import {
@@ -30,8 +31,6 @@ export class ApiHandler implements MagicalClass {
 
     /**
      * Api Url
-     *
-     * @memberof ApiHandler
      */
     public apiUrl = '';
 
@@ -42,15 +41,11 @@ export class ApiHandler implements MagicalClass {
 
     /**
      * Endpoints
-     *
-     * @memberof ApiHandler
      */
-    public apiEndpoints: Record<string, any>;
+    public apiEndpoints: Record<string, EndpointConfig>;
 
     /**
      * Logger
-     *
-     * @memberof ApiHandler
      */
     public logger: any;
 
@@ -63,8 +58,6 @@ export class ApiHandler implements MagicalClass {
      * @param {string} flattenResponse      Whether to flatten response "data" object within "data" one
      * @param {*} logger                    Instance of Logger Class
      * @param {*} onError                   Instance of Error Service Class
-     *
-     * @memberof ApiHandler
      */
     public constructor({
         apiUrl,
@@ -99,7 +92,6 @@ export class ApiHandler implements MagicalClass {
      * Get Provider Instance
      *
      * @returns {AxiosInstance} Provider's instance
-     * @memberof ApiHandler
      */
     public getInstance(): AxiosInstance {
         return this.httpRequestHandler.getInstance();
@@ -110,7 +102,6 @@ export class ApiHandler implements MagicalClass {
      *
      * @param {*} prop          Caller
      * @returns {Function}      Tailored request function
-     * @memberof ApiHandler
      */
     public __get(prop: any): any {
         if (prop in this) {
@@ -130,7 +121,6 @@ export class ApiHandler implements MagicalClass {
      *
      * @param {*} args      Arguments
      * @returns {Promise}   Resolvable API provider promise
-     * @memberof ApiHandler
      */
     public async handleRequest(...args: any): Promise<IRequestResponse> {
         const prop = args[0];
@@ -159,9 +149,9 @@ export class ApiHandler implements MagicalClass {
 
     /**
      * Triggered when trying to use non-existent endpoints
+     *
      * @param prop Method Name
      * @returns {Promise}
-     * @memberof ApiHandler
      */
     protected handleNonImplemented(prop: string): Promise<any> {
         if (this.logger && this.logger.log) {
