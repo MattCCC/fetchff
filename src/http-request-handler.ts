@@ -50,7 +50,7 @@ export class HttpRequestHandler implements IHttpRequestHandler {
      *
      * @memberof HttpRequestHandler
      */
-    public strategy: ErrorHandlingStrategy = 'silent';
+    public strategy: ErrorHandlingStrategy = 'reject';
 
     /**
      * @var flattenResponse Response flattening
