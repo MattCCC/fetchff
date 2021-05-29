@@ -139,13 +139,9 @@ export class ApiHandler implements MagicalClass {
 
         const uri = api.url.replace(/:[a-z]+/ig, (str: string) => (uriParams[str.substr(1)] ? uriParams[str.substr(1)] : str));
 
-        const requestData = {
-            ...queryParams,
-        };
-
         let responseData = null;
 
-        responseData = await this.httpRequestHandler[api.method](uri, requestData, requestConfig);
+        responseData = await this.httpRequestHandler[api.method](uri, queryParams, requestConfig);
 
         return responseData;
     }
