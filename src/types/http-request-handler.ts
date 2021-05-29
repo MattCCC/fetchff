@@ -4,7 +4,7 @@ export type IRequestResponse<T = any> = Promise<AxiosResponse<T>>;
 
 export type InterceptorCallback = (value: AxiosRequestConfig) => AxiosRequestConfig | Promise<AxiosRequestConfig>;
 
-export type ErrorHandlingStrategy = 'throwError' | 'reject' | 'silent';
+export type ErrorHandlingStrategy = 'throwError' | 'reject' | 'silent' | 'defaultResponse';
 
 export interface EndpointConfig extends AxiosRequestConfig {
     cancellable?: boolean;
