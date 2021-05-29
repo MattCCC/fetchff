@@ -70,7 +70,7 @@ const api = createApiFetcher({
       },
     },
     // Optionally
-    httpRequestErrorService: (error) => {
+    onError: (error) => {
       console.log('Request failed', error);
     }
 });
@@ -114,7 +114,7 @@ Global settings is passed to `createApiFetcher()` function. You can pass all [Ax
 | flattenResponse | boolean | `true` | Flattens nested response.data so you can avoid writing `response.data.data` and obtain response directly. Response is flattened whenever there is a "data" within response "data", and no other object properties set. |
 | timeout | int | `30000` | You can set a timeout in milliseconds. |
 | logger | any | `console` | You can additionally specify logger property with your custom logger to automatically log the errors to the console. |
-| httpRequestErrorService | any | | You can specify a function or class that will be triggered when an endpoint fails. If it's a class it should expose a `process` method. Axios Error Object will be sent as a first argument of it. |
+| onError | any | | You can specify a function or class that will be triggered when an endpoint fails. If it's a class it should expose a `process` method. Axios Error Object will be sent as a first argument of it. |
 
 ## Single Endpoint Settings
 
@@ -164,27 +164,36 @@ As you may notice there's also a `setupInterceptor` and `httpRequestHandler` exp
 ```typescript
 import { ApiHandler } from 'axios-multi-api';
 
+class MyCustomHttpRequestError {
+  public constructor(myCallback) {
+    this.myCallback = myCallback
+  }
+
+  public process(error) {
+    this.myCallback('Request error', error);
+  }
+}
+
 export class ApiService extends ApiHandler {
     /**
      * Creates an instance of Api Service.
-     * @param {object} payload                   Payload
-     * @param {string} payload.apiUrl            Api url
-     * @param {string} payload.apiEndpoints      Api endpoints
-     * @param {*} payload.logger                 Logger instance
-     * @param {*} payload.storeDispatcher        A dispatcher function to dispatch data to a store
-     * @memberof ApiService
+     * @param {object}  payload                   Payload
+     * @param {string}  payload.apiUrl            Api url
+     * @param {string}  payload.apiEndpoints      Api endpoints
+     * @param {*}       payload.logger                 Logger instance
+     * @param {*}       payload.myCallback             Callback function, could be a dispatcher that e.g. forwards error data to a store
      */
     public constructor({
         apiUrl,
         apiEndpoints,
         logger,
-        storeDispatcher,
+        myCallback,
     }) {
         super({
             apiUrl,
             apiEndpoints,
             logger,
-            httpRequestErrorService: new HttpRequestErrorService(storeDispatcher),
+            onError: new MyCustomHttpRequestError(myCallback),
         });
 
         this.setupInterceptor();
@@ -195,7 +204,7 @@ export class ApiService extends ApiHandler {
      * @returns {void}
      */
     protected setupInterceptor(): void {
-        this.httpRequestHandler.interceptRequest(onRequest);
+        this.getInstance().interceptRequest(onRequest);
     }
 }
 

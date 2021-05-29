@@ -91,14 +91,14 @@ export class HttpRequestHandler implements IHttpRequestHandler {
         strategy = null,
         flattenResponse = null,
         logger = null,
-        httpRequestErrorService = null,
+        onError = null,
         ...config
     }: RequestHandlerConfig) {
         this.timeout = timeout !== null ? timeout : this.timeout;
         this.strategy = strategy !== null ? strategy : this.strategy;
         this.flattenResponse = flattenResponse !== null ? flattenResponse : this.flattenResponse;
         this.logger = logger || global.console || window.console || null;
-        this.httpRequestErrorService = httpRequestErrorService;
+        this.httpRequestErrorService = onError;
 
         this.requestInstance = axios.create({
             ...config,
