@@ -1,5 +1,10 @@
 # Axios Multi API
 
+[npm-url]: https://npmjs.org/package/axios-multi-api
+[npm-image]: http://img.shields.io/npm/v/axios-multi-api.svg
+
+[![NPM version][npm-image]][npm-url]  [![Blazing Fast](https://badgen.now.sh/badge/speed/blazing%20%F0%9F%94%A5/green)](https://github.com/MattCCC/axios-multi-api)
+
 Oftentimes projects require complex APIs setups, middlewares and another stuff to accomodate a lot of API requests. Axios API Handler simplifies API handling to the extent that developers can focus on operating on the fetched data from their APIs rather than on complex initial setups.
 
 This package helps in handling of many API endpoints in a simple, declarative fashion. It also aims to provide a possibility to use a global error handling in an easy manner.
@@ -15,10 +20,11 @@ Package was originally written to accomodate many API requests in an orderly fas
 - [Features](#features)
 - [Installation](#installation)
 - [Usage](#usage)
-- [Endpoint methods](#endpoint-methods)
+- [API methods](#api-methods)
 - [Accessing Axios instance](#accessing-axios-instance)
+- [Global Settings](#global-settings)
+- [Single Endpoint Settings](#single-endpoint-settings)
 - [Full TypeScript support](#full-typescript-support)
-- [Additional Configuration](#additional-configuration)
 - [Advanced example](#advanced-example)
 - [ToDo](#todo)
 - [Support & collaboration](#support-collaboration)
@@ -65,12 +71,14 @@ api.updateUserDetails({ name: 'Mark' }, { userId: 1 });
 ```
 In this basic example we fetch data from an API for user with an ID of 1. We also update user's name to Mark. If you prefer OOP you can import `ApiHandler` and initialize the handler using `new ApiHandler` instead.
 
-## Endpoint methods
+## API methods
 ##### api.yourEndpointName(queryParams, urlParams, requestConfig)
 
-`queryParams` (optional)
+`queryParams` / `payload` (optional)
 
 First argument of APIs functions is an object with query params for `GET` requests, or with a payload for `POST` requests. Another request types are supported as well.
+
+Query params accept arrays. If you pass { foo: [1, 2] }, it will become: foo[]=1&foo[]=2 automatically.
 
 `urlParams` (optional)
 
@@ -78,87 +86,69 @@ It gives possibility to modify urls structure in a declarative way. In our examp
 
 `requestConfig` (optional)
 
-The specified Axios compatible config will be merged with the instance config.
+Axios compatible [Request Config](https://github.com/axios/axios#request-config) for particular endpoint. It will overwrite the global settings.
 
-## Accessing Axios instance
+##### api.getInstance()
 
-Under the hood, a new Axios instance is created when handler is initialized. You can call `api.getInstance()` if you want to operate on Axios instance directly, e.g. to add some interceptors.
+When API handler is firstly initialized, a new Axios instance is created. You can call `api.getInstance()` if you want to get that instance directly, for example to add some interceptors.
 
+## Global Settings
+
+Global settings is passed to `createApiFetcher()` function. You can pass all [Axios Request Config](https://github.com/axios/axios#request-config). Additional options are listed below.
+
+| Option        | Type    | Default | Description                                                                                                                                                                                                                                               |
+| ------------- | ------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| apiUrl | string |     | Your API base url. |
+| apiEndpoints | object |  | List of your endpoints. Check [Single Endpoint Settings](#single-endpoint-settings) for options. |
+| strategy | string | `silent` | Available: `silent`, `reject`, `throwError`<br><br>`silent` can be used for a requests that are dispatched within asynchronous wrapper functions. If a request fails, promise will silently hang and no action underneath will be performed. Please remember that this is not what Promises were made for, however if used properly it saves developers from try/catch or additional response data checks everywhere<br><br>`reject` will simply reject the promise and global error handling will be triggered right before the rejection.<br><br>`throwError` will thrown an exception with Error object. Using this approach you need to remember to set try/catch per each request to catch exceptions properly. |
+| flattenResponse | boolean | `true` | Flattens nested response.data so you can avoid writing `response.data.data` and obtain response directly. Response is flattened whenever there is a "data" within response "data", and no other object properties set. |
+| timeout | int | `30000` | You can set a timeout in milliseconds. |
+| logger | any | `console` | You can additionally specify logger property with your custom logger to automatically log the errors to the console. |
+| httpRequestErrorService | any | | You can specify a function or class that will be triggered when an endpoint fails. If it's a class it should expose a `process` method. Axios Error Object will be sent as a first argument of it. |
+
+## Single Endpoint Settings
+
+Globally specified endpoints in `apiEndpoints` are objects that accept following properties:
+
+
+| Option | Type   | Default | Description        |
+| ------ | ------ | ------- | ------------------ |
+| method | string |         | Default request method e.g. GET, POST etc. Must be lowercase. |
+| url | string |         | Url path e.g. /user-details/get |
 
 ## Full TypeScript support
 
 Axios-multi-api includes necessary [TypeScript](http://typescriptlang.org) definitions. For full TypeScript support for your endpoints, you could overwrite interface using Type Assertion of your `ApiHandler` and use your own for the API Endpoints provided.
 
 ### Example of interface
+
 ```typescript
 import {
-    Endpoints,
-    Endpoint,
-    APIQueryParams,
-    APIUrlParams,
+  Endpoints,
+  Endpoint,
+  APIQueryParams,
+  APIUrlParams,
 } from 'axios-multi-api/dist/types/api';
 
 import { createApiFetcher } from 'axios-multi-api';
 
 interface EndpointsList extends Endpoints {
-    fetchMovies: Endpoint<myQueryParams, myURLParams, myResponse>;
-    fetchTVSeries: Endpoint;
-};
+  fetchMovies: Endpoint<myQueryParams, myURLParams, myResponse>;
+  fetchTVSeries: Endpoint;
+}
 
-const api = createApiFetcher({
+const api = (createApiFetcher({
   // Your config
-}) as unknown as EndpointsList;
-
+}) as unknown) as EndpointsList;
 ```
 
 Package ships interfaces with responsible defaults making it easier to add new endpoints. It exposes `Endpoints` and `Endpoint` types.
-
-## Additional Configuration
-`strategy`
-Default: `silent`
-Available: `silent` | `reject` | `throwError`
-
-> `silent`
-> Can be used for a requests that are dispatched within asynchronous wrapper functions
-> Those functions should preferably never be awaited
-> If a request fails, promise will silently hang and no action underneath will be performed
-> Please remember that this is not what Promises were made for, however if used properly it saves developers from try/catch or additional response data checks everywhere
-
-> `reject`
-> Promise will be simply rejected and global error handling triggered right before the rejection
-
-> `throwError`
-> An exception with Error object will be triggered. Using this approach you need to remember to set try/catch per each request to catch exceptions properly.
-
-
-`flattenResponse`
-Default `true`
-
-Flattens nested response.data so you can avoid writing `response.data.data` and obtain response directly. Response is flattened when there is a "data" within Axios' response "data", and no other object properties set.
-
-
-`timeout`
-Default `30000`
-
-You can set a timeout in milliseconds.
-
-
-`logger`
-Default `console`
-
-You can additionally specify logger property with your custom logger to automatically log the errors to the console.
-
-
-`httpRequestErrorService`
-Default `null`
-
-You can specify either class or a function that will be triggered whenever an endpoint fails. If it's a class it should expose a `process` method. Axios Error Object will be sent as a first argument of it.
 
 ## Advanced example
 
 You could for example create an API service class that extends the handler, inject an error service class to handle with a store that would collect the errors.
 
-As you may notice there's also a `setupInterceptor` and `httpRequestHandler` exposed. You can operate on it instead of requesting an Axios instance prior the operation. In this way you can use all Axios configuration settings on a particular API handler.
+As you may notice there's also a `setupInterceptor` and `httpRequestHandler` exposed. You can operate on it instead of requesting an Axios instance prior the operation. This way you can use all Axios settings for a particular API handler.
 
 
 ```typescript
@@ -205,11 +195,9 @@ const api = new ApiService({
 ```
 
 ## ToDo
-1) Better Axios Instance exposure.
-2) Improve Readme by adding more information.
-3) Cancellation strategies support.
-4) Better API exposure.
-5) More tests.
+* Cancellation strategies support
+* Injectable cache
+* Better API exposure
 
 ## Support & collaboration
 
