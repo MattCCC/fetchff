@@ -39,10 +39,13 @@ Package was originally written to accomodate many API requests in an orderly fas
 - Multiple requests chaining (using promises)
 - Browsers & Node 12+ compatible
 - TypeScript compatible
+- All Axios options are supported
 
-## ToDo
-- Per request cache
-- Better API exposure
+## Todo
+- Per request cache (localstorage/sessions)
+- Full fetch() API support
+
+Please open an issue for future requests!
 
 ## Installation
 [![NPM](https://nodei.co/npm/axios-multi-api.png)](https://npmjs.org/package/axios-multi-api)
@@ -131,7 +134,7 @@ Each endpoint in `apiEndpoints` is an object that accepts properties below. You 
 | url | string |         | Url path e.g. /user-details/get |
 | cancellable | boolean | `false` | Whether previous requests should be automatically cancelled. See global settings for more info. |
 | rejectCancelled | boolean | `false` | If `true` and request is set to `cancellable`, a cancelled request promise will be rejected. By default instead of rejecting the promise, `defaultResponse` from global options is returned. |
-| defaultResponse | any | `{}` | Default response when there is no data or when endpoint fails depending on the chosen `strategy` |
+| defaultResponse | any | `null` | Default response when there is no data or when endpoint fails depending on a chosen `strategy` |
 
 ## Full TypeScript support
 

@@ -134,17 +134,20 @@ export class ApiHandler implements MagicalClass {
      */
     public async handleRequest(...args: any): Promise<IRequestResponse> {
         const prop = args[0];
-        const api = this.apiEndpoints[prop];
+        const endpointOptions = this.apiEndpoints[prop];
 
         const queryParams = args[1] || {};
         const uriParams = args[2] || {};
         const requestConfig = args[3] || {};
 
-        const uri = api.url.replace(/:[a-z]+/ig, (str: string) => (uriParams[str.substr(1)] ? uriParams[str.substr(1)] : str));
+        const uri = endpointOptions.url.replace(/:[a-z]+/ig, (str: string) => (uriParams[str.substr(1)] ? uriParams[str.substr(1)] : str));
 
         let responseData = null;
 
-        responseData = await this.httpRequestHandler[api.method](uri, queryParams, requestConfig);
+        responseData = await this.httpRequestHandler[endpointOptions.method](uri, queryParams, {
+            ...requestConfig,
+            ...endpointOptions,
+        });
 
         return responseData;
     }
