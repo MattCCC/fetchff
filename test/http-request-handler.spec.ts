@@ -64,20 +64,23 @@ describe('API Handler', () => {
             try {
                 response = await httpRequestHandler.delete(apiUrl);
             } catch (error) {
+                expect(typeof error).toBe("object");
             }
 
             expect(response).toBe(undefined);
         });
 
-        it('should reject promise when using Throw Error strategy', async () => {
+        it('should reject promise when using reject strategy per endpoing', async () => {
             const httpRequestHandler = new HttpRequestHandler({
-                strategy: 'throwError',
+                strategy: 'silent',
             });
 
             httpRequestHandler.requestInstance.request = jest.fn().mockRejectedValue(new Error('Request Failed'));
 
             try {
-                await httpRequestHandler.delete(apiUrl);
+                await httpRequestHandler.delete(apiUrl, null, {
+                    strategy: 'throwError',
+                });
             } catch (error) {
                 expect(typeof error).toBe("object");
             }

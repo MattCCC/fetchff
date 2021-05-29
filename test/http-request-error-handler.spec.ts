@@ -10,7 +10,7 @@ describe('API Handler', () => {
     }
 
     it('should call provided error callback', () => {
-        const httpRequestHandler = new HttpRequestErrorHandler(null, mockErrorCallback, 'silent');
+        const httpRequestHandler = new HttpRequestErrorHandler(null, mockErrorCallback);
         httpRequestHandler.httpRequestErrorService = jest.fn().mockResolvedValue(mockErrorCallback);
 
         httpRequestHandler.process('My error text');
@@ -20,7 +20,7 @@ describe('API Handler', () => {
     });
 
     it('should call provided error class', () => {
-        const httpRequestHandler = new HttpRequestErrorHandler(null, mockErrorCallbackClass, 'silent');
+        const httpRequestHandler = new HttpRequestErrorHandler(null, mockErrorCallbackClass);
         httpRequestHandler.httpRequestErrorService.process = jest.fn().mockResolvedValue(mockErrorCallbackClass);
 
         httpRequestHandler.process('My error text');
