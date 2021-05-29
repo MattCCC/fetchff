@@ -35,8 +35,14 @@ Package was originally written to accomodate many API requests in an orderly fas
 - Support for multiple response resolving strategies
 - Support for dynamic urls
 - Multiple requests chaining (using promises)
-- Browsers & Node 10+ compatible
+- Browsers & Node 12+ compatible
 - TypeScript compatible
+
+## ToDo
+
+- Cancellation strategies support
+- Per request cache
+- Better API exposure
 
 ## Installation
 [![NPM](https://nodei.co/npm/axios-multi-api.png)](https://npmjs.org/package/axios-multi-api)
@@ -63,13 +69,17 @@ const api = createApiFetcher({
         url: '/user-details/update/:userId',
       },
     },
+    // Optionally
+    httpRequestErrorService: (error) => {
+      console.log('Request failed', error);
+    }
 });
 
 const data = api.getUserDetails({ userId: 1 });
 
 api.updateUserDetails({ name: 'Mark' }, { userId: 1 });
 ```
-In this basic example we fetch data from an API for user with an ID of 1. We also update user's name to Mark. If you prefer OOP you can import `ApiHandler` and initialize the handler using `new ApiHandler` instead.
+In this basic example we fetch data from an API for user with an ID of 1. We also update user's name to Mark. If you prefer OOP you can import `ApiHandler` and initialize the handler using `new ApiHandler()` instead.
 
 ## API methods
 ##### api.yourEndpointName(queryParams, urlParams, requestConfig)
@@ -100,7 +110,7 @@ Global settings is passed to `createApiFetcher()` function. You can pass all [Ax
 | ------------- | ------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | apiUrl | string |     | Your API base url. |
 | apiEndpoints | object |  | List of your endpoints. Check [Single Endpoint Settings](#single-endpoint-settings) for options. |
-| strategy | string | `silent` | Available: `silent`, `reject`, `throwError`<br><br>`silent` can be used for a requests that are dispatched within asynchronous wrapper functions. If a request fails, promise will silently hang and no action underneath will be performed. Please remember that this is not what Promises were made for, however if used properly it saves developers from try/catch or additional response data checks everywhere<br><br>`reject` will simply reject the promise and global error handling will be triggered right before the rejection.<br><br>`throwError` will thrown an exception with Error object. Using this approach you need to remember to set try/catch per each request to catch exceptions properly. |
+| strategy | string | `reject` | Available: `silent`, `reject`, `throwError`<br><br>`silent` can be used for a requests that are dispatched within asynchronous wrapper functions. If a request fails, promise will silently hang and no action underneath will be performed. Please remember that this is not what Promises were made for, however if used properly it saves developers from try/catch or additional response data checks everywhere<br><br>`reject` will simply reject the promise and global error handling will be triggered right before the rejection.<br><br>`throwError` will thrown an exception with Error object. Using this approach you need to remember to set try/catch per each request to catch exceptions properly. |
 | flattenResponse | boolean | `true` | Flattens nested response.data so you can avoid writing `response.data.data` and obtain response directly. Response is flattened whenever there is a "data" within response "data", and no other object properties set. |
 | timeout | int | `30000` | You can set a timeout in milliseconds. |
 | logger | any | `console` | You can additionally specify logger property with your custom logger to automatically log the errors to the console. |
@@ -193,11 +203,6 @@ const api = new ApiService({
   // Your config
 });
 ```
-
-## ToDo
-* Cancellation strategies support
-* Injectable cache
-* Better API exposure
 
 ## Support & collaboration
 
