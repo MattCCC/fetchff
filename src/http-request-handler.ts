@@ -4,10 +4,6 @@ import axios, {
     Method,
 } from 'axios';
 
-import {
-    CatchAll,
-} from '@magna_shogun/catch-decorator';
-
 // Shared Modules
 import {
     HttpRequestErrorHandler,
@@ -29,7 +25,6 @@ import {
  * It creates an Axios instance and handles requests within that instance
  * It handles errors depending on a chosen error handling strategy
  */
-@CatchAll((err, ctx: HttpRequestHandler) => ctx.processRequestError(err))
 export class HttpRequestHandler implements IHttpRequestHandler {
     /**
      * @var requestInstance Provider's instance
