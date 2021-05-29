@@ -18,6 +18,7 @@ Package was originally written to accomodate many API requests in an orderly fas
 ## Table of Contents
 
 - [Features](#features)
+- [ToDo](#todo)
 - [Installation](#installation)
 - [Usage](#usage)
 - [API methods](#api-methods)
@@ -26,21 +27,20 @@ Package was originally written to accomodate many API requests in an orderly fas
   -  [Per Endpoint Settings](#per-endpoint-settings)
 - [Full TypeScript support](#full-typescript-support)
 - [Advanced example](#advanced-example)
-- [ToDo](#todo)
 - [Support & collaboration](#support-collaboration)
 
 
 ## Features
 - Multi APIs support
-- Support for multiple response resolving strategies
-- Support for dynamic urls
+- Global error handler for requests
+- Automatically cancel previous requests
+- Multiple response resolving strategies
+- Dynamic urls support
 - Multiple requests chaining (using promises)
 - Browsers & Node 12+ compatible
 - TypeScript compatible
 
 ## ToDo
-
-- Cancellation strategies support
 - Per request cache
 - Better API exposure
 
@@ -69,8 +69,8 @@ const api = createApiFetcher({
         url: '/user-details/update/:userId',
       },
     },
-    // Optionally
-    onError: (error) => {
+    // Optional
+    onError(error) {
       console.log('Request failed', error);
     }
 });
@@ -106,29 +106,32 @@ When API handler is firstly initialized, a new Axios instance is created. You ca
 
 ## Global Settings
 
-Global settings is passed to `createApiFetcher()` function. You can pass all [Axios Request Config](https://github.com/axios/axios#request-config). Additional options are listed below.
+Global settings are passed to `createApiFetcher()` function. You can pass all [Axios Request Config](https://github.com/axios/axios#request-config). Additional options are listed below.
 
 | Option        | Type    | Default | Description                                                                                                                                                                                                                                               |
 | ------------- | ------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | apiUrl | string |     | Your API base url. |
 | apiEndpoints | object |  | List of your endpoints. Check [Per Endpoint Settings](#per-endpoint-settings) for options. |
-| strategy | string | `reject` | Available: `silent`, `reject`, `throwError`<br><br>`silent` can be used for a requests that are dispatched within asynchronous wrapper functions. If a request fails, promise will silently hang and no action underneath will be performed. Please remember that this is not what Promises were made for, however if used properly it saves developers from try/catch or additional response data checks everywhere<br><br>`reject` will simply reject the promise and global error handling will be triggered right before the rejection.<br><br>`throwError` when request fails it throws an exception with Error object. Using this approach you need to remember to set try/catch per each request to catch exceptions properly. |
+| strategy | string | `silent` | Error handling strategies - basically what to return when an error occurs. It can be a default data, promise can be hanged (nothing would be returned) or rejected so to use try/catch. Available: `silent`, `reject`, `defaultResponse`<br><br>`silent` can be used for a requests that are dispatched within asynchronous wrapper functions. If a request fails, promise will silently hang and no action will be performed. It will never be resolved or rejected when there is an error. Please remember that this is not what Promises were made for, however if used properly it saves developers from try/catch or additional response data checks everywhere. You can use is in combination with `onError` so to handle errors globally.<br><br>`reject` will simply reject the promise. Global error handling will be triggered right before the rejection. You will need to remember to set try/catch per each request to catch exceptions properly.<br><br>`defaultResponse` will return defaultResponse specified in either global or per endpoint settings. Promise will not be rejected but simply pass and return the object. It could be used together with destructuring to provide a responsible defaults. |
 | cancellable | boolean | `false` | If set to `true` any previously dispatched requests to same url & of method will be cancelled, if a successive request is made meanwhile. This let's you avoid unnecessary requests to the backend. |
 | flattenResponse | boolean | `true` | Flattens nested response.data so you can avoid writing `response.data.data` and obtain response directly. Response is flattened whenever there is a "data" within response "data", and no other object properties set. |
+| defaultResponse | any | `null` | Default response when there is no data or when endpoint fails depending on the chosen `strategy` |
 | timeout | int | `30000` | You can set a timeout in milliseconds. |
 | logger | any | `console` | You can additionally specify logger property with your custom logger to automatically log the errors to the console. |
 | onError | any | | You can specify a function or class that will be triggered when an endpoint fails. If it's a class it should expose a `process` method. Axios Error Object will be sent as a first argument of it. |
 
 #### Per Endpoint Settings
 
-Each endpoint in `apiEndpoints` is an object that accepts following properties:
+Each endpoint in `apiEndpoints` is an object that accepts properties below. You can also pass these options as a 3rd argument when calling an endpoint so to have a more granular control.
 
 
 | Option | Type   | Default | Description        |
 | ------ | ------ | ------- | ------------------ |
 | method | string |         | Default request method e.g. GET, POST etc. Must be lowercase. |
 | url | string |         | Url path e.g. /user-details/get |
-| cancellable | boolean | `false` | See global settings for more info. |
+| cancellable | boolean | `false` | Whether previous requests should be automatically cancelled. See global settings for more info. |
+| rejectCancelled | boolean | `false` | If `true` and request is set to `cancellable`, a cancelled request promise will be rejected. By default instead of rejecting the promise, `defaultResponse` from global options is returned. |
+| defaultResponse | any | `{}` | Default response when there is no data or when endpoint fails depending on the chosen `strategy` |
 
 ## Full TypeScript support
 
@@ -146,14 +149,24 @@ import {
 
 import { createApiFetcher } from 'axios-multi-api';
 
+interface myQueryParams {
+  newMovies: boolean;
+}
+
 interface EndpointsList extends Endpoints {
   fetchMovies: Endpoint<myQueryParams, myURLParams, myResponse>;
+
+  // Or you can use just Endpoint
   fetchTVSeries: Endpoint;
 }
 
 const api = (createApiFetcher({
   // Your config
 }) as unknown) as EndpointsList;
+
+// Will return an error since "newMovies" should be a boolean
+api.fetchMovies( { newMovies: 1 } );
+
 ```
 
 Package ships interfaces with responsible defaults making it easier to add new endpoints. It exposes `Endpoints` and `Endpoint` types.

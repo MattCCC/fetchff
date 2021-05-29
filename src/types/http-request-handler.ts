@@ -8,18 +8,13 @@ export type ErrorHandlingStrategy = 'throwError' | 'reject' | 'silent';
 
 export interface EndpointConfig extends AxiosRequestConfig {
     cancellable?: boolean;
-}
-
-export interface IRequestData {
-    type: string;
-    url: string;
-    data?: any;
-    config: EndpointConfig;
+    rejectCancelled?: boolean;
 }
 
 export interface RequestHandlerConfig extends EndpointConfig {
     strategy?: ErrorHandlingStrategy;
     flattenResponse?: boolean;
+    defaultResponse?: any;
     logger?: any;
     onError?: any;
 }
@@ -27,6 +22,13 @@ export interface RequestHandlerConfig extends EndpointConfig {
 export interface APIHandlerConfig extends RequestHandlerConfig {
     apiUrl: string;
     apiEndpoints: Record<string, any>;
+}
+
+export interface IRequestData {
+    type: string;
+    url: string;
+    data?: any;
+    config: EndpointConfig;
 }
 
 export interface IHttpRequestHandler {
