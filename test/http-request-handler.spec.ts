@@ -247,6 +247,7 @@ describe('API Handler', () => {
         it('should return null if there is no data', async () => {
             const httpRequestHandler = new HttpRequestHandler({
                 flattenResponse: true,
+                defaultResponse: null,
             });
 
             httpRequestHandler.requestInstance.request = jest.fn().mockResolvedValue({});

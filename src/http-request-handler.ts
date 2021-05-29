@@ -33,57 +33,46 @@ import {
 export class HttpRequestHandler implements IHttpRequestHandler {
     /**
      * @var requestInstance Provider's instance
-     *
-     * @memberof HttpRequestHandler
      */
     public requestInstance: AxiosInstance;
 
     /**
      * @var timeout Request timeout
-     *
-     * @memberof HttpRequestHandler
      */
     public timeout: number = 30000;
 
     /**
      * @var cancellable Response cancellation
-     *
-     * @memberof HttpRequestHandler
      */
     public cancellable: boolean = false;
 
     /**
      * @var strategy Request timeout
-     *
-     * @memberof HttpRequestHandler
      */
-    public strategy: ErrorHandlingStrategy = 'reject';
+    public strategy: ErrorHandlingStrategy = 'silent';
 
     /**
      * @var flattenResponse Response flattening
-     *
-     * @memberof HttpRequestHandler
      */
     public flattenResponse: boolean = true;
 
     /**
+     * @var defaultResponse Response flattening
+     */
+    public defaultResponse: any = null;
+
+    /**
      * @var logger Logger
-     *
-     * @memberof HttpRequestHandler
      */
     protected logger: any;
 
     /**
      * @var httpRequestErrorService HTTP error service
-     *
-     * @memberof HttpRequestHandler
      */
     protected httpRequestErrorService: any;
 
     /**
      * @var requestsQueue    Queue of requests
-     *
-     * @memberof HttpRequestHandler
      */
     protected requestsQueue: Map<string, any>;
 
@@ -96,8 +85,6 @@ export class HttpRequestHandler implements IHttpRequestHandler {
      * @param {string} flattenResponse      Whether to flatten response "data" object within "data" one
      * @param {*} logger                    Instance of Logger Class
      * @param {*} httpRequestErrorService   Instance of Error Service Class
-     *
-     * @memberof HttpRequestHandler
      */
     public constructor({
         baseURL = '',
@@ -105,6 +92,7 @@ export class HttpRequestHandler implements IHttpRequestHandler {
         cancellable = false,
         strategy = null,
         flattenResponse = null,
+        defaultResponse = {},
         logger = null,
         onError = null,
         ...config
@@ -113,6 +101,7 @@ export class HttpRequestHandler implements IHttpRequestHandler {
         this.strategy = strategy !== null ? strategy : this.strategy;
         this.cancellable = cancellable || this.cancellable;
         this.flattenResponse = flattenResponse !== null ? flattenResponse : this.flattenResponse;
+        this.defaultResponse = defaultResponse;
         this.logger = logger || global.console || window.console || null;
         this.httpRequestErrorService = onError;
         this.requestsQueue = new Map();
@@ -128,7 +117,6 @@ export class HttpRequestHandler implements IHttpRequestHandler {
      * Get Provider Instance
      *
      * @returns {AxiosInstance} Provider's instance
-     * @memberof HttpRequestHandler
      */
     public getInstance(): AxiosInstance {
         return this.requestInstance;
@@ -139,7 +127,6 @@ export class HttpRequestHandler implements IHttpRequestHandler {
      *
      * @param {*} callback callback to use before request
      * @returns {void}
-     * @memberof HttpRequestHandler
      */
     public interceptRequest(callback: InterceptorCallback): void {
         this.getInstance().interceptors.request.use(callback);
@@ -153,7 +140,6 @@ export class HttpRequestHandler implements IHttpRequestHandler {
      * @param {EndpointConfig} config       Config
      * @throws {Error}                      If request fails
      * @returns {Promise}                   Request response or error info
-     * @memberof HttpRequestHandler
      */
     public post(url: string, data: any = null, config: EndpointConfig = null): Promise<IRequestResponse> {
         return this.handleRequest({
@@ -172,7 +158,6 @@ export class HttpRequestHandler implements IHttpRequestHandler {
      * @param {EndpointConfig} config       Config
      * @throws {Error}                      If request fails
      * @returns {Promise}                   Request response or error info
-     * @memberof HttpRequestHandler
      */
     public get(url: string, data: any = null, config: EndpointConfig = null): Promise<IRequestResponse> {
         return this.handleRequest({
@@ -191,7 +176,6 @@ export class HttpRequestHandler implements IHttpRequestHandler {
      * @param {EndpointConfig} config       Config
      * @throws {Error}                      If request fails
      * @returns {Promise}                   Request response or error info
-     * @memberof HttpRequestHandler
      */
     public put(url: string, data: any = null, config: EndpointConfig = null): Promise<IRequestResponse> {
         return this.handleRequest({
@@ -210,7 +194,6 @@ export class HttpRequestHandler implements IHttpRequestHandler {
      * @param {EndpointConfig} config       Config
      * @throws {Error}                      If request fails
      * @returns {Promise}                   Request response or error info
-     * @memberof HttpRequestHandler
      */
     public delete(url: string, data: any = null, config: EndpointConfig = null): Promise<IRequestResponse> {
         return this.handleRequest({
@@ -229,7 +212,6 @@ export class HttpRequestHandler implements IHttpRequestHandler {
      * @param {EndpointConfig} config       Config
      * @throws {Error}                      If request fails
      * @returns {Promise}                   Request response or error info
-     * @memberof HttpRequestHandler
      */
     public patch(url: string, data: any = null, config: EndpointConfig = null): Promise<IRequestResponse> {
         return this.handleRequest({
@@ -248,7 +230,6 @@ export class HttpRequestHandler implements IHttpRequestHandler {
      * @param {EndpointConfig} config       Config
      * @throws {Error}                      If request fails
      * @returns {Promise}                   Request response or error info
-     * @memberof HttpRequestHandler
      */
     public head(url: string, data: any = null, config: EndpointConfig = null): Promise<IRequestResponse> {
         return this.handleRequest({
@@ -260,25 +241,6 @@ export class HttpRequestHandler implements IHttpRequestHandler {
     }
 
     /**
-     * Get Provider Instance
-     *
-     * @param {Error} err      Error instance
-     * @returns {AxiosInstance} Provider's instance
-     * @memberof HttpRequestHandler
-     */
-    protected processRequestError(err: Error): void {
-        if (axios.isCancel(err)) {
-            return;
-        }
-
-        return new HttpRequestErrorHandler(
-            this.logger,
-            this.httpRequestErrorService,
-            this.strategy
-        ).process(err);
-    }
-
-    /**
      * Build request configuration
      *
      * @param {string} type                 Request type
@@ -286,7 +248,6 @@ export class HttpRequestHandler implements IHttpRequestHandler {
      * @param {*}      data                 Request data
      * @param {EndpointConfig} config       Request config
      * @returns {AxiosInstance} Provider's instance
-     * @memberof HttpRequestHandler
      */
     protected buildRequestConfig(type: string, url: string, data: any, config: EndpointConfig): EndpointConfig {
         const key = type === 'get' || type === 'head' ? 'params' : 'data';
@@ -300,22 +261,82 @@ export class HttpRequestHandler implements IHttpRequestHandler {
     }
 
     /**
+     * Process global Request Error
+     *
+     * @param {Error} error      Error instance
+     * @returns {AxiosInstance} Provider's instance
+     */
+    protected processRequestError(error: Error): void {
+        if (axios.isCancel(error)) {
+            return;
+        }
+
+        const errorHandler = new HttpRequestErrorHandler(
+            this.logger,
+            this.httpRequestErrorService,
+            this.strategy
+        );
+
+        errorHandler.process(error);
+    }
+
+    /**
+     * Output error response depending on chosen strategy
+     *
+     * @param {Error} error      Error instance
+     * @param {EndpointConfig} requestConfig   Per endpoint request config
+     * @returns {AxiosInstance} Provider's instance
+     */
+    protected async outputErrorResponse(error: Error, requestConfig: EndpointConfig): Promise<IRequestResponse> {
+        const isRequestCancelled = requestConfig.cancelToken && axios.isCancel(error);
+
+        // By default cancelled requests aren't rejected
+        if (isRequestCancelled && !requestConfig.rejectCancelled) {
+            return this.defaultResponse;
+        }
+
+        if (this.strategy === 'silent') {
+            // Hang the promise
+            await new Promise(() => null);
+
+            return this.defaultResponse;
+        }
+
+        // Simply rejects a request promise
+        if (this.strategy === 'reject' || this.strategy === 'throwError') {
+            return Promise.reject(error);
+        }
+
+        return this.defaultResponse;
+    }
+
+    /**
+     * Output error response depending on chosen strategy
+     *
+     * @param {Error} error                     Error instance
+     * @param {EndpointConfig} requestConfig    Per endpoint request config
+     * @returns {*}                             Error response
+     */
+    public isRequestCancelled(error: Error, requestConfig: EndpointConfig): boolean {
+        return requestConfig.cancelToken && axios.isCancel(error);
+    }
+
+    /**
      * Automatically Cancel Previous Requests
      *
-     * @param {string} type                 Request type
-     * @param {string} url                  Request url
-     * @param {EndpointConfig} config       Request config
+     * @param {string} type                    Request type
+     * @param {string} url                     Request url
+     * @param {EndpointConfig} requestConfig   Per endpoint request config
      * @returns {AxiosInstance} Provider's instance
-     * @memberof HttpRequestHandler
      */
-    protected addCancellationToken(type: string, url: string, config: EndpointConfig) {
+    protected addCancellationToken(type: string, url: string, requestConfig: EndpointConfig) {
         // Both disabled
-        if (!this.cancellable && !config.cancellable) {
+        if (!this.cancellable && !requestConfig.cancellable) {
             return {};
         }
 
-        // Local explicitly disabled
-        if (typeof config.cancellable !== "undefined" && !config.cancellable) {
+        // Explicitly disabled per request
+        if (typeof requestConfig.cancellable !== "undefined" && !requestConfig.cancellable) {
             return {};
         }
 
@@ -332,9 +353,9 @@ export class HttpRequestHandler implements IHttpRequestHandler {
 
         const mappedRequest = this.requestsQueue.get(key) || {};
 
-        return {
-            cancelToken: mappedRequest.token || undefined
-        };
+        return mappedRequest.token ? {
+            cancelToken: mappedRequest.token
+        } : {};
     }
 
     /**
@@ -347,7 +368,6 @@ export class HttpRequestHandler implements IHttpRequestHandler {
      * @param {EndpointConfig} payload.config       Request config
      * @throws {Error}
      * @returns {Promise} Response Data
-     * @memberof HttpRequestHandler
      */
     protected async handleRequest({
         type,
@@ -364,37 +384,12 @@ export class HttpRequestHandler implements IHttpRequestHandler {
             ...requestConfig,
         };
 
-        switch (this.strategy) {
-            // Promise will hang but will be GC-ed
-            // Can be used for a requests that are dispatched within asynchronous wrapper functions
-            // Those functions should preferably never be awaited
-            case 'silent':
-                try {
-                    response = await this.requestInstance.request(requestConfig);
-                } catch (error) {
-                    this.processRequestError(error);
+        try {
+            response = await this.requestInstance.request(requestConfig);
+        } catch (error) {
+            this.processRequestError(error);
 
-                    response = await new Promise(() => null);
-
-                    return response;
-                }
-                break;
-
-            // Simply rejects a request promise without an error being thrown
-            case 'reject':
-                try {
-                    response = await this.requestInstance.request(requestConfig);
-                } catch (error) {
-                    this.processRequestError(error);
-
-                    return Promise.reject(error);
-                }
-                break;
-
-            // Rejects the promise and throws an error object
-            case 'throwError':
-            default:
-                response = await this.requestInstance.request(requestConfig);
+            return this.outputErrorResponse(error, requestConfig);
         }
 
         return this.processResponseData(response);
@@ -410,13 +405,13 @@ export class HttpRequestHandler implements IHttpRequestHandler {
             // Special case of data property within Axios data object
             // This is in fact a proper response but we may want to flatten it
             // To ease developers' lives when obtaining the response
-            if (typeof response.data === 'object' && response.data.data && Object.keys(response.data).length === 1) {
+            if (typeof response.data === 'object' && typeof response.data.data !== "undefined" && Object.keys(response.data).length === 1) {
                 return response.data.data;
             }
 
             return response.data;
         }
 
-        return null;
+        return this.defaultResponse;
     }
 }

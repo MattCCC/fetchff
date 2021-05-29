@@ -73,6 +73,7 @@ export class ApiHandler implements MagicalClass {
         cancellable = false,
         strategy = null,
         flattenResponse = null,
+        defaultResponse = {},
         logger = null,
         onError = null,
         ...config
@@ -88,6 +89,7 @@ export class ApiHandler implements MagicalClass {
             cancellable,
             strategy,
             flattenResponse,
+            defaultResponse,
             logger,
             onError,
         });
