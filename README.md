@@ -40,6 +40,7 @@ Package was originally written to accomodate many API requests in an orderly fas
 - Browsers & Node 12+ compatible
 - TypeScript compatible
 - All Axios options are supported
+- 4.42 KB gzipped
 
 ## Todo
 - Per request cache (localstorage/sessions)
@@ -135,6 +136,7 @@ Each endpoint in `apiEndpoints` is an object that accepts properties below. You 
 | cancellable | boolean | `false` | Whether previous requests should be automatically cancelled. See global settings for more info. |
 | rejectCancelled | boolean | `false` | If `true` and request is set to `cancellable`, a cancelled request promise will be rejected. By default instead of rejecting the promise, `defaultResponse` from global options is returned. |
 | defaultResponse | any | `null` | Default response when there is no data or when endpoint fails depending on a chosen `strategy` |
+| strategy | string | | You can control strategy per each request. Global strategy is applied by default. |
 
 ## Full TypeScript support
 

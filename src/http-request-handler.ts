@@ -273,8 +273,7 @@ export class HttpRequestHandler implements IHttpRequestHandler {
 
         const errorHandler = new HttpRequestErrorHandler(
             this.logger,
-            this.httpRequestErrorService,
-            this.strategy
+            this.httpRequestErrorService
         );
 
         errorHandler.process(error);
@@ -289,13 +288,14 @@ export class HttpRequestHandler implements IHttpRequestHandler {
      */
     protected async outputErrorResponse(error: Error, requestConfig: EndpointConfig): Promise<IRequestResponse> {
         const isRequestCancelled = requestConfig.cancelToken && axios.isCancel(error);
+        const errorHandlingStrategy = requestConfig.strategy || this.strategy;
 
         // By default cancelled requests aren't rejected
         if (isRequestCancelled && !requestConfig.rejectCancelled) {
             return this.defaultResponse;
         }
 
-        if (this.strategy === 'silent') {
+        if (errorHandlingStrategy === 'silent') {
             // Hang the promise
             await new Promise(() => null);
 
@@ -303,7 +303,7 @@ export class HttpRequestHandler implements IHttpRequestHandler {
         }
 
         // Simply rejects a request promise
-        if (this.strategy === 'reject' || this.strategy === 'throwError') {
+        if (errorHandlingStrategy === 'reject' || errorHandlingStrategy === 'throwError') {
             return Promise.reject(error);
         }
 
@@ -395,7 +395,12 @@ export class HttpRequestHandler implements IHttpRequestHandler {
         return this.processResponseData(response);
     }
 
-    // eslint-disable-next-line class-methods-use-this
+    /**
+     * Process request response
+     *
+     * @param response Response object
+     * @returns {*} Response data
+     */
     protected processResponseData(response) {
         if (response.data) {
             if (!this.flattenResponse) {
