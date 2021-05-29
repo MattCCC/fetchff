@@ -24,7 +24,7 @@ Package was originally written to accomodate many API requests in an orderly fas
 - [API methods](#api-methods)
 - [Accessing Axios instance](#accessing-axios-instance)
 - [Global Settings](#global-settings)
-  -  [Per Endpoint Settings](#per-endpoint-settings)
+- [Per Endpoint Settings](#per-endpoint-settings)
 - [Full TypeScript support](#full-typescript-support)
 - [Advanced example](#advanced-example)
 - [Support & collaboration](#support-collaboration)
@@ -120,7 +120,7 @@ Global settings are passed to `createApiFetcher()` function. You can pass all [A
 | logger | any | `console` | You can additionally specify logger property with your custom logger to automatically log the errors to the console. |
 | onError | any | | You can specify a function or class that will be triggered when an endpoint fails. If it's a class it should expose a `process` method. Axios Error Object will be sent as a first argument of it. |
 
-#### Per Endpoint Settings
+## Per Endpoint Settings
 
 Each endpoint in `apiEndpoints` is an object that accepts properties below. You can also pass these options as a 3rd argument when calling an endpoint so to have a more granular control.
 
