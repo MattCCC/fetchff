@@ -1,8 +1,3 @@
-// Types
-import {
-    ErrorHandlingStrategy,
-} from './types/http-request-handler';
-
 export class HttpRequestErrorHandler {
     /**
      * Logger Class
@@ -20,24 +15,9 @@ export class HttpRequestErrorHandler {
      */
     public httpRequestErrorService: any;
 
-    /**
-     * @var strategy Request timeout
-     *
-     * @memberof HttpRequestHandler
-     */
-    public strategy: ErrorHandlingStrategy;
-
-    /**
-     * @var noThrowStrategies List of strategies excluded from error throwing
-     *
-     * @memberof HttpRequestHandler
-     */
-    public noThrowStrategies: ErrorHandlingStrategy[] = ['reject', 'silent'];
-
-    public constructor(logger: any, httpRequestErrorService: any, strategy: ErrorHandlingStrategy) {
+    public constructor(logger: any, httpRequestErrorService: any) {
         this.logger = logger;
         this.httpRequestErrorService = httpRequestErrorService;
-        this.strategy = strategy;
     }
 
     /**
@@ -64,10 +44,6 @@ export class HttpRequestErrorHandler {
             } else if (typeof this.httpRequestErrorService === 'function') {
                 this.httpRequestErrorService(errorContext);
             }
-        }
-
-        if (!this.noThrowStrategies.includes(this.strategy)) {
-            throw errorContext;
         }
     }
 }

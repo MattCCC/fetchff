@@ -9,10 +9,10 @@ export type ErrorHandlingStrategy = 'throwError' | 'reject' | 'silent' | 'defaul
 export interface EndpointConfig extends AxiosRequestConfig {
     cancellable?: boolean;
     rejectCancelled?: boolean;
+    strategy?: ErrorHandlingStrategy;
 }
 
 export interface RequestHandlerConfig extends EndpointConfig {
-    strategy?: ErrorHandlingStrategy;
     flattenResponse?: boolean;
     defaultResponse?: any;
     logger?: any;
