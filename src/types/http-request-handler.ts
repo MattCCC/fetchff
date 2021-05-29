@@ -17,7 +17,7 @@ export interface RequestHandlerConfig extends AxiosRequestConfig {
     strategy?: ErrorHandlingStrategy;
     flattenResponse?: boolean;
     logger?: any;
-    httpRequestErrorService?: any;
+    onError?: any;
 }
 
 export interface APIHandlerConfig extends RequestHandlerConfig {

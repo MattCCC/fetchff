@@ -63,7 +63,7 @@ export class ApiHandler implements MagicalClass {
      * @param {string} strategy             Error Handling Strategy
      * @param {string} flattenResponse      Whether to flatten response "data" object within "data" one
      * @param {*} logger                    Instance of Logger Class
-     * @param {*} httpRequestErrorService   Instance of Error Service Class
+     * @param {*} onError                   Instance of Error Service Class
      *
      * @memberof ApiHandler
      */
@@ -74,7 +74,7 @@ export class ApiHandler implements MagicalClass {
         strategy = null,
         flattenResponse = null,
         logger = null,
-        httpRequestErrorService = null,
+        onError = null,
         ...config
     }: APIHandlerConfig) {
         this.apiUrl = apiUrl;
@@ -88,7 +88,7 @@ export class ApiHandler implements MagicalClass {
             strategy,
             flattenResponse,
             logger,
-            httpRequestErrorService,
+            onError,
         });
     }
 
