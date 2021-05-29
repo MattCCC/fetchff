@@ -9,10 +9,6 @@
   },
   "main": "dist/index.js",
   "typings": "dist/index.d.ts",
-  "files": [
-    "dist",
-    "src"
-  ],
   "keywords": [
     "axios-api",
     "axios-api-handler",
@@ -23,7 +19,7 @@
     "node"
   ],
   "engines": {
-    "node": ">=10"
+    "node": ">=12"
   },
   "scripts": {
     "start": "tsdx watch",
