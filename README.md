@@ -23,7 +23,7 @@ Package was originally written to accomodate many API requests in an orderly fas
 - [API methods](#api-methods)
 - [Accessing Axios instance](#accessing-axios-instance)
 - [Global Settings](#global-settings)
-- [Single Endpoint Settings](#single-endpoint-settings)
+  -  [Per Endpoint Settings](#per-endpoint-settings)
 - [Full TypeScript support](#full-typescript-support)
 - [Advanced example](#advanced-example)
 - [ToDo](#todo)
@@ -98,6 +98,8 @@ It gives possibility to modify urls structure in a declarative way. In our examp
 
 Axios compatible [Request Config](https://github.com/axios/axios#request-config) for particular endpoint. It will overwrite the global settings.
 
+You can also specify following argument: `cancellable` so to have more granular control over specific endpoints.
+
 ##### api.getInstance()
 
 When API handler is firstly initialized, a new Axios instance is created. You can call `api.getInstance()` if you want to get that instance directly, for example to add some interceptors.
@@ -109,22 +111,24 @@ Global settings is passed to `createApiFetcher()` function. You can pass all [Ax
 | Option        | Type    | Default | Description                                                                                                                                                                                                                                               |
 | ------------- | ------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | apiUrl | string |     | Your API base url. |
-| apiEndpoints | object |  | List of your endpoints. Check [Single Endpoint Settings](#single-endpoint-settings) for options. |
-| strategy | string | `reject` | Available: `silent`, `reject`, `throwError`<br><br>`silent` can be used for a requests that are dispatched within asynchronous wrapper functions. If a request fails, promise will silently hang and no action underneath will be performed. Please remember that this is not what Promises were made for, however if used properly it saves developers from try/catch or additional response data checks everywhere<br><br>`reject` will simply reject the promise and global error handling will be triggered right before the rejection.<br><br>`throwError` will thrown an exception with Error object. Using this approach you need to remember to set try/catch per each request to catch exceptions properly. |
+| apiEndpoints | object |  | List of your endpoints. Check [Per Endpoint Settings](#per-endpoint-settings) for options. |
+| strategy | string | `reject` | Available: `silent`, `reject`, `throwError`<br><br>`silent` can be used for a requests that are dispatched within asynchronous wrapper functions. If a request fails, promise will silently hang and no action underneath will be performed. Please remember that this is not what Promises were made for, however if used properly it saves developers from try/catch or additional response data checks everywhere<br><br>`reject` will simply reject the promise and global error handling will be triggered right before the rejection.<br><br>`throwError` when request fails it throws an exception with Error object. Using this approach you need to remember to set try/catch per each request to catch exceptions properly. |
+| cancellable | boolean | `false` | If set to `true` any previously dispatched requests to same url & of method will be cancelled, if a successive request is made meanwhile. This let's you avoid unnecessary requests to the backend. |
 | flattenResponse | boolean | `true` | Flattens nested response.data so you can avoid writing `response.data.data` and obtain response directly. Response is flattened whenever there is a "data" within response "data", and no other object properties set. |
 | timeout | int | `30000` | You can set a timeout in milliseconds. |
 | logger | any | `console` | You can additionally specify logger property with your custom logger to automatically log the errors to the console. |
 | onError | any | | You can specify a function or class that will be triggered when an endpoint fails. If it's a class it should expose a `process` method. Axios Error Object will be sent as a first argument of it. |
 
-## Single Endpoint Settings
+#### Per Endpoint Settings
 
-Globally specified endpoints in `apiEndpoints` are objects that accept following properties:
+Each endpoint in `apiEndpoints` is an object that accepts following properties:
 
 
 | Option | Type   | Default | Description        |
 | ------ | ------ | ------- | ------------------ |
 | method | string |         | Default request method e.g. GET, POST etc. Must be lowercase. |
 | url | string |         | Url path e.g. /user-details/get |
+| cancellable | boolean | `false` | See global settings for more info. |
 
 ## Full TypeScript support
 
@@ -174,7 +178,7 @@ class MyCustomHttpRequestError {
   }
 }
 
-export class ApiService extends ApiHandler {
+class ApiService extends ApiHandler {
     /**
      * Creates an instance of Api Service.
      * @param {object}  payload                   Payload
@@ -189,6 +193,7 @@ export class ApiService extends ApiHandler {
         logger,
         myCallback,
     }) {
+        // Pass settings to API Handler
         super({
             apiUrl,
             apiEndpoints,

@@ -1,7 +1,6 @@
 // 3rd party libs
 import axios, {
     AxiosInstance,
-    AxiosRequestConfig,
     Method,
 } from 'axios';
 
@@ -22,6 +21,7 @@ import {
     InterceptorCallback,
     ErrorHandlingStrategy,
     RequestHandlerConfig,
+    EndpointConfig,
 } from './types/http-request-handler';
 
 /**
@@ -44,6 +44,13 @@ export class HttpRequestHandler implements IHttpRequestHandler {
      * @memberof HttpRequestHandler
      */
     public timeout: number = 30000;
+
+    /**
+     * @var cancellable Response cancellation
+     *
+     * @memberof HttpRequestHandler
+     */
+    public cancellable: boolean = false;
 
     /**
      * @var strategy Request timeout
@@ -74,20 +81,28 @@ export class HttpRequestHandler implements IHttpRequestHandler {
     protected httpRequestErrorService: any;
 
     /**
+     * @var requestsQueue    Queue of requests
+     *
+     * @memberof HttpRequestHandler
+     */
+    protected requestsQueue: Map<string, any>;
+
+    /**
      * Creates an instance of HttpRequestHandler
      *
-     * @param {string} baseURL      Base URL for all API calls
-     * @param {number} timeout      Request timeout
-     * @param {string} strategy     Error Handling Strategy
-     * @param {string} flattenResponse     Whether to flatten response "data" object within "data" one
-     * @param {*} logger            Instance of Logger Class
-     * @param {*} httpRequestErrorService  Instance of Error Service Class
+     * @param {string} baseURL              Base URL for all API calls
+     * @param {number} timeout              Request timeout
+     * @param {string} strategy             Error Handling Strategy
+     * @param {string} flattenResponse      Whether to flatten response "data" object within "data" one
+     * @param {*} logger                    Instance of Logger Class
+     * @param {*} httpRequestErrorService   Instance of Error Service Class
      *
      * @memberof HttpRequestHandler
      */
     public constructor({
         baseURL = '',
         timeout = null,
+        cancellable = false,
         strategy = null,
         flattenResponse = null,
         logger = null,
@@ -96,9 +111,11 @@ export class HttpRequestHandler implements IHttpRequestHandler {
     }: RequestHandlerConfig) {
         this.timeout = timeout !== null ? timeout : this.timeout;
         this.strategy = strategy !== null ? strategy : this.strategy;
+        this.cancellable = cancellable || this.cancellable;
         this.flattenResponse = flattenResponse !== null ? flattenResponse : this.flattenResponse;
         this.logger = logger || global.console || window.console || null;
         this.httpRequestErrorService = onError;
+        this.requestsQueue = new Map();
 
         this.requestInstance = axios.create({
             ...config,
@@ -133,12 +150,12 @@ export class HttpRequestHandler implements IHttpRequestHandler {
      *
      * @param {string} url                  Url
      * @param {*} data                      Payload
-     * @param {AxiosRequestConfig} config   Config
+     * @param {EndpointConfig} config       Config
      * @throws {Error}                      If request fails
      * @returns {Promise}                   Request response or error info
      * @memberof HttpRequestHandler
      */
-    public post(url: string, data: any = null, config: AxiosRequestConfig = null): Promise<IRequestResponse> {
+    public post(url: string, data: any = null, config: EndpointConfig = null): Promise<IRequestResponse> {
         return this.handleRequest({
             type: 'post',
             url,
@@ -152,12 +169,12 @@ export class HttpRequestHandler implements IHttpRequestHandler {
      *
      * @param {string} url                  Url
      * @param {*} data                      Payload
-     * @param {AxiosRequestConfig} config   Config
+     * @param {EndpointConfig} config       Config
      * @throws {Error}                      If request fails
      * @returns {Promise}                   Request response or error info
      * @memberof HttpRequestHandler
      */
-    public get(url: string, data: any = null, config: AxiosRequestConfig = null): Promise<IRequestResponse> {
+    public get(url: string, data: any = null, config: EndpointConfig = null): Promise<IRequestResponse> {
         return this.handleRequest({
             type: 'get',
             url,
@@ -171,12 +188,12 @@ export class HttpRequestHandler implements IHttpRequestHandler {
      *
      * @param {string} url                  Url
      * @param {*} data                      Payload
-     * @param {AxiosRequestConfig} config   Config
+     * @param {EndpointConfig} config       Config
      * @throws {Error}                      If request fails
      * @returns {Promise}                   Request response or error info
      * @memberof HttpRequestHandler
      */
-    public put(url: string, data: any = null, config: AxiosRequestConfig = null): Promise<IRequestResponse> {
+    public put(url: string, data: any = null, config: EndpointConfig = null): Promise<IRequestResponse> {
         return this.handleRequest({
             type: 'put',
             url,
@@ -190,12 +207,12 @@ export class HttpRequestHandler implements IHttpRequestHandler {
      *
      * @param {string} url                  Url
      * @param {*} data                      Payload
-     * @param {AxiosRequestConfig} config   Config
+     * @param {EndpointConfig} config       Config
      * @throws {Error}                      If request fails
      * @returns {Promise}                   Request response or error info
      * @memberof HttpRequestHandler
      */
-    public delete(url: string, data: any = null, config: AxiosRequestConfig = null): Promise<IRequestResponse> {
+    public delete(url: string, data: any = null, config: EndpointConfig = null): Promise<IRequestResponse> {
         return this.handleRequest({
             type: 'delete',
             url,
@@ -209,12 +226,12 @@ export class HttpRequestHandler implements IHttpRequestHandler {
      *
      * @param {string} url                  Url
      * @param {*} data                      Payload
-     * @param {AxiosRequestConfig} config   Config
+     * @param {EndpointConfig} config       Config
      * @throws {Error}                      If request fails
      * @returns {Promise}                   Request response or error info
      * @memberof HttpRequestHandler
      */
-    public patch(url: string, data: any = null, config: AxiosRequestConfig = null): Promise<IRequestResponse> {
+    public patch(url: string, data: any = null, config: EndpointConfig = null): Promise<IRequestResponse> {
         return this.handleRequest({
             type: 'patch',
             url,
@@ -228,12 +245,12 @@ export class HttpRequestHandler implements IHttpRequestHandler {
      *
      * @param {string} url                  Url
      * @param {*} data                      Payload
-     * @param {AxiosRequestConfig} config   Config
+     * @param {EndpointConfig} config       Config
      * @throws {Error}                      If request fails
      * @returns {Promise}                   Request response or error info
      * @memberof HttpRequestHandler
      */
-    public head(url: string, data: any = null, config: AxiosRequestConfig = null): Promise<IRequestResponse> {
+    public head(url: string, data: any = null, config: EndpointConfig = null): Promise<IRequestResponse> {
         return this.handleRequest({
             type: 'head',
             url,
@@ -250,11 +267,74 @@ export class HttpRequestHandler implements IHttpRequestHandler {
      * @memberof HttpRequestHandler
      */
     protected processRequestError(err: Error): void {
+        if (axios.isCancel(err)) {
+            return;
+        }
+
         return new HttpRequestErrorHandler(
             this.logger,
             this.httpRequestErrorService,
             this.strategy
         ).process(err);
+    }
+
+    /**
+     * Build request configuration
+     *
+     * @param {string} type                 Request type
+     * @param {string} url                  Request url
+     * @param {*}      data                 Request data
+     * @param {EndpointConfig} config       Request config
+     * @returns {AxiosInstance} Provider's instance
+     * @memberof HttpRequestHandler
+     */
+    protected buildRequestConfig(type: string, url: string, data: any, config: EndpointConfig): EndpointConfig {
+        const key = type === 'get' || type === 'head' ? 'params' : 'data';
+
+        return {
+            ...config,
+            url,
+            method: type as Method,
+            [key]: data || {},
+        };
+    }
+
+    /**
+     * Automatically Cancel Previous Requests
+     *
+     * @param {string} type                 Request type
+     * @param {string} url                  Request url
+     * @param {EndpointConfig} config       Request config
+     * @returns {AxiosInstance} Provider's instance
+     * @memberof HttpRequestHandler
+     */
+    protected addCancellationToken(type: string, url: string, config: EndpointConfig) {
+        // Both disabled
+        if (!this.cancellable && !config.cancellable) {
+            return {};
+        }
+
+        // Local explicitly disabled
+        if (typeof config.cancellable !== "undefined" && !config.cancellable) {
+            return {};
+        }
+
+        const key = `${type}-${url}`;
+        const previousRequest = this.requestsQueue.get(key);
+
+        if (previousRequest) {
+            previousRequest.cancel();
+        }
+
+        const tokenSource = axios.CancelToken.source();
+
+        this.requestsQueue.set(key, tokenSource);
+
+        const mappedRequest = this.requestsQueue.get(key) || {};
+
+        return {
+            cancelToken: mappedRequest.token || undefined
+        };
     }
 
     /**
@@ -264,7 +344,7 @@ export class HttpRequestHandler implements IHttpRequestHandler {
      * @param {string} payload.type                 Request type
      * @param {string} payload.url                  Request url
      * @param {*} payload.data                      Request data
-     * @param {AxiosRequestConfig} payload.config   Config to modify request
+     * @param {EndpointConfig} payload.config       Request config
      * @throws {Error}
      * @returns {Promise} Response Data
      * @memberof HttpRequestHandler
@@ -276,14 +356,12 @@ export class HttpRequestHandler implements IHttpRequestHandler {
         config = null,
     }: IRequestData): Promise<IRequestResponse> {
         let response = null;
-        let requestConfig = config || {};
-        const key = type === 'get' || type === 'head' ? 'params' : 'data';
+        const endpointConfig = config || {};
+        let requestConfig = this.buildRequestConfig(type, url, data, endpointConfig);
 
         requestConfig = {
+            ...this.addCancellationToken(type, url, requestConfig),
             ...requestConfig,
-            url,
-            method: type as Method,
-            [key]: data || {},
         };
 
         switch (this.strategy) {

@@ -6,14 +6,18 @@ export type InterceptorCallback = (value: AxiosRequestConfig) => AxiosRequestCon
 
 export type ErrorHandlingStrategy = 'throwError' | 'reject' | 'silent';
 
+export interface EndpointConfig extends AxiosRequestConfig {
+    cancellable?: boolean;
+}
+
 export interface IRequestData {
     type: string;
     url: string;
     data?: any;
-    config: AxiosRequestConfig;
+    config: EndpointConfig;
 }
 
-export interface RequestHandlerConfig extends AxiosRequestConfig {
+export interface RequestHandlerConfig extends EndpointConfig {
     strategy?: ErrorHandlingStrategy;
     flattenResponse?: boolean;
     logger?: any;
@@ -35,15 +39,15 @@ export interface IHttpRequestHandler {
 
     interceptRequest(callback: InterceptorCallback): void;
 
-    post(url: string, data?: any, config?: AxiosRequestConfig): Promise<IRequestResponse>;
+    post(url: string, data?: any, config?: EndpointConfig): Promise<IRequestResponse>;
 
-    get(url: string, data?: any, config?: AxiosRequestConfig): Promise<IRequestResponse>;
+    get(url: string, data?: any, config?: EndpointConfig): Promise<IRequestResponse>;
 
-    put(url: string, data?: any, config?: AxiosRequestConfig): Promise<IRequestResponse>;
+    put(url: string, data?: any, config?: EndpointConfig): Promise<IRequestResponse>;
 
-    delete(url: string, data?: any, config?: AxiosRequestConfig): Promise<IRequestResponse>;
+    delete(url: string, data?: any, config?: EndpointConfig): Promise<IRequestResponse>;
 
-    head(url: string, data?: any, config?: AxiosRequestConfig): Promise<IRequestResponse>;
+    head(url: string, data?: any, config?: EndpointConfig): Promise<IRequestResponse>;
 
-    patch(url: string, data?: any, config?: AxiosRequestConfig): Promise<IRequestResponse>;
+    patch(url: string, data?: any, config?: EndpointConfig): Promise<IRequestResponse>;
 }
