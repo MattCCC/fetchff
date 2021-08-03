@@ -170,9 +170,9 @@ interface EndpointsList extends Endpoints {
   fetchTVSeries: Endpoint;
 }
 
-const api = (createApiFetcher({
+const api = createApiFetcher({
   // Your config
-}) as unknown) as EndpointsList;
+}) as unknown as EndpointsList;
 
 // Will return an error since "newMovies" should be a boolean
 api.fetchMovies( { newMovies: 1 } );
