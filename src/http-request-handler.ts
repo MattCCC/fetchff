@@ -3,6 +3,10 @@ import axios, {
     AxiosInstance,
     Method,
 } from 'axios';
+import {
+    applyMagic,
+    MagicalClass,
+} from 'js-magic';
 
 // Shared Modules
 import {
@@ -11,7 +15,6 @@ import {
 
 // Types
 import {
-    IHttpRequestHandler,
     IRequestData,
     IRequestResponse,
     InterceptorCallback,
@@ -25,7 +28,8 @@ import {
  * It creates an Axios instance and handles requests within that instance
  * It handles errors depending on a chosen error handling strategy
  */
-export class HttpRequestHandler implements IHttpRequestHandler {
+@applyMagic
+export class HttpRequestHandler implements MagicalClass {
     /**
      * @var requestInstance Provider's instance
      */
@@ -128,7 +132,7 @@ export class HttpRequestHandler implements IHttpRequestHandler {
     }
 
     /**
-     * POST Request
+     * Maps all API requests
      *
      * @param {string} url                  Url
      * @param {*} data                      Payload
@@ -136,17 +140,16 @@ export class HttpRequestHandler implements IHttpRequestHandler {
      * @throws {Error}                      If request fails
      * @returns {Promise}                   Request response or error info
      */
-    public post(url: string, data: any = null, config: EndpointConfig = null): Promise<IRequestResponse> {
-        return this.handleRequest({
-            type: 'post',
-            url,
-            data,
-            config,
-        });
+    public __get(prop: string) {
+        if (prop in this) {
+            return this[prop];
+        }
+
+        return this.prepareRequest.bind(this, prop);
     }
 
     /**
-     * GET Request
+     * Prepare Request
      *
      * @param {string} url                  Url
      * @param {*} data                      Payload
@@ -154,81 +157,9 @@ export class HttpRequestHandler implements IHttpRequestHandler {
      * @throws {Error}                      If request fails
      * @returns {Promise}                   Request response or error info
      */
-    public get(url: string, data: any = null, config: EndpointConfig = null): Promise<IRequestResponse> {
+    public prepareRequest(type: Method, url: string, data: any = null, config: EndpointConfig = null): Promise<IRequestResponse> {
         return this.handleRequest({
-            type: 'get',
-            url,
-            data,
-            config,
-        });
-    }
-
-    /**
-     * PUT Request
-     *
-     * @param {string} url                  Url
-     * @param {*} data                      Payload
-     * @param {EndpointConfig} config       Config
-     * @throws {Error}                      If request fails
-     * @returns {Promise}                   Request response or error info
-     */
-    public put(url: string, data: any = null, config: EndpointConfig = null): Promise<IRequestResponse> {
-        return this.handleRequest({
-            type: 'put',
-            url,
-            data,
-            config,
-        });
-    }
-
-    /**
-     * DELETE Request
-     *
-     * @param {string} url                  Url
-     * @param {*} data                      Payload
-     * @param {EndpointConfig} config       Config
-     * @throws {Error}                      If request fails
-     * @returns {Promise}                   Request response or error info
-     */
-    public delete(url: string, data: any = null, config: EndpointConfig = null): Promise<IRequestResponse> {
-        return this.handleRequest({
-            type: 'delete',
-            url,
-            data,
-            config,
-        });
-    }
-
-    /**
-     * PATCH Request
-     *
-     * @param {string} url                  Url
-     * @param {*} data                      Payload
-     * @param {EndpointConfig} config       Config
-     * @throws {Error}                      If request fails
-     * @returns {Promise}                   Request response or error info
-     */
-    public patch(url: string, data: any = null, config: EndpointConfig = null): Promise<IRequestResponse> {
-        return this.handleRequest({
-            type: 'patch',
-            url,
-            data,
-            config,
-        });
-    }
-
-    /**
-     * HEAD Request
-     *
-     * @param {string} url                  Url
-     * @param {*} data                      Payload
-     * @param {EndpointConfig} config       Config
-     * @throws {Error}                      If request fails
-     * @returns {Promise}                   Request response or error info
-     */
-    public head(url: string, data: any = null, config: EndpointConfig = null): Promise<IRequestResponse> {
-        return this.handleRequest({
-            type: 'head',
+            type,
             url,
             data,
             config,
@@ -238,19 +169,20 @@ export class HttpRequestHandler implements IHttpRequestHandler {
     /**
      * Build request configuration
      *
-     * @param {string} type                 Request type
+     * @param {string} method               Request method
      * @param {string} url                  Request url
      * @param {*}      data                 Request data
      * @param {EndpointConfig} config       Request config
      * @returns {AxiosInstance} Provider's instance
      */
-    protected buildRequestConfig(type: string, url: string, data: any, config: EndpointConfig): EndpointConfig {
-        const key = type === 'get' || type === 'head' ? 'params' : 'data';
+    protected buildRequestConfig(method: string, url: string, data: any, config: EndpointConfig): EndpointConfig {
+        const methodLowerCase = method.toLowerCase() as Method;
+        const key = methodLowerCase === 'get' || methodLowerCase === 'head' ? 'params' : 'data';
 
         return {
             ...config,
             url,
-            method: type as Method,
+            method: methodLowerCase,
             [key]: data || {},
         };
     }

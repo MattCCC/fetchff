@@ -1,4 +1,4 @@
-import { AxiosInstance, AxiosRequestConfig, AxiosResponse } from "axios";
+import { AxiosRequestConfig, AxiosResponse } from "axios";
 
 export type IRequestResponse<T = any> = Promise<AxiosResponse<T>>;
 
@@ -29,27 +29,4 @@ export interface IRequestData {
     url: string;
     data?: any;
     config: EndpointConfig;
-}
-
-export interface IHttpRequestHandler {
-    requestInstance: AxiosInstance;
-    timeout: NonNullable<number>;
-    strategy: ErrorHandlingStrategy;
-    flattenResponse: boolean;
-
-    getInstance(): AxiosInstance;
-
-    interceptRequest(callback: InterceptorCallback): void;
-
-    post(url: string, data?: any, config?: EndpointConfig): Promise<IRequestResponse>;
-
-    get(url: string, data?: any, config?: EndpointConfig): Promise<IRequestResponse>;
-
-    put(url: string, data?: any, config?: EndpointConfig): Promise<IRequestResponse>;
-
-    delete(url: string, data?: any, config?: EndpointConfig): Promise<IRequestResponse>;
-
-    head(url: string, data?: any, config?: EndpointConfig): Promise<IRequestResponse>;
-
-    patch(url: string, data?: any, config?: EndpointConfig): Promise<IRequestResponse>;
 }

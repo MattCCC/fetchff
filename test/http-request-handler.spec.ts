@@ -32,7 +32,7 @@ describe('API Handler', () => {
             httpRequestHandler.requestInstance.request = jest.fn().mockRejectedValue(new Error('Request Failed'));
 
             let response;
-            const request = httpRequestHandler.get(apiUrl);
+            const request = (httpRequestHandler as any).get(apiUrl);
 
             let timeout = new Promise((resolve) => {
                 let wait = setTimeout(() => {
@@ -62,7 +62,7 @@ describe('API Handler', () => {
             let response;
 
             try {
-                response = await httpRequestHandler.delete(apiUrl);
+                response = await (httpRequestHandler as any).delete(apiUrl);
             } catch (error) {
                 expect(typeof error).toBe("object");
             }
@@ -78,7 +78,7 @@ describe('API Handler', () => {
             httpRequestHandler.requestInstance.request = jest.fn().mockRejectedValue(new Error('Request Failed'));
 
             try {
-                await httpRequestHandler.delete(apiUrl, null, {
+                await (httpRequestHandler as any).delete(apiUrl, null, {
                     strategy: 'throwError',
                 });
             } catch (error) {
@@ -97,7 +97,7 @@ describe('API Handler', () => {
             httpRequestHandler.requestInstance.request = jest.fn().mockResolvedValue(axiosResponseMock);
             const spy = jest.spyOn(httpRequestHandler.requestInstance, 'request');
 
-            await httpRequestHandler.get(apiUrl);
+            await (httpRequestHandler as any).get(apiUrl);
 
             expect(spy).toHaveBeenCalledWith(expect.not.objectContaining({
                 cancelToken: expect.any(Object),
@@ -113,7 +113,7 @@ describe('API Handler', () => {
             httpRequestHandler.requestInstance.request = jest.fn().mockResolvedValue(axiosResponseMock);
             const spy = jest.spyOn(httpRequestHandler.requestInstance, 'request');
 
-            await httpRequestHandler.get(apiUrl, {}, {
+            await (httpRequestHandler as any).get(apiUrl, {}, {
                 cancellable: false,
             });
 
@@ -131,7 +131,7 @@ describe('API Handler', () => {
             httpRequestHandler.requestInstance.request = jest.fn().mockResolvedValue(axiosResponseMock);
             const spy = jest.spyOn(httpRequestHandler.requestInstance, 'request');
 
-            await httpRequestHandler.get(apiUrl, {}, {
+            await (httpRequestHandler as any).get(apiUrl, {}, {
                 cancellable: true,
             });
 
@@ -147,7 +147,7 @@ describe('API Handler', () => {
             httpRequestHandler.requestInstance.request = jest.fn().mockResolvedValue(axiosResponseMock);
             const spy = jest.spyOn(httpRequestHandler.requestInstance, 'request');
 
-            await httpRequestHandler.get(apiUrl, {}, {
+            await (httpRequestHandler as any).get(apiUrl, {}, {
                 cancellable: true,
             });
 
@@ -163,7 +163,7 @@ describe('API Handler', () => {
             httpRequestHandler.requestInstance.request = jest.fn().mockResolvedValue(axiosResponseMock);
             const spy = jest.spyOn(httpRequestHandler.requestInstance, 'request');
 
-            await httpRequestHandler.get(apiUrl);
+            await (httpRequestHandler as any).get(apiUrl);
 
             expect(spy).not.toHaveBeenCalledWith({});
         });
@@ -178,12 +178,12 @@ describe('API Handler', () => {
 
             httpRequestHandler.requestInstance.request = jest.fn().mockRejectedValue(new Error('Request Failed'));
 
-            const request = httpRequestHandler.get(apiUrl);
+            const request = (httpRequestHandler as any).get(apiUrl);
 
             const spy = jest.spyOn(httpRequestHandler.requestInstance, 'request');
             httpRequestHandler.requestInstance.request = jest.fn().mockResolvedValue(axiosResponseMock);
 
-            const request2 = httpRequestHandler.get(apiUrl);
+            const request2 = (httpRequestHandler as any).get(apiUrl);
 
             expect(spy).toHaveBeenCalledTimes(1);
             expect(spy).toHaveBeenCalledWith(expect.objectContaining({
@@ -218,7 +218,7 @@ describe('API Handler', () => {
 
             httpRequestHandler.requestInstance.request = jest.fn().mockResolvedValue(axiosResponseMock);
 
-            const response = await httpRequestHandler.put(apiUrl);
+            const response = await (httpRequestHandler as any).put(apiUrl);
 
             expect(response).toMatchObject(axiosResponseMock);
         });
@@ -230,7 +230,7 @@ describe('API Handler', () => {
 
             httpRequestHandler.requestInstance.request = jest.fn().mockResolvedValue(axiosResponseMock);
 
-            const response = await httpRequestHandler.post(apiUrl);
+            const response = await (httpRequestHandler as any).post(apiUrl);
 
             expect(response).toMatchObject(axiosResponseMock.data);
         });
@@ -242,7 +242,7 @@ describe('API Handler', () => {
 
             httpRequestHandler.requestInstance.request = jest.fn().mockResolvedValue({ data: axiosResponseMock });
 
-            const response = await httpRequestHandler.patch(apiUrl);
+            const response = await (httpRequestHandler as any).patch(apiUrl);
 
             expect(response).toMatchObject(axiosResponseMock.data);
         });
@@ -255,7 +255,7 @@ describe('API Handler', () => {
 
             httpRequestHandler.requestInstance.request = jest.fn().mockResolvedValue({});
 
-            expect(await httpRequestHandler.head(apiUrl)).toBe(null);
+            expect(await (httpRequestHandler as any).head(apiUrl)).toBe(null);
         });
     });
 });

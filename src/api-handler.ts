@@ -139,7 +139,7 @@ export class ApiHandler implements MagicalClass {
         delete additionalRequestSettings.url;
         delete additionalRequestSettings.method;
 
-        responseData = await this.httpRequestHandler[endpointSettings.method](uri, queryParams, {
+        responseData = await this.httpRequestHandler[(endpointSettings.method || 'get').toLowerCase()](uri, queryParams, {
             ...requestConfig,
             ...additionalRequestSettings,
         });

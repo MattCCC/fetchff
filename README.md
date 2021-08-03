@@ -62,7 +62,8 @@ npm i axios-multi-api
 import { createApiFetcher } from 'axios-multi-api';
 
 const api = createApiFetcher({
-    apiUrl: 'https://example.com/api/',
+    apiUrl: 'https://example.com/api',
+    strategy: 'reject',
     apiEndpoints: {
       getUserDetails: {
         method: 'get',
@@ -136,7 +137,7 @@ Each endpoint in `apiEndpoints` is an object that accepts properties below. You 
 
 | Option | Type   | Default | Description        |
 | ------ | ------ | ------- | ------------------ |
-| method | string |         | Default request method e.g. GET, POST etc. Must be lowercase. |
+| method | string |         | Default request method e.g. GET, POST, DELETE, PUT etc. |
 | url | string |         | Url path e.g. /user-details/get |
 | cancellable | boolean | `false` | Whether previous requests should be automatically cancelled. See global settings for more info. |
 | rejectCancelled | boolean | `false` | If `true` and request is set to `cancellable`, a cancelled request promise will be rejected. By default instead of rejecting the promise, `defaultResponse` from global options is returned. |
