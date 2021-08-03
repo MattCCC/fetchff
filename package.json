@@ -26,6 +26,7 @@
     "build": "tsdx build",
     "test": "tsdx test",
     "lint": "tsdx lint",
+    "release": "npm version patch && git push --tags && npm run publish",
     "prepare": "tsdx build",
     "size": "size-limit",
     "analyze": "size-limit --why"
