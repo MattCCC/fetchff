@@ -76,10 +76,15 @@ const api = createApiFetcher({
     // Optional
     onError(error) {
       console.log('Request failed', error);
+    },
+    // All Axios instace config properties are supported
+    headers: {
+      'my-auth-key': 'example-auth-key-32rjjfa',
     }
 });
 
-const data = api.getUserDetails({ userId: 1 });
+// You can await for your request. Check "strategy" for more details
+const data = await api.getUserDetails({ userId: 1 });
 
 api.updateUserDetails({ name: 'Mark' }, { userId: 1 });
 ```
@@ -116,7 +121,7 @@ Global settings are passed to `createApiFetcher()` function. You can pass all [A
 | ------------- | ------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | apiUrl | string |     | Your API base url. |
 | apiEndpoints | object |  | List of your endpoints. Check [Per Endpoint Settings](#per-endpoint-settings) for options. |
-| strategy | string | `silent` | Error handling strategies - basically what to return when an error occurs. It can be a default data, promise can be hanged (nothing would be returned) or rejected so to use try/catch. Available: `silent`, `reject`, `defaultResponse`<br><br>`silent` can be used for a requests that are dispatched within asynchronous wrapper functions. If a request fails, promise will silently hang and no action will be performed. It will never be resolved or rejected when there is an error. Please remember that this is not what Promises were made for, however if used properly it saves developers from try/catch or additional response data checks everywhere. You can use is in combination with `onError` so to handle errors globally.<br><br>`reject` will simply reject the promise. Global error handling will be triggered right before the rejection. You will need to remember to set try/catch per each request to catch exceptions properly.<br><br>`defaultResponse` will return defaultResponse specified in either global or per endpoint settings. Promise will not be rejected but simply pass and return the object. It could be used together with destructuring to provide a responsible defaults. |
+| strategy | string | `silent` | Error handling strategies - basically what to return when an error occurs. It can be a default data, promise can be hanged (nothing would be returned) or rejected so to use try/catch. Available: `silent`, `reject`, `defaultResponse`<br><br>`silent` can be used for a requests that are dispatched within asynchronous wrapper functions. If a request fails, promise will silently hang and no action will be performed. It will never be resolved or rejected when there is an error. Please remember that this is not what Promises were made for, however if used properly it saves developers from try/catch or additional response data checks everywhere. You can use is in combination with `onError` so to handle errors globally.<br><br>`reject` will simply reject the promise. Global error handling will be triggered right before the rejection. You will need to remember to set try/catch per each request to catch exceptions properly.<br><br>`defaultResponse` will return default response specified in either global `defaultResponse` or per endpoint `defaultResponse` setting. Promise will not be rejected! Data from default response will be returned instead. It could be used together with object destructuring by setting `defaultResponse: {}` so to provide a responsible defaults. |
 | cancellable | boolean | `false` | If set to `true` any previously dispatched requests to same url & of method will be cancelled, if a successive request is made meanwhile. This let's you avoid unnecessary requests to the backend. |
 | flattenResponse | boolean | `true` | Flattens nested response.data so you can avoid writing `response.data.data` and obtain response directly. Response is flattened whenever there is a "data" within response "data", and no other object properties set. |
 | defaultResponse | any | `null` | Default response when there is no data or when endpoint fails depending on the chosen `strategy` |
