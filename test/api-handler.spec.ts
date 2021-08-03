@@ -51,13 +51,13 @@ describe('API Handler', () => {
         it('should properly replace multiple URL params', async () => {
             const api = new ApiHandler(config);
 
-            api.httpRequestHandler.get = jest.fn().mockResolvedValueOnce(userDataMock);
+            (api.httpRequestHandler as any).get = jest.fn().mockResolvedValueOnce(userDataMock);
 
             const endpoints = api as unknown as IEndpoints;
             const response = await endpoints.getUserDetailsByIdAndName(null, { id: 1, "name": "Mark" });
 
-            expect(api.httpRequestHandler.get).toHaveBeenCalledTimes(1);
-            expect(api.httpRequestHandler.get).toHaveBeenCalledWith('/user-details/get/1/Mark', {}, {});
+            expect((api.httpRequestHandler as any).get).toHaveBeenCalledTimes(1);
+            expect((api.httpRequestHandler as any).get).toHaveBeenCalledWith('/user-details/get/1/Mark', {}, {});
             expect(response).toBe(userDataMock);
         });
 
@@ -69,13 +69,13 @@ describe('API Handler', () => {
                 }
             };
 
-            api.httpRequestHandler.get = jest.fn().mockResolvedValueOnce(userDataMock);
+            (api.httpRequestHandler as any).get = jest.fn().mockResolvedValueOnce(userDataMock);
 
             const endpoints = api as unknown as IEndpoints;
             const response = await endpoints.getUserDetailsByIdAndName(null, { id: 1, "name": "Mark" }, headers);
 
-            expect(api.httpRequestHandler.get).toHaveBeenCalledTimes(1);
-            expect(api.httpRequestHandler.get).toHaveBeenCalledWith('/user-details/get/1/Mark', {}, headers);
+            expect((api.httpRequestHandler as any).get).toHaveBeenCalledTimes(1);
+            expect((api.httpRequestHandler as any).get).toHaveBeenCalledWith('/user-details/get/1/Mark', {}, headers);
             expect(response).toBe(userDataMock);
         });
     });
