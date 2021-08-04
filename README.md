@@ -84,10 +84,10 @@ const api = createApiFetcher({
     }
 });
 
-// You can await for your request. Check "strategy" for more details
-const data = await api.getUserDetails({ userId: 1 });
+// You can await for your request. Check "strategy" for details. response returns data directly
+const response = await api.getUserDetails({ userId: 1 });
 
-api.updateUserDetails({ name: 'Mark' }, { userId: 1 });
+const response = await api.updateUserDetails({ name: 'Mark' }, { userId: 1 });
 ```
 In this basic example we fetch data from an API for user with an ID of 1. We also update user's name to Mark. If you prefer OOP you can import `ApiHandler` and initialize the handler using `new ApiHandler()` instead.
 
