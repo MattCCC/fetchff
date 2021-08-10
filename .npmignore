@@ -6,7 +6,6 @@ test
 node_modules
 package
 
-*.cjs.development.js
 *.tgz
 *.map
 *.ts
