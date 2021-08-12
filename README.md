@@ -25,8 +25,8 @@ Package was originally written to accomodate many API requests in an orderly fas
 - [Accessing Axios instance](#accessing-axios-instance)
 - [Global Settings](#global-settings)
 - [Per Endpoint Settings](#per-endpoint-settings)
-- [Full TypeScript support](#full-typescript-support)
-- [Advanced example](#advanced-example)
+- [TypeScript support](#full-typescript-support)
+- [Examples](#examples)
 - [Support & collaboration](#support-collaboration)
 
 
@@ -87,7 +87,12 @@ const api = createApiFetcher({
 // You can await for your request. Check "strategy" for details. response returns data directly
 const response = await api.getUserDetails({ userId: 1 });
 
-const response = await api.updateUserDetails({ name: 'Mark' }, { userId: 1 });
+console.log('User details', response);
+
+await api.updateUserDetails({ name: 'Mark' }, { userId: 1 });
+
+console.log('User details updated');
+
 ```
 In this basic example we fetch data from an API for user with an ID of 1. We also update user's name to Mark. If you prefer OOP you can import `ApiHandler` and initialize the handler using `new ApiHandler()` instead.
 
@@ -143,6 +148,7 @@ Each endpoint in `apiEndpoints` is an object that accepts properties below. You 
 | rejectCancelled | boolean | `false` | If `true` and request is set to `cancellable`, a cancelled request promise will be rejected. By default instead of rejecting the promise, `defaultResponse` from global options is returned. |
 | defaultResponse | any | `null` | Default response when there is no data or when endpoint fails depending on a chosen `strategy` |
 | strategy | string | | You can control strategy per each request. Global strategy is applied by default. |
+| onError | function | | You can specify a function that will be triggered when an endpoint fails. |
 
 ## Full TypeScript support
 
@@ -182,7 +188,53 @@ api.fetchMovies( { newMovies: 1 } );
 
 Package ships interfaces with responsible defaults making it easier to add new endpoints. It exposes `Endpoints` and `Endpoint` types.
 
-## Advanced example
+## Examples
+### Per Request Error handling
+
+```typescript
+import { createApiFetcher } from 'axios-multi-api';
+
+const api = createApiFetcher({
+  apiUrl: 'https://example.com/api',
+  apiEndpoints: {
+    sendMessage: {
+      method: 'get',
+      url: '/send-message/:postId',
+    },
+  },
+});
+
+async function sendMessage() {
+  await api.sendMessage({ message: 'Something..' }, { postId: 1 }, {
+    onError(error) {
+      if (error.response) {
+        // The request was made and the server responded with a status code
+        // that falls out of the range of 2xx
+        console.log(error.response.data);
+        console.log(error.response.status);
+        console.log(error.response.headers);
+      } else if (error.request) {
+        // The request was made but no response was received
+        // `error.request` is an instance of XMLHttpRequest in the browser and an instance of
+        // http.ClientRequest in node.js
+        console.log(error.request);
+      } else {
+        // Something happened in setting up the request that triggered an Error
+        console.log('Error', error.message);
+      }
+      console.log(error.config);
+    }
+  });
+
+  console.log('Message sent successfully');
+}
+
+sendMessage();
+
+```
+
+
+### OOP style with custom Error Handler (advanced)
 
 You could for example create an API service class that extends the handler, inject an error service class to handle with a store that would collect the errors.
 

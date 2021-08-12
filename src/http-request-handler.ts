@@ -21,6 +21,7 @@ import {
     ErrorHandlingStrategy,
     RequestHandlerConfig,
     EndpointConfig,
+    RequestError,
 } from './types/http-request-handler';
 
 /**
@@ -137,7 +138,7 @@ export class HttpRequestHandler implements MagicalClass {
      * @param {string} url                  Url
      * @param {*} data                      Payload
      * @param {EndpointConfig} config       Config
-     * @throws {Error}                      If request fails
+     * @throws {RequestError}                      If request fails
      * @returns {Promise}                   Request response or error info
      */
     public __get(prop: string) {
@@ -154,7 +155,7 @@ export class HttpRequestHandler implements MagicalClass {
      * @param {string} url                  Url
      * @param {*} data                      Payload
      * @param {EndpointConfig} config       Config
-     * @throws {Error}                      If request fails
+     * @throws {RequestError}                      If request fails
      * @returns {Promise}                   Request response or error info
      */
     public prepareRequest(type: Method, url: string, data: any = null, config: EndpointConfig = null): Promise<IRequestResponse> {
@@ -190,12 +191,18 @@ export class HttpRequestHandler implements MagicalClass {
     /**
      * Process global Request Error
      *
-     * @param {Error} error      Error instance
+     * @param {RequestError} error      Error instance
+     * @param {EndpointConfig} requestConfig   Per endpoint request config
      * @returns {AxiosInstance} Provider's instance
      */
-    protected processRequestError(error: Error): void {
+    protected processRequestError(error: RequestError, requestConfig: EndpointConfig): void {
         if (axios.isCancel(error)) {
             return;
+        }
+
+        // Invoke per request "onError" call
+        if (requestConfig.onError && typeof requestConfig.onError === 'function') {
+            requestConfig.onError(error);
         }
 
         const errorHandler = new HttpRequestErrorHandler(
@@ -209,11 +216,11 @@ export class HttpRequestHandler implements MagicalClass {
     /**
      * Output error response depending on chosen strategy
      *
-     * @param {Error} error      Error instance
+     * @param {RequestError} error      Error instance
      * @param {EndpointConfig} requestConfig   Per endpoint request config
      * @returns {AxiosInstance} Provider's instance
      */
-    protected async outputErrorResponse(error: Error, requestConfig: EndpointConfig): Promise<IRequestResponse> {
+    protected async outputErrorResponse(error: RequestError, requestConfig: EndpointConfig): Promise<IRequestResponse> {
         const isRequestCancelled = requestConfig.cancelToken && axios.isCancel(error);
         const errorHandlingStrategy = requestConfig.strategy || this.strategy;
 
@@ -240,11 +247,11 @@ export class HttpRequestHandler implements MagicalClass {
     /**
      * Output error response depending on chosen strategy
      *
-     * @param {Error} error                     Error instance
+     * @param {RequestError} error                     Error instance
      * @param {EndpointConfig} requestConfig    Per endpoint request config
      * @returns {*}                             Error response
      */
-    public isRequestCancelled(error: Error, requestConfig: EndpointConfig): boolean {
+    public isRequestCancelled(error: RequestError, requestConfig: EndpointConfig): boolean {
         return requestConfig.cancelToken && axios.isCancel(error);
     }
 
@@ -293,7 +300,7 @@ export class HttpRequestHandler implements MagicalClass {
      * @param {string} payload.url                  Request url
      * @param {*} payload.data                      Request data
      * @param {EndpointConfig} payload.config       Request config
-     * @throws {Error}
+     * @throws {RequestError}
      * @returns {Promise} Response Data
      */
     protected async handleRequest({
@@ -314,7 +321,7 @@ export class HttpRequestHandler implements MagicalClass {
         try {
             response = await this.requestInstance.request(requestConfig);
         } catch (error) {
-            this.processRequestError(error);
+            this.processRequestError(error, requestConfig);
 
             return this.outputErrorResponse(error, requestConfig);
         }
