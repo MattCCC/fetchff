@@ -972,7 +972,7 @@ exports.HttpRequestHandler = /*#__PURE__*/function () {
    * @param {string} url                  Url
    * @param {*} data                      Payload
    * @param {EndpointConfig} config       Config
-   * @throws {Error}                      If request fails
+   * @throws {RequestError}                      If request fails
    * @returns {Promise}                   Request response or error info
    */
   ;
@@ -990,7 +990,7 @@ exports.HttpRequestHandler = /*#__PURE__*/function () {
    * @param {string} url                  Url
    * @param {*} data                      Payload
    * @param {EndpointConfig} config       Config
-   * @throws {Error}                      If request fails
+   * @throws {RequestError}                      If request fails
    * @returns {Promise}                   Request response or error info
    */
   ;
@@ -1035,14 +1035,20 @@ exports.HttpRequestHandler = /*#__PURE__*/function () {
   /**
    * Process global Request Error
    *
-   * @param {Error} error      Error instance
+   * @param {RequestError} error      Error instance
+   * @param {EndpointConfig} requestConfig   Per endpoint request config
    * @returns {AxiosInstance} Provider's instance
    */
   ;
 
-  _proto.processRequestError = function processRequestError(error) {
+  _proto.processRequestError = function processRequestError(error, requestConfig) {
     if (axios.isCancel(error)) {
       return;
+    } // Invoke per request "onError" call
+
+
+    if (requestConfig.onError && typeof requestConfig.onError === 'function') {
+      requestConfig.onError(error);
     }
 
     var errorHandler = new HttpRequestErrorHandler(this.logger, this.httpRequestErrorService);
@@ -1051,7 +1057,7 @@ exports.HttpRequestHandler = /*#__PURE__*/function () {
   /**
    * Output error response depending on chosen strategy
    *
-   * @param {Error} error      Error instance
+   * @param {RequestError} error      Error instance
    * @param {EndpointConfig} requestConfig   Per endpoint request config
    * @returns {AxiosInstance} Provider's instance
    */
@@ -1118,7 +1124,7 @@ exports.HttpRequestHandler = /*#__PURE__*/function () {
   /**
    * Output error response depending on chosen strategy
    *
-   * @param {Error} error                     Error instance
+   * @param {RequestError} error                     Error instance
    * @param {EndpointConfig} requestConfig    Per endpoint request config
    * @returns {*}                             Error response
    */
@@ -1170,7 +1176,7 @@ exports.HttpRequestHandler = /*#__PURE__*/function () {
    * @param {string} payload.url                  Request url
    * @param {*} payload.data                      Request data
    * @param {EndpointConfig} payload.config       Request config
-   * @throws {Error}
+   * @throws {RequestError}
    * @returns {Promise} Response Data
    */
   ;
@@ -1202,7 +1208,7 @@ exports.HttpRequestHandler = /*#__PURE__*/function () {
             case 11:
               _context2.prev = 11;
               _context2.t0 = _context2["catch"](5);
-              this.processRequestError(_context2.t0);
+              this.processRequestError(_context2.t0, requestConfig);
               return _context2.abrupt("return", this.outputErrorResponse(_context2.t0, requestConfig));
 
             case 15:
