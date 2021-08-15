@@ -110,3 +110,4 @@ package/
 dist/*.ts
 dist/**/*.ts
 !dist/*.map
+!dist/**/*.map
