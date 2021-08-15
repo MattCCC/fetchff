@@ -22,7 +22,7 @@ import {
     RequestHandlerConfig,
     EndpointConfig,
     RequestError,
-} from './types/http-request-handler';
+} from './types/http-request';
 
 /**
  * Generic Request Handler

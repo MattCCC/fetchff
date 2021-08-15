@@ -13,7 +13,7 @@ import {
     IRequestResponse,
     APIHandlerConfig,
     EndpointConfig,
-} from './types/http-request-handler';
+} from './types/http-request';
 
 import {
     HttpRequestHandler,

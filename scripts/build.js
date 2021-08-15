@@ -85,17 +85,21 @@ moveFile('dist-browser', 'dist/browser', 'index.esm.js.map');
 
 // typings remain in the temporary folder
 // therefore we move and rename it to 'dist/types'
-moveFile('dist-browser', 'dist/types');
+moveFile('dist-browser', 'dist/typings');
 
 // now what's left is copying a template typings file into our subfolders
 // that's responsible for linking to folder 'dist/types'
 fs.copyFileSync(
-    path.resolve('dist/types', 'index.d.ts'),
+    path.resolve('scripts/templates', 'index.d.ts'),
     path.resolve('dist', 'browser', 'index.d.ts'),
 );
+
 fs.copyFileSync(
-    path.resolve('dist/types', 'index.d.ts'),
+    path.resolve('scripts/templates', 'index.d.ts'),
     path.resolve('dist', 'node', 'index.d.ts'),
 );
+
+// Avoid unnecessary nested types/ dir
+proc.execSync('mv dist/typings/* dist/; rmdir dist/typings/');
 
 console.log('Build finished!');
