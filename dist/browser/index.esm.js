@@ -1421,4 +1421,4 @@ var createApiFetcher = function createApiFetcher(options) {
 };
 
 export { ApiHandler, HttpRequestErrorHandler, HttpRequestHandler, createApiFetcher };
-//# sourceMappingURL=axios-multi-api.esm.js.map
+//# sourceMappingURL=index.esm.js.map
