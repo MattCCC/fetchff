@@ -100,6 +100,6 @@ fs.copyFileSync(
 );
 
 // Avoid unnecessary nested types/ dir
-proc.execSync('mv dist/typings/* dist/; rmdir dist/typings/');
+proc.execSync('mv ./dist/typings/* ./dist/; rmdir ./dist/typings/');
 
 console.log('Build finished!');
