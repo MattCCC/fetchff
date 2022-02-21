@@ -2,7 +2,7 @@
   "version": "1.2.5",
   "license": "MIT",
   "name": "axios-multi-api",
-  "author": "Mateusz Czapliński <deindesign.pl@gmail.com>",
+  "author": "Matt Czapliński <deindesign.pl@gmail.com>",
   "repository": {
     "type": "git",
     "url": "https://github.com/MattCCC/axios-multi-api.git"
@@ -33,7 +33,6 @@
     "size": "size-limit",
     "analyze": "size-limit --why"
   },
-  "peerDependencies": {},
   "husky": {
     "hooks": {
       "pre-commit": "tsdx lint"
@@ -70,7 +69,7 @@
     "typescript": "4.1.5"
   },
   "dependencies": {
-    "axios": "0.21.1",
+    "axios": "^0.26.0",
     "js-magic": "1.2.2"
   }
 }

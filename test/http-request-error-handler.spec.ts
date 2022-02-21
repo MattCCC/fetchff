@@ -1,13 +1,13 @@
 import { HttpRequestErrorHandler } from '../src/http-request-error-handler';
 
+export const mockErrorCallbackClass = class CustomErrorHandler {
+    public process() {
+        return 'function called';
+    }
+}
+
 describe('API Handler', () => {
     const mockErrorCallback = () => 'function called';
-
-    const mockErrorCallbackClass = class CustomErrorHandler {
-        public process() {
-            return 'function called';
-        }
-    }
 
     it('should call provided error callback', () => {
         const httpRequestHandler = new HttpRequestErrorHandler(null, mockErrorCallback);

@@ -1,4 +1,5 @@
 import { ApiHandler } from '../src/api-handler';
+import { mockErrorCallbackClass } from './http-request-error-handler.spec';
 import { apiEndpoints, IEndpoints } from "./mocks/endpoints";
 
 describe('API Handler', () => {
@@ -6,6 +7,7 @@ describe('API Handler', () => {
     const config = {
         apiUrl,
         apiEndpoints,
+        onError: new mockErrorCallbackClass(),
     };
     const userDataMock = { "name": "Mark", "age": 20 };
 

@@ -8,18 +8,24 @@ export type ErrorHandlingStrategy = 'throwError' | 'reject' | 'silent' | 'defaul
 
 export type RequestError = AxiosError<any>;
 
+interface ErrorHandlerClass {
+    process(error?: RequestError): unknown;
+};
+
+type ErrorHandlerFunction = (error: RequestError) => any;
+
 export interface EndpointConfig extends AxiosRequestConfig {
     cancellable?: boolean;
     rejectCancelled?: boolean;
     strategy?: ErrorHandlingStrategy;
-    onError?: (error: RequestError) => any;
+    onError?: ErrorHandlerFunction | ErrorHandlerClass;
 }
 
 export interface RequestHandlerConfig extends EndpointConfig {
     flattenResponse?: boolean;
     defaultResponse?: any;
     logger?: any;
-    onError?: (error: RequestError) => any;
+    onError?: ErrorHandlerFunction | ErrorHandlerClass;
 }
 
 export interface APIHandlerConfig extends RequestHandlerConfig {
