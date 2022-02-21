@@ -7,7 +7,7 @@
     "type": "git",
     "url": "https://github.com/MattCCC/axios-multi-api.git"
   },
-  "main": "dist/index.js",
+  "main": "dist/browser/index.esm.js",
   "typings": "dist/index.d.ts",
   "keywords": [
     "axios-api",
