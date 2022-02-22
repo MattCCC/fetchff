@@ -162,7 +162,7 @@ import {
   Endpoint,
   APIQueryParams,
   APIUrlParams,
-} from 'axios-multi-api/dist/types/api';
+} from 'axios-multi-api';
 
 import { createApiFetcher } from 'axios-multi-api';
 
