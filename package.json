@@ -56,20 +56,20 @@
     }
   ],
   "devDependencies": {
-    "@size-limit/preset-small-lib": "4.9.2",
-    "@types/jest": "26.0.20",
-    "husky": "5.0.9",
-    "jest": "27.0.6",
+    "@size-limit/preset-small-lib": "^7.0.8",
+    "@types/jest": "^27.4.1",
+    "husky": "^7.0.4",
+    "jest": "^27.5.1",
     "promise-any": "0.2.0",
-    "rollup-plugin-bundle-imports": "1.4.5",
-    "size-limit": "4.9.2",
-    "ts-jest": "26.5.1",
+    "rollup-plugin-bundle-imports": "^1.5.1",
+    "size-limit": "^7.0.8",
+    "ts-jest": "^27.1.3",
     "tsdx": "0.14.1",
-    "tslib": "2.3.1",
-    "typescript": "4.1.5"
+    "tslib": "^2.3.1",
+    "typescript": "^4.6.2"
   },
   "dependencies": {
     "axios": "^0.26.0",
-    "js-magic": "1.2.2"
+    "js-magic": "^1.2.3"
   }
 }

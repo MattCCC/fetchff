@@ -1,62 +1,12 @@
 'use strict';
 
+Object.defineProperty(exports, '__esModule', { value: true });
+
 function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'default' in ex) ? ex['default'] : ex; }
 
 var tslib = require('tslib');
 var jsMagic = require('js-magic');
 var axios = _interopDefault(require('axios'));
-
-function _extends() {
-  _extends = Object.assign || function (target) {
-    for (var i = 1; i < arguments.length; i++) {
-      var source = arguments[i];
-
-      for (var key in source) {
-        if (Object.prototype.hasOwnProperty.call(source, key)) {
-          target[key] = source[key];
-        }
-      }
-    }
-
-    return target;
-  };
-
-  return _extends.apply(this, arguments);
-}
-
-function _objectWithoutPropertiesLoose(source, excluded) {
-  if (source == null) return {};
-  var target = {};
-  var sourceKeys = Object.keys(source);
-  var key, i;
-
-  for (i = 0; i < sourceKeys.length; i++) {
-    key = sourceKeys[i];
-    if (excluded.indexOf(key) >= 0) continue;
-    target[key] = source[key];
-  }
-
-  return target;
-}
-
-// A type of promise-like that resolves synchronously and supports only one observer
-
-const _iteratorSymbol = /*#__PURE__*/ typeof Symbol !== "undefined" ? (Symbol.iterator || (Symbol.iterator = Symbol("Symbol.iterator"))) : "@@iterator";
-
-const _asyncIteratorSymbol = /*#__PURE__*/ typeof Symbol !== "undefined" ? (Symbol.asyncIterator || (Symbol.asyncIterator = Symbol("Symbol.asyncIterator"))) : "@@asyncIterator";
-
-// Asynchronously call a function and send errors to recovery continuation
-function _catch(body, recover) {
-	try {
-		var result = body();
-	} catch(e) {
-		return recover(e);
-	}
-	if (result && result.then) {
-		return result.then(void 0, recover);
-	}
-	return result;
-}
 
 class HttpRequestErrorHandler {
   constructor(logger, httpRequestErrorService) {
@@ -111,19 +61,17 @@ exports.HttpRequestHandler = class HttpRequestHandler {
    * @param {*} logger                    Instance of Logger Class
    * @param {*} httpRequestErrorService   Instance of Error Service Class
    */
-  constructor(_ref) {
-    let {
-      baseURL = '',
-      timeout = null,
-      cancellable = false,
-      strategy = null,
-      flattenResponse = null,
-      defaultResponse = {},
-      logger = null,
-      onError = null
-    } = _ref,
-        config = _objectWithoutPropertiesLoose(_ref, ["baseURL", "timeout", "cancellable", "strategy", "flattenResponse", "defaultResponse", "logger", "onError"]);
-
+  constructor({
+    baseURL = '',
+    timeout = null,
+    cancellable = false,
+    strategy = null,
+    flattenResponse = null,
+    defaultResponse = {},
+    logger = null,
+    onError = null,
+    ...config
+  }) {
     /**
      * @var timeout Request timeout
      */
@@ -156,10 +104,10 @@ exports.HttpRequestHandler = class HttpRequestHandler {
     this.logger = logger || global.console || window.console || null;
     this.httpRequestErrorService = onError;
     this.requestsQueue = new Map();
-    this.requestInstance = axios.create(_extends({}, config, {
+    this.requestInstance = axios.create({ ...config,
       baseURL,
       timeout: this.timeout
-    }));
+    });
   }
   /**
    * Get Provider Instance
@@ -233,11 +181,11 @@ exports.HttpRequestHandler = class HttpRequestHandler {
   buildRequestConfig(method, url, data, config) {
     const methodLowerCase = method.toLowerCase();
     const key = methodLowerCase === 'get' || methodLowerCase === 'head' ? 'params' : 'data';
-    return _extends({}, config, {
+    return { ...config,
       url,
       method: methodLowerCase,
       [key]: data || {}
-    });
+    };
   }
   /**
    * Process global Request Error
@@ -270,38 +218,26 @@ exports.HttpRequestHandler = class HttpRequestHandler {
    */
 
 
-  outputErrorResponse(error, requestConfig) {
-    try {
-      let _exit = false;
+  async outputErrorResponse(error, requestConfig) {
+    const isRequestCancelled = requestConfig.cancelToken && axios.isCancel(error);
+    const errorHandlingStrategy = requestConfig.strategy || this.strategy; // By default cancelled requests aren't rejected
 
-      const _this = this;
-
-      function _temp2(_result) {
-        return _exit ? _result : errorHandlingStrategy === 'reject' || errorHandlingStrategy === 'throwError' ? Promise.reject(error) : _this.defaultResponse;
-      }
-
-      const isRequestCancelled = requestConfig.cancelToken && axios.isCancel(error);
-      const errorHandlingStrategy = requestConfig.strategy || _this.strategy; // By default cancelled requests aren't rejected
-
-      if (isRequestCancelled && !requestConfig.rejectCancelled) {
-        return Promise.resolve(_this.defaultResponse);
-      }
-
-      const _temp = function () {
-        if (errorHandlingStrategy === 'silent') {
-          // Hang the promise
-          return Promise.resolve(new Promise(() => null)).then(function () {
-            const _this$defaultResponse = _this.defaultResponse;
-            _exit = true;
-            return _this$defaultResponse;
-          });
-        }
-      }();
-
-      return Promise.resolve(_temp && _temp.then ? _temp.then(_temp2) : _temp2(_temp)); // Simply rejects a request promise
-    } catch (e) {
-      return Promise.reject(e);
+    if (isRequestCancelled && !requestConfig.rejectCancelled) {
+      return this.defaultResponse;
     }
+
+    if (errorHandlingStrategy === 'silent') {
+      // Hang the promise
+      await new Promise(() => null);
+      return this.defaultResponse;
+    } // Simply rejects a request promise
+
+
+    if (errorHandlingStrategy === 'reject' || errorHandlingStrategy === 'throwError') {
+      return Promise.reject(error);
+    }
+
+    return this.defaultResponse;
   }
   /**
    * Output error response depending on chosen strategy
@@ -363,45 +299,27 @@ exports.HttpRequestHandler = class HttpRequestHandler {
    */
 
 
-  handleRequest({
+  async handleRequest({
     type,
     url,
     data = null,
     config = null
   }) {
+    let response = null;
+    const endpointConfig = config || {};
+    let requestConfig = this.buildRequestConfig(type, url, data, endpointConfig);
+    requestConfig = { ...this.addCancellationToken(type, url, requestConfig),
+      ...requestConfig
+    };
+
     try {
-      let _exit2 = false;
-
-      const _this2 = this;
-
-      function _temp4(_result2) {
-        return _exit2 ? _result2 : _this2.processResponseData(response);
-      }
-
-      let response = null;
-      const endpointConfig = config || {};
-
-      let requestConfig = _this2.buildRequestConfig(type, url, data, endpointConfig);
-
-      requestConfig = _extends({}, _this2.addCancellationToken(type, url, requestConfig), requestConfig);
-
-      const _temp3 = _catch(function () {
-        return Promise.resolve(_this2.requestInstance.request(requestConfig)).then(function (_this2$requestInstanc) {
-          response = _this2$requestInstanc;
-        });
-      }, function (error) {
-        _this2.processRequestError(error, requestConfig);
-
-        const _this2$outputErrorRes = _this2.outputErrorResponse(error, requestConfig);
-
-        _exit2 = true;
-        return _this2$outputErrorRes;
-      });
-
-      return Promise.resolve(_temp3 && _temp3.then ? _temp3.then(_temp4) : _temp4(_temp3));
-    } catch (e) {
-      return Promise.reject(e);
+      response = await this.requestInstance.request(requestConfig);
+    } catch (error) {
+      this.processRequestError(error, requestConfig);
+      return this.outputErrorResponse(error, requestConfig);
     }
+
+    return this.processResponseData(response);
   }
   /**
    * Process request response
@@ -448,20 +366,18 @@ exports.ApiHandler = class ApiHandler {
    * @param {*} logger                    Instance of Logger Class
    * @param {*} onError                   Instance of Error Service Class
    */
-  constructor(_ref) {
-    let {
-      apiUrl,
-      apiEndpoints,
-      timeout = null,
-      cancellable = false,
-      strategy = null,
-      flattenResponse = null,
-      defaultResponse = {},
-      logger = null,
-      onError = null
-    } = _ref,
-        config = _objectWithoutPropertiesLoose(_ref, ["apiUrl", "apiEndpoints", "timeout", "cancellable", "strategy", "flattenResponse", "defaultResponse", "logger", "onError"]);
-
+  constructor({
+    apiUrl,
+    apiEndpoints,
+    timeout = null,
+    cancellable = false,
+    strategy = null,
+    flattenResponse = null,
+    defaultResponse = {},
+    logger = null,
+    onError = null,
+    ...config
+  }) {
     /**
      * Api Url
      */
@@ -469,7 +385,7 @@ exports.ApiHandler = class ApiHandler {
     this.apiUrl = apiUrl;
     this.apiEndpoints = apiEndpoints;
     this.logger = logger;
-    this.httpRequestHandler = new exports.HttpRequestHandler(_extends({}, config, {
+    this.httpRequestHandler = new exports.HttpRequestHandler({ ...config,
       baseURL: this.apiUrl,
       timeout,
       cancellable,
@@ -478,7 +394,7 @@ exports.ApiHandler = class ApiHandler {
       defaultResponse,
       logger,
       onError
-    }));
+    });
   }
   /**
    * Get Provider Instance
@@ -518,29 +434,22 @@ exports.ApiHandler = class ApiHandler {
    */
 
 
-  handleRequest(...args) {
-    try {
-      const _this = this;
-
-      const prop = args[0];
-      const endpointSettings = _this.apiEndpoints[prop];
-      const queryParams = args[1] || {};
-      const uriParams = args[2] || {};
-      const requestConfig = args[3] || {};
-      const uri = endpointSettings.url.replace(/:[a-z]+/ig, str => uriParams[str.substr(1)] ? uriParams[str.substr(1)] : str);
-      let responseData = null;
-
-      const additionalRequestSettings = _extends({}, endpointSettings);
-
-      delete additionalRequestSettings.url;
-      delete additionalRequestSettings.method;
-      return Promise.resolve(_this.httpRequestHandler[(endpointSettings.method || 'get').toLowerCase()](uri, queryParams, _extends({}, requestConfig, additionalRequestSettings))).then(function (_this$httpRequestHand) {
-        responseData = _this$httpRequestHand;
-        return responseData;
-      });
-    } catch (e) {
-      return Promise.reject(e);
-    }
+  async handleRequest(...args) {
+    const prop = args[0];
+    const endpointSettings = this.apiEndpoints[prop];
+    const queryParams = args[1] || {};
+    const uriParams = args[2] || {};
+    const requestConfig = args[3] || {};
+    const uri = endpointSettings.url.replace(/:[a-z]+/ig, str => uriParams[str.substr(1)] ? uriParams[str.substr(1)] : str);
+    let responseData = null;
+    const additionalRequestSettings = { ...endpointSettings
+    };
+    delete additionalRequestSettings.url;
+    delete additionalRequestSettings.method;
+    responseData = await this.httpRequestHandler[(endpointSettings.method || 'get').toLowerCase()](uri, queryParams, { ...requestConfig,
+      ...additionalRequestSettings
+    });
+    return responseData;
   }
   /**
    * Triggered when trying to use non-existent endpoints
