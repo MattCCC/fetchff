@@ -44,7 +44,7 @@
     "singleQuote": true,
     "trailingComma": "es5"
   },
-  "module": "dist/axios-multi-api.esm.js",
+  "module": "dist/browser/index.esm.js",
   "size-limit": [
     {
       "path": "dist/axios-multi-api.cjs.production.min.js",
