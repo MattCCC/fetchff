@@ -28,15 +28,15 @@ Package was originally written to accomodate many API requests in an orderly fas
 - [Examples](#examples)
 - [Support and collaboration](#support-and-collaboration)
 
-
 ## Features
+
 - Multi APIs support
 - Global error handler for requests
 - Automatically cancel previous requests
 - Multiple response resolving strategies
 - Dynamic urls support
 - Multiple requests chaining (using promises)
-- Browsers & Node 12+ compatible
+- Browsers & Node 16+ compatible
 - TypeScript compatible
 - All Axios options are supported
 - 4.42 KB gzipped
@@ -44,14 +44,17 @@ Package was originally written to accomodate many API requests in an orderly fas
 Please open an issue for future requests.
 
 ## Installation
+
 [![NPM](https://nodei.co/npm/axios-multi-api.png)](https://npmjs.org/package/axios-multi-api)
 
 Using npm:
+
 ```bash
 npm install axios-multi-api
 ```
 
 Using yarn:
+
 ```bash
 yarn add axios-multi-api
 ```
@@ -107,6 +110,7 @@ await api.updateUserDetails({ name: 'Mark' }, { userId: 1 });
 await api.updateUserDetails({ name: 'Mark', ratings: [1, 2] }, { userId: 1 });
 
 ```
+
 In the example above we fetch data from an API for user with an ID of 1. We also update user's name to Mark. If you prefer OOP you can import `ApiHandler` and initialize the handler using `new ApiHandler()` instead.
 
 ## Usage with React
@@ -174,6 +178,7 @@ export const useProfile = ({ id }) => {
 ```
 
 ## API methods
+
 ##### api.endpointName(queryParams, urlParams, requestConfig)
 
 `queryParams` / `payload` (optional)
@@ -215,7 +220,6 @@ Global settings are passed to `createApiFetcher()` function. You can pass all [A
 ## Per Endpoint Settings
 
 Each endpoint in `apiEndpoints` is an object that accepts properties below. You can also pass these options as a 3rd argument when calling an endpoint so to have a more granular control.
-
 
 | Option | Type   | Default | Description        |
 | ------ | ------ | ------- | ------------------ |
@@ -266,6 +270,7 @@ api.fetchMovies( { newMovies: 1 } );
 Package ships interfaces with responsible defaults making it easier to add new endpoints. It exposes `Endpoints` and `Endpoint` types.
 
 ## Examples
+
 ### Per Request Error handling
 
 ```typescript
@@ -310,13 +315,11 @@ sendMessage();
 
 ```
 
-
 ### OOP style with custom Error Handler (advanced)
 
 You could for example create an API service class that extends the handler, inject an error service class to handle with a store that would collect the errors.
 
 As you may notice there's also a `setupInterceptor` and `httpRequestHandler` exposed. You can operate on it instead of requesting an Axios instance prior the operation. This way you can use all Axios settings for a particular API handler.
-
 
 ```typescript
 import { ApiHandler } from 'axios-multi-api';

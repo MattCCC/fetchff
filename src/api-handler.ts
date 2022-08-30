@@ -130,7 +130,9 @@ export class ApiHandler implements MagicalClass {
         const uriParams = args[2] || {};
         const requestConfig = args[3] || {};
 
-        const uri = endpointSettings.url.replace(/:[a-z]+/ig, (str: string) => (uriParams[str.substr(1)] ? uriParams[str.substr(1)] : str));
+        const uri = endpointSettings.url.replace(/:[a-z]+/gi, (str: string) =>
+          uriParams[str.substring(1)] ? uriParams[str.substring(1)] : str
+        );
 
         let responseData = null;
 
