@@ -41,7 +41,7 @@ export class HttpRequestHandler implements MagicalClass {
     /**
      * @var strategy Request timeout
      */
-    public strategy: ErrorHandlingStrategy = 'silent';
+    public strategy: ErrorHandlingStrategy = 'reject';
 
     /**
      * @var flattenResponse Response flattening
