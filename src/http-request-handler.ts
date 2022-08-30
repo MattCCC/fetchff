@@ -293,11 +293,29 @@ export class HttpRequestHandler implements MagicalClass {
             return {};
         }
 
+        // Check if AbortController is available
         if (typeof AbortController === 'undefined') {
+            console.error('AbortController is unavailable in your ENV.');
+
             return {};
         }
 
-        const key = `${requestConfig.method}-${requestConfig.url}`;
+        const {
+            method,
+            baseURL,
+            url,
+            params,
+            data,
+        } = requestConfig;
+
+        // Generate unique key as a cancellation token. Make sure it fits Map
+        const key = JSON.stringify([
+          method,
+          baseURL,
+          url,
+          params,
+          data,
+        ]).substring(0, 55 ** 5);
         const previousRequest = this.requestsQueue.get(key);
 
         if (previousRequest) {
