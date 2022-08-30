@@ -42,11 +42,7 @@ Package was originally written to accomodate many API requests in an orderly fas
 - All Axios options are supported
 - 4.42 KB gzipped
 
-## Todo
-- Per request cache (localstorage/sessions)
-- Full fetch() API support
-
-Please open an issue for future requests!
+Please open an issue for future requests.
 
 ## Installation
 [![NPM](https://nodei.co/npm/axios-multi-api.png)](https://npmjs.org/package/axios-multi-api)
