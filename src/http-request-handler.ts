@@ -1,17 +1,9 @@
 // 3rd party libs
-import axios, {
-    AxiosInstance,
-    Method,
-} from 'axios';
-import {
-    applyMagic,
-    MagicalClass,
-} from 'js-magic';
+import axios, { AxiosInstance, Method } from 'axios';
+import { applyMagic, MagicalClass } from 'js-magic';
 
 // Shared Modules
-import {
-    HttpRequestErrorHandler,
-} from './http-request-error-handler';
+import { HttpRequestErrorHandler } from './http-request-error-handler';
 
 // Types
 import {
@@ -74,7 +66,7 @@ export class HttpRequestHandler implements MagicalClass {
     /**
      * @var requestsQueue    Queue of requests
      */
-    protected requestsQueue: Map<string, any>;
+    protected requestsQueue: Map<string, AbortController>;
 
     /**
      * Creates an instance of HttpRequestHandler
@@ -100,7 +92,8 @@ export class HttpRequestHandler implements MagicalClass {
         this.timeout = timeout !== null ? timeout : this.timeout;
         this.strategy = strategy !== null ? strategy : this.strategy;
         this.cancellable = cancellable || this.cancellable;
-        this.flattenResponse = flattenResponse !== null ? flattenResponse : this.flattenResponse;
+        this.flattenResponse =
+            flattenResponse !== null ? flattenResponse : this.flattenResponse;
         this.defaultResponse = defaultResponse;
         this.logger = logger || global.console || window.console || null;
         this.httpRequestErrorService = onError;
@@ -158,7 +151,12 @@ export class HttpRequestHandler implements MagicalClass {
      * @throws {RequestError}                      If request fails
      * @returns {Promise}                   Request response or error info
      */
-    public prepareRequest(type: Method, url: string, data: any = null, config: EndpointConfig = null): Promise<IRequestResponse> {
+    public prepareRequest(
+        type: Method,
+        url: string,
+        data: any = null,
+        config: EndpointConfig = null
+    ): Promise<IRequestResponse> {
         return this.handleRequest({
             type,
             url,
@@ -176,9 +174,17 @@ export class HttpRequestHandler implements MagicalClass {
      * @param {EndpointConfig} config       Request config
      * @returns {AxiosInstance} Provider's instance
      */
-    protected buildRequestConfig(method: string, url: string, data: any, config: EndpointConfig): EndpointConfig {
+    protected buildRequestConfig(
+        method: string,
+        url: string,
+        data: any,
+        config: EndpointConfig
+    ): EndpointConfig {
         const methodLowerCase = method.toLowerCase() as Method;
-        const key = methodLowerCase === 'get' || methodLowerCase === 'head' ? 'params' : 'data';
+        const key =
+            methodLowerCase === 'get' || methodLowerCase === 'head'
+                ? 'params'
+                : 'data';
 
         return {
             ...config,
@@ -195,8 +201,11 @@ export class HttpRequestHandler implements MagicalClass {
      * @param {EndpointConfig} requestConfig   Per endpoint request config
      * @returns {AxiosInstance} Provider's instance
      */
-    protected processRequestError(error: RequestError, requestConfig: EndpointConfig): void {
-        if (axios.isCancel(error)) {
+    protected processRequestError(
+        error: RequestError,
+        requestConfig: EndpointConfig
+    ): void {
+        if (this.isRequestCancelled(error, requestConfig)) {
             return;
         }
 
@@ -220,8 +229,11 @@ export class HttpRequestHandler implements MagicalClass {
      * @param {EndpointConfig} requestConfig   Per endpoint request config
      * @returns {AxiosInstance} Provider's instance
      */
-    protected async outputErrorResponse(error: RequestError, requestConfig: EndpointConfig): Promise<IRequestResponse> {
-        const isRequestCancelled = requestConfig.cancelToken && axios.isCancel(error);
+    protected async outputErrorResponse(
+        error: RequestError,
+        requestConfig: EndpointConfig
+    ): Promise<IRequestResponse> {
+        const isRequestCancelled = this.isRequestCancelled(error, requestConfig);
         const errorHandlingStrategy = requestConfig.strategy || this.strategy;
 
         // By default cancelled requests aren't rejected
@@ -237,7 +249,10 @@ export class HttpRequestHandler implements MagicalClass {
         }
 
         // Simply rejects a request promise
-        if (errorHandlingStrategy === 'reject' || errorHandlingStrategy === 'throwError') {
+        if (
+            errorHandlingStrategy === 'reject' ||
+            errorHandlingStrategy === 'throwError'
+        ) {
             return Promise.reject(error);
         }
 
@@ -248,48 +263,54 @@ export class HttpRequestHandler implements MagicalClass {
      * Output error response depending on chosen strategy
      *
      * @param {RequestError} error                     Error instance
-     * @param {EndpointConfig} requestConfig    Per endpoint request config
+     * @param {EndpointConfig} _requestConfig    Per endpoint request config
      * @returns {*}                             Error response
      */
-    public isRequestCancelled(error: RequestError, requestConfig: EndpointConfig): boolean {
-        return requestConfig.cancelToken && axios.isCancel(error);
+    public isRequestCancelled(
+        error: RequestError,
+        _requestConfig: EndpointConfig
+    ): boolean {
+        return axios.isCancel(error);
     }
 
     /**
      * Automatically Cancel Previous Requests
      *
-     * @param {string} type                    Request type
-     * @param {string} url                     Request url
      * @param {EndpointConfig} requestConfig   Per endpoint request config
      * @returns {AxiosInstance} Provider's instance
      */
-    protected addCancellationToken(type: string, url: string, requestConfig: EndpointConfig) {
+    protected addCancellationToken(requestConfig: EndpointConfig) {
         // Both disabled
         if (!this.cancellable && !requestConfig.cancellable) {
             return {};
         }
 
         // Explicitly disabled per request
-        if (typeof requestConfig.cancellable !== "undefined" && !requestConfig.cancellable) {
+        if (
+            typeof requestConfig.cancellable !== 'undefined' &&
+            !requestConfig.cancellable
+        ) {
             return {};
         }
 
-        const key = `${type}-${url}`;
+        if (typeof AbortController === 'undefined') {
+            return {};
+        }
+
+        const key = `${requestConfig.method}-${requestConfig.url}`;
         const previousRequest = this.requestsQueue.get(key);
 
         if (previousRequest) {
-            previousRequest.cancel();
+            previousRequest.abort();
         }
 
-        const tokenSource = axios.CancelToken.source();
+        const controller = new AbortController();
 
-        this.requestsQueue.set(key, tokenSource);
+        this.requestsQueue.set(key, controller);
 
-        const mappedRequest = this.requestsQueue.get(key) || {};
-
-        return mappedRequest.token ? {
-            cancelToken: mappedRequest.token
-        } : {};
+        return {
+            signal: controller.signal,
+        };
     }
 
     /**
@@ -311,10 +332,15 @@ export class HttpRequestHandler implements MagicalClass {
     }: IRequestData): Promise<IRequestResponse> {
         let response = null;
         const endpointConfig = config || {};
-        let requestConfig = this.buildRequestConfig(type, url, data, endpointConfig);
+        let requestConfig = this.buildRequestConfig(
+            type,
+            url,
+            data,
+            endpointConfig
+        );
 
         requestConfig = {
-            ...this.addCancellationToken(type, url, requestConfig),
+            ...this.addCancellationToken(requestConfig),
             ...requestConfig,
         };
 
@@ -344,7 +370,11 @@ export class HttpRequestHandler implements MagicalClass {
             // Special case of data property within Axios data object
             // This is in fact a proper response but we may want to flatten it
             // To ease developers' lives when obtaining the response
-            if (typeof response.data === 'object' && typeof response.data.data !== "undefined" && Object.keys(response.data).length === 1) {
+            if (
+                typeof response.data === 'object' &&
+                typeof response.data.data !== 'undefined' &&
+                Object.keys(response.data).length === 1
+            ) {
                 return response.data.data;
             }
 
