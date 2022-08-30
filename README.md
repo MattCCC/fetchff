@@ -36,7 +36,7 @@ Package was originally written to accomodate many API requests in an orderly fas
 - Multiple response resolving strategies
 - Dynamic urls support
 - Multiple requests chaining (using promises)
-- Browsers & Node 12+ compatible
+- Browsers & Node 16+ compatible
 - TypeScript compatible
 - All Axios options are supported
 - 4.42 KB gzipped
