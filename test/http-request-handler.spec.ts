@@ -100,7 +100,7 @@ describe('API Handler', () => {
             await (httpRequestHandler as any).get(apiUrl);
 
             expect(spy).toHaveBeenCalledWith(expect.not.objectContaining({
-                cancelToken: expect.any(Object),
+                signal: expect.any(Object),
             }));
         });
 
@@ -117,9 +117,11 @@ describe('API Handler', () => {
                 cancellable: false,
             });
 
-            expect(spy).toHaveBeenCalledWith(expect.not.objectContaining({
-                cancelToken: expect.any(Object),
-            }));
+            expect(spy).toHaveBeenCalledWith(
+              expect.not.objectContaining({
+                signal: expect.any(Object),
+              })
+            );
         });
 
         it('should set cancel token if cancellation is enabled per route', async () => {
@@ -186,9 +188,11 @@ describe('API Handler', () => {
             const request2 = (httpRequestHandler as any).get(apiUrl);
 
             expect(spy).toHaveBeenCalledTimes(1);
-            expect(spy).toHaveBeenCalledWith(expect.objectContaining({
-                cancelToken: expect.any(Object)
-            }));
+            expect(spy).toHaveBeenCalledWith(
+              expect.objectContaining({
+                signal: expect.any(Object),
+              })
+            );
 
             let timeout = new Promise((resolve) => {
                 let wait = setTimeout(() => {
