@@ -42,7 +42,7 @@ export class ApiHandler implements MagicalClass {
     /**
      * Endpoints
      */
-    public apiEndpoints: Record<string, EndpointConfig>;
+    public endpoints: Record<string, EndpointConfig>;
 
     /**
      * Logger
@@ -61,7 +61,7 @@ export class ApiHandler implements MagicalClass {
      */
     public constructor({
         apiUrl,
-        apiEndpoints,
+        endpoints,
         timeout = null,
         cancellable = false,
         strategy = null,
@@ -72,7 +72,7 @@ export class ApiHandler implements MagicalClass {
         ...config
     }: APIHandlerConfig) {
         this.apiUrl = apiUrl;
-        this.apiEndpoints = apiEndpoints;
+        this.endpoints = endpoints;
         this.logger = logger;
 
         this.httpRequestHandler = new HttpRequestHandler({
@@ -109,7 +109,7 @@ export class ApiHandler implements MagicalClass {
         }
 
         // Prevent handler from running for non-existent endpoints
-        if (!this.apiEndpoints[prop]) {
+        if (!this.endpoints[prop]) {
             return this.handleNonImplemented.bind(this, prop)
         }
 
@@ -124,7 +124,7 @@ export class ApiHandler implements MagicalClass {
      */
     public async handleRequest(...args: any): Promise<IRequestResponse> {
         const prop = args[0];
-        const endpointSettings = this.apiEndpoints[prop];
+        const endpointSettings = this.endpoints[prop];
 
         const queryParams = args[1] || {};
         const uriParams = args[2] || {};
