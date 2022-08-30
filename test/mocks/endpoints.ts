@@ -4,7 +4,7 @@ import {
     APIUrlParams as UrlParams,
 } from '../../src/types/api';
 
-export const apiEndpoints = {
+export const endpoints = {
     getUserDetails: {
         method: 'get',
         url: '/user-details/get',

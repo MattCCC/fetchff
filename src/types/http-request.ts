@@ -30,7 +30,7 @@ export interface RequestHandlerConfig extends EndpointConfig {
 
 export interface APIHandlerConfig extends RequestHandlerConfig {
     apiUrl: string;
-    apiEndpoints: Record<string, any>;
+    endpoints: Record<string, any>;
 }
 
 export interface IRequestData {
