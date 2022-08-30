@@ -142,7 +142,6 @@ export const useProfile = ({ id }) => {
     data,
     error,
     isFetching,
-    remove,
   } = useQuery(['profile', id], () => api.getProfile({ id }), {
     initialData: [],
     initialDataUpdatedAt: Date.now(),
@@ -161,14 +160,13 @@ export const useProfile = ({ id }) => {
     return { 
       isError: true, 
       error, 
-      remove,
       data: [],
     }
   }
 
   return {
     isLoading: false,
-    data: ProfileResponse,
+    data,
     remove,
   }
 }
@@ -176,7 +174,7 @@ export const useProfile = ({ id }) => {
 ```
 
 ## API methods
-##### api.yourEndpointName(queryParams, urlParams, requestConfig)
+##### api.endpointName(queryParams, urlParams, requestConfig)
 
 `queryParams` / `payload` (optional)
 
