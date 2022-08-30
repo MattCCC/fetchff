@@ -53,7 +53,7 @@ Please open an issue for future requests!
 
 Run following command to install the package:
 ```bash
-npm i axios-multi-api
+npm install axios-multi-api
 ```
 
 ## Usage
@@ -62,17 +62,15 @@ npm i axios-multi-api
 import { createApiFetcher } from 'axios-multi-api';
 
 const api = createApiFetcher({
-    // your api base url
     apiUrl: 'https://example.com/api',
-    // optional: strategy
-    strategy: 'reject',
+    strategy: 'reject', // optional
     apiEndpoints: {
       getUserDetails: {
         method: 'get',
         url: '/user-details',
       },
  
-      // You don't need to specify method: 'get' for GET requests
+      // No need to specify method: 'get' for GET requests
       getPosts: {
         url: '/posts/:subject',
       },
@@ -82,7 +80,6 @@ const api = createApiFetcher({
         url: '/user-details/update/:userId',
       },
     },
-    // Optional: error handler
     onError(error) {
       console.log('Request failed', error);
     },
