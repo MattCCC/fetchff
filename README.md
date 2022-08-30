@@ -100,7 +100,73 @@ await api.updateUserDetails({ name: 'Mark' }, { userId: 1 });
 await api.updateUserDetails({ name: 'Mark', ratings: [1, 2] }, { userId: 1 });
 
 ```
-In this basic example we fetch data from an API for user with an ID of 1. We also update user's name to Mark. If you prefer OOP you can import `ApiHandler` and initialize the handler using `new ApiHandler()` instead.
+In the example above we fetch data from an API for user with an ID of 1. We also update user's name to Mark. If you prefer OOP you can import `ApiHandler` and initialize the handler using `new ApiHandler()` instead.
+
+## Usage with React
+
+You could use [React Query](https://react-query-v3.tanstack.com/guides/queries) hooks with API handler:
+
+```typescript
+// api/index.ts
+import { createApiFetcher } from 'axios-multi-api';
+
+const api = createApiFetcher({
+    apiUrl: 'https://example.com/api',
+    strategy: 'reject',
+    apiEndpoints: {
+      getProfile: {
+        url: '/profile/:id',
+      },
+    },
+    onError(error) {
+      console.log('Request failed', error);
+    },
+});
+
+export default api;
+
+// hooks/useProfile.ts
+
+import api from '../api/index';
+
+export const useProfile = ({ id }) => {
+  const { 
+    isLoading,
+    data,
+    error,
+    isFetching,
+    remove,
+  } = useQuery(['profile', id], () => api.getProfile({ id }), {
+    initialData: [],
+    initialDataUpdatedAt: Date.now(),
+    enabled: id > 0,
+    refetchOnReconnect: true,
+  })
+
+  if (isLoading || isFetching) {
+    return { 
+      isLoading,
+      data: [],
+    }
+  }
+
+  if (!data) {
+    return { 
+      isError: true, 
+      error, 
+      remove,
+      data: [],
+    }
+  }
+
+  return {
+    isLoading: false,
+    data: ProfileResponse,
+    remove,
+  }
+}
+
+```
 
 ## API methods
 ##### api.yourEndpointName(queryParams, urlParams, requestConfig)
