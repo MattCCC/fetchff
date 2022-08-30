@@ -18,16 +18,15 @@ Package was originally written to accomodate many API requests in an orderly fas
 ## Table of Contents
 
 - [Features](#features)
-- [ToDo](#todo)
 - [Installation](#installation)
 - [Usage](#usage)
+- [Usage with React](#usage-with-react)
 - [API methods](#api-methods)
-- [Accessing Axios instance](#accessing-axios-instance)
 - [Global Settings](#global-settings)
 - [Per Endpoint Settings](#per-endpoint-settings)
 - [TypeScript support](#full-typescript-support)
 - [Examples](#examples)
-- [Support & collaboration](#support-collaboration)
+- [Support and collaboration](#support-and-collaboration)
 
 
 ## Features
@@ -47,9 +46,14 @@ Please open an issue for future requests.
 ## Installation
 [![NPM](https://nodei.co/npm/axios-multi-api.png)](https://npmjs.org/package/axios-multi-api)
 
-Run following command to install the package:
+Using npm:
 ```bash
 npm install axios-multi-api
+```
+
+Using yarn:
+```bash
+yarn add axios-multi-api
 ```
 
 ## Usage
@@ -75,6 +79,9 @@ const api = createApiFetcher({
         method: 'post',
         url: '/user-details/update/:userId',
       },
+
+      // ...
+      // You can add many more endpoints & keep the codebase clean
     },
     onError(error) {
       console.log('Request failed', error);
@@ -366,6 +373,6 @@ const api = new ApiService({
 });
 ```
 
-## Support & collaboration
+## Support and collaboration
 
 If you have any idea for an improvement, please file an issue. Feel free to make a PR if you are willing to collaborate on the project. Thank you :)
