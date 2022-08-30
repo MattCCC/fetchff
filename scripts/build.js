@@ -18,21 +18,25 @@ const moveFile = (from, to, filename) => {
     )
 }
 
+const removeTempDirs = () => {
+    try {
+        fs.rmSync(path.resolve('dist-node'), { recursive: true });
+    } catch (error) {
+    }
+
+    try {
+        fs.rmSync(path.resolve('dist-browser'), { recursive: true });
+    } catch (error) {
+    }
+}
+
 // Remove all dirs initially
 try {
     fs.rmSync(path.resolve('dist'), { recursive: true });
 } catch (error) {
 }
 
-try {
-    fs.rmSync(path.resolve('dist-node'), { recursive: true });
-} catch (error) {
-}
-
-try {
-    fs.rmSync(path.resolve('dist-browser'), { recursive: true });
-} catch (error) {
-}
+removeTempDirs();
 
 console.log('Building browser version...')
 
@@ -55,6 +59,8 @@ fs.mkdirSync(path.resolve('dist-node'));
 
 console.log('Creating common types...')
 
+console.log('Handle node...')
+
 // Ok, now it's going to be weird
 // Let me explain...
 // Each build (browser and node) contains its own typings
@@ -65,44 +71,40 @@ console.log('Creating common types...')
 
 // moving all node files into folder 'dist-node'
 // reason: we want to get rid of all typings
-moveFile('dist', 'dist-node', 'index.cjs.development.js');
-moveFile('dist', 'dist-node', 'index.cjs.development.js.map');
-moveFile('dist', 'dist-node', 'index.cjs.production.min.js');
-moveFile('dist', 'dist-node', 'index.cjs.production.min.js.map');
 moveFile('dist', 'dist-node', 'index.js');
+moveFile('dist', 'dist-node', 'index.js.map');
 
 // finally we delete the folder with all node-typings
 fs.rmSync(path.resolve('dist'), { recursive: true });
 // now we can move 'dist-node' to 'dist/node' again
 fs.mkdirSync(path.resolve('dist'));
+
 moveFile('dist-node', 'dist/node');
+
+console.log('Handle browser...')
 
 // for our browser version, we create a new folder
 fs.mkdirSync(path.resolve('dist', 'browser'));
-// moving the important files into 'dist/browser' folder
-moveFile('dist-browser', 'dist/browser', 'index.esm.js');
-moveFile('dist-browser', 'dist/browser', 'index.esm.js.map');
 
-// typings remain in the temporary folder
-// therefore we move and rename it to 'dist/types'
-moveFile('dist-browser', 'dist/typings');
+// Move important files into 'dist/browser' folder
+moveFile('dist-browser', 'dist/browser', 'index.mjs');
+moveFile('dist-browser', 'dist/browser', 'index.mjs.map');
+moveFile('dist-browser', 'dist/browser', 'index.global.js');
+moveFile('dist-browser', 'dist/browser', 'index.global.js.map');
+moveFile('dist-browser', 'dist/browser', 'index.d.ts');
 
-// now what's left is copying a template typings file into our subfolders
-// that's responsible for linking to folder 'dist/types'
+console.log('Handle typings...')
+
 fs.copyFileSync(
-    path.resolve('scripts/templates', 'index.d.ts'),
     path.resolve('dist', 'browser', 'index.d.ts'),
-);
-
-fs.copyFileSync(
-    path.resolve('scripts/templates', 'index.d.ts'),
     path.resolve('dist', 'node', 'index.d.ts'),
 );
 
-// Avoid unnecessary nested types/ dir
-try {
-    proc.execSync('mv ' + path.resolve('dist', 'typings') + '/* ' + path.resolve('dist') + '; rmdir ' + path.resolve('dist', 'typings'));
-} catch (_err) {
-}
+fs.copyFileSync(
+    path.resolve('dist', 'browser', 'index.d.ts'),
+    path.resolve('dist', 'index.d.ts'),
+);
+
+removeTempDirs();
 
 console.log('Build finished!');

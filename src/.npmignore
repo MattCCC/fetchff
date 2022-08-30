@@ -13,7 +13,6 @@ package
 !*.d.ts
 tsconfig.json
 .eslintrc.js
-tsdx.config.js
 
 .DS_Store
 src
