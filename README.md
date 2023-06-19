@@ -140,38 +140,12 @@ export default api;
 import api from '../api/index';
 
 export const useProfile = ({ id }) => {
-  const {
-    isLoading,
-    data,
-    error,
-    isFetching,
-  } = useQuery(['profile', id], () => api.getProfile({ id }), {
+  return useQuery(['profile', id], () => api.getProfile({ id }), {
     initialData: [],
     initialDataUpdatedAt: Date.now(),
     enabled: id > 0,
     refetchOnReconnect: true,
   })
-
-  if (isLoading || isFetching) {
-    return {
-      isLoading,
-      data: [],
-    }
-  }
-
-  if (!data) {
-    return {
-      isError: true,
-      error,
-      data: [],
-    }
-  }
-
-  return {
-    isLoading: false,
-    data,
-    remove,
-  }
 }
 
 ```
