@@ -10,7 +10,7 @@ import {
   EndpointConfig,
 } from './types/http-request';
 
-import { HttpRequestHandler } from './http-request-handler';
+import { RequestHandler } from './request-handler';
 
 /**
  * Handles dispatching of API requests
@@ -23,14 +23,9 @@ export class ApiHandler implements MagicalClass {
   [x: string]: any;
 
   /**
-   * Api Url
+   * @var requestHandler Request Wrapper Instance
    */
-  public apiUrl = '';
-
-  /**
-   * @var httpRequestHandler Request Wrapper Instance
-   */
-  public httpRequestHandler: HttpRequestHandler;
+  public requestHandler: RequestHandler;
 
   /**
    * Endpoints
@@ -45,14 +40,15 @@ export class ApiHandler implements MagicalClass {
   /**
    * Creates an instance of API Handler
    *
-   * @param {string} apiUrl               Base URL for all API calls
-   * @param {number} timeout              Request timeout
-   * @param {string} strategy             Error Handling Strategy
-   * @param {string} flattenResponse      Whether to flatten response "data" object within "data" one
-   * @param {*} logger                    Instance of Logger Class
-   * @param {*} onError                   Instance of Error Service Class
+   * @param {string} config.apiUrl               Base URL for all API calls
+   * @param {number} config.timeout              Request timeout
+   * @param {string} config.strategy             Error Handling Strategy
+   * @param {string} config.flattenResponse      Whether to flatten response "data" object within "data" one
+   * @param {*} config.logger                    Instance of Logger Class
+   * @param {*} config.onError                   Instance of Error Service Class
    */
   public constructor({
+    axios,
     apiUrl,
     endpoints,
     timeout = null,
@@ -64,13 +60,13 @@ export class ApiHandler implements MagicalClass {
     onError = null,
     ...config
   }: APIHandlerConfig) {
-    this.apiUrl = apiUrl;
     this.endpoints = endpoints;
     this.logger = logger;
 
-    this.httpRequestHandler = new HttpRequestHandler({
+    this.requestHandler = new RequestHandler({
       ...config,
-      baseURL: this.apiUrl,
+      baseURL: apiUrl,
+      axios,
       timeout,
       cancellable,
       strategy,
@@ -87,7 +83,7 @@ export class ApiHandler implements MagicalClass {
    * @returns {AxiosInstance} Provider's instance
    */
   public getInstance(): AxiosInstance {
-    return this.httpRequestHandler.getInstance();
+    return this.requestHandler.getInstance();
   }
 
   /**
@@ -134,7 +130,7 @@ export class ApiHandler implements MagicalClass {
     delete additionalRequestSettings.url;
     delete additionalRequestSettings.method;
 
-    responseData = await this.httpRequestHandler[
+    responseData = await this.requestHandler[
       (endpointSettings.method || 'get').toLowerCase()
     ](uri, queryParams, {
       ...requestConfig,
