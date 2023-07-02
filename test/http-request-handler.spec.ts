@@ -2,264 +2,299 @@ import PromiseAny from 'promise-any';
 import { HttpRequestHandler } from '../src/http-request-handler';
 
 describe('API Handler', () => {
-    const apiUrl = 'http://example.com/api/';
-    const axiosResponseMock = {
-        data: {
-            'test': 'data'
+  const apiUrl = 'http://example.com/api/';
+  const axiosResponseMock = {
+    data: {
+      test: 'data',
+    },
+  };
+
+  console.warn = jest.fn();
+
+  afterEach((done) => {
+    done();
+  });
+
+  it('should get request instance', () => {
+    const httpRequestHandler = new HttpRequestHandler({});
+
+    const response = httpRequestHandler.getInstance();
+
+    expect(response).toBeTruthy();
+  });
+
+  describe('handleRequest()', () => {
+    it('should properly hang promise when using Silent strategy', async () => {
+      const httpRequestHandler = new HttpRequestHandler({
+        strategy: 'silent',
+      });
+
+      httpRequestHandler.requestInstance.request = jest
+        .fn()
+        .mockRejectedValue(new Error('Request Failed'));
+
+      let response;
+      const request = (httpRequestHandler as any).get(apiUrl);
+
+      let timeout = new Promise((resolve) => {
+        let wait = setTimeout(() => {
+          clearTimeout(wait);
+
+          resolve('timeout');
+        }, 2000);
+      });
+
+      expect(typeof request.then).toBe('function');
+
+      response = await PromiseAny([request, timeout]);
+
+      expect(response).toBe('timeout');
+    });
+
+    it('should reject promise when using rejection strategy', async () => {
+      const httpRequestHandler = new HttpRequestHandler({
+        strategy: 'reject',
+      });
+
+      httpRequestHandler.requestInstance.request = jest
+        .fn()
+        .mockRejectedValue(new Error('Request Failed'));
+
+      let response;
+
+      try {
+        response = await (httpRequestHandler as any).delete(apiUrl);
+      } catch (error) {
+        expect(typeof error).toBe('object');
+      }
+
+      expect(response).toBe(undefined);
+    });
+
+    it('should reject promise when using reject strategy per endpoing', async () => {
+      const httpRequestHandler = new HttpRequestHandler({
+        strategy: 'silent',
+      });
+
+      httpRequestHandler.requestInstance.request = jest
+        .fn()
+        .mockRejectedValue(new Error('Request Failed'));
+
+      try {
+        await (httpRequestHandler as any).delete(apiUrl, null, {
+          strategy: 'throwError',
+        });
+      } catch (error) {
+        expect(typeof error).toBe('object');
+      }
+    });
+  });
+
+  describe('handleCancellation()', () => {
+    it('should not set cancel token if cancellation is globally disabled', async () => {
+      const httpRequestHandler = new HttpRequestHandler({
+        strategy: 'reject',
+        cancellable: false,
+      });
+
+      httpRequestHandler.requestInstance.request = jest
+        .fn()
+        .mockResolvedValue(axiosResponseMock);
+      const spy = jest.spyOn(httpRequestHandler.requestInstance, 'request');
+
+      await (httpRequestHandler as any).get(apiUrl);
+
+      expect(spy).toHaveBeenCalledWith(
+        expect.not.objectContaining({
+          signal: expect.any(Object),
+        })
+      );
+    });
+
+    it('should not set cancel token if cancellation is disabled per route', async () => {
+      const httpRequestHandler = new HttpRequestHandler({
+        strategy: 'reject',
+        cancellable: true,
+      });
+
+      httpRequestHandler.requestInstance.request = jest
+        .fn()
+        .mockResolvedValue(axiosResponseMock);
+      const spy = jest.spyOn(httpRequestHandler.requestInstance, 'request');
+
+      await (httpRequestHandler as any).get(
+        apiUrl,
+        {},
+        {
+          cancellable: false,
         }
-    }
+      );
 
-    console.warn = jest.fn();
-
-    afterEach((done) => {
-        done();
+      expect(spy).toHaveBeenCalledWith(
+        expect.not.objectContaining({
+          signal: expect.any(Object),
+        })
+      );
     });
 
-    it('should get request instance', async () => {
-        const httpRequestHandler = new HttpRequestHandler({});
+    it('should set cancel token if cancellation is enabled per route', async () => {
+      const httpRequestHandler = new HttpRequestHandler({
+        strategy: 'reject',
+        cancellable: true,
+      });
 
-        const response = await httpRequestHandler.getInstance();
+      httpRequestHandler.requestInstance.request = jest
+        .fn()
+        .mockResolvedValue(axiosResponseMock);
+      const spy = jest.spyOn(httpRequestHandler.requestInstance, 'request');
 
-        expect(response).toBeTruthy();
+      await (httpRequestHandler as any).get(
+        apiUrl,
+        {},
+        {
+          cancellable: true,
+        }
+      );
+
+      expect(spy).not.toHaveBeenCalledWith({});
     });
 
-    describe('handleRequest()', () => {
-        it('should properly hang promise when using Silent strategy', async () => {
-            const httpRequestHandler = new HttpRequestHandler({
-                strategy: 'silent',
-            });
+    it('should set cancel token if cancellation is enabled per route but globally cancellation is disabled', async () => {
+      const httpRequestHandler = new HttpRequestHandler({
+        strategy: 'reject',
+        cancellable: false,
+      });
 
-            httpRequestHandler.requestInstance.request = jest.fn().mockRejectedValue(new Error('Request Failed'));
+      httpRequestHandler.requestInstance.request = jest
+        .fn()
+        .mockResolvedValue(axiosResponseMock);
+      const spy = jest.spyOn(httpRequestHandler.requestInstance, 'request');
 
-            let response;
-            const request = (httpRequestHandler as any).get(apiUrl);
+      await (httpRequestHandler as any).get(
+        apiUrl,
+        {},
+        {
+          cancellable: true,
+        }
+      );
 
-            let timeout = new Promise((resolve) => {
-                let wait = setTimeout(() => {
-                    clearTimeout(wait);
-
-                    resolve('timeout');
-                }, 2000)
-            })
-
-            expect(typeof request.then).toBe('function');
-
-            response = await PromiseAny([
-                request,
-                timeout,
-            ]);
-
-            expect(response).toBe("timeout");
-        });
-
-        it('should reject promise when using rejection strategy', async () => {
-            const httpRequestHandler = new HttpRequestHandler({
-                strategy: 'reject',
-            });
-
-            httpRequestHandler.requestInstance.request = jest.fn().mockRejectedValue(new Error('Request Failed'));
-
-            let response;
-
-            try {
-                response = await (httpRequestHandler as any).delete(apiUrl);
-            } catch (error) {
-                expect(typeof error).toBe("object");
-            }
-
-            expect(response).toBe(undefined);
-        });
-
-        it('should reject promise when using reject strategy per endpoing', async () => {
-            const httpRequestHandler = new HttpRequestHandler({
-                strategy: 'silent',
-            });
-
-            httpRequestHandler.requestInstance.request = jest.fn().mockRejectedValue(new Error('Request Failed'));
-
-            try {
-                await (httpRequestHandler as any).delete(apiUrl, null, {
-                    strategy: 'throwError',
-                });
-            } catch (error) {
-                expect(typeof error).toBe("object");
-            }
-        });
+      expect(spy).not.toHaveBeenCalledWith({});
     });
 
-    describe('handleCancellation()', () => {
-        it('should not set cancel token if cancellation is globally disabled', async () => {
-            const httpRequestHandler = new HttpRequestHandler({
-                strategy: 'reject',
-                cancellable: false,
-            });
+    it('should set cancel token if cancellation is not enabled per route but globally only', async () => {
+      const httpRequestHandler = new HttpRequestHandler({
+        strategy: 'reject',
+        cancellable: true,
+      });
 
-            httpRequestHandler.requestInstance.request = jest.fn().mockResolvedValue(axiosResponseMock);
-            const spy = jest.spyOn(httpRequestHandler.requestInstance, 'request');
+      httpRequestHandler.requestInstance.request = jest
+        .fn()
+        .mockResolvedValue(axiosResponseMock);
+      const spy = jest.spyOn(httpRequestHandler.requestInstance, 'request');
 
-            await (httpRequestHandler as any).get(apiUrl);
+      await (httpRequestHandler as any).get(apiUrl);
 
-            expect(spy).toHaveBeenCalledWith(expect.not.objectContaining({
-                signal: expect.any(Object),
-            }));
-        });
-
-        it('should not set cancel token if cancellation is disabled per route', async () => {
-            const httpRequestHandler = new HttpRequestHandler({
-                strategy: 'reject',
-                cancellable: true,
-            });
-
-            httpRequestHandler.requestInstance.request = jest.fn().mockResolvedValue(axiosResponseMock);
-            const spy = jest.spyOn(httpRequestHandler.requestInstance, 'request');
-
-            await (httpRequestHandler as any).get(apiUrl, {}, {
-                cancellable: false,
-            });
-
-            expect(spy).toHaveBeenCalledWith(
-              expect.not.objectContaining({
-                signal: expect.any(Object),
-              })
-            );
-        });
-
-        it('should set cancel token if cancellation is enabled per route', async () => {
-            const httpRequestHandler = new HttpRequestHandler({
-                strategy: 'reject',
-                cancellable: true,
-            });
-
-            httpRequestHandler.requestInstance.request = jest.fn().mockResolvedValue(axiosResponseMock);
-            const spy = jest.spyOn(httpRequestHandler.requestInstance, 'request');
-
-            await (httpRequestHandler as any).get(apiUrl, {}, {
-                cancellable: true,
-            });
-
-            expect(spy).not.toHaveBeenCalledWith({});
-        });
-
-        it('should set cancel token if cancellation is enabled per route but globally cancellation is disabled', async () => {
-            const httpRequestHandler = new HttpRequestHandler({
-                strategy: 'reject',
-                cancellable: false,
-            });
-
-            httpRequestHandler.requestInstance.request = jest.fn().mockResolvedValue(axiosResponseMock);
-            const spy = jest.spyOn(httpRequestHandler.requestInstance, 'request');
-
-            await (httpRequestHandler as any).get(apiUrl, {}, {
-                cancellable: true,
-            });
-
-            expect(spy).not.toHaveBeenCalledWith({});
-        });
-
-        it('should set cancel token if cancellation is not enabled per route but globally only', async () => {
-            const httpRequestHandler = new HttpRequestHandler({
-                strategy: 'reject',
-                cancellable: true,
-            });
-
-            httpRequestHandler.requestInstance.request = jest.fn().mockResolvedValue(axiosResponseMock);
-            const spy = jest.spyOn(httpRequestHandler.requestInstance, 'request');
-
-            await (httpRequestHandler as any).get(apiUrl);
-
-            expect(spy).not.toHaveBeenCalledWith({});
-        });
-
-        it('should cancel previous request when successive request is made', async () => {
-            let response;
-
-            const httpRequestHandler = new HttpRequestHandler({
-                strategy: 'silent',
-                cancellable: true,
-            });
-
-            httpRequestHandler.requestInstance.request = jest.fn().mockRejectedValue(new Error('Request Failed'));
-
-            const request = (httpRequestHandler as any).get(apiUrl);
-
-            const spy = jest.spyOn(httpRequestHandler.requestInstance, 'request');
-            httpRequestHandler.requestInstance.request = jest.fn().mockResolvedValue(axiosResponseMock);
-
-            const request2 = (httpRequestHandler as any).get(apiUrl);
-
-            expect(spy).toHaveBeenCalledTimes(1);
-            expect(spy).toHaveBeenCalledWith(
-              expect.objectContaining({
-                signal: expect.any(Object),
-              })
-            );
-
-            let timeout = new Promise((resolve) => {
-                let wait = setTimeout(() => {
-                    clearTimeout(wait);
-
-                    resolve('timeout');
-                }, 2000)
-            })
-
-            expect(typeof request.then).toBe('function');
-
-            response = await PromiseAny([
-                request,
-                request2,
-                timeout,
-            ]);
-
-            expect(response).toStrictEqual({"test": "data"});
-        });
+      expect(spy).not.toHaveBeenCalledWith({});
     });
 
-    describe('processResponseData()', () => {
-        it('should show nested data object if flattening is off', async () => {
-            const httpRequestHandler = new HttpRequestHandler({
-                flattenResponse: false,
-            });
+    it('should cancel previous request when successive request is made', async () => {
+      let response;
 
-            httpRequestHandler.requestInstance.request = jest.fn().mockResolvedValue(axiosResponseMock);
+      const httpRequestHandler = new HttpRequestHandler({
+        strategy: 'silent',
+        cancellable: true,
+      });
 
-            const response = await (httpRequestHandler as any).put(apiUrl);
+      httpRequestHandler.requestInstance.request = jest
+        .fn()
+        .mockRejectedValue(new Error('Request Failed'));
 
-            expect(response).toMatchObject(axiosResponseMock);
-        });
+      const request = (httpRequestHandler as any).get(apiUrl);
 
-        it('should handle nested data if data flattening is on', async () => {
-            const httpRequestHandler = new HttpRequestHandler({
-                flattenResponse: true,
-            });
+      const spy = jest.spyOn(httpRequestHandler.requestInstance, 'request');
+      httpRequestHandler.requestInstance.request = jest
+        .fn()
+        .mockResolvedValue(axiosResponseMock);
 
-            httpRequestHandler.requestInstance.request = jest.fn().mockResolvedValue(axiosResponseMock);
+      const request2 = (httpRequestHandler as any).get(apiUrl);
 
-            const response = await (httpRequestHandler as any).post(apiUrl);
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          signal: expect.any(Object),
+        })
+      );
 
-            expect(response).toMatchObject(axiosResponseMock.data);
-        });
+      let timeout = new Promise((resolve) => {
+        let wait = setTimeout(() => {
+          clearTimeout(wait);
 
-        it('should handle deeply nested data if data flattening is on', async () => {
-            const httpRequestHandler = new HttpRequestHandler({
-                flattenResponse: true,
-            });
+          resolve('timeout');
+        }, 2000);
+      });
 
-            httpRequestHandler.requestInstance.request = jest.fn().mockResolvedValue({ data: axiosResponseMock });
+      expect(typeof request.then).toBe('function');
 
-            const response = await (httpRequestHandler as any).patch(apiUrl);
+      response = await PromiseAny([request, request2, timeout]);
 
-            expect(response).toMatchObject(axiosResponseMock.data);
-        });
-
-        it('should return null if there is no data', async () => {
-            const httpRequestHandler = new HttpRequestHandler({
-                flattenResponse: true,
-                defaultResponse: null,
-            });
-
-            httpRequestHandler.requestInstance.request = jest.fn().mockResolvedValue({});
-
-            expect(await (httpRequestHandler as any).head(apiUrl)).toBe(null);
-        });
+      expect(response).toStrictEqual({ test: 'data' });
     });
+  });
+
+  describe('processResponseData()', () => {
+    it('should show nested data object if flattening is off', async () => {
+      const httpRequestHandler = new HttpRequestHandler({
+        flattenResponse: false,
+      });
+
+      httpRequestHandler.requestInstance.request = jest
+        .fn()
+        .mockResolvedValue(axiosResponseMock);
+
+      const response = await (httpRequestHandler as any).put(apiUrl);
+
+      expect(response).toMatchObject(axiosResponseMock);
+    });
+
+    it('should handle nested data if data flattening is on', async () => {
+      const httpRequestHandler = new HttpRequestHandler({
+        flattenResponse: true,
+      });
+
+      httpRequestHandler.requestInstance.request = jest
+        .fn()
+        .mockResolvedValue(axiosResponseMock);
+
+      const response = await (httpRequestHandler as any).post(apiUrl);
+
+      expect(response).toMatchObject(axiosResponseMock.data);
+    });
+
+    it('should handle deeply nested data if data flattening is on', async () => {
+      const httpRequestHandler = new HttpRequestHandler({
+        flattenResponse: true,
+      });
+
+      httpRequestHandler.requestInstance.request = jest
+        .fn()
+        .mockResolvedValue({ data: axiosResponseMock });
+
+      const response = await (httpRequestHandler as any).patch(apiUrl);
+
+      expect(response).toMatchObject(axiosResponseMock.data);
+    });
+
+    it('should return null if there is no data', async () => {
+      const httpRequestHandler = new HttpRequestHandler({
+        flattenResponse: true,
+        defaultResponse: null,
+      });
+
+      httpRequestHandler.requestInstance.request = jest
+        .fn()
+        .mockResolvedValue({});
+
+      expect(await (httpRequestHandler as any).head(apiUrl)).toBe(null);
+    });
+  });
 });

@@ -1,35 +1,27 @@
 {
-    "compilerOptions": {
-        "rootDir": ".",
-        "target": "ESNext",
-        "module": "esnext",
-        "moduleResolution": "node",
-        "sourceMap": true,
-        "declaration": true,
-        "removeComments": true,
-        "emitDecoratorMetadata": true,
-        "experimentalDecorators": true,
-        "noEmitOnError": false,
-        "noEmitHelpers": true,
-        "diagnostics": true,
-        "skipLibCheck": true,
-        "skipDefaultLibCheck": true,
-        "pretty": true,
-        "allowUnreachableCode": false,
-        "allowUnusedLabels": false,
-        "noImplicitAny": false,
-        "noImplicitReturns": true,
-        "noImplicitUseStrict": false,
-        "noFallthroughCasesInSwitch": true,
-        "lib": [
-            "esnext",
-            "es2017",
-            "dom"
-        ]
-    },
-    "exclude": [
-        "demo",
-        "scripts",
-        "node_modules"
-    ]
+  "compilerOptions": {
+    "rootDir": ".",
+    "target": "ESNext",
+    "module": "esnext",
+    "moduleResolution": "node",
+    "sourceMap": true,
+    "declaration": true,
+    "removeComments": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "noEmitOnError": false,
+    "noEmitHelpers": true,
+    "diagnostics": true,
+    "skipLibCheck": true,
+    "skipDefaultLibCheck": true,
+    "pretty": true,
+    "allowUnreachableCode": false,
+    "allowUnusedLabels": false,
+    "noImplicitAny": false,
+    "noImplicitReturns": true,
+    "noImplicitUseStrict": false,
+    "noFallthroughCasesInSwitch": true,
+    "lib": ["esnext", "es2017", "dom"]
+  },
+  "exclude": ["demo", "scripts", "node_modules"]
 }

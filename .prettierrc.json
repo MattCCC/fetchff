@@ -1,5 +1,4 @@
 {
     "trailingComma": "all",
-    "arrowParens": "always",
-    "tabWidth": 4
+    "arrowParens": "always"
 }
