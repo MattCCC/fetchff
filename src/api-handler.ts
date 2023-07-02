@@ -2,7 +2,7 @@
 import { applyMagic, MagicalClass } from 'js-magic';
 
 // Types
-import { AxiosInstance } from 'axios';
+import type { AxiosInstance } from 'axios';
 
 import {
   IRequestResponse,
@@ -35,12 +35,12 @@ export class ApiHandler implements MagicalClass {
   /**
    * Endpoints
    */
-  public endpoints: Record<string, EndpointConfig>;
+  protected endpoints: Record<string, EndpointConfig>;
 
   /**
    * Logger
    */
-  public logger: any;
+  protected logger: any;
 
   /**
    * Creates an instance of API Handler

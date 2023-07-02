@@ -1,3 +1,4 @@
+import axios from 'axios';
 import PromiseAny from 'promise-any';
 import { HttpRequestHandler } from '../src/http-request-handler';
 
@@ -16,7 +17,9 @@ describe('API Handler', () => {
   });
 
   it('should get request instance', () => {
-    const httpRequestHandler = new HttpRequestHandler({});
+    const httpRequestHandler = new HttpRequestHandler({
+      axios,
+    });
 
     const response = httpRequestHandler.getInstance();
 
@@ -26,6 +29,7 @@ describe('API Handler', () => {
   describe('handleRequest()', () => {
     it('should properly hang promise when using Silent strategy', async () => {
       const httpRequestHandler = new HttpRequestHandler({
+        axios,
         strategy: 'silent',
       });
 
@@ -53,6 +57,7 @@ describe('API Handler', () => {
 
     it('should reject promise when using rejection strategy', async () => {
       const httpRequestHandler = new HttpRequestHandler({
+        axios,
         strategy: 'reject',
       });
 
@@ -73,6 +78,7 @@ describe('API Handler', () => {
 
     it('should reject promise when using reject strategy per endpoing', async () => {
       const httpRequestHandler = new HttpRequestHandler({
+        axios,
         strategy: 'silent',
       });
 
@@ -93,6 +99,7 @@ describe('API Handler', () => {
   describe('handleCancellation()', () => {
     it('should not set cancel token if cancellation is globally disabled', async () => {
       const httpRequestHandler = new HttpRequestHandler({
+        axios,
         strategy: 'reject',
         cancellable: false,
       });
@@ -113,6 +120,7 @@ describe('API Handler', () => {
 
     it('should not set cancel token if cancellation is disabled per route', async () => {
       const httpRequestHandler = new HttpRequestHandler({
+        axios,
         strategy: 'reject',
         cancellable: true,
       });
@@ -139,6 +147,7 @@ describe('API Handler', () => {
 
     it('should set cancel token if cancellation is enabled per route', async () => {
       const httpRequestHandler = new HttpRequestHandler({
+        axios,
         strategy: 'reject',
         cancellable: true,
       });
@@ -161,6 +170,7 @@ describe('API Handler', () => {
 
     it('should set cancel token if cancellation is enabled per route but globally cancellation is disabled', async () => {
       const httpRequestHandler = new HttpRequestHandler({
+        axios,
         strategy: 'reject',
         cancellable: false,
       });
@@ -183,6 +193,7 @@ describe('API Handler', () => {
 
     it('should set cancel token if cancellation is not enabled per route but globally only', async () => {
       const httpRequestHandler = new HttpRequestHandler({
+        axios,
         strategy: 'reject',
         cancellable: true,
       });
@@ -201,6 +212,7 @@ describe('API Handler', () => {
       let response;
 
       const httpRequestHandler = new HttpRequestHandler({
+        axios,
         strategy: 'silent',
         cancellable: true,
       });
@@ -244,6 +256,7 @@ describe('API Handler', () => {
   describe('processResponseData()', () => {
     it('should show nested data object if flattening is off', async () => {
       const httpRequestHandler = new HttpRequestHandler({
+        axios,
         flattenResponse: false,
       });
 
@@ -258,6 +271,7 @@ describe('API Handler', () => {
 
     it('should handle nested data if data flattening is on', async () => {
       const httpRequestHandler = new HttpRequestHandler({
+        axios,
         flattenResponse: true,
       });
 
@@ -272,6 +286,7 @@ describe('API Handler', () => {
 
     it('should handle deeply nested data if data flattening is on', async () => {
       const httpRequestHandler = new HttpRequestHandler({
+        axios,
         flattenResponse: true,
       });
 
@@ -286,6 +301,7 @@ describe('API Handler', () => {
 
     it('should return null if there is no data', async () => {
       const httpRequestHandler = new HttpRequestHandler({
+        axios,
         flattenResponse: true,
         defaultResponse: null,
       });

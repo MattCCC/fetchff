@@ -338,7 +338,7 @@ class ApiService extends ApiHandler {
    * @returns {void}
    */
   protected setupInterceptor(): void {
-    this.getInstance().interceptRequest(onRequest);
+    this.getInstance().interceptors.request.use(onRequest);
   }
 }
 
