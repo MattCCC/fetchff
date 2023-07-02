@@ -1,3 +1,4 @@
+import axios from 'axios';
 import { ApiHandler } from '../src/api-handler';
 import { mockErrorCallbackClass } from './http-request-error-handler.spec';
 import { endpoints, IEndpoints } from './mocks/endpoints';
@@ -5,6 +6,7 @@ import { endpoints, IEndpoints } from './mocks/endpoints';
 describe('API Handler', () => {
   const apiUrl = 'http://example.com/api/';
   const config = {
+    axios,
     apiUrl,
     endpoints,
     onError: new mockErrorCallbackClass(),

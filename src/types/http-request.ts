@@ -1,10 +1,11 @@
-import { AxiosError, AxiosRequestConfig, AxiosResponse } from 'axios';
+import type {
+  AxiosStatic,
+  AxiosError,
+  AxiosRequestConfig,
+  AxiosResponse,
+} from 'axios';
 
 export type IRequestResponse<T = any> = Promise<AxiosResponse<T>>;
-
-export type InterceptorCallback = (
-  value: AxiosRequestConfig
-) => AxiosRequestConfig | Promise<AxiosRequestConfig>;
 
 export type ErrorHandlingStrategy =
   | 'throwError'
@@ -28,6 +29,7 @@ export interface EndpointConfig extends AxiosRequestConfig {
 }
 
 export interface RequestHandlerConfig extends EndpointConfig {
+  axios: AxiosStatic;
   flattenResponse?: boolean;
   defaultResponse?: any;
   logger?: any;

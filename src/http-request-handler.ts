@@ -1,15 +1,14 @@
 // 3rd party libs
-import axios, { AxiosInstance, Method } from 'axios';
+import type { AxiosInstance, AxiosStatic, Method } from 'axios';
 import { applyMagic, MagicalClass } from 'js-magic';
 
 // Shared Modules
 import { HttpRequestErrorHandler } from './http-request-error-handler';
 
 // Types
-import {
+import type {
   IRequestData,
   IRequestResponse,
-  InterceptorCallback,
   ErrorHandlingStrategy,
   RequestHandlerConfig,
   EndpointConfig,
@@ -54,6 +53,11 @@ export class HttpRequestHandler implements MagicalClass {
   public defaultResponse: any = null;
 
   /**
+   * @var axios Axios instance
+   */
+  protected axios: AxiosStatic;
+
+  /**
    * @var logger Logger
    */
   protected logger: any;
@@ -71,6 +75,7 @@ export class HttpRequestHandler implements MagicalClass {
   /**
    * Creates an instance of HttpRequestHandler
    *
+   * @param {string} config.axios                Axios instance
    * @param {string} config.baseURL              Base URL for all API calls
    * @param {number} config.timeout              Request timeout
    * @param {string} config.strategy             Error Handling Strategy
@@ -79,6 +84,7 @@ export class HttpRequestHandler implements MagicalClass {
    * @param {*} config.httpRequestErrorService   Instance of Error Service Class
    */
   public constructor({
+    axios,
     baseURL = '',
     timeout = null,
     cancellable = false,
@@ -89,6 +95,7 @@ export class HttpRequestHandler implements MagicalClass {
     onError = null,
     ...config
   }: RequestHandlerConfig) {
+    this.axios = axios;
     this.timeout = timeout !== null ? timeout : this.timeout;
     this.strategy = strategy !== null ? strategy : this.strategy;
     this.cancellable = cancellable || this.cancellable;
@@ -113,16 +120,6 @@ export class HttpRequestHandler implements MagicalClass {
    */
   public getInstance(): AxiosInstance {
     return this.requestInstance;
-  }
-
-  /**
-   * Intercept Request
-   *
-   * @param {*} callback callback to use before request
-   * @returns {void}
-   */
-  public interceptRequest(callback: InterceptorCallback): void {
-    this.getInstance().interceptors.request.use(callback);
   }
 
   /**
@@ -270,7 +267,7 @@ export class HttpRequestHandler implements MagicalClass {
     error: RequestError,
     _requestConfig: EndpointConfig
   ): boolean {
-    return axios.isCancel(error);
+    return this.axios.isCancel(error);
   }
 
   /**
