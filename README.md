@@ -64,9 +64,11 @@ yarn add axios axios-multi-api
 ## Usage
 
 ```typescript
+import axios from 'axios';
 import { createApiFetcher } from 'axios-multi-api';
 
 const api = createApiFetcher({
+  axios,
   apiUrl: 'https://example.com/api',
   endpoints: {
     getUserDetails: {
@@ -122,9 +124,11 @@ You could use [React Query](https://react-query-v3.tanstack.com/guides/queries) 
 
 ```typescript
 // api/index.ts
+import axios from 'axios';
 import { createApiFetcher } from 'axios-multi-api';
 
 const api = createApiFetcher({
+  axios,
   apiUrl: 'https://example.com/api',
   strategy: 'reject',
   endpoints: {
@@ -221,6 +225,7 @@ import {
   APIUrlParams,
 } from 'axios-multi-api';
 
+import axios from 'axios';
 import { createApiFetcher } from 'axios-multi-api';
 
 interface myQueryParams {
@@ -235,6 +240,7 @@ interface EndpointsList extends Endpoints {
 }
 
 const api = createApiFetcher({
+  axios,
   // Your config
 }) as unknown as EndpointsList;
 
@@ -249,9 +255,11 @@ Package ships interfaces with responsible defaults making it easier to add new e
 ### Per Request Error handling
 
 ```typescript
+import axios from 'axios';
 import { createApiFetcher } from 'axios-multi-api';
 
 const api = createApiFetcher({
+  axios,
   apiUrl: 'https://example.com/api',
   endpoints: {
     sendMessage: {
@@ -300,9 +308,10 @@ You could for example create an API service class that extends the handler, inje
 As you may notice there's also a `setupInterceptor` and `httpRequestHandler` exposed. You can operate on it instead of requesting an Axios instance prior the operation. This way you can use all Axios settings for a particular API handler.
 
 ```typescript
+import axios from 'axios';
 import { ApiHandler } from 'axios-multi-api';
 
-class MyCustomHttpRequestError {
+class MyRequestError {
   public constructor(myCallback) {
     this.myCallback = myCallback;
   }
@@ -324,10 +333,11 @@ class ApiService extends ApiHandler {
   public constructor({ apiUrl, endpoints, logger, myCallback }) {
     // Pass settings to API Handler
     super({
+      axios,
       apiUrl,
       endpoints,
       logger,
-      onError: new MyCustomHttpRequestError(myCallback),
+      onError: new MyRequestError(myCallback),
     });
 
     this.setupInterceptor();
