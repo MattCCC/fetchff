@@ -3,7 +3,7 @@ import type { AxiosInstance, AxiosStatic, Method } from 'axios';
 import { applyMagic, MagicalClass } from 'js-magic';
 
 // Shared Modules
-import { HttpRequestErrorHandler } from './http-request-error-handler';
+import { RequestErrorHandler } from './request-error-handler';
 
 // Types
 import type {
@@ -21,7 +21,7 @@ import type {
  * It handles errors depending on a chosen error handling strategy
  */
 @applyMagic
-export class HttpRequestHandler implements MagicalClass {
+export class RequestHandler implements MagicalClass {
   /**
    * @var requestInstance Provider's instance
    */
@@ -63,9 +63,9 @@ export class HttpRequestHandler implements MagicalClass {
   protected logger: any;
 
   /**
-   * @var httpRequestErrorService HTTP error service
+   * @var requestErrorService HTTP error service
    */
-  protected httpRequestErrorService: any;
+  protected requestErrorService: any;
 
   /**
    * @var requestsQueue    Queue of requests
@@ -81,7 +81,7 @@ export class HttpRequestHandler implements MagicalClass {
    * @param {string} config.strategy             Error Handling Strategy
    * @param {string} config.flattenResponse      Whether to flatten response "data" object within "data" one
    * @param {*} config.logger                    Instance of Logger Class
-   * @param {*} config.httpRequestErrorService   Instance of Error Service Class
+   * @param {*} config.requestErrorService   Instance of Error Service Class
    */
   public constructor({
     axios,
@@ -103,7 +103,7 @@ export class HttpRequestHandler implements MagicalClass {
       flattenResponse !== null ? flattenResponse : this.flattenResponse;
     this.defaultResponse = defaultResponse;
     this.logger = logger || global.console || window.console || null;
-    this.httpRequestErrorService = onError;
+    this.requestErrorService = onError;
     this.requestsQueue = new Map();
 
     this.requestInstance = axios.create({
@@ -211,9 +211,9 @@ export class HttpRequestHandler implements MagicalClass {
       requestConfig.onError(error);
     }
 
-    const errorHandler = new HttpRequestErrorHandler(
+    const errorHandler = new RequestErrorHandler(
       this.logger,
-      this.httpRequestErrorService
+      this.requestErrorService
     );
 
     errorHandler.process(error);

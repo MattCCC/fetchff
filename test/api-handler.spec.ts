@@ -57,7 +57,7 @@ describe('API Handler', () => {
     it('should properly replace multiple URL params', async () => {
       const api = new ApiHandler(config);
 
-      (api.httpRequestHandler as any).get = jest
+      (api.requestHandler as any).get = jest
         .fn()
         .mockResolvedValueOnce(userDataMock);
 
@@ -67,8 +67,8 @@ describe('API Handler', () => {
         name: 'Mark',
       });
 
-      expect((api.httpRequestHandler as any).get).toHaveBeenCalledTimes(1);
-      expect((api.httpRequestHandler as any).get).toHaveBeenCalledWith(
+      expect((api.requestHandler as any).get).toHaveBeenCalledTimes(1);
+      expect((api.requestHandler as any).get).toHaveBeenCalledWith(
         '/user-details/get/1/Mark',
         {},
         {}
@@ -84,7 +84,7 @@ describe('API Handler', () => {
         },
       };
 
-      (api.httpRequestHandler as any).get = jest
+      (api.requestHandler as any).get = jest
         .fn()
         .mockResolvedValueOnce(userDataMock);
 
@@ -95,8 +95,8 @@ describe('API Handler', () => {
         headers
       );
 
-      expect((api.httpRequestHandler as any).get).toHaveBeenCalledTimes(1);
-      expect((api.httpRequestHandler as any).get).toHaveBeenCalledWith(
+      expect((api.requestHandler as any).get).toHaveBeenCalledTimes(1);
+      expect((api.requestHandler as any).get).toHaveBeenCalledWith(
         '/user-details/get/1/Mark',
         {},
         headers

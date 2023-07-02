@@ -1,4 +1,4 @@
-import { HttpRequestErrorHandler } from '../src/http-request-error-handler';
+import { RequestErrorHandler } from '../src/request-error-handler';
 
 export const mockErrorCallbackClass = class CustomErrorHandler {
   public process() {
@@ -10,38 +10,35 @@ describe('API Handler', () => {
   const mockErrorCallback = () => 'function called';
 
   it('should call provided error callback', () => {
-    const httpRequestHandler = new HttpRequestErrorHandler(
-      null,
-      mockErrorCallback
-    );
-    httpRequestHandler.httpRequestErrorService = jest
+    const httpRequestHandler = new RequestErrorHandler(null, mockErrorCallback);
+    httpRequestHandler.requestErrorService = jest
       .fn()
       .mockResolvedValue(mockErrorCallback);
 
     httpRequestHandler.process('My error text');
 
-    expect(httpRequestHandler.httpRequestErrorService).toHaveBeenCalledTimes(1);
-    expect(httpRequestHandler.httpRequestErrorService).toHaveBeenCalledWith(
+    expect(httpRequestHandler.requestErrorService).toHaveBeenCalledTimes(1);
+    expect(httpRequestHandler.requestErrorService).toHaveBeenCalledWith(
       new Error('My error text')
     );
   });
 
   it('should call provided error class', () => {
-    const httpRequestHandler = new HttpRequestErrorHandler(
+    const httpRequestHandler = new RequestErrorHandler(
       null,
       mockErrorCallbackClass
     );
-    httpRequestHandler.httpRequestErrorService.process = jest
+    httpRequestHandler.requestErrorService.process = jest
       .fn()
       .mockResolvedValue(mockErrorCallbackClass);
 
     httpRequestHandler.process('My error text');
 
     expect(
-      httpRequestHandler.httpRequestErrorService.process
+      httpRequestHandler.requestErrorService.process
     ).toHaveBeenCalledTimes(1);
-    expect(
-      httpRequestHandler.httpRequestErrorService.process
-    ).toHaveBeenCalledWith(new Error('My error text'));
+    expect(httpRequestHandler.requestErrorService.process).toHaveBeenCalledWith(
+      new Error('My error text')
+    );
   });
 });
