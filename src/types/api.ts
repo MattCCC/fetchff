@@ -6,14 +6,18 @@ export declare type APIRequestConfig = EndpointConfig;
 export declare type APIResponse = any;
 
 export declare type Endpoint<
-  T = APIQueryParams,
-  T2 = APIUrlParams,
-  T3 = APIResponse
-> = <T4 = T, T5 = T2, T6 = T3>(
-  queryParams?: T4 | null,
-  urlParams?: T5,
+  Response = APIResponse,
+  QueryParamsOrData = APIQueryParams,
+  DynamicUrlParams = APIUrlParams
+> = <
+  ResponseData = Response,
+  QueryParams = QueryParamsOrData,
+  UrlParams = DynamicUrlParams
+>(
+  queryParams?: QueryParams | null,
+  urlParams?: UrlParams,
   requestConfig?: EndpointConfig
-) => Promise<T6>;
+) => Promise<ResponseData>;
 
 export interface Endpoints {
   [x: string]: Endpoint;

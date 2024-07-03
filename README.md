@@ -218,22 +218,41 @@ Axios-multi-api includes necessary [TypeScript](http://typescriptlang.org) defin
 ### Example of interface
 
 ```typescript
-import {
-  Endpoints,
-  Endpoint,
-  APIQueryParams,
-  APIUrlParams,
-} from 'axios-multi-api';
+import { Endpoints, Endpoint } from 'axios-multi-api';
 
 import axios from 'axios';
 import { createApiFetcher } from 'axios-multi-api';
 
-interface myQueryParams {
+interface Movie {
+  id: number;
+  title: string;
+  genre: string;
+  releaseDate: string;
+  rating: number;
+}
+
+interface MoviesResponseData {
+  movies: Movie[];
+  totalResults: number;
+  totalPages: number;
+}
+
+interface MoviesQueryParams {
   newMovies: boolean;
 }
 
+interface MoviesDynamicURLParams {
+  movieId?: number;
+}
+
+// You can either extend the Endpoints to skip defining every endpoint
+// Or you can just define the EndpointsList and enjoy more strict typings
 interface EndpointsList extends Endpoints {
-  fetchMovies: Endpoint<myQueryParams, myURLParams, myResponse>;
+  fetchMovies: Endpoint<
+    MoviesResponseData,
+    MoviesQueryParams,
+    MoviesDynamicURLParams
+  >;
 
   // Or you can use just Endpoint
   fetchTVSeries: Endpoint;
@@ -245,7 +264,13 @@ const api = createApiFetcher({
 }) as unknown as EndpointsList;
 
 // Will return an error since "newMovies" should be a boolean
-api.fetchMovies({ newMovies: 1 });
+const movies = api.fetchMovies({ newMovies: 1 });
+
+// You can also pass type to the request directly
+const movie = api.fetchMovies<MoviesResponseData>(
+  { newMovies: 1 },
+  { movieId: 1 }
+);
 ```
 
 Package ships interfaces with responsible defaults making it easier to add new endpoints. It exposes `Endpoints` and `Endpoint` types.

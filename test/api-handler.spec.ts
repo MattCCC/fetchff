@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { ApiHandler } from '../src/api-handler';
 import { mockErrorCallbackClass } from './http-request-error-handler.spec';
-import { endpoints, IEndpoints } from './mocks/endpoints';
+import { endpoints, EndpointsList } from './mocks/endpoints';
 
 describe('API Handler', () => {
   const apiUrl = 'http://example.com/api/';
@@ -31,7 +31,7 @@ describe('API Handler', () => {
 
       api.handleRequest = jest.fn().mockResolvedValueOnce(userDataMock);
 
-      const endpoints = api as unknown as IEndpoints;
+      const endpoints = api as unknown as EndpointsList;
       const response = await endpoints.getUserDetails({ userId: 1 });
 
       expect(api.handleRequest).toHaveBeenCalledTimes(1);
@@ -61,7 +61,7 @@ describe('API Handler', () => {
         .fn()
         .mockResolvedValueOnce(userDataMock);
 
-      const endpoints = api as unknown as IEndpoints;
+      const endpoints = api as unknown as EndpointsList;
       const response = await endpoints.getUserDetailsByIdAndName(null, {
         id: 1,
         name: 'Mark',
@@ -69,7 +69,7 @@ describe('API Handler', () => {
 
       expect((api.requestHandler as any).get).toHaveBeenCalledTimes(1);
       expect((api.requestHandler as any).get).toHaveBeenCalledWith(
-        '/user-details/get/1/Mark',
+        '/user-details/1/Mark',
         {},
         {}
       );
@@ -88,7 +88,7 @@ describe('API Handler', () => {
         .fn()
         .mockResolvedValueOnce(userDataMock);
 
-      const endpoints = api as unknown as IEndpoints;
+      const endpoints = api as unknown as EndpointsList;
       const response = await endpoints.getUserDetailsByIdAndName(
         null,
         { id: 1, name: 'Mark' },
@@ -97,7 +97,7 @@ describe('API Handler', () => {
 
       expect((api.requestHandler as any).get).toHaveBeenCalledTimes(1);
       expect((api.requestHandler as any).get).toHaveBeenCalledWith(
-        '/user-details/get/1/Mark',
+        '/user-details/1/Mark',
         {},
         headers
       );
