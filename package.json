@@ -19,7 +19,7 @@
     "node"
   ],
   "engines": {
-    "node": ">=16"
+    "node": ">=18"
   },
   "scripts": {
     "start": "tsup src/index.ts --watch",
