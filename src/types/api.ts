@@ -9,11 +9,11 @@ export declare type Endpoint<
   T = APIQueryParams,
   T2 = APIUrlParams,
   T3 = APIResponse
-> = (
-  queryParams?: T | null,
-  urlParams?: T2,
+> = <T4 = T, T5 = T2, T6 = T3>(
+  queryParams?: T4 | null,
+  urlParams?: T5,
   requestConfig?: EndpointConfig
-) => Promise<T3>;
+) => Promise<T6>;
 
 export interface Endpoints {
   [x: string]: Endpoint;
