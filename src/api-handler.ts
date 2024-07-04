@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // 3rd party libs
 import { applyMagic, MagicalClass } from 'js-magic';
 
@@ -5,9 +6,9 @@ import { applyMagic, MagicalClass } from 'js-magic';
 import type { AxiosInstance } from 'axios';
 
 import {
-  IRequestResponse,
+  RequestResponse,
   APIHandlerConfig,
-  EndpointConfig,
+  EndpointsConfig,
 } from './types/http-request';
 
 import { RequestHandler } from './request-handler';
@@ -30,7 +31,7 @@ export class ApiHandler implements MagicalClass {
   /**
    * Endpoints
    */
-  protected endpoints: Record<string, EndpointConfig>;
+  protected endpoints: EndpointsConfig<string>;
 
   /**
    * Logger
@@ -89,6 +90,7 @@ export class ApiHandler implements MagicalClass {
   /**
    * Maps all API requests
    *
+   * @private
    * @param {*} prop          Caller
    * @returns {Function}      Tailored request function
    */
@@ -111,7 +113,7 @@ export class ApiHandler implements MagicalClass {
    * @param {*} args      Arguments
    * @returns {Promise}   Resolvable API provider promise
    */
-  public async handleRequest(...args: any): Promise<IRequestResponse> {
+  public async handleRequest(...args: string[]): Promise<RequestResponse> {
     const prop = args[0];
     const endpointSettings = this.endpoints[prop];
 
@@ -120,7 +122,7 @@ export class ApiHandler implements MagicalClass {
     const requestConfig = args[3] || {};
 
     const uri = endpointSettings.url.replace(/:[a-z]+/gi, (str: string) =>
-      uriParams[str.substring(1)] ? uriParams[str.substring(1)] : str
+      uriParams[str.substring(1)] ? uriParams[str.substring(1)] : str,
     );
 
     let responseData = null;
@@ -146,7 +148,7 @@ export class ApiHandler implements MagicalClass {
    * @param prop Method Name
    * @returns {Promise}
    */
-  protected handleNonImplemented(prop: string): Promise<any> {
+  protected handleNonImplemented(prop: string): Promise<null> {
     if (this.logger?.log) {
       this.logger.log(`${prop} endpoint not implemented.`);
     }
@@ -155,5 +157,6 @@ export class ApiHandler implements MagicalClass {
   }
 }
 
-export const createApiFetcher = (options: APIHandlerConfig) =>
-  new ApiHandler(options);
+export const createApiFetcher = <AllEndpointsList = { [x: string]: unknown }>(
+  options: APIHandlerConfig,
+) => new ApiHandler(options) as ApiHandler & AllEndpointsList;

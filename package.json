@@ -28,7 +28,7 @@
     "build:node": "tsup src/index.ts --dts --format cjs --sourcemap --env.NODE_ENV production --minify",
     "types-check": "tsc --noEmit",
     "test": "jest --forceExit",
-    "lint": "eslint ./src/**/*.ts",
+    "lint": "eslint ./src/**/*.ts ./test/**/*.spec.ts",
     "release": "npm version patch && git push --tags",
     "prepare": "npm run build",
     "size": "size-limit",

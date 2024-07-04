@@ -1,5 +1,5 @@
 {
-  "include": ["src"],
+  "include": ["src", "test"],
   "compilerOptions": {
     "experimentalDecorators": true,
     "module": "esnext",
@@ -7,7 +7,7 @@
     "importHelpers": true,
     "declaration": true,
     "sourceMap": true,
-    "rootDir": "./src",
+    "rootDir": "./",
     "strict": false,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,

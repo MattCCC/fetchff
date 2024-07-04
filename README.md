@@ -106,7 +106,7 @@ const response = await api.getUserDetails({ userId: 1, ratings: [1, 2] });
 // GET to: http://example.com/api/posts/myTestSubject?additionalInfo=something
 const response = await api.getPosts(
   { additionalInfo: 'something' },
-  { subject: 'myTestSubject' }
+  { subject: 'myTestSubject' },
 );
 
 // Send POST request to update userId "1"
@@ -258,10 +258,10 @@ interface EndpointsList extends Endpoints {
   fetchTVSeries: Endpoint;
 }
 
-const api = createApiFetcher({
+const api = createApiFetcher<EndpointsList>({
   axios,
   // Your config
-}) as unknown as EndpointsList;
+});
 
 // Will return an error since "newMovies" should be a boolean
 const movies = api.fetchMovies({ newMovies: 1 });
@@ -269,7 +269,7 @@ const movies = api.fetchMovies({ newMovies: 1 });
 // You can also pass type to the request directly
 const movie = api.fetchMovies<MoviesResponseData>(
   { newMovies: 1 },
-  { movieId: 1 }
+  { movieId: 1 },
 );
 ```
 
@@ -317,7 +317,7 @@ async function sendMessage() {
         }
         console.log(error.config);
       },
-    }
+    },
   );
 
   console.log('Message sent successfully');

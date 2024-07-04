@@ -3,6 +3,8 @@ import { ApiHandler } from '../src/api-handler';
 import { mockErrorCallbackClass } from './http-request-error-handler.spec';
 import { endpoints, EndpointsList } from './mocks/endpoints';
 
+type TestRequestHandler = Record<string, unknown>;
+
 describe('API Handler', () => {
   const apiUrl = 'http://example.com/api/';
   const config = {
@@ -46,7 +48,9 @@ describe('API Handler', () => {
 
       api.handleRequest = jest.fn().mockResolvedValueOnce(userDataMock);
 
-      const response = await api.getUserAddress({ userId: 1 });
+      const response = await api.getUserAddress({
+        userId: 1,
+      });
 
       expect(api.handleRequest).not.toHaveBeenCalled();
       expect(response).toBeNull();
@@ -57,7 +61,7 @@ describe('API Handler', () => {
     it('should properly replace multiple URL params', async () => {
       const api = new ApiHandler(config);
 
-      (api.requestHandler as any).get = jest
+      (api.requestHandler as unknown as TestRequestHandler).get = jest
         .fn()
         .mockResolvedValueOnce(userDataMock);
 
@@ -67,12 +71,12 @@ describe('API Handler', () => {
         name: 'Mark',
       });
 
-      expect((api.requestHandler as any).get).toHaveBeenCalledTimes(1);
-      expect((api.requestHandler as any).get).toHaveBeenCalledWith(
-        '/user-details/1/Mark',
-        {},
-        {}
-      );
+      expect(
+        (api.requestHandler as unknown as TestRequestHandler).get,
+      ).toHaveBeenCalledTimes(1);
+      expect(
+        (api.requestHandler as unknown as TestRequestHandler).get,
+      ).toHaveBeenCalledWith('/user-details/1/Mark', {}, {});
       expect(response).toBe(userDataMock);
     });
 
@@ -84,7 +88,7 @@ describe('API Handler', () => {
         },
       };
 
-      (api.requestHandler as any).get = jest
+      (api.requestHandler as unknown as TestRequestHandler).get = jest
         .fn()
         .mockResolvedValueOnce(userDataMock);
 
@@ -92,15 +96,15 @@ describe('API Handler', () => {
       const response = await endpoints.getUserDetailsByIdAndName(
         null,
         { id: 1, name: 'Mark' },
-        headers
+        headers,
       );
 
-      expect((api.requestHandler as any).get).toHaveBeenCalledTimes(1);
-      expect((api.requestHandler as any).get).toHaveBeenCalledWith(
-        '/user-details/1/Mark',
-        {},
-        headers
-      );
+      expect(
+        (api.requestHandler as unknown as TestRequestHandler).get,
+      ).toHaveBeenCalledTimes(1);
+      expect(
+        (api.requestHandler as unknown as TestRequestHandler).get,
+      ).toHaveBeenCalledWith('/user-details/1/Mark', {}, headers);
       expect(response).toBe(userDataMock);
     });
   });
