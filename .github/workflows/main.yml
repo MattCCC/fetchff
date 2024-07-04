@@ -7,8 +7,10 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
+        fail-fast: ["false", "false", "false"]
         node: ["18.x", "20.x", "22.x"]
         os: [ubuntu-latest, windows-latest, macOS-latest]
+        timeout-minutes: [10, 10, 10]
 
     steps:
       - name: Checkout repo
