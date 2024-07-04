@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import axios from 'axios';
 import { ApiHandler } from '../src/api-handler';
 import { mockErrorCallbackClass } from './http-request-error-handler.spec';
