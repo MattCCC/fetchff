@@ -21,7 +21,7 @@ export class ApiHandler implements MagicalClass {
   /**
    * TS Index signature
    */
-  [x: string]: any;
+  [x: string]: unknown;
 
   /**
    * @var requestHandler Request Wrapper Instance

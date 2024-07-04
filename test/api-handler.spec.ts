@@ -22,19 +22,18 @@ describe('API Handler', () => {
   });
 
   it('getInstance() - should obtain method of the API request provider', () => {
-    const api = new ApiHandler(config);
+    const api = new ApiHandler(config) as ApiHandler & EndpointsList;
 
     expect(typeof api.getInstance().request).toBe('function');
   });
 
   describe('__get()', () => {
     it('should trigger request handler for an existent endpoint', async () => {
-      const api = new ApiHandler(config);
+      const api = new ApiHandler(config) as ApiHandler & EndpointsList;
 
       api.handleRequest = jest.fn().mockResolvedValueOnce(userDataMock);
 
-      const endpoints = api as unknown as EndpointsList;
-      const response = await endpoints.getUserDetails({ userId: 1 });
+      const response = await api.getUserDetails({ userId: 1 });
 
       expect(api.handleRequest).toHaveBeenCalledTimes(1);
       expect(api.handleRequest).toHaveBeenCalledWith('getUserDetails', {
@@ -44,11 +43,11 @@ describe('API Handler', () => {
     });
 
     it('should not trigger request handler for non-existent endpoint', async () => {
-      const api = new ApiHandler(config);
+      const api = new ApiHandler(config) as ApiHandler & EndpointsList;
 
       api.handleRequest = jest.fn().mockResolvedValueOnce(userDataMock);
 
-      const response = await api.getUserAddress({
+      const response = await (api as any).getUserAddress({
         userId: 1,
       });
 
@@ -59,14 +58,13 @@ describe('API Handler', () => {
 
   describe('handleRequest()', () => {
     it('should properly replace multiple URL params', async () => {
-      const api = new ApiHandler(config);
+      const api = new ApiHandler(config) as ApiHandler & EndpointsList;
 
       (api.requestHandler as unknown as TestRequestHandler).get = jest
         .fn()
         .mockResolvedValueOnce(userDataMock);
 
-      const endpoints = api as unknown as EndpointsList;
-      const response = await endpoints.getUserDetailsByIdAndName(null, {
+      const response = await api.getUserDetailsByIdAndName(null, {
         id: 1,
         name: 'Mark',
       });
@@ -81,7 +79,7 @@ describe('API Handler', () => {
     });
 
     it('should properly fill Axios compatible config', async () => {
-      const api = new ApiHandler(config);
+      const api = new ApiHandler(config) as ApiHandler & EndpointsList;
       const headers = {
         headers: {
           'Content-Type': 'application/json',
@@ -92,8 +90,7 @@ describe('API Handler', () => {
         .fn()
         .mockResolvedValueOnce(userDataMock);
 
-      const endpoints = api as unknown as EndpointsList;
-      const response = await endpoints.getUserDetailsByIdAndName(
+      const response = await api.getUserDetailsByIdAndName(
         null,
         { id: 1, name: 'Mark' },
         headers,
