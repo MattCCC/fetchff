@@ -6,35 +6,30 @@ import {
 
 export const endpoints = {
   getUserDetails: {
-    method: 'get',
-    url: '/user-details/get',
+    url: '/user-details',
   },
   getUserDetailsByIdAndName: {
-    method: 'get',
-    url: '/user-details/get/:id/:name',
+    url: '/user-details/:id/:name',
   },
   updateUserDetails: {
     method: 'post',
-    url: '/user-details/update/:userId',
+    url: '/user-details/:userId',
   },
 };
 
-interface CustomURLParams {
+interface UserURLParams {
   id: number;
   name: string;
 }
 
-interface CustomResponse {
+interface UserResponse {
   name: string;
   age: number;
 }
 
-export interface IEndpoints {
+// Passing QueryParams allows for any params to be passed to the request (no strict typing)
+export interface EndpointsList {
   getUserDetails: Endpoint;
-  updateUserDetails: Endpoint<QueryParams, UrlParams>;
-  getUserDetailsByIdAndName: Endpoint<
-    QueryParams,
-    CustomURLParams,
-    CustomResponse
-  >;
+  updateUserDetails: Endpoint<UserResponse, QueryParams, UrlParams>;
+  getUserDetailsByIdAndName: Endpoint<UserResponse, QueryParams, UserURLParams>;
 }

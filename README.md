@@ -67,28 +67,29 @@ yarn add axios axios-multi-api
 import axios from 'axios';
 import { createApiFetcher } from 'axios-multi-api';
 
+const endpoints = {
+  getUserDetails: {
+    method: 'get',
+    url: '/user-details',
+  },
+
+  // No need to specify method: 'get' for GET requests
+  getPosts: {
+    url: '/posts/:subject',
+  },
+
+  updateUserDetails: {
+    method: 'post',
+    url: '/user-details/update/:userId',
+  },
+
+  // ...
+};
+
 const api = createApiFetcher({
   axios,
+  endpoints,
   apiUrl: 'https://example.com/api',
-  endpoints: {
-    getUserDetails: {
-      method: 'get',
-      url: '/user-details',
-    },
-
-    // No need to specify method: 'get' for GET requests
-    getPosts: {
-      url: '/posts/:subject',
-    },
-
-    updateUserDetails: {
-      method: 'post',
-      url: '/user-details/update/:userId',
-    },
-
-    // ...
-    // You can add many more endpoints & keep the codebase clean
-  },
   onError(error) {
     console.log('Request failed', error);
   },
@@ -106,7 +107,7 @@ const response = await api.getUserDetails({ userId: 1, ratings: [1, 2] });
 // GET to: http://example.com/api/posts/myTestSubject?additionalInfo=something
 const response = await api.getPosts(
   { additionalInfo: 'something' },
-  { subject: 'myTestSubject' }
+  { subject: 'myTestSubject' },
 );
 
 // Send POST request to update userId "1"
@@ -116,7 +117,7 @@ await api.updateUserDetails({ name: 'Mark' }, { userId: 1 });
 await api.updateUserDetails({ name: 'Mark', ratings: [1, 2] }, { userId: 1 });
 ```
 
-In the example above we fetch data from an API for user with an ID of 1. We also update user's name to Mark. If you prefer OOP you can import `ApiHandler` and initialize the handler using `new ApiHandler()` instead.
+In the example above we fetch data from an API for user with an ID of 1. We also update user's name to Mark. If you prefer OOP you can import `ApiHandler` and initialize the handler using `new ApiHandler()` instead. In case of using typings, due to magic methods being utilized, you may need to overwrite the type: `const api = new ApiHandler(config) as ApiHandler & EndpointsList` where `EndpointsList` is the list of your endpoints.
 
 ## Usage with React
 
@@ -218,34 +219,59 @@ Axios-multi-api includes necessary [TypeScript](http://typescriptlang.org) defin
 ### Example of interface
 
 ```typescript
-import {
-  Endpoints,
-  Endpoint,
-  APIQueryParams,
-  APIUrlParams,
-} from 'axios-multi-api';
+import { Endpoints, Endpoint } from 'axios-multi-api';
 
 import axios from 'axios';
 import { createApiFetcher } from 'axios-multi-api';
 
-interface myQueryParams {
+interface Movie {
+  id: number;
+  title: string;
+  genre: string;
+  releaseDate: string;
+  rating: number;
+}
+
+interface MoviesResponseData {
+  movies: Movie[];
+  totalResults: number;
+  totalPages: number;
+}
+
+interface MoviesQueryParams {
   newMovies: boolean;
 }
 
+interface MoviesDynamicURLParams {
+  movieId?: number;
+}
+
+// You can either extend the Endpoints to skip defining every endpoint
+// Or you can just define the EndpointsList and enjoy more strict typings
 interface EndpointsList extends Endpoints {
-  fetchMovies: Endpoint<myQueryParams, myURLParams, myResponse>;
+  fetchMovies: Endpoint<
+    MoviesResponseData,
+    MoviesQueryParams,
+    MoviesDynamicURLParams
+  >;
 
   // Or you can use just Endpoint
   fetchTVSeries: Endpoint;
 }
 
-const api = createApiFetcher({
+const api = createApiFetcher<EndpointsList>({
   axios,
   // Your config
-}) as unknown as EndpointsList;
+});
 
 // Will return an error since "newMovies" should be a boolean
-api.fetchMovies({ newMovies: 1 });
+const movies = api.fetchMovies({ newMovies: 1 });
+
+// You can also pass type to the request directly
+const movie = api.fetchMovies<MoviesResponseData>(
+  { newMovies: 1 },
+  { movieId: 1 },
+);
 ```
 
 Package ships interfaces with responsible defaults making it easier to add new endpoints. It exposes `Endpoints` and `Endpoint` types.
@@ -292,7 +318,7 @@ async function sendMessage() {
         }
         console.log(error.config);
       },
-    }
+    },
   );
 
   console.log('Message sent successfully');

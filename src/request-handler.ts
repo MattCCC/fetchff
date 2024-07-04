@@ -7,8 +7,8 @@ import { RequestErrorHandler } from './request-error-handler';
 
 // Types
 import type {
-  IRequestData,
-  IRequestResponse,
+  RequestData,
+  RequestResponse,
   ErrorHandlingStrategy,
   RequestHandlerConfig,
   EndpointConfig,
@@ -125,6 +125,7 @@ export class RequestHandler implements MagicalClass {
   /**
    * Maps all API requests
    *
+   * @private
    * @param {string} url                  Url
    * @param {*} data                      Payload
    * @param {EndpointConfig} config       Config
@@ -152,8 +153,8 @@ export class RequestHandler implements MagicalClass {
     type: Method,
     url: string,
     data: any = null,
-    config: EndpointConfig = null
-  ): Promise<IRequestResponse> {
+    config: EndpointConfig = null,
+  ): Promise<RequestResponse> {
     return this.handleRequest({
       type,
       url,
@@ -175,7 +176,7 @@ export class RequestHandler implements MagicalClass {
     method: string,
     url: string,
     data: any,
-    config: EndpointConfig
+    config: EndpointConfig,
   ): EndpointConfig {
     const methodLowerCase = method.toLowerCase() as Method;
     const key =
@@ -200,7 +201,7 @@ export class RequestHandler implements MagicalClass {
    */
   protected processRequestError(
     error: RequestError,
-    requestConfig: EndpointConfig
+    requestConfig: EndpointConfig,
   ): void {
     if (this.isRequestCancelled(error, requestConfig)) {
       return;
@@ -213,7 +214,7 @@ export class RequestHandler implements MagicalClass {
 
     const errorHandler = new RequestErrorHandler(
       this.logger,
-      this.requestErrorService
+      this.requestErrorService,
     );
 
     errorHandler.process(error);
@@ -228,8 +229,8 @@ export class RequestHandler implements MagicalClass {
    */
   protected async outputErrorResponse(
     error: RequestError,
-    requestConfig: EndpointConfig
-  ): Promise<IRequestResponse> {
+    requestConfig: EndpointConfig,
+  ): Promise<RequestResponse> {
     const isRequestCancelled = this.isRequestCancelled(error, requestConfig);
     const errorHandlingStrategy = requestConfig.strategy || this.strategy;
 
@@ -265,7 +266,7 @@ export class RequestHandler implements MagicalClass {
    */
   public isRequestCancelled(
     error: RequestError,
-    _requestConfig: EndpointConfig
+    _requestConfig: EndpointConfig,
   ): boolean {
     return this.axios.isCancel(error);
   }
@@ -302,7 +303,7 @@ export class RequestHandler implements MagicalClass {
     // Generate unique key as a cancellation token. Make sure it fits Map
     const key = JSON.stringify([method, baseURL, url, params, data]).substring(
       0,
-      55 ** 5
+      55 ** 5,
     );
     const previousRequest = this.requestsQueue.get(key);
 
@@ -335,14 +336,14 @@ export class RequestHandler implements MagicalClass {
     url,
     data = null,
     config = null,
-  }: IRequestData): Promise<IRequestResponse> {
+  }: RequestData): Promise<RequestResponse> {
     let response = null;
     const endpointConfig = config || {};
     let requestConfig = this.buildRequestConfig(
       type,
       url,
       data,
-      endpointConfig
+      endpointConfig,
     );
 
     requestConfig = {

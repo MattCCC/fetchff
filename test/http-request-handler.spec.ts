@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import axios from 'axios';
 import PromiseAny from 'promise-any';
 import { RequestHandler } from '../src/request-handler';
@@ -37,11 +38,10 @@ describe('API Handler', () => {
         .fn()
         .mockRejectedValue(new Error('Request Failed'));
 
-      let response;
       const request = (httpRequestHandler as any).get(apiUrl);
 
-      let timeout = new Promise((resolve) => {
-        let wait = setTimeout(() => {
+      const timeout = new Promise((resolve) => {
+        const wait = setTimeout(() => {
           clearTimeout(wait);
 
           resolve('timeout');
@@ -50,7 +50,7 @@ describe('API Handler', () => {
 
       expect(typeof request.then).toBe('function');
 
-      response = await PromiseAny([request, timeout]);
+      const response = await PromiseAny([request, timeout]);
 
       expect(response).toBe('timeout');
     });
@@ -65,15 +65,12 @@ describe('API Handler', () => {
         .fn()
         .mockRejectedValue(new Error('Request Failed'));
 
-      let response;
-
       try {
-        response = await (httpRequestHandler as any).delete(apiUrl);
+        const response = await (httpRequestHandler as any).delete(apiUrl);
+        expect(response).toBe(undefined);
       } catch (error) {
         expect(typeof error).toBe('object');
       }
-
-      expect(response).toBe(undefined);
     });
 
     it('should reject promise when using reject strategy per endpoing', async () => {
@@ -114,7 +111,7 @@ describe('API Handler', () => {
       expect(spy).toHaveBeenCalledWith(
         expect.not.objectContaining({
           signal: expect.any(Object),
-        })
+        }),
       );
     });
 
@@ -135,13 +132,13 @@ describe('API Handler', () => {
         {},
         {
           cancellable: false,
-        }
+        },
       );
 
       expect(spy).toHaveBeenCalledWith(
         expect.not.objectContaining({
           signal: expect.any(Object),
-        })
+        }),
       );
     });
 
@@ -162,7 +159,7 @@ describe('API Handler', () => {
         {},
         {
           cancellable: true,
-        }
+        },
       );
 
       expect(spy).not.toHaveBeenCalledWith({});
@@ -185,7 +182,7 @@ describe('API Handler', () => {
         {},
         {
           cancellable: true,
-        }
+        },
       );
 
       expect(spy).not.toHaveBeenCalledWith({});
@@ -209,8 +206,6 @@ describe('API Handler', () => {
     });
 
     it('should cancel previous request when successive request is made', async () => {
-      let response;
-
       const httpRequestHandler = new RequestHandler({
         axios,
         strategy: 'silent',
@@ -234,11 +229,11 @@ describe('API Handler', () => {
       expect(spy).toHaveBeenCalledWith(
         expect.objectContaining({
           signal: expect.any(Object),
-        })
+        }),
       );
 
-      let timeout = new Promise((resolve) => {
-        let wait = setTimeout(() => {
+      const timeout = new Promise((resolve) => {
+        const wait = setTimeout(() => {
           clearTimeout(wait);
 
           resolve('timeout');
@@ -247,7 +242,7 @@ describe('API Handler', () => {
 
       expect(typeof request.then).toBe('function');
 
-      response = await PromiseAny([request, request2, timeout]);
+      const response = await PromiseAny([request, request2, timeout]);
 
       expect(response).toStrictEqual({ test: 'data' });
     });

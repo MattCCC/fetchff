@@ -19,14 +19,14 @@ describe('API Handler', () => {
 
     expect(httpRequestHandler.requestErrorService).toHaveBeenCalledTimes(1);
     expect(httpRequestHandler.requestErrorService).toHaveBeenCalledWith(
-      new Error('My error text')
+      new Error('My error text'),
     );
   });
 
   it('should call provided error class', () => {
     const httpRequestHandler = new RequestErrorHandler(
       null,
-      mockErrorCallbackClass
+      mockErrorCallbackClass,
     );
     httpRequestHandler.requestErrorService.process = jest
       .fn()
@@ -35,10 +35,10 @@ describe('API Handler', () => {
     httpRequestHandler.process('My error text');
 
     expect(
-      httpRequestHandler.requestErrorService.process
+      httpRequestHandler.requestErrorService.process,
     ).toHaveBeenCalledTimes(1);
     expect(httpRequestHandler.requestErrorService.process).toHaveBeenCalledWith(
-      new Error('My error text')
+      new Error('My error text'),
     );
   });
 });

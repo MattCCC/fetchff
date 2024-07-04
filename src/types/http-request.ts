@@ -5,7 +5,7 @@ import type {
   AxiosResponse,
 } from 'axios';
 
-export type IRequestResponse<T = any> = Promise<AxiosResponse<T>>;
+export type RequestResponse<T = unknown> = Promise<AxiosResponse<T>>;
 
 export type ErrorHandlingStrategy =
   | 'throwError'
@@ -13,13 +13,17 @@ export type ErrorHandlingStrategy =
   | 'silent'
   | 'defaultResponse';
 
-export type RequestError = AxiosError<any>;
+export type RequestError = AxiosError<unknown>;
 
 interface ErrorHandlerClass {
   process(error?: RequestError): unknown;
 }
 
-type ErrorHandlerFunction = (error: RequestError) => any;
+type ErrorHandlerFunction = (error: RequestError) => unknown;
+
+export type EndpointsConfig<T extends string> = {
+  [K in T]: EndpointConfig;
+};
 
 export interface EndpointConfig extends AxiosRequestConfig {
   cancellable?: boolean;
@@ -31,19 +35,19 @@ export interface EndpointConfig extends AxiosRequestConfig {
 export interface RequestHandlerConfig extends EndpointConfig {
   axios: AxiosStatic;
   flattenResponse?: boolean;
-  defaultResponse?: any;
-  logger?: any;
+  defaultResponse?: unknown;
+  logger?: unknown;
   onError?: ErrorHandlerFunction | ErrorHandlerClass;
 }
 
 export interface APIHandlerConfig extends RequestHandlerConfig {
   apiUrl: string;
-  endpoints: Record<string, any>;
+  endpoints: Record<string, unknown>;
 }
 
-export interface IRequestData {
+export interface RequestData {
   type: string;
   url: string;
-  data?: any;
+  data?: unknown;
   config: EndpointConfig;
 }
