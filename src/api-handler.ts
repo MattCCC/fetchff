@@ -17,7 +17,9 @@ import { RequestHandler } from './request-handler';
  * Handles dispatching of API requests
  */
 @applyMagic
-export class ApiHandler implements MagicalClass {
+export class ApiHandler<EndpointsList = { [x: string]: unknown }>
+  implements MagicalClass
+{
   /**
    * TS Index signature
    */
@@ -60,7 +62,7 @@ export class ApiHandler implements MagicalClass {
     logger = null,
     onError = null,
     ...config
-  }: APIHandlerConfig) {
+  }: APIHandlerConfig<EndpointsList>) {
     this.endpoints = endpoints;
     this.logger = logger;
 
@@ -158,5 +160,5 @@ export class ApiHandler implements MagicalClass {
 }
 
 export const createApiFetcher = <AllEndpointsList = { [x: string]: unknown }>(
-  options: APIHandlerConfig,
+  options: APIHandlerConfig<AllEndpointsList>,
 ) => new ApiHandler(options) as ApiHandler & AllEndpointsList;
