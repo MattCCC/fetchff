@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 // 3rd party libs
 import type { AxiosInstance, AxiosStatic, Method } from 'axios';
 import { applyMagic, MagicalClass } from 'js-magic';
@@ -102,7 +104,7 @@ export class RequestHandler implements MagicalClass {
     this.flattenResponse =
       flattenResponse !== null ? flattenResponse : this.flattenResponse;
     this.defaultResponse = defaultResponse;
-    this.logger = logger || global.console || window.console || null;
+    this.logger = logger || (globalThis ? globalThis.console : null) || null;
     this.requestErrorService = onError;
     this.requestsQueue = new Map();
 
