@@ -3,6 +3,7 @@ import {
   APIQueryParams as QueryParams,
   APIUrlParams as UrlParams,
 } from '../../src/types/api';
+import type { EndpointsConfig } from '../../src/types/http-request';
 
 export const endpoints = {
   getUserDetails: {
@@ -15,7 +16,7 @@ export const endpoints = {
     method: 'post',
     url: '/user-details/:userId',
   },
-};
+} satisfies EndpointsConfig<string>;
 
 interface UserURLParams {
   id: number;

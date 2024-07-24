@@ -21,7 +21,7 @@ interface ErrorHandlerClass {
 
 type ErrorHandlerFunction = (error: RequestError) => unknown;
 
-export type EndpointsConfig<T extends string> = {
+export type EndpointsConfig<T extends string | number | symbol> = {
   [K in T]: EndpointConfig;
 };
 
@@ -40,9 +40,10 @@ export interface RequestHandlerConfig extends EndpointConfig {
   onError?: ErrorHandlerFunction | ErrorHandlerClass;
 }
 
-export interface APIHandlerConfig extends RequestHandlerConfig {
+export interface APIHandlerConfig<EndpointsList = { [x: string]: unknown }>
+  extends RequestHandlerConfig {
   apiUrl: string;
-  endpoints: Record<string, unknown>;
+  endpoints: EndpointsConfig<keyof EndpointsList>;
 }
 
 export interface RequestData {
