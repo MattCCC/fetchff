@@ -2,13 +2,11 @@
 // 3rd party libs
 import { applyMagic, MagicalClass } from 'js-magic';
 
-// Types
-import type { AxiosInstance } from 'axios';
-
-import {
+import type {
   RequestResponse,
   APIHandlerConfig,
   EndpointsConfig,
+  FetcherInstance,
 } from './types/http-request';
 
 import { RequestHandler } from './request-handler';
@@ -42,50 +40,21 @@ export class ApiHandler<EndpointsList = { [x: string]: unknown }>
 
   /**
    * Creates an instance of API Handler
-   *
-   * @param {string} config.apiUrl               Base URL for all API calls
-   * @param {number} config.timeout              Request timeout
-   * @param {string} config.strategy             Error Handling Strategy
-   * @param {string} config.flattenResponse      Whether to flatten response "data" object within "data" one
-   * @param {*} config.logger                    Instance of Logger Class
-   * @param {*} config.onError                   Instance of Error Service Class
+   * @inheritdoc createApiFetcher()
    */
-  public constructor({
-    axios,
-    apiUrl,
-    endpoints,
-    timeout = null,
-    cancellable = false,
-    strategy = null,
-    flattenResponse = null,
-    defaultResponse = {},
-    logger = null,
-    onError = null,
-    ...config
-  }: APIHandlerConfig<EndpointsList>) {
-    this.endpoints = endpoints;
-    this.logger = logger;
+  public constructor(config: APIHandlerConfig<EndpointsList>) {
+    this.endpoints = config.endpoints;
+    this.logger = config.logger;
 
-    this.requestHandler = new RequestHandler({
-      ...config,
-      baseURL: apiUrl,
-      axios,
-      timeout,
-      cancellable,
-      strategy,
-      flattenResponse,
-      defaultResponse,
-      logger,
-      onError,
-    });
+    this.requestHandler = new RequestHandler(config);
   }
 
   /**
    * Get Provider Instance
    *
-   * @returns {AxiosInstance} Provider's instance
+   * @returns {FetcherInstance} Provider's instance
    */
-  public getInstance(): AxiosInstance {
+  public getInstance(): FetcherInstance {
     return this.requestHandler.getInstance();
   }
 
@@ -159,6 +128,43 @@ export class ApiHandler<EndpointsList = { [x: string]: unknown }>
   }
 }
 
+/**
+ * Creates an API fetcher function using native fetch() or Axios if it is passed as "fetcher".
+ *
+ * @param {Object} config - Configuration object for the API fetcher.
+ * @param {Object} config.fetcher - The Axios (or any other) instance to use for making requests.
+ * @param {Object} config.endpoints - An object containing endpoint definitions.
+ * @param {string} config.apiUrl - The base URL for the API.
+ * @param {Function} [config.onError] - Optional callback function for handling errors.
+ * @param {Object} [config.headers] - Optional default headers to include in every request.
+ * @returns {Function} - A function that makes API requests using the provided Axios instance.
+ *
+ * @example
+ * // Import axios
+ * import axios from 'axios';
+ *
+ * // Define endpoint paths
+ * const endpoints = {
+ *   getUser: '/user',
+ *   createPost: '/post',
+ * };
+ *
+ * // Create the API fetcher with configuration
+ * const api = createApiFetcher({
+ *   fetcher: axios, // Axios instance (optional)
+ *   endpoints,
+ *   apiUrl: 'https://example.com/api',
+ *   onError(error) {
+ *     console.log('Request failed', error);
+ *   },
+ *   headers: {
+ *     'my-auth-key': 'example-auth-key-32rjjfa',
+ *   },
+ * });
+ *
+ * // Fetch user data
+ * const response = await api.getUser({ userId: 1, ratings: [1, 2] })
+ */
 export const createApiFetcher = <AllEndpointsList = { [x: string]: unknown }>(
   options: APIHandlerConfig<AllEndpointsList>,
 ) => new ApiHandler(options) as ApiHandler & AllEndpointsList;

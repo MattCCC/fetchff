@@ -15,60 +15,65 @@ You can set up multiple API handlers for different sets of APIs from different s
 
 Package was originally written to accomodate many API requests in an orderly fashion.
 
-## Table of Contents
-
-- [Features](#features)
-- [Installation](#installation)
-- [Usage](#usage)
-- [Usage with React](#usage-with-react)
-- [API methods](#api-methods)
-- [Global Settings](#global-settings)
-- [Per Endpoint Settings](#per-endpoint-settings)
-- [TypeScript support](#full-typescript-support)
-- [Examples](#examples)
-- [Support and collaboration](#support-and-collaboration)
-
 ## Features
 
-- Multi APIs support
+- **Easily manage large applications with many API endpoints**
+- **Native fetch() support so Axios can be skipped**
 - Global error handler for requests
 - Automatically cancel previous requests
+- Global and per request timeouts
 - Multiple response resolving strategies
-- Dynamic urls support
+- Dynamic urls support e.g. `/user/:userId`
 - Multiple requests chaining (using promises)
-- Browsers & Node 16+ compatible
-- TypeScript compatible
 - All Axios options are supported
-- 4.42 KB gzipped
+- **Browsers and Node 18+ compatible**
+- **Fully TypeScript compatibile**
+- **Very lightweight, only a few KBs gzipped**
 
 Please open an issue for future requests.
 
-## Installation
+## ✔️ Quick Start
 
 [![NPM](https://nodei.co/npm/axios-multi-api.png)](https://npmjs.org/package/axios-multi-api)
-
-Please mind that you need to install the latest axios separately.
 
 Using NPM:
 
 ```bash
-npm install axios axios-multi-api
+npm install axios-multi-api
 ```
 
 Using yarn:
 
 ```bash
-yarn add axios axios-multi-api
+yarn add axios-multi-api
 ```
 
-## Usage
+Please mind that if you want to use it with Axios, you need to install it separately by e.g. running `npm install axios`.
+
+```typescript
+import { createApiFetcher } from 'axios-multi-api';
+
+const api = createApiFetcher({
+  apiUrl: 'https://example.com/api',
+  endpoints: {
+    getUser: {
+      url: '/user-details',
+    },
+  },
+});
+
+// Make API GET request to: http://example.com/api/user-details?userId=1&ratings[]=1&ratings[]=2
+const response = await api.getUser({ userId: 1, ratings: [1, 2] });
+```
+
+## ✔️ More Advanced Usage
 
 ```typescript
 import axios from 'axios';
 import { createApiFetcher } from 'axios-multi-api';
 
 const endpoints = {
-  getUserDetails: {
+  getUser: {
     method: 'get',
     url: '/user-details',
   },
@@ -87,7 +92,7 @@ const endpoints = {
 };
 
 const api = createApiFetcher({
-  axios,
+  fetcher: axios,
   endpoints,
   apiUrl: 'https://example.com/api',
   onError(error) {
@@ -101,7 +106,7 @@ const api = createApiFetcher({
 
 // Fetch user data - "response" will return data directly
 // GET to: http://example.com/api/user-details?userId=1&ratings[]=1&ratings[]=2
-const response = await api.getUserDetails({ userId: 1, ratings: [1, 2] });
+const response = await api.getUser({ userId: 1, ratings: [1, 2] });
 
 // Fetch posts - "response" will return data directly
 // GET to: http://example.com/api/posts/myTestSubject?additionalInfo=something
@@ -119,7 +124,7 @@ await api.updateUserDetails({ name: 'Mark', ratings: [1, 2] }, { userId: 1 });
 
 In the example above we fetch data from an API for user with an ID of 1. We also update user's name to Mark. If you prefer OOP you can import `ApiHandler` and initialize the handler using `new ApiHandler()` instead. In case of using typings, due to magic methods being utilized, you may need to overwrite the type: `const api = new ApiHandler(config) as ApiHandler & EndpointsList` where `EndpointsList` is the list of your endpoints.
 
-## Usage with React
+## ✔️ Easy to use with React and other libraries
 
 You could use [React Query](https://react-query-v3.tanstack.com/guides/queries) hooks with API handler:
 
@@ -129,7 +134,7 @@ import axios from 'axios';
 import { createApiFetcher } from 'axios-multi-api';
 
 const api = createApiFetcher({
-  axios,
+  fetcher: axios, // Optional, native fetch() will be used otherwise
   apiUrl: 'https://example.com/api',
   strategy: 'reject',
   endpoints: {
@@ -158,13 +163,13 @@ export const useProfile = ({ id }) => {
 };
 ```
 
-## API methods
+## ✔️ Auto created API functions
 
 ##### api.endpointName(queryParams, urlParams, requestConfig)
 
 `queryParams` / `payload` (optional)
 
-First argument of APIs functions is an object with query params for `GET` requests, or with a payload for `POST` requests. Another request types are supported as well.
+First argument of API functions is an object with query params for `GET` requests, or with a data payload for `POST` alike requests. Other request types are supported as well. For `POST` alike requests you may occasionally want to use both query params and payload. In such case, use this argument as query params and pass the payload as 3rd argument `requestConfig.body` or `requestConfig.data` (for Axios)
 
 Query params accepts strings, numbers, and even arrays so you pass { foo: [1, 2] } and it will become: foo[]=1&foo[]=2 automatically.
 
@@ -174,31 +179,30 @@ It gives possibility to modify urls structure in a declarative way. In our examp
 
 `requestConfig` (optional)
 
-Axios compatible [Request Config](https://github.com/axios/axios#request-config) for particular endpoint. It will overwrite the global settings.
-
-You can also specify following argument: `cancellable` so to have more granular control over specific endpoints.
+To have more granular control over specific endpoints you can pass Axios compatible [Request Config](https://github.com/axios/axios#request-config) for particular endpoint. You can also use Global Settings like `cancellable` or `strategy` mentioned below.
 
 ##### api.getInstance()
 
 When API handler is firstly initialized, a new Axios instance is created. You can call `api.getInstance()` if you want to get that instance directly, for example to add some interceptors.
 
-## Global Settings
+## ✔️ Global Settings
 
 Global settings are passed to `createApiFetcher()` function. You can pass all [Axios Request Config](https://github.com/axios/axios#request-config). Additional options are listed below.
 
-| Option          | Type     | Default   | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| --------------- | -------- | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| apiUrl          | string   |           | Your API base url.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| endpoints       | object   |           | List of your endpoints. Check [Per Endpoint Settings](#per-endpoint-settings) for options.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| strategy        | string   | `reject`  | Error handling strategies - basically what to return when an error occurs. It can be a default data, promise can be hanged (nothing would be returned) or rejected so to use try/catch. Available: `silent`, `reject`, `defaultResponse`<br><br>`silent` can be used for a requests that are dispatched within asynchronous wrapper functions. If a request fails, promise will silently hang and no action will be performed. It will never be resolved or rejected when there is an error. Please remember that this is not what Promises were made for, however if used properly it saves developers from try/catch or additional response data checks everywhere. You can use is in combination with `onError` so to handle errors globally.<br><br>`reject` will simply reject the promise. Global error handling will be triggered right before the rejection. You will need to remember to set try/catch per each request to catch exceptions properly.<br><br>`defaultResponse` will return default response specified in either global `defaultResponse` or per endpoint `defaultResponse` setting. Promise will not be rejected! Data from default response will be returned instead. It could be used together with object destructuring by setting `defaultResponse: {}` so to provide a responsible defaults. |
-| cancellable     | boolean  | `false`   | If set to `true` any previously dispatched requests to same url & of method will be cancelled, if a successive request is made meanwhile. This let's you avoid unnecessary requests to the backend.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| flattenResponse | boolean  | `true`    | Flattens nested response.data so you can avoid writing `response.data.data` and obtain response directly. Response is flattened whenever there is a "data" within response "data", and no other object properties set.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| defaultResponse | any      | `null`    | Default response when there is no data or when endpoint fails depending on the chosen `strategy`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| timeout         | int      | `30000`   | You can set a timeout in milliseconds.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| logger          | object   | `console` | You can additionally specify logger object with your custom logger to automatically log the errors to the console. It should contain at least `error` and `warn` functions. `console.log` is used by default.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| onError         | function |           | You can specify a function or class that will be triggered when an endpoint fails. If it's a class it should expose a `process` method. Axios Error Object will be sent as a first argument of it.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| Option          | Type        | Default   | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| --------------- | ----------- | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| apiUrl          | string      |           | Your API base url.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| endpoints       | object      |           | List of your endpoints. Check [Per Endpoint Settings](#per-endpoint-settings) for options.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| fetcher         | AxiosStatic |           | Axios instance imported from axios package. Leave empty, if you do not intend to use Axios with this package. The native `fetch()` will be used instead.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| strategy        | string      | `reject`  | Error handling strategies - basically what to return when an error occurs. It can be a default data, promise can be hanged (nothing would be returned) or rejected so to use try/catch. Available: `silent`, `reject`, `defaultResponse`<br><br>`silent` can be used for a requests that are dispatched within asynchronous wrapper functions. If a request fails, promise will silently hang and no action will be performed. It will never be resolved or rejected when there is an error. Please remember that this is not what Promises were made for, however if used properly it saves developers from try/catch or additional response data checks everywhere. You can use is in combination with `onError` so to handle errors globally.<br><br>`reject` will simply reject the promise. Global error handling will be triggered right before the rejection. You will need to remember to set try/catch per each request to catch exceptions properly.<br><br>`defaultResponse` will return default response specified in either global `defaultResponse` or per endpoint `defaultResponse` setting. Promise will not be rejected! Data from default response will be returned instead. It could be used together with object destructuring by setting `defaultResponse: {}` so to provide a responsible defaults. |
+| cancellable     | boolean     | `false`   | If set to `true` any previously dispatched requests to same url & of method will be cancelled, if a successive request is made meanwhile. This let's you avoid unnecessary requests to the backend.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| flattenResponse | boolean     | `false`   | Flattens nested response.data so you can avoid writing `response.data.data` and obtain response directly. Response is flattened whenever there is a "data" within response "data", and no other object properties set.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| defaultResponse | any         | `null`    | Default response when there is no data or when endpoint fails depending on the chosen `strategy`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| timeout         | int         | `30000`   | You can set a global timeout for all requests in milliseconds.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| logger          | object      | `console` | You can additionally specify logger object with your custom logger to automatically log the errors to the console. It should contain at least `error` and `warn` functions. `console.log` is used by default.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| onError         | function    |           | You can specify a function or class that will be triggered when an endpoint fails. If it's a class it should expose a `process` method. Axios Error Object will be sent as a first argument of it.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 
-## Per Endpoint Settings
+## ✔️ Per Endpoint Settings
 
 Each endpoint in `endpoints` is an object that accepts properties below. You can also pass these options as a 3rd argument when calling an endpoint so to have a more granular control.
 
@@ -209,10 +213,11 @@ Each endpoint in `endpoints` is an object that accepts properties below. You can
 | cancellable     | boolean  | `false` | Whether previous requests should be automatically cancelled. See global settings for more info.                                                                                              |
 | rejectCancelled | boolean  | `false` | If `true` and request is set to `cancellable`, a cancelled request promise will be rejected. By default instead of rejecting the promise, `defaultResponse` from global options is returned. |
 | defaultResponse | any      | `null`  | Default response when there is no data or when endpoint fails depending on a chosen `strategy`                                                                                               |
+| timeout         | int      | `30000` | You can set the timeout for particular request in milliseconds.                                                                                                                              |
 | strategy        | string   |         | You can control strategy per each request. Global strategy is applied by default.                                                                                                            |
 | onError         | function |         | You can specify a function that will be triggered when an endpoint fails.                                                                                                                    |
 
-## Full TypeScript support
+## ✔️ Full TypeScript support
 
 Axios-multi-api includes necessary [TypeScript](http://typescriptlang.org) definitions. For full TypeScript support for your endpoints, you could overwrite interface using Type Assertion of your `ApiHandler` and use your own for the API Endpoints provided.
 
@@ -260,7 +265,7 @@ interface EndpointsList extends Endpoints {
 }
 
 const api = createApiFetcher<EndpointsList>({
-  axios,
+  fetcher: axios,
   // Your config
 });
 
@@ -276,7 +281,7 @@ const movie = api.fetchMovies<MoviesResponseData>(
 
 Package ships interfaces with responsible defaults making it easier to add new endpoints. It exposes `Endpoints` and `Endpoint` types.
 
-## Examples
+## ✔️ Examples
 
 ### Per Request Error handling
 
@@ -285,7 +290,7 @@ import axios from 'axios';
 import { createApiFetcher } from 'axios-multi-api';
 
 const api = createApiFetcher({
-  axios,
+  fetcher: axios,
   apiUrl: 'https://example.com/api',
   endpoints: {
     sendMessage: {
@@ -359,7 +364,7 @@ class ApiService extends ApiHandler {
   public constructor({ apiUrl, endpoints, logger, myCallback }) {
     // Pass settings to API Handler
     super({
-      axios,
+      fetcher: axios,
       apiUrl,
       endpoints,
       logger,
@@ -383,6 +388,6 @@ const api = new ApiService({
 });
 ```
 
-## Support and collaboration
+## ✔️ Support and collaboration
 
 If you have any idea for an improvement, please file an issue. Feel free to make a PR if you are willing to collaborate on the project. Thank you :)
