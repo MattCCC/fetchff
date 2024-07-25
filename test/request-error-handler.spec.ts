@@ -6,7 +6,7 @@ export const mockErrorCallbackClass = class CustomErrorHandler {
   }
 };
 
-describe('API Handler', () => {
+describe('Request Error Handler', () => {
   const mockErrorCallback = () => 'function called';
 
   it('should call provided error callback', () => {

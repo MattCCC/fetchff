@@ -3,7 +3,34 @@ import type {
   AxiosError,
   AxiosRequestConfig,
   AxiosResponse,
+  AxiosInstance,
 } from 'axios';
+
+export type Method =
+  | 'get'
+  | 'GET'
+  | 'delete'
+  | 'DELETE'
+  | 'head'
+  | 'HEAD'
+  | 'options'
+  | 'OPTIONS'
+  | 'post'
+  | 'POST'
+  | 'put'
+  | 'PUT'
+  | 'patch'
+  | 'PATCH'
+  | 'purge'
+  | 'PURGE'
+  | 'link'
+  | 'LINK'
+  | 'unlink'
+  | 'UNLINK';
+
+export type FetcherStaticInstance = AxiosStatic;
+export type NativeFetch = typeof fetch;
+export type FetcherInstance = AxiosInstance | NativeFetch;
 
 export type RequestResponse<T = unknown> = Promise<AxiosResponse<T>>;
 
@@ -25,17 +52,22 @@ export type EndpointsConfig<T extends string | number | symbol> = {
   [K in T]: EndpointConfig;
 };
 
-export interface EndpointConfig extends AxiosRequestConfig {
+export type EndpointConfigHeaders = AxiosRequestConfig['headers'] & HeadersInit;
+
+export interface EndpointConfig extends AxiosRequestConfig, RequestInit {
   cancellable?: boolean;
   rejectCancelled?: boolean;
   strategy?: ErrorHandlingStrategy;
   onError?: ErrorHandlerFunction | ErrorHandlerClass;
+  headers?: EndpointConfigHeaders;
+  signal?: AbortSignal;
 }
 
 export interface RequestHandlerConfig extends EndpointConfig {
-  axios: AxiosStatic;
+  fetcher?: FetcherStaticInstance;
   flattenResponse?: boolean;
   defaultResponse?: unknown;
+  apiUrl?: string;
   logger?: unknown;
   onError?: ErrorHandlerFunction | ErrorHandlerClass;
 }
@@ -44,11 +76,4 @@ export interface APIHandlerConfig<EndpointsList = { [x: string]: unknown }>
   extends RequestHandlerConfig {
   apiUrl: string;
   endpoints: EndpointsConfig<keyof EndpointsList>;
-}
-
-export interface RequestData {
-  type: string;
-  url: string;
-  data?: unknown;
-  config: EndpointConfig;
 }

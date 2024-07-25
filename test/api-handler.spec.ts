@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import axios from 'axios';
 import { ApiHandler } from '../src/api-handler';
-import { mockErrorCallbackClass } from './http-request-error-handler.spec';
+import { mockErrorCallbackClass } from './request-error-handler.spec';
 import { endpoints, EndpointsList } from './mocks/endpoints';
 
 type TestRequestHandler = Record<string, unknown>;
@@ -9,7 +9,7 @@ type TestRequestHandler = Record<string, unknown>;
 describe('API Handler', () => {
   const apiUrl = 'http://example.com/api/';
   const config = {
-    axios,
+    fetcher: axios,
     apiUrl,
     endpoints,
     onError: new mockErrorCallbackClass(),
@@ -25,7 +25,7 @@ describe('API Handler', () => {
   it('getInstance() - should obtain method of the API request provider', () => {
     const api = new ApiHandler(config) as ApiHandler & EndpointsList;
 
-    expect(typeof api.getInstance().request).toBe('function');
+    expect(typeof (api.getInstance() as any).request).toBe('function');
   });
 
   describe('__get()', () => {
@@ -34,10 +34,10 @@ describe('API Handler', () => {
 
       api.handleRequest = jest.fn().mockResolvedValueOnce(userDataMock);
 
-      const response = await api.getUserDetails({ userId: 1 });
+      const response = await api.getUser({ userId: 1 });
 
       expect(api.handleRequest).toHaveBeenCalledTimes(1);
-      expect(api.handleRequest).toHaveBeenCalledWith('getUserDetails', {
+      expect(api.handleRequest).toHaveBeenCalledWith('getUser', {
         userId: 1,
       });
       expect(response).toBe(userDataMock);
@@ -65,7 +65,7 @@ describe('API Handler', () => {
         .fn()
         .mockResolvedValueOnce(userDataMock);
 
-      const response = await api.getUserDetailsByIdAndName(null, {
+      const response = await api.getUserByIdAndName(null, {
         id: 1,
         name: 'Mark',
       });
@@ -91,7 +91,7 @@ describe('API Handler', () => {
         .fn()
         .mockResolvedValueOnce(userDataMock);
 
-      const response = await api.getUserDetailsByIdAndName(
+      const response = await api.getUserByIdAndName(
         null,
         { id: 1, name: 'Mark' },
         headers,

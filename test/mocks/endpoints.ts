@@ -6,10 +6,10 @@ import {
 import type { EndpointsConfig } from '../../src/types/http-request';
 
 export const endpoints = {
-  getUserDetails: {
+  getUser: {
     url: '/user-details',
   },
-  getUserDetailsByIdAndName: {
+  getUserByIdAndName: {
     url: '/user-details/:id/:name',
   },
   updateUserDetails: {
@@ -30,7 +30,7 @@ interface UserResponse {
 
 // Passing QueryParams allows for any params to be passed to the request (no strict typing)
 export interface EndpointsList {
-  getUserDetails: Endpoint;
+  getUser: Endpoint;
   updateUserDetails: Endpoint<UserResponse, QueryParams, UrlParams>;
-  getUserDetailsByIdAndName: Endpoint<UserResponse, QueryParams, UserURLParams>;
+  getUserByIdAndName: Endpoint<UserResponse, QueryParams, UserURLParams>;
 }
