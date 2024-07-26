@@ -545,6 +545,15 @@ export class RequestHandler implements MagicalClass {
       return response.data;
     }
 
+    // If empty object is returned, ensure that the default response is used instead
+    if (
+      typeof response === 'object' &&
+      response.constructor === Object &&
+      Object.keys(response).length === 0
+    ) {
+      return this.defaultResponse;
+    }
+
     return response;
   }
 }
