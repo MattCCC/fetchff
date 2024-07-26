@@ -526,11 +526,11 @@ export class RequestHandler implements MagicalClass {
    * @returns {*} Response data
    */
   protected processResponseData(response) {
-    if (!this.flattenResponse) {
-      return response;
+    if (!response) {
+      return this.defaultResponse;
     }
 
-    if (response.data) {
+    if (this.flattenResponse && response.data) {
       // Special case of only data property within response data object (happens in Axios)
       // This is in fact a proper response but we may want to flatten it
       // To ease developers' lives when obtaining the response
@@ -545,6 +545,6 @@ export class RequestHandler implements MagicalClass {
       return response.data;
     }
 
-    return this.defaultResponse;
+    return response;
   }
 }
