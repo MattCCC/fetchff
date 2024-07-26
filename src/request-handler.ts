@@ -16,7 +16,6 @@ import type {
   FetcherInstance,
   FetcherStaticInstance,
   Method,
-  NativeFetch,
   EndpointConfigHeaders,
 } from './types/http-request';
 
@@ -31,6 +30,11 @@ export class RequestHandler implements MagicalClass {
    * @var requestInstance Provider's instance
    */
   public requestInstance: FetcherInstance;
+
+  /**
+   * @var baseURL Base API url
+   */
+  public baseURL: string = '';
 
   /**
    * @var timeout Request timeout
@@ -114,11 +118,12 @@ export class RequestHandler implements MagicalClass {
     this.logger = logger || (globalThis ? globalThis.console : null) || null;
     this.requestErrorService = onError;
     this.requestsQueue = new Map();
+    this.baseURL = baseURL || config.apiUrl || '';
 
     this.requestInstance = this.isCustomFetcher()
       ? fetcher.create({
           ...config,
-          baseURL: baseURL || config.apiUrl || '',
+          baseURL: this.baseURL,
           timeout: this.timeout,
         })
       : globalThis.fetch;
@@ -490,11 +495,7 @@ export class RequestHandler implements MagicalClass {
       if (this.isCustomFetcher()) {
         response = await (this.requestInstance as any).request(requestConfig);
       } else {
-        // Native fetch
-        response = await (this.requestInstance as NativeFetch)(
-          url,
-          requestConfig,
-        );
+        response = await globalThis.fetch(this.baseURL + url, requestConfig);
 
         // Check if the response status is not outside the range 200-299
         if (response.ok) {
@@ -525,11 +526,11 @@ export class RequestHandler implements MagicalClass {
    * @returns {*} Response data
    */
   protected processResponseData(response) {
-    if (response.data) {
-      if (!this.flattenResponse) {
-        return response;
-      }
+    if (!this.flattenResponse) {
+      return response;
+    }
 
+    if (response.data) {
       // Special case of only data property within response data object (happens in Axios)
       // This is in fact a proper response but we may want to flatten it
       // To ease developers' lives when obtaining the response
