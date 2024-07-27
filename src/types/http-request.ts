@@ -5,6 +5,7 @@ import type {
   AxiosResponse,
   AxiosInstance,
 } from 'axios';
+import type { APIUriParams } from './api';
 
 export type Method =
   | 'get'
@@ -57,6 +58,7 @@ export interface EndpointConfig extends AxiosRequestConfig, RequestInit {
   onError?: ErrorHandlerFunction | ErrorHandlerClass;
   headers?: EndpointConfigHeaders;
   signal?: AbortSignal;
+  uriParams?: APIUriParams;
 }
 
 export interface RequestHandlerConfig extends EndpointConfig {

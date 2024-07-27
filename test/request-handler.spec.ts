@@ -89,15 +89,89 @@ describe('Request Handler', () => {
     });
   });
 
+  describe('replaceUriParams()', () => {
+    let requestHandler: RequestHandler = null;
+
+    beforeAll(() => {
+      requestHandler = new RequestHandler({});
+    });
+
+    it('should replace a single placeholder with a value from uriParams', () => {
+      const url = '/users/:userId';
+      const params = { userId: 123 };
+
+      const result = requestHandler.replaceUriParams(url, params);
+
+      expect(result).toBe('/users/123');
+    });
+
+    it('should replace multiple placeholders with corresponding values from uriParams', () => {
+      const url = '/users/:userId/posts/:postId';
+      const params = { userId: 123, postId: 456 };
+
+      const result = requestHandler.replaceUriParams(url, params);
+
+      expect(result).toBe('/users/123/posts/456');
+    });
+
+    it('should leave placeholders unchanged if no corresponding value is provided in uriParams', () => {
+      const url = '/users/:userId/posts/:postId';
+      const params = { userName: 'john' };
+
+      const result = requestHandler.replaceUriParams(url, params);
+
+      expect(result).toBe('/users/:userId/posts/:postId');
+    });
+
+    it('should handle placeholders with special characters', () => {
+      const url = '/users/:userId/details/:detailId';
+      const params = { userId: 123, detailId: 'abc' };
+
+      const result = requestHandler.replaceUriParams(url, params);
+
+      expect(result).toBe('/users/123/details/abc');
+    });
+
+    it('should handle empty uriParams object', () => {
+      const url = '/users/:userId';
+      const params = {};
+
+      const result = requestHandler.replaceUriParams(url, params);
+
+      expect(result).toBe('/users/:userId');
+    });
+
+    it('should replace placeholders even when URL contains query parameters', () => {
+      const url = '/users/:userId?name=:name';
+      const params = { userId: 123, name: 'john' };
+
+      const result = requestHandler.replaceUriParams(url, params);
+
+      expect(result).toBe('/users/123?name=john');
+    });
+
+    it('should handle URL with no placeholders', () => {
+      const url = '/users/123';
+      const params = { userId: 456 };
+
+      const result = requestHandler.replaceUriParams(url, params);
+
+      expect(result).toBe('/users/123');
+    });
+  });
+
   describe('buildRequestConfig() with native fetch()', () => {
-    let requestHandler = null;
+    let requestHandler: RequestHandler = null;
 
     beforeAll(() => {
       requestHandler = new RequestHandler({});
     });
 
     const buildConfig = (method, url, data, config) =>
-      requestHandler.buildRequestConfig(method, url, data, config);
+      (requestHandler as any).buildRequestConfig(url, data, {
+        ...config,
+        method,
+      });
 
     it('should handle GET requests correctly', () => {
       const result = buildConfig(
@@ -340,7 +414,7 @@ describe('Request Handler', () => {
         .fn()
         .mockRejectedValue(new Error('Request Failed'));
 
-      const request = (requestHandler as any).get(apiUrl);
+      const request = requestHandler.handleRequest(apiUrl);
 
       const timeout = new Promise((resolve) => {
         const wait = setTimeout(() => {
@@ -386,7 +460,7 @@ describe('Request Handler', () => {
         .mockRejectedValue(new Error('Request Failed'));
 
       try {
-        await (requestHandler as any).delete(apiUrl, null, {
+        await requestHandler.handleRequest(apiUrl, null, {
           strategy: 'reject',
         });
       } catch (error) {
@@ -405,7 +479,7 @@ describe('Request Handler', () => {
         .fn()
         .mockRejectedValue(new Error('Request Failed'));
 
-      const request = (requestHandler as any).get(apiUrl);
+      const request = requestHandler.handleRequest(apiUrl);
 
       const timeout = new Promise((resolve) => {
         const wait = setTimeout(() => {
@@ -449,7 +523,7 @@ describe('Request Handler', () => {
         .mockRejectedValue(new Error('Request Failed'));
 
       try {
-        await (requestHandler as any).delete(apiUrl, null, {
+        await requestHandler.handleRequest(apiUrl, null, {
           strategy: 'reject',
         });
       } catch (error) {
@@ -474,7 +548,7 @@ describe('Request Handler', () => {
         'request',
       );
 
-      await (requestHandler as any).get(apiUrl);
+      await requestHandler.handleRequest(apiUrl);
 
       expect(spy).toHaveBeenCalledWith(
         expect.not.objectContaining({
@@ -498,7 +572,7 @@ describe('Request Handler', () => {
         'request',
       );
 
-      await (requestHandler as any).get(
+      await requestHandler.handleRequest(
         apiUrl,
         {},
         {
@@ -528,7 +602,7 @@ describe('Request Handler', () => {
         'request',
       );
 
-      await (requestHandler as any).get(
+      await requestHandler.handleRequest(
         apiUrl,
         {},
         {
@@ -554,7 +628,7 @@ describe('Request Handler', () => {
         'request',
       );
 
-      await (requestHandler as any).get(
+      await requestHandler.handleRequest(
         apiUrl,
         {},
         {
@@ -580,7 +654,7 @@ describe('Request Handler', () => {
         'request',
       );
 
-      await (requestHandler as any).get(apiUrl);
+      await requestHandler.handleRequest(apiUrl);
 
       expect(spy).not.toHaveBeenCalledWith({});
     });
@@ -596,7 +670,7 @@ describe('Request Handler', () => {
         .fn()
         .mockRejectedValue(new Error('Request Failed'));
 
-      const request = (requestHandler as any).get(apiUrl);
+      const request = requestHandler.handleRequest(apiUrl);
 
       const spy = jest.spyOn(
         requestHandler.requestInstance as AxiosInstance,
@@ -606,7 +680,7 @@ describe('Request Handler', () => {
         .fn()
         .mockResolvedValue(responseMock);
 
-      const request2 = (requestHandler as any).get(apiUrl);
+      const request2 = requestHandler.handleRequest(apiUrl);
 
       expect(spy).toHaveBeenCalledTimes(1);
       expect(spy).toHaveBeenCalledWith(
@@ -642,7 +716,9 @@ describe('Request Handler', () => {
         .fn()
         .mockResolvedValue(responseMock);
 
-      const response = await (requestHandler as any).put(apiUrl);
+      const response = await requestHandler.handleRequest(apiUrl, null, {
+        method: 'put',
+      });
 
       expect(response).toMatchObject(responseMock);
     });
@@ -657,7 +733,9 @@ describe('Request Handler', () => {
         .fn()
         .mockResolvedValue(responseMock);
 
-      const response = await (requestHandler as any).post(apiUrl);
+      const response = await requestHandler.handleRequest(apiUrl, null, {
+        method: 'post',
+      });
 
       expect(response).toMatchObject(responseMock.data);
     });
@@ -672,7 +750,9 @@ describe('Request Handler', () => {
         .fn()
         .mockResolvedValue({ data: responseMock });
 
-      const response = await (requestHandler as any).patch(apiUrl);
+      const response = await requestHandler.handleRequest(apiUrl, null, {
+        method: 'patch',
+      });
 
       expect(response).toMatchObject(responseMock.data);
     });
@@ -688,7 +768,9 @@ describe('Request Handler', () => {
         .fn()
         .mockResolvedValue({});
 
-      expect(await (requestHandler as any).head(apiUrl)).toBe(null);
+      expect(
+        await requestHandler.handleRequest(apiUrl, null, { method: 'head' }),
+      ).toBe(null);
     });
   });
 });

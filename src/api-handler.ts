@@ -1,15 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-// 3rd party libs
 import { applyMagic, MagicalClass } from 'js-magic';
-
 import type {
   RequestResponse,
   APIHandlerConfig,
   EndpointsConfig,
   FetcherInstance,
+  EndpointConfig,
 } from './types/http-request';
-
 import { RequestHandler } from './request-handler';
+import type { APIQueryParams, APIUriParams } from './types/api';
 
 /**
  * Handles dispatching of API requests
@@ -96,31 +95,25 @@ export class ApiHandler<EndpointsList = { [x: string]: unknown }>
    * @param {*} args      Arguments
    * @returns {Promise}   Resolvable API provider promise
    */
-  public async handleRequest(...args: string[]): Promise<RequestResponse> {
-    const prop = args[0];
-    const endpointSettings = this.endpoints[prop];
+  public async handleRequest(
+    prop: string,
+    queryParams: APIQueryParams = {},
+    uriParams: APIUriParams = {},
+    requestConfig: EndpointConfig = {},
+  ): Promise<RequestResponse> {
+    // Use global per-endpoint settings
+    const endpoint = this.endpoints[prop];
+    const endpointSettings = { ...endpoint };
 
-    const queryParams = args[1] || {};
-    const uriParams = args[2] || {};
-    const requestConfig = args[3] || {};
-
-    const uri = endpointSettings.url.replace(/:[a-z]+/gi, (str: string) =>
-      uriParams[str.substring(1)] ? uriParams[str.substring(1)] : str,
+    const responseData = await this.requestHandler.handleRequest(
+      endpointSettings.url,
+      queryParams,
+      {
+        ...endpointSettings,
+        ...requestConfig,
+        uriParams,
+      },
     );
-
-    let responseData = null;
-
-    const additionalRequestSettings = { ...endpointSettings };
-
-    delete additionalRequestSettings.url;
-    delete additionalRequestSettings.method;
-
-    responseData = await this.requestHandler[
-      (endpointSettings.method || 'get').toLowerCase()
-    ](uri, queryParams, {
-      ...requestConfig,
-      ...additionalRequestSettings,
-    });
 
     return responseData;
   }

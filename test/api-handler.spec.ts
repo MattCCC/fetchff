@@ -4,8 +4,6 @@ import { ApiHandler } from '../src/api-handler';
 import { mockErrorCallbackClass } from './request-error-handler.spec';
 import { endpoints, EndpointsList } from './mocks/endpoints';
 
-type TestRequestHandler = Record<string, unknown>;
-
 describe('API Handler', () => {
   const apiUrl = 'http://example.com/api/';
   const config = {
@@ -17,6 +15,7 @@ describe('API Handler', () => {
   const userDataMock = { name: 'Mark', age: 20 };
 
   console.warn = jest.fn();
+  console.error = jest.fn();
 
   afterEach((done) => {
     done();
@@ -58,51 +57,53 @@ describe('API Handler', () => {
   });
 
   describe('handleRequest()', () => {
-    it('should properly replace multiple URL params', async () => {
+    it('should properly dispatch request', async () => {
       const api = new ApiHandler(config) as ApiHandler & EndpointsList;
-
-      (api.requestHandler as unknown as TestRequestHandler).get = jest
-        .fn()
-        .mockResolvedValueOnce(userDataMock);
-
-      const response = await api.getUserByIdAndName(null, {
+      const uriParams = {
         id: 1,
         name: 'Mark',
-      });
+      };
 
-      expect(
-        (api.requestHandler as unknown as TestRequestHandler).get,
-      ).toHaveBeenCalledTimes(1);
-      expect(
-        (api.requestHandler as unknown as TestRequestHandler).get,
-      ).toHaveBeenCalledWith('/user-details/1/Mark', {}, {});
+      jest
+        .spyOn(api.requestHandler, 'handleRequest')
+        .mockResolvedValueOnce(userDataMock as any);
+
+      const response = await api.getUserByIdAndName(null, uriParams);
+
+      expect(api.requestHandler.handleRequest).toHaveBeenCalledTimes(1);
+      expect(api.requestHandler.handleRequest).toHaveBeenCalledWith(
+        '/user-details/:id/:name',
+        null,
+        { url: '/user-details/:id/:name', uriParams },
+      );
       expect(response).toBe(userDataMock);
     });
 
-    it('should properly fill Axios compatible config', async () => {
+    it('should properly call an endpoint with custom headers', async () => {
       const api = new ApiHandler(config) as ApiHandler & EndpointsList;
-      const headers = {
-        headers: {
-          'Content-Type': 'application/json',
-        },
+      const uriParams = {
+        id: 1,
+        name: 'Mark',
       };
 
-      (api.requestHandler as unknown as TestRequestHandler).get = jest
-        .fn()
-        .mockResolvedValueOnce(userDataMock);
+      const headers = {
+        'Content-Type': 'application/json',
+      };
 
-      const response = await api.getUserByIdAndName(
-        null,
-        { id: 1, name: 'Mark' },
+      jest
+        .spyOn(api.requestHandler, 'handleRequest')
+        .mockResolvedValueOnce(userDataMock as any);
+
+      const response = await api.getUserByIdAndName(null, uriParams, {
         headers,
-      );
+      });
 
-      expect(
-        (api.requestHandler as unknown as TestRequestHandler).get,
-      ).toHaveBeenCalledTimes(1);
-      expect(
-        (api.requestHandler as unknown as TestRequestHandler).get,
-      ).toHaveBeenCalledWith('/user-details/1/Mark', {}, headers);
+      expect(api.requestHandler.handleRequest).toHaveBeenCalledTimes(1);
+      expect(api.requestHandler.handleRequest).toHaveBeenCalledWith(
+        '/user-details/:id/:name',
+        null,
+        { url: '/user-details/:id/:name', headers, uriParams },
+      );
       expect(response).toBe(userDataMock);
     });
   });

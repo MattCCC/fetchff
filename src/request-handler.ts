@@ -1,12 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-
-// 3rd party libs
-import { applyMagic, MagicalClass } from 'js-magic';
-
-// Shared Modules
 import { RequestErrorHandler } from './request-error-handler';
-
-// Types
 import type {
   RequestResponse,
   ErrorHandlingStrategy,
@@ -18,14 +11,14 @@ import type {
   Method,
   EndpointConfigHeaders,
 } from './types/http-request';
+import type { APIPayload, APIQueryParams, APIUriParams } from './types/api';
 
 /**
  * Generic Request Handler
  * It creates an Request Fetcher instance and handles requests within that instance
  * It handles errors depending on a chosen error handling strategy
  */
-@applyMagic
-export class RequestHandler implements MagicalClass {
+export class RequestHandler {
   /**
    * @var requestInstance Provider's instance
    */
@@ -161,27 +154,30 @@ export class RequestHandler implements MagicalClass {
   }
 
   /**
-   * Maps all API request types
+   * Replaces dynamic URI parameters in a URL string with values from the provided `uriParams` object.
+   * Parameters in the URL are denoted by `:<paramName>`, where `<paramName>` is a key in `uriParams`.
    *
-   * @throws {RequestError} If request fails
-   * @returns {Promise} Response data or error
+   * @param {string} url - The URL string containing placeholders in the format `:<paramName>`.
+   * @param {Object} uriParams - An object containing the parameter values to replace placeholders.
+   * @param {string} uriParams.paramName - The value to replace the placeholder `:<paramName>` in the URL.
+   * @returns {string} - The URL string with placeholders replaced by corresponding values from `uriParams`.
    */
-  public __get(prop: string) {
-    if (prop in this) {
-      return this[prop];
-    }
+  public replaceUriParams(url: string, uriParams: APIUriParams): string {
+    return url.replace(/:[a-zA-Z]+/gi, (str): string => {
+      const word = str.substring(1);
 
-    return this.handleRequest.bind(this, prop);
+      return String(uriParams[word] ? uriParams[word] : str);
+    });
   }
 
   /**
    * Appends query parameters to the given URL
    *
    * @param {string} url - The base URL to which query parameters will be appended.
-   * @param {Record<string, any>} params - An instance of URLSearchParams containing the query parameters to append.
+   * @param {APIQueryParams} params - An instance of URLSearchParams containing the query parameters to append.
    * @returns {string} - The URL with the appended query parameters.
    */
-  public appendQueryParams(url: string, params: Record<string, any>): string {
+  public appendQueryParams(url: string, params: APIQueryParams): string {
     // We don't use URLSearchParams here as we want to ensure that arrays are properly converted similarily to Axios
     // So { foo: [1, 2] } would become: foo[]=1&foo[]=2
     const queryString = Object.entries(params)
@@ -191,7 +187,7 @@ export class RequestHandler implements MagicalClass {
             (val) => `${encodeURIComponent(key)}[]=${encodeURIComponent(val)}`,
           );
         }
-        return `${encodeURIComponent(key)}=${encodeURIComponent(value)}`;
+        return `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`;
       })
       .join('&');
 
@@ -258,27 +254,31 @@ export class RequestHandler implements MagicalClass {
   /**
    * Build request configuration
    *
-   * @param {string} method               Request method
-   * @param {string} url                  Request url
-   * @param {*}      data                 Request data
-   * @param {EndpointConfig} config       Request config
-   * @returns {EndpointConfig}            Provider's instance
+   * @param {string} url                          Request url
+   * @param {APIQueryParams | APIPayload} data    Request data
+   * @param {EndpointConfig} config               Request config
+   * @returns {EndpointConfig}                    Provider's instance
    */
   protected buildRequestConfig(
-    method: Method,
     url: string,
-    data: any,
+    data: APIQueryParams | APIPayload,
     config: EndpointConfig,
   ): EndpointConfig {
+    const method = config.method || this.method;
     const methodLowerCase = method.toLowerCase();
     const isGetAlikeMethod =
       methodLowerCase === 'get' || methodLowerCase === 'head';
+
+    const dynamicUrl = this.replaceUriParams(
+      url,
+      config.uriParams || this.config.uriParams,
+    );
 
     // Axios compatibility
     if (this.isCustomFetcher()) {
       return {
         ...config,
-        url,
+        url: dynamicUrl,
         method: methodLowerCase,
 
         ...(isGetAlikeMethod ? { params: data } : {}),
@@ -306,9 +306,10 @@ export class RequestHandler implements MagicalClass {
       // Native fetch generally requires query params to be appended in the URL
       // Do not append query params only if it's a POST-alike request with only "data" specified as it's treated as body payload
       url:
-        (!isGetAlikeMethod && data && !config.body) || !data
-          ? url
-          : this.appendQueryParams(url, data),
+        this.baseURL +
+        ((!isGetAlikeMethod && data && !config.body) || !data
+          ? dynamicUrl
+          : this.appendQueryParams(dynamicUrl, data)),
 
       // Uppercase method name
       method: method.toUpperCase(),
@@ -485,28 +486,21 @@ export class RequestHandler implements MagicalClass {
   /**
    * Handle Request depending on used strategy
    *
-   * @param {object} payload                      Payload
-   * @param {string} payload.type                 Request type
-   * @param {string} payload.url                  Request url
-   * @param {*} payload.data                      Request data
-   * @param {EndpointConfig} payload.config       Request config
+   * @param {object} payload                              Payload
+   * @param {string} payload.url                          Request url
+   * @param {APIQueryParams | APIPayload} payload.data    Request data
+   * @param {EndpointConfig} payload.config               Request config
    * @throws {RequestError}
-   * @returns {Promise} Response Data
+   * @returns {Promise<RequestResponse>} Response Data
    */
   public async handleRequest(
-    type: Method,
     url: string,
-    data: unknown = null,
+    data: APIQueryParams | APIPayload = null,
     config: EndpointConfig = null,
   ): Promise<RequestResponse> {
     let response = null;
     const endpointConfig = config || {};
-    let requestConfig = this.buildRequestConfig(
-      type,
-      url,
-      data,
-      endpointConfig,
-    );
+    let requestConfig = this.buildRequestConfig(url, data, endpointConfig);
 
     requestConfig = {
       ...this.addCancellationToken(requestConfig),
@@ -518,14 +512,14 @@ export class RequestHandler implements MagicalClass {
       if (this.isCustomFetcher()) {
         response = await (this.requestInstance as any).request(requestConfig);
       } else {
-        response = await globalThis.fetch(this.baseURL + url, requestConfig);
+        response = await globalThis.fetch(requestConfig.url, requestConfig);
 
         // Check if the response status is not outside the range 200-299
         if (response.ok) {
           // Parse and return the JSON response
           response = await response.json();
         } else {
-          const error = new Error(`HTTP error! Status: ${response.status}`);
+          const error = new Error(`fetch() error! Status: ${response.status}`);
 
           // Attach the response object to the error for further inspection
           (error as any).response = response;
