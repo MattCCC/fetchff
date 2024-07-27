@@ -71,12 +71,22 @@ export class ApiHandler<EndpointsList = { [x: string]: unknown }>
 
     // Prevent handler from triggering non-existent endpoints
     if (!this.endpoints[prop]) {
-      console.error(`${prop} endpoint must be added to 'endpoints'.`);
-
-      return Promise.resolve(null);
+      return this.handleNonImplemented.bind(this, prop);
     }
 
     return this.handleRequest.bind(this, prop);
+  }
+
+  /**
+   * Triggered when trying to use non-existent endpoints
+   *
+   * @param prop Method Name
+   * @returns {Promise}
+   */
+  protected handleNonImplemented(prop: string): Promise<null> {
+    console.error(`${prop} endpoint must be added to 'endpoints'.`);
+
+    return Promise.resolve(null);
   }
 
   /**
