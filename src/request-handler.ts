@@ -105,7 +105,6 @@ export class RequestHandler {
    */
   public constructor({
     fetcher = null,
-    baseURL = '',
     timeout = null,
     cancellable = false,
     rejectCancelled = false,
@@ -131,7 +130,7 @@ export class RequestHandler {
     this.logger = logger || (globalThis ? globalThis.console : null) || null;
     this.requestErrorService = onError;
     this.requestsQueue = new Map();
-    this.baseURL = baseURL || config.apiUrl || '';
+    this.baseURL = config.baseURL || config.apiUrl || '';
     this.method = config.method || this.method;
     this.config = config;
 
@@ -274,6 +273,10 @@ export class RequestHandler {
       config.uriParams || this.config.uriParams,
     );
 
+    // Bonus: Specifying it here brings support for "body" in Axios
+    const configData =
+      config.body || config.data || this.config.body || this.config.data;
+
     // Axios compatibility
     if (this.isCustomFetcher()) {
       return {
@@ -285,18 +288,16 @@ export class RequestHandler {
 
         // For POST requests body payload is the first param for convenience ("data")
         // In edge cases we want to split so to treat it as query params, and use "body" coming from the config instead
-        ...(!isGetAlikeMethod && data && config.data ? { params: data } : {}),
+        ...(!isGetAlikeMethod && data && configData ? { params: data } : {}),
 
         // Only applicable for request methods 'PUT', 'POST', 'DELETE', and 'PATCH'
-        ...(!isGetAlikeMethod && data && !config.data ? { data } : {}),
-        ...(!isGetAlikeMethod && config.data ? { data: config.data } : {}),
+        ...(!isGetAlikeMethod && data && !configData ? { data } : {}),
+        ...(!isGetAlikeMethod && configData ? { data: configData } : {}),
       };
     }
 
     // Native fetch
-
-    // Axios uses different property. Add a quick check.
-    const payload = config.body || config.data || data;
+    const payload = configData || data;
 
     delete config.data;
 
