@@ -47,6 +47,11 @@ export class RequestHandler implements MagicalClass {
   public cancellable: boolean = false;
 
   /**
+   * @var rejectCancelled Whether to reject cancelled requests or not
+   */
+  public rejectCancelled: boolean = false;
+
+  /**
    * @var strategy Request timeout
    */
   public strategy: ErrorHandlingStrategy = 'reject';
@@ -82,10 +87,13 @@ export class RequestHandler implements MagicalClass {
   protected requestsQueue: Map<string, AbortController>;
 
   /**
-   * Creates an instance of HttpRequestHandler
+   * Creates an instance of RequestHandler
    *
    * @param {string} config.fetcher              Request Fetcher instance
    * @param {string} config.baseURL              Base URL for all API calls
+   * @param {number} config.timeout              You can set the timeout for particular request in milliseconds.
+   * @param {number} config.cancellable          If true, the previous requests will be automatically cancelled.
+   * @param {number} config.rejectCancelled      If true and request is set to cancellable, a cancelled request promise will be rejected. By default, instead of rejecting the promise, defaultResponse is returned.
    * @param {number} config.timeout              Request timeout
    * @param {string} config.strategy             Error Handling Strategy
    * @param {string} config.flattenResponse      Whether to flatten response "data" object within "data" one
@@ -97,6 +105,7 @@ export class RequestHandler implements MagicalClass {
     baseURL = '',
     timeout = null,
     cancellable = false,
+    rejectCancelled = false,
     strategy = null,
     flattenResponse = null,
     defaultResponse = {},
@@ -110,6 +119,7 @@ export class RequestHandler implements MagicalClass {
     this.strategy =
       strategy !== null && strategy !== undefined ? strategy : this.strategy;
     this.cancellable = cancellable || this.cancellable;
+    this.rejectCancelled = rejectCancelled || this.rejectCancelled;
     this.flattenResponse =
       flattenResponse !== null && flattenResponse !== undefined
         ? flattenResponse
@@ -352,9 +362,13 @@ export class RequestHandler implements MagicalClass {
   ): Promise<RequestResponse> {
     const isRequestCancelled = this.isRequestCancelled(error);
     const errorHandlingStrategy = requestConfig.strategy || this.strategy;
+    const rejectCancelled =
+      typeof requestConfig.rejectCancelled !== 'undefined'
+        ? requestConfig.rejectCancelled
+        : this.rejectCancelled;
 
     // By default cancelled requests aren't rejected
-    if (isRequestCancelled && !requestConfig.rejectCancelled) {
+    if (isRequestCancelled && !rejectCancelled) {
       return this.defaultResponse;
     }
 
