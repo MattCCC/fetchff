@@ -318,7 +318,7 @@ export class RequestHandler {
       headers: {
         Accept: 'application/json, text/plain, */*',
         'Content-Type': 'application/json;charset=utf-8',
-        ...(config.headers || {}),
+        ...(config.headers || this.config.headers || {}),
       } as EndpointConfigHeaders,
 
       // Automatically JSON stringify request bodies, if possible and when not dealing with strings
