@@ -57,6 +57,11 @@ export class RequestHandler implements MagicalClass {
   public strategy: ErrorHandlingStrategy = 'reject';
 
   /**
+   * @var method Request method
+   */
+  public method: Method | string = 'get';
+
+  /**
    * @var flattenResponse Response flattening
    */
   public flattenResponse: boolean = true;
@@ -85,6 +90,11 @@ export class RequestHandler implements MagicalClass {
    * @var requestsQueue    Queue of requests
    */
   protected requestsQueue: Map<string, AbortController>;
+
+  /**
+   * Request Handler Config
+   */
+  public config: RequestHandlerConfig;
 
   /**
    * Creates an instance of RequestHandler
@@ -129,6 +139,8 @@ export class RequestHandler implements MagicalClass {
     this.requestErrorService = onError;
     this.requestsQueue = new Map();
     this.baseURL = baseURL || config.apiUrl || '';
+    this.method = config.method || this.method;
+    this.config = config;
 
     this.requestInstance = this.isCustomFetcher()
       ? fetcher.create({

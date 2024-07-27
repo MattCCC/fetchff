@@ -40,6 +40,7 @@ export class ApiHandler<EndpointsList = { [x: string]: unknown }>
 
   /**
    * Creates an instance of API Handler
+   *
    * @inheritdoc createApiFetcher()
    */
   public constructor(config: APIHandlerConfig<EndpointsList>) {
