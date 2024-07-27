@@ -34,11 +34,7 @@ export type FetcherInstance = AxiosInstance | NativeFetch;
 
 export type RequestResponse<T = unknown> = Promise<AxiosResponse<T>>;
 
-export type ErrorHandlingStrategy =
-  | 'throwError'
-  | 'reject'
-  | 'silent'
-  | 'defaultResponse';
+export type ErrorHandlingStrategy = 'reject' | 'silent' | 'defaultResponse';
 
 export type RequestError = AxiosError<unknown>;
 

@@ -366,10 +366,7 @@ export class RequestHandler implements MagicalClass {
     }
 
     // Simply rejects a request promise
-    if (
-      errorHandlingStrategy === 'reject' ||
-      errorHandlingStrategy === 'throwError'
-    ) {
+    if (errorHandlingStrategy === 'reject') {
       return Promise.reject(error);
     }
 

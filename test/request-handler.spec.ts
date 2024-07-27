@@ -375,7 +375,7 @@ describe('Request Handler', () => {
       }
     });
 
-    it('should reject promise when using reject strategy per endpoing', async () => {
+    it('should reject promise when using reject strategy per endpoint', async () => {
       const requestHandler = new RequestHandler({
         fetcher: axios,
         strategy: 'silent',
@@ -387,7 +387,7 @@ describe('Request Handler', () => {
 
       try {
         await (requestHandler as any).delete(apiUrl, null, {
-          strategy: 'throwError',
+          strategy: 'reject',
         });
       } catch (error) {
         expect(typeof error).toBe('object');
@@ -439,7 +439,7 @@ describe('Request Handler', () => {
       }
     });
 
-    it('should reject promise when using reject strategy per endpoing', async () => {
+    it('should reject promise when using reject strategy per endpoint', async () => {
       const requestHandler = new RequestHandler({
         strategy: 'silent',
       });
@@ -450,7 +450,7 @@ describe('Request Handler', () => {
 
       try {
         await (requestHandler as any).delete(apiUrl, null, {
-          strategy: 'throwError',
+          strategy: 'reject',
         });
       } catch (error) {
         expect(typeof error).toBe('object');
