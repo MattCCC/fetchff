@@ -24,26 +24,32 @@ export class ApiHandler<EndpointsList = { [x: string]: unknown }>
   [x: string]: unknown;
 
   /**
-   * @var requestHandler Request Wrapper Instance
+   * API Handler Config
    */
-  public requestHandler: RequestHandler;
+  public config: APIHandlerConfig<EndpointsList>;
 
   /**
-   * Endpoints
+   * Endpoints list
    */
-  protected endpoints: EndpointsConfig<string>;
+  public endpoints: EndpointsConfig<string>;
+
+  /**
+   * Request Handler Instance
+   */
+  public requestHandler: RequestHandler;
 
   /**
    * Creates an instance of API Handler
    * @inheritdoc createApiFetcher()
    */
   public constructor(config: APIHandlerConfig<EndpointsList>) {
+    this.config = config;
     this.endpoints = config.endpoints;
     this.requestHandler = new RequestHandler(config);
   }
 
   /**
-   * Get Provider Instance
+   * Get Fetcher Provider Instance
    *
    * @returns {FetcherInstance} Provider's instance
    */
