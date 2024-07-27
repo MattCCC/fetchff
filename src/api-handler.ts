@@ -34,18 +34,11 @@ export class ApiHandler<EndpointsList = { [x: string]: unknown }>
   protected endpoints: EndpointsConfig<string>;
 
   /**
-   * Logger
-   */
-  protected logger: any;
-
-  /**
    * Creates an instance of API Handler
    * @inheritdoc createApiFetcher()
    */
   public constructor(config: APIHandlerConfig<EndpointsList>) {
     this.endpoints = config.endpoints;
-    this.logger = config.logger;
-
     this.requestHandler = new RequestHandler(config);
   }
 
@@ -70,9 +63,11 @@ export class ApiHandler<EndpointsList = { [x: string]: unknown }>
       return this[prop];
     }
 
-    // Prevent handler from running for non-existent endpoints
+    // Prevent handler from triggering non-existent endpoints
     if (!this.endpoints[prop]) {
-      return this.handleNonImplemented.bind(this, prop);
+      console.error(`${prop} endpoint must be added to 'endpoints'.`);
+
+      return Promise.resolve(null);
     }
 
     return this.handleRequest.bind(this, prop);
@@ -111,20 +106,6 @@ export class ApiHandler<EndpointsList = { [x: string]: unknown }>
     });
 
     return responseData;
-  }
-
-  /**
-   * Triggered when trying to use non-existent endpoints
-   *
-   * @param prop Method Name
-   * @returns {Promise}
-   */
-  protected handleNonImplemented(prop: string): Promise<null> {
-    if (this.logger?.log) {
-      this.logger.log(`${prop} endpoint not implemented.`);
-    }
-
-    return Promise.resolve(null);
   }
 }
 
