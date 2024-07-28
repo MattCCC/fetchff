@@ -93,7 +93,10 @@ async function example3() {
   const data = await api.ping();
 
   // Defined in EndpointsList with query param and url path param
-  const book = await api.fetchBook({ newBook: true }, { bookId: 1 });
+  const book = (await api.fetchBook(
+    { newBook: true },
+    { bookId: 1 },
+  )) satisfies Book;
 
   // Defined in "endpoints" but not in EndpointsList. You don't need to add "fetchMovies: Endpoint;" explicitly.
   const movies = await api.fetchMovies();
@@ -101,14 +104,14 @@ async function example3() {
   // @ts-expect-error This will result in an error as endpoint is not defined
   const movies2 = await api.nonExistentEndpoint();
 
-  const book1 = await api.fetchBook<Book>(
+  const book1 = (await api.fetchBook<Book>(
     { newBook: true },
     // @ts-expect-error should verify that bookId cannot be text
     { bookId: 'text' },
-  );
+  )) satisfies Book;
 
   // @ts-expect-error will result in an error since "someParams" is not defined
-  const books = await api.fetchBooks({ someParams: 1 });
+  const books = (await api.fetchBooks({ someParams: 1 })) satisfies Books;
 
   // @ts-expect-error Error as bookId is not a number
   const book2 = await api.fetchBook({ newBook: true }, { bookId: 'text' });

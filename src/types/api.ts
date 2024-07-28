@@ -15,32 +15,27 @@ type HasKeys<T> = keyof T extends never ? false : true;
 // Conditional Omit utility type
 type ConditionalOmit<T, U> = HasKeys<U> extends true ? Omit<T, keyof U> : T;
 
+// Common type definitions
 export declare type APIQueryParams = Record<string, unknown>;
 export declare type APIPayload = Record<string, unknown>;
 export declare type QueryParamsOrBody = APIQueryParams | APIPayload;
-
 export declare type APIUrlParams = Record<string, unknown>;
-
 export declare type APIUriParams = Record<string, string | number>;
-
 export declare type APIResponse = unknown;
 
-export type EndpointFunction<
-  Response = APIResponse,
-  QueryParams = QueryParamsOrBody,
-  UrlParams = APIUrlParams,
-> = (
-  queryParams?: QueryParams | null,
-  urlParams?: UrlParams,
-  requestConfig?: RequestConfig,
-) => Promise<Response>;
-
+// Endpoint function type
 export declare type Endpoint<
   Response = APIResponse,
   QueryParams = QueryParamsOrBody,
   UrlParams = APIUrlParams,
 > =
-  | EndpointFunction<Response, QueryParams, UrlParams>
+  | {
+      (
+        queryParams?: QueryParams | null,
+        urlParams?: UrlParams,
+        requestConfig?: RequestConfig,
+      ): Promise<Response>;
+    }
   | {
       <ResponseData = Response, T = QueryParams, T2 = UrlParams>(
         queryParams?: T | null,
@@ -49,18 +44,14 @@ export declare type Endpoint<
       ): Promise<ResponseData>;
     };
 
-export type Endpoints<EndpointsUnion extends string | number | symbol> = Record<
-  EndpointsUnion,
-  Endpoint
->;
-
-type ExtractEndpointType<T> =
-  T extends Endpoint<infer Response, infer QueryParams, infer UrlParams>
+export type EndpointsRecord<EndpointsMethods> = {
+  [K in keyof EndpointsMethods]: EndpointsMethods[K] extends Endpoint<
+    infer Response,
+    infer QueryParams,
+    infer UrlParams
+  >
     ? Endpoint<Response, QueryParams, UrlParams>
     : Endpoint;
-
-export type EndpointsRecord<EndpointsMethods> = {
-  [K in keyof EndpointsMethods]: ExtractEndpointType<EndpointsMethods[K]>;
 };
 
 export type DefaultEndpoints<EndpointsMethods> = {
