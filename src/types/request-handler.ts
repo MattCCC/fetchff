@@ -45,33 +45,23 @@ interface ErrorHandlerClass {
 
 type ErrorHandlerFunction = (error: RequestError) => unknown;
 
-export type EndpointsConfig<T extends string | number | symbol> = {
-  [K in T]: EndpointConfig;
-};
+export type RequestConfigHeaders = AxiosRequestConfig['headers'] & HeadersInit;
 
-export type EndpointConfigHeaders = AxiosRequestConfig['headers'] & HeadersInit;
-
-export interface EndpointConfig extends AxiosRequestConfig, RequestInit {
+export interface RequestConfig extends AxiosRequestConfig, RequestInit {
   cancellable?: boolean;
   rejectCancelled?: boolean;
   strategy?: ErrorHandlingStrategy;
   onError?: ErrorHandlerFunction | ErrorHandlerClass;
-  headers?: EndpointConfigHeaders;
+  headers?: RequestConfigHeaders;
   signal?: AbortSignal;
   uriParams?: APIUriParams;
 }
 
-export interface RequestHandlerConfig extends EndpointConfig {
+export interface RequestHandlerConfig extends RequestConfig {
   fetcher?: FetcherStaticInstance;
   flattenResponse?: boolean;
   defaultResponse?: unknown;
   apiUrl?: string;
   logger?: unknown;
   onError?: ErrorHandlerFunction | ErrorHandlerClass;
-}
-
-export interface APIHandlerConfig<EndpointsList = { [x: string]: unknown }>
-  extends RequestHandlerConfig {
-  apiUrl: string;
-  endpoints: EndpointsConfig<keyof EndpointsList>;
 }

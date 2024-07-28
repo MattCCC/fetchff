@@ -1,5 +1,5 @@
 {
-  "include": ["src", "test"],
+  "include": ["src", "test", "docs/examples"],
   "compilerOptions": {
     "experimentalDecorators": true,
     "module": "esnext",

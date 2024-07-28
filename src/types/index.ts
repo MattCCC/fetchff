@@ -1,2 +1,2 @@
 export * from './api';
-export * from './http-request';
+export * from './request-handler';

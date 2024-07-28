@@ -65,13 +65,10 @@
     "ts-jest": "29.1.5",
     "tslib": "2.6.3",
     "tsup": "8.1.0",
-    "typescript": "5.5.3",
-    "typescript-eslint": "8.0.0-alpha.39"
+    "typescript": "5.5.4",
+    "typescript-eslint": "8.0.0-alpha.54"
   },
   "peerDependencies": {
     "axios": "^1"
-  },
-  "dependencies": {
-    "js-magic": "1.4.2"
   }
 }

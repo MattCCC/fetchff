@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import axios from 'axios';
-import { ApiHandler } from '../src/api-handler';
 import { mockErrorCallbackClass } from './request-error-handler.spec';
-import { endpoints, EndpointsList } from './mocks/endpoints';
+import { endpoints } from './mocks/endpoints';
+import { createApiHandler } from '../src/api-handler';
 
 describe('API Handler', () => {
   const apiUrl = 'http://example.com/api/';
@@ -22,16 +22,18 @@ describe('API Handler', () => {
   });
 
   it('getInstance() - should obtain method of the API request provider', () => {
-    const api = new ApiHandler(config) as ApiHandler & EndpointsList;
+    const api = createApiHandler(config);
 
     expect(typeof (api.getInstance() as any).request).toBe('function');
   });
 
-  describe('__get()', () => {
+  describe('get()', () => {
     it('should trigger request handler for an existent endpoint', async () => {
-      const api = new ApiHandler(config) as ApiHandler & EndpointsList;
+      const api = createApiHandler(config);
 
-      api.handleRequest = jest.fn().mockResolvedValueOnce(userDataMock);
+      jest
+        .spyOn(api, 'handleRequest')
+        .mockResolvedValueOnce(userDataMock as any);
 
       const response = await api.getUser({ userId: 1 });
 
@@ -43,7 +45,7 @@ describe('API Handler', () => {
     });
 
     it('should not trigger request handler for non-existent endpoint', async () => {
-      const api = new ApiHandler(config) as ApiHandler & EndpointsList;
+      const api = createApiHandler(config);
 
       api.handleRequest = jest.fn().mockResolvedValueOnce(userDataMock);
 
@@ -58,7 +60,7 @@ describe('API Handler', () => {
 
   describe('handleRequest()', () => {
     it('should properly dispatch request', async () => {
-      const api = new ApiHandler(config) as ApiHandler & EndpointsList;
+      const api = createApiHandler(config);
       const uriParams = {
         id: 1,
         name: 'Mark',
@@ -80,7 +82,7 @@ describe('API Handler', () => {
     });
 
     it('should properly call an endpoint with custom headers', async () => {
-      const api = new ApiHandler(config) as ApiHandler & EndpointsList;
+      const api = createApiHandler(config);
       const uriParams = {
         id: 1,
         name: 'Mark',

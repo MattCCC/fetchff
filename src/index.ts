@@ -1,10 +1,6 @@
-import { ApiHandler } from './api-handler';
+import { createApiHandler } from './api-handler';
 import { RequestHandler } from './request-handler';
-import type {
-  APIHandlerConfig,
-  RequestHandlerConfig,
-  RequestResponse,
-} from './types';
+import type { RequestHandlerConfig, RequestResponse } from './types';
 
 /**
  * Simple wrapper for API Handler instance creation.
@@ -44,9 +40,7 @@ import type {
  * // Fetch user data
  * const response = await api.getUser({ userId: 1, ratings: [1, 2] })
  */
-export const createApiFetcher = <AllEndpointsList = { [x: string]: unknown }>(
-  options: APIHandlerConfig<AllEndpointsList>,
-) => new ApiHandler(options) as ApiHandler & AllEndpointsList;
+export const createApiFetcher = createApiHandler;
 
 /**
  * Simple wrapper for request fetching.

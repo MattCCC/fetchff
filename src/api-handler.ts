@@ -1,111 +1,74 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import { applyMagic, MagicalClass } from 'js-magic';
+import { RequestHandler } from './request-handler';
 import type {
   RequestResponse,
-  APIHandlerConfig,
-  EndpointsConfig,
   FetcherInstance,
-  EndpointConfig,
-} from './types/http-request';
-import { RequestHandler } from './request-handler';
-import type { APIQueryParams, APIUriParams } from './types/api';
+  RequestConfig,
+} from './types/request-handler';
+import type {
+  ApiHandlerConfig,
+  ApiHandlerMethods,
+  ApiHandlerReturnType,
+  APIQueryParams,
+  APIUriParams,
+  // Endpoints,
+  // Endpoints,
+} from './types/api';
 
 /**
- * Handles dispatching of API requests
+ * Creates an instance of API Handler.
+ * It initializes the Request Handler and allows to make calls to the list of specified endpoints.
+ *
+ * @param config API Handler Configuration
+ * @returns API handler functions and endpoints to call
  */
-@applyMagic
-export class ApiHandler<EndpointsList = { [x: string]: unknown }>
-  implements MagicalClass
-{
-  /**
-   * TS Index signature
-   */
-  [x: string]: unknown;
-
-  /**
-   * API Handler Config
-   */
-  public config: APIHandlerConfig<EndpointsList>;
-
-  /**
-   * Endpoints list
-   */
-  public endpoints: EndpointsConfig<string>;
-
-  /**
-   * Request Handler Instance
-   */
-  public requestHandler: RequestHandler;
-
-  /**
-   * Creates an instance of API Handler
-   *
-   * @inheritdoc createApiFetcher()
-   */
-  public constructor(config: APIHandlerConfig<EndpointsList>) {
-    this.config = config;
-    this.endpoints = config.endpoints;
-    this.requestHandler = new RequestHandler(config);
-  }
+function createApiHandler<EndpointsMethods = never, EndpointsCfg = never>(
+  config: ApiHandlerConfig<EndpointsMethods>,
+) {
+  const endpoints = config.endpoints;
+  const requestHandler = new RequestHandler(config);
 
   /**
    * Get Fetcher Provider Instance
    *
-   * @returns {FetcherInstance} Provider's instance
+   * @returns {FetcherInstance} Request Handler's Fetcher instance
    */
-  public getInstance(): FetcherInstance {
-    return this.requestHandler.getInstance();
-  }
-
-  /**
-   * Maps all API requests
-   *
-   * @private
-   * @param {*} prop          Caller
-   * @returns {Function}      Tailored request function
-   */
-  public __get(prop: any): any {
-    if (prop in this) {
-      return this[prop];
-    }
-
-    // Prevent handler from triggering non-existent endpoints
-    if (!this.endpoints[prop]) {
-      return this.handleNonImplemented.bind(this, prop);
-    }
-
-    return this.handleRequest.bind(this, prop);
+  function getInstance(): FetcherInstance {
+    return requestHandler.getInstance();
   }
 
   /**
    * Triggered when trying to use non-existent endpoints
    *
-   * @param prop Method Name
+   * @param endpointName Endpoint Name
    * @returns {Promise}
    */
-  protected handleNonImplemented(prop: string): Promise<null> {
-    console.error(`${prop} endpoint must be added to 'endpoints'.`);
+  function handleNonImplemented(endpointName: string): Promise<null> {
+    console.error(`${endpointName} endpoint must be added to 'endpoints'.`);
 
     return Promise.resolve(null);
   }
 
   /**
    * Handle Single API Request
+   * It considers settings in following order: per-request settings, global per-endpoint settings, global settings.
    *
-   * @param {*} args      Arguments
-   * @returns {Promise}   Resolvable API provider promise
+   * @param {string} endpointName - The name of the API endpoint to call.
+   * @param {APIQueryParams} [queryParams={}] - Query parameters to include in the request.
+   * @param {APIUriParams} [uriParams={}] - URI parameters to include in the request.
+   * @param {EndpointConfig} [requestConfig={}] - Additional configuration for the request.
+   * @returns {Promise<RequestResponse>} - A promise that resolves with the response from the API provider.
    */
-  public async handleRequest(
-    prop: string,
+  async function handleRequest(
+    endpointName: keyof EndpointsMethods & string,
     queryParams: APIQueryParams = {},
     uriParams: APIUriParams = {},
-    requestConfig: EndpointConfig = {},
+    requestConfig: RequestConfig = {},
   ): Promise<RequestResponse> {
     // Use global per-endpoint settings
-    const endpoint = this.endpoints[prop];
+    const endpoint = endpoints[endpointName as string];
     const endpointSettings = { ...endpoint };
 
-    const responseData = await this.requestHandler.handleRequest(
+    const responseData = await requestHandler.handleRequest(
       endpointSettings.url,
       queryParams,
       {
@@ -117,4 +80,36 @@ export class ApiHandler<EndpointsList = { [x: string]: unknown }>
 
     return responseData;
   }
+
+  /**
+   * Maps all API requests using native Proxy
+   *
+   * @param {*} prop          Caller
+   */
+  function get(prop: string | symbol) {
+    if (prop in apiHandler) {
+      return apiHandler[prop];
+    }
+
+    // Prevent handler from triggering non-existent endpoints
+    if (!endpoints[prop as string]) {
+      return handleNonImplemented.bind(null, prop);
+    }
+
+    return apiHandler.handleRequest.bind(null, prop);
+  }
+
+  const apiHandler: ApiHandlerMethods<EndpointsMethods> = {
+    config,
+    endpoints,
+    requestHandler,
+    getInstance,
+    handleRequest,
+  };
+
+  return new Proxy(apiHandler, {
+    get: (_target, prop) => get(prop),
+  }) as ApiHandlerReturnType<EndpointsMethods, EndpointsCfg>;
 }
+
+export { createApiHandler };

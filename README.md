@@ -113,7 +113,7 @@ const response = await api.getUser({ userId: 1, ratings: [1, 2] });
 // GET to: http://example.com/api/posts/myTestSubject?additionalInfo=something
 const response = await api.getPosts(
   { additionalInfo: 'something' },
-  { subject: 'myTestSubject' },
+  { subject: 'test' },
 );
 
 // Send POST request to update userId "1"
@@ -123,7 +123,7 @@ await api.updateUserDetails({ name: 'Mark' }, { userId: 1 });
 await api.updateUserDetails({ name: 'Mark', ratings: [1, 2] }, { userId: 1 });
 ```
 
-In the example above we fetch data from an API for user with an ID of 1. We also update user's name to Mark. If you prefer OOP you can import `ApiHandler` and initialize the handler using `new ApiHandler()` instead. In case of using typings, due to magic methods being utilized, you may need to overwrite the type: `const api = new ApiHandler(config) as ApiHandler & EndpointsList` where `EndpointsList` is the list of your endpoints.
+In the example above we fetch data from an API for user with an ID of 1. We also make a GET request to fetch some posts, update user's name to Mark. If you want to use more strict typings, please check TypeScript Usage section below.
 
 ## ✔️ Easy to use with React and other libraries
 
@@ -219,71 +219,65 @@ You can also pass all `fetch()` settings, or if you use Axios, you can pass all 
 
 ## ✔️ Full TypeScript support
 
-Axios-multi-api includes necessary [TypeScript](http://typescriptlang.org) definitions. For full TypeScript support for your endpoints, you could overwrite interface using Type Assertion of your `ApiHandler` and use your own for the API Endpoints provided.
+Axios-multi-api includes all necessary [TypeScript](http://typescriptlang.org) definitions bringing full TypeScript support to your API Handler. The package ships interfaces with responsible defaults making it easier to add new endpoints.
 
 ### Example of interfaces
 
 ```typescript
-import type { Endpoints, Endpoint } from 'axios-multi-api';
+import type { DefaultEndpoints } from 'axios-multi-api';
 import { createApiFetcher } from 'axios-multi-api';
 
 interface Book {
   id: number;
   title: string;
-  genre: string;
-  releaseDate: string;
   rating: number;
 }
 
-interface BooksResponseData {
+interface Books {
   books: Book[];
   totalResults: number;
-  totalPages: number;
 }
 
-interface BooksQueryParams {
-  newBooks: boolean;
+interface BookQueryParams {
+  newBook: boolean;
 }
 
-interface BooksDynamicURLParams {
+interface BookPathParams {
   bookId?: number;
 }
 
-// You can either extend the Endpoints to skip defining every endpoint
-// Or you can just define the EndpointsList and enjoy more strict typings
-interface EndpointsList extends Endpoints {
-  fetchBooks: Endpoint<
-    BooksResponseData,
-    BooksQueryParams,
-    BooksDynamicURLParams
-  >;
+const endpoints = {
+  fetchBooks: {
+    url: 'books',
+  },
+  fetchBook: {
+    url: 'books/:bookId',
+  },
+};
 
-  // Or you can use just Endpoint. It is used by default for all endpoints
-  fetchTVSeries: Endpoint;
+// Note how you don't need to specify all endpoints for typings here. The "fetchBooks" is inferred
+interface EndpointsList extends DefaultBookQueryParams<typeof endpoints> {
+  fetchBook: Endpoint<Book, BookQueryParams, BookPathParams>;
 }
 
 const api = createApiFetcher<EndpointsList>({
   apiUrl: 'https://example.com/api/',
-  endpoints: {
-    fetchBooks: {
-      url: 'books',
-    },
-    fetchBook: {
-      url: 'books/:id',
-    },
-  },
+  endpoints,
 });
 
-// Will return an error since "newBooks" should be a boolean
-const books = await api.fetchBooks({ newBooks: 1 });
+// Fetch book
+const book = await api.fetchBook({ newBook: true }, { bookId: 1 });
 
-// You can also pass generic type to the request directly
-const book = await api.fetchBook<Book>({ newBooks: 1 }, { id: 1 });
+// Will return an error since "rating" does not exist in "BookQueryParams"
+const _book = await api.fetchBook({ rating: 5 });
+
+// You can also pass generic type directly to the request
+const books = await api.fetchBooks<Books>();
 ```
 
-Package ships interfaces with responsible defaults making it easier to add new endpoints. It exposes `Endpoints` and `Endpoint` types.
-
 ## ✔️ More examples
+
+Check [examples.ts file](./docs/examples/examples.ts) for more examples of usage.
 
 ### Per-request Error handling - reject strategy (default)
 
@@ -445,15 +439,14 @@ async function sendMessage() {
 sendMessage();
 ```
 
-### OOP style with custom Error Handler (advanced)
+### OOP style custom Error Handler (advanced)
 
-You could for example create an API service class that extends the handler, inject an error service class to handle with a store that would collect the errors.
+You could for example create an API and, inject an error service class to handle with a store that would collect the errors.
 
-As you may notice there's also a `setupInterceptor` and `httpRequestHandler` exposed. You can operate on it instead of requesting an Axios instance prior the operation. This way you can use all Axios settings for a particular API handler.
+As you may notice there's also am `api.getInstance()` exposed. You can operate on it instead of requesting an Axios instance prior the operation. This way you can use all Axios settings for a particular API handler.
 
 ```typescript
 import axios from 'axios';
-import { ApiHandler } from 'axios-multi-api';
 
 class MyRequestError {
   public constructor(myCallback) {
@@ -465,40 +458,18 @@ class MyRequestError {
   }
 }
 
-class ApiService extends ApiHandler {
-  /**
-   * Creates an instance of Api Service.
-   * @param {object}  payload                   Payload
-   * @param {string}  payload.apiUrl            Api url
-   * @param {string}  payload.endpoints      Api endpoints
-   * @param {*}       payload.logger                 Logger instance
-   * @param {*}       payload.myCallback             Callback function, could be a dispatcher that e.g. forwards error data to a store
-   */
-  public constructor({ apiUrl, endpoints, logger, myCallback }) {
-    // Pass settings to API Handler
-    super({
-      fetcher: axios,
-      apiUrl,
-      endpoints,
-      logger,
-      onError: new MyRequestError(myCallback),
-    });
-
-    this.setupInterceptor();
-  }
-
-  /**
-   * Setup Request Interceptor
-   * @returns {void}
-   */
-  protected setupInterceptor(): void {
-    this.getInstance().interceptors.request.use(onRequest);
-  }
-}
-
-const api = new ApiService({
-  // Your global settings and endpoints
+const api = createApiFetcher({
+  fetcher: axios,
+  apiUrl,
+  endpoints,
+  logger,
+  onError: new MyRequestError(myCallback),
 });
+
+// Set some Axios interceptors by accessing Axios instance directly
+const AxiosInstance = api.getInstance();
+
+AxiosInstance.interceptors.request.use(onRequest);
 ```
 
 ## ✔️ Support and collaboration

@@ -4,13 +4,13 @@ import type {
   RequestResponse,
   ErrorHandlingStrategy,
   RequestHandlerConfig,
-  EndpointConfig,
+  RequestConfig,
   RequestError,
   FetcherInstance,
   FetcherStaticInstance,
   Method,
-  EndpointConfigHeaders,
-} from './types/http-request';
+  RequestConfigHeaders,
+} from './types/request-handler';
 import type { APIPayload, APIQueryParams, APIUriParams } from './types/api';
 
 /**
@@ -255,14 +255,14 @@ export class RequestHandler {
    *
    * @param {string} url                          Request url
    * @param {APIQueryParams | APIPayload} data    Request data
-   * @param {EndpointConfig} config               Request config
-   * @returns {EndpointConfig}                    Provider's instance
+   * @param {RequestConfig} config               Request config
+   * @returns {RequestConfig}                    Provider's instance
    */
   protected buildRequestConfig(
     url: string,
     data: APIQueryParams | APIPayload,
-    config: EndpointConfig,
-  ): EndpointConfig {
+    config: RequestConfig,
+  ): RequestConfig {
     const method = config.method || this.method;
     const methodLowerCase = method.toLowerCase();
     const isGetAlikeMethod =
@@ -320,7 +320,7 @@ export class RequestHandler {
         Accept: 'application/json, text/plain, */*',
         'Content-Type': 'application/json;charset=utf-8',
         ...(config.headers || this.config.headers || {}),
-      } as EndpointConfigHeaders,
+      } as RequestConfigHeaders,
 
       // Automatically JSON stringify request bodies, if possible and when not dealing with strings
       ...(!isGetAlikeMethod
@@ -339,12 +339,12 @@ export class RequestHandler {
    * Process global Request Error
    *
    * @param {RequestError} error      Error instance
-   * @param {EndpointConfig} requestConfig   Per endpoint request config
+   * @param {RequestConfig} requestConfig   Per endpoint request config
    * @returns {void}
    */
   protected processRequestError(
     error: RequestError,
-    requestConfig: EndpointConfig,
+    requestConfig: RequestConfig,
   ): void {
     if (this.isRequestCancelled(error)) {
       return;
@@ -367,12 +367,12 @@ export class RequestHandler {
    * Output default response in case of an error, depending on chosen strategy
    *
    * @param {RequestError} error      Error instance
-   * @param {EndpointConfig} requestConfig   Per endpoint request config
+   * @param {RequestConfig} requestConfig   Per endpoint request config
    * @returns {*} Error response
    */
   protected async outputErrorResponse(
     error: RequestError,
-    requestConfig: EndpointConfig,
+    requestConfig: RequestConfig,
   ): Promise<RequestResponse> {
     const isRequestCancelled = this.isRequestCancelled(error);
     const errorHandlingStrategy = requestConfig.strategy || this.strategy;
@@ -423,11 +423,11 @@ export class RequestHandler {
   /**
    * Automatically Cancel Previous Requests using AbortController when "cancellable" is defined
    *
-   * @param {EndpointConfig} requestConfig   Per endpoint request config
+   * @param {RequestConfig} requestConfig   Per endpoint request config
    * @returns {Object} Controller Signal to abort
    */
   protected addCancellationToken(
-    requestConfig: EndpointConfig,
+    requestConfig: RequestConfig,
   ): Partial<Record<'signal', AbortSignal>> {
     // Both disabled
     if (!this.cancellable && !requestConfig.cancellable) {
@@ -490,14 +490,14 @@ export class RequestHandler {
    * @param {object} payload                              Payload
    * @param {string} payload.url                          Request url
    * @param {APIQueryParams | APIPayload} payload.data    Request data
-   * @param {EndpointConfig} payload.config               Request config
+   * @param {RequestConfig} payload.config               Request config
    * @throws {RequestError}
    * @returns {Promise<RequestResponse>} Response Data
    */
   public async handleRequest(
     url: string,
     data: APIQueryParams | APIPayload = null,
-    config: EndpointConfig = null,
+    config: RequestConfig = null,
   ): Promise<RequestResponse> {
     let response = null;
     const endpointConfig = config || {};
