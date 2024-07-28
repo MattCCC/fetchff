@@ -63,11 +63,6 @@ export type EndpointsConfig<EndpointsMethods> =
     ? Record<string, RequestConfig>
     : Record<keyof EndpointsMethods, RequestConfig>;
 
-export type DefaultEndpointList<EndpointsMethods> = Record<
-  keyof EndpointsMethods,
-  RequestConfig
->;
-
 export type ApiHandlerReturnType<EndpointsMethods, EndpointsCfg> =
   EndpointsRecord<EndpointsMethods> &
     (IsNever<EndpointsCfg> extends true
