@@ -160,7 +160,7 @@ describe('Request Handler', () => {
     });
   });
 
-  describe('buildRequestConfig() with native fetch()', () => {
+  describe('buildConfig() with native fetch()', () => {
     let requestHandler: RequestHandler = null;
 
     beforeAll(() => {
@@ -168,7 +168,7 @@ describe('Request Handler', () => {
     });
 
     const buildConfig = (method, url, data, config) =>
-      (requestHandler as any).buildRequestConfig(url, data, {
+      (requestHandler as any).buildConfig(url, data, {
         ...config,
         method,
       });

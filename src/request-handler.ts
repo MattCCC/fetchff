@@ -258,7 +258,7 @@ export class RequestHandler {
    * @param {RequestConfig} config               Request config
    * @returns {RequestConfig}                    Provider's instance
    */
-  protected buildRequestConfig(
+  protected buildConfig(
     url: string,
     data: APIQueryParams | APIPayload,
     config: RequestConfig,
@@ -342,7 +342,7 @@ export class RequestHandler {
    * @param {RequestConfig} requestConfig   Per endpoint request config
    * @returns {void}
    */
-  protected processRequestError(
+  protected processError(
     error: RequestError,
     requestConfig: RequestConfig,
   ): void {
@@ -505,7 +505,7 @@ export class RequestHandler {
   ): Promise<RequestResponse> {
     let response = null;
     const endpointConfig = config || {};
-    let requestConfig = this.buildRequestConfig(url, data, endpointConfig);
+    let requestConfig = this.buildConfig(url, data, endpointConfig);
 
     requestConfig = {
       ...this.addCancellationToken(requestConfig),
@@ -533,7 +533,7 @@ export class RequestHandler {
         }
       }
     } catch (error) {
-      this.processRequestError(error, requestConfig);
+      this.processError(error, requestConfig);
 
       return this.outputErrorResponse(error, requestConfig);
     }
@@ -560,7 +560,7 @@ export class RequestHandler {
 
     if (
       (requestConfig.flattenResponse || this.flattenResponse) &&
-      response.data
+      typeof response.data !== 'undefined'
     ) {
       // Special case of only data property within response data object (happens in Axios)
       // This is in fact a proper response but we may want to flatten it
