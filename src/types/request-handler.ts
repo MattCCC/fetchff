@@ -50,6 +50,8 @@ export type RequestConfigHeaders = AxiosRequestConfig['headers'] & HeadersInit;
 export interface RequestConfig extends AxiosRequestConfig, RequestInit {
   cancellable?: boolean;
   rejectCancelled?: boolean;
+  defaultResponse?: unknown;
+  flattenResponse?: boolean;
   strategy?: ErrorHandlingStrategy;
   onError?: ErrorHandlerFunction | ErrorHandlerClass;
   headers?: RequestConfigHeaders;
@@ -59,9 +61,6 @@ export interface RequestConfig extends AxiosRequestConfig, RequestInit {
 
 export interface RequestHandlerConfig extends RequestConfig {
   fetcher?: FetcherStaticInstance;
-  flattenResponse?: boolean;
-  defaultResponse?: unknown;
   apiUrl?: string;
   logger?: unknown;
-  onError?: ErrorHandlerFunction | ErrorHandlerClass;
 }

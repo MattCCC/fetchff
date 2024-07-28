@@ -22,4 +22,3 @@ export async function fetchf(
 
 export * from './types';
 export * from './api-handler';
-export * from './request-handler';

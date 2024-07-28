@@ -380,17 +380,21 @@ export class RequestHandler {
       typeof requestConfig.rejectCancelled !== 'undefined'
         ? requestConfig.rejectCancelled
         : this.rejectCancelled;
+    const defaultResponse =
+      typeof requestConfig.defaultResponse !== 'undefined'
+        ? requestConfig.defaultResponse
+        : this.defaultResponse;
 
     // By default cancelled requests aren't rejected
     if (isRequestCancelled && !rejectCancelled) {
-      return this.defaultResponse;
+      return defaultResponse;
     }
 
     if (errorHandlingStrategy === 'silent') {
       // Hang the promise
       await new Promise(() => null);
 
-      return this.defaultResponse;
+      return defaultResponse;
     }
 
     // Simply rejects a request promise
@@ -398,7 +402,7 @@ export class RequestHandler {
       return Promise.reject(error);
     }
 
-    return this.defaultResponse;
+    return defaultResponse;
   }
 
   /**
@@ -534,21 +538,30 @@ export class RequestHandler {
       return this.outputErrorResponse(error, requestConfig);
     }
 
-    return this.processResponseData(response);
+    return this.processResponseData(response, requestConfig);
   }
 
   /**
    * Process response
    *
-   * @param response Response object
+   * @param response - Response payload
+   * @param {RequestConfig} requestConfig - Request config
    * @returns {*} Response data
    */
-  protected processResponseData(response) {
+  protected processResponseData(response, requestConfig: RequestConfig) {
+    const defaultResponse =
+      typeof requestConfig.defaultResponse !== 'undefined'
+        ? requestConfig.defaultResponse
+        : this.defaultResponse;
+
     if (!response) {
-      return this.defaultResponse;
+      return defaultResponse;
     }
 
-    if (this.flattenResponse && response.data) {
+    if (
+      (requestConfig.flattenResponse || this.flattenResponse) &&
+      response.data
+    ) {
       // Special case of only data property within response data object (happens in Axios)
       // This is in fact a proper response but we may want to flatten it
       // To ease developers' lives when obtaining the response
@@ -569,7 +582,7 @@ export class RequestHandler {
       response.constructor === Object &&
       Object.keys(response).length === 0
     ) {
-      return this.defaultResponse;
+      return defaultResponse;
     }
 
     return response;
