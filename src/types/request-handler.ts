@@ -5,7 +5,7 @@ import type {
   AxiosResponse,
   AxiosInstance,
 } from 'axios';
-import type { APIUriParams } from './api';
+import type { APIUriParams } from './api-handler';
 
 export type Method =
   | 'get'

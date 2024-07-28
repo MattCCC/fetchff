@@ -10,7 +10,7 @@ import type {
   ApiHandlerReturnType,
   APIQueryParams,
   APIUriParams,
-} from './types/api';
+} from './types/api-handler';
 
 /**
  * Creates an instance of API Handler.

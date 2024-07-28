@@ -1,2 +1,2 @@
-export * from './api';
+export * from './api-handler';
 export * from './request-handler';

@@ -11,7 +11,11 @@ import type {
   Method,
   RequestConfigHeaders,
 } from './types/request-handler';
-import type { APIPayload, APIQueryParams, APIUriParams } from './types/api';
+import type {
+  APIPayload,
+  APIQueryParams,
+  APIUriParams,
+} from './types/api-handler';
 
 /**
  * Generic Request Handler

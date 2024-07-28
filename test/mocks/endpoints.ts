@@ -1,8 +1,8 @@
-import {
+import type {
   Endpoint,
   EndpointsConfig,
   APIQueryParams as QueryParams,
-} from '../../src/types/api';
+} from '../../src/types/api-handler';
 
 export const endpoints = {
   getUser: {
