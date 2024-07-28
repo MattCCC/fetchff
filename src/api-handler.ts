@@ -10,18 +10,48 @@ import type {
   ApiHandlerReturnType,
   APIQueryParams,
   APIUriParams,
-  // Endpoints,
-  // Endpoints,
 } from './types/api';
 
 /**
  * Creates an instance of API Handler.
- * It initializes the Request Handler and allows to make calls to the list of specified endpoints.
+ * It creates an API fetcher function using native fetch() or Axios if it is passed as "fetcher".
  *
- * @param config API Handler Configuration
+ * @param {Object} config - Configuration object for the API fetcher.
+ * @param {Object} config.fetcher - The Axios (or any other) instance to use for making requests.
+ * @param {Object} config.endpoints - An object containing endpoint definitions.
+ * @param {string} config.apiUrl - The base URL for the API.
+ * @param {Function} [config.onError] - Optional callback function for handling errors.
+ * @param {Object} [config.headers] - Optional default headers to include in every request.
  * @returns API handler functions and endpoints to call
+ *
+ * @example
+ * // Import axios
+ * import axios from 'axios';
+ *
+ * // Define endpoint paths
+ * const endpoints = {
+ *   getUser: '/user',
+ *   createPost: '/post',
+ * };
+ *
+ * // Create the API fetcher with configuration
+ * const api = createApiFetcher({
+ *   fetcher: axios, // Axios instance (optional)
+ *   endpoints,
+ *   apiUrl: 'https://example.com/api',
+ *   onError(error) {
+ *     console.log('Request failed', error);
+ *   },
+ *   headers: {
+ *     'my-auth-key': 'example-auth-key-32rjjfa',
+ *   },
+ * });
+ *
+ * // Fetch user data
+ * const response = await api.getUser({ userId: 1, ratings: [1, 2] })
  */
-function createApiHandler<EndpointsMethods = never, EndpointsCfg = never>(
+
+function createApiFetcher<EndpointsMethods = never, EndpointsCfg = never>(
   config: ApiHandlerConfig<EndpointsMethods>,
 ) {
   const endpoints = config.endpoints;
@@ -112,4 +142,4 @@ function createApiHandler<EndpointsMethods = never, EndpointsCfg = never>(
   }) as ApiHandlerReturnType<EndpointsMethods, EndpointsCfg>;
 }
 
-export { createApiHandler };
+export { createApiFetcher };

@@ -2,7 +2,7 @@
 import axios from 'axios';
 import { mockErrorCallbackClass } from './request-error-handler.spec';
 import { endpoints } from './mocks/endpoints';
-import { createApiHandler } from '../src/api-handler';
+import { createApiFetcher } from '../src';
 
 describe('API Handler', () => {
   const apiUrl = 'http://example.com/api/';
@@ -22,14 +22,14 @@ describe('API Handler', () => {
   });
 
   it('getInstance() - should obtain method of the API request provider', () => {
-    const api = createApiHandler(config);
+    const api = createApiFetcher(config);
 
     expect(typeof (api.getInstance() as any).request).toBe('function');
   });
 
   describe('get()', () => {
     it('should trigger request handler for an existent endpoint', async () => {
-      const api = createApiHandler(config);
+      const api = createApiFetcher(config);
 
       jest
         .spyOn(api, 'handleRequest')
@@ -45,7 +45,7 @@ describe('API Handler', () => {
     });
 
     it('should not trigger request handler for non-existent endpoint', async () => {
-      const api = createApiHandler(config);
+      const api = createApiFetcher(config);
 
       api.handleRequest = jest.fn().mockResolvedValueOnce(userDataMock);
 
@@ -60,7 +60,7 @@ describe('API Handler', () => {
 
   describe('handleRequest()', () => {
     it('should properly dispatch request', async () => {
-      const api = createApiHandler(config);
+      const api = createApiFetcher(config);
       const uriParams = {
         id: 1,
         name: 'Mark',
@@ -82,7 +82,7 @@ describe('API Handler', () => {
     });
 
     it('should properly call an endpoint with custom headers', async () => {
-      const api = createApiHandler(config);
+      const api = createApiFetcher(config);
       const uriParams = {
         id: 1,
         name: 'Mark',
