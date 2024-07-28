@@ -494,7 +494,7 @@ export class RequestHandler {
    * @throws {RequestError}
    * @returns {Promise<RequestResponse>} Response Data
    */
-  public async handleRequest(
+  public async request(
     url: string,
     data: APIQueryParams | APIPayload = null,
     config: RequestConfig = null,

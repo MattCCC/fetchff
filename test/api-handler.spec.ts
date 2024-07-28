@@ -31,14 +31,12 @@ describe('API Handler', () => {
     it('should trigger request handler for an existent endpoint', async () => {
       const api = createApiFetcher(config);
 
-      jest
-        .spyOn(api, 'handleRequest')
-        .mockResolvedValueOnce(userDataMock as any);
+      jest.spyOn(api, 'request').mockResolvedValueOnce(userDataMock as any);
 
       const response = await api.getUser({ userId: 1 });
 
-      expect(api.handleRequest).toHaveBeenCalledTimes(1);
-      expect(api.handleRequest).toHaveBeenCalledWith('getUser', {
+      expect(api.request).toHaveBeenCalledTimes(1);
+      expect(api.request).toHaveBeenCalledWith('getUser', {
         userId: 1,
       });
       expect(response).toBe(userDataMock);
@@ -47,18 +45,18 @@ describe('API Handler', () => {
     it('should not trigger request handler for non-existent endpoint', async () => {
       const api = createApiFetcher(config);
 
-      api.handleRequest = jest.fn().mockResolvedValueOnce(userDataMock);
+      api.request = jest.fn().mockResolvedValueOnce(userDataMock);
 
       const response = await (api as any).getUserAddress({
         userId: 1,
       });
 
-      expect(api.handleRequest).not.toHaveBeenCalled();
+      expect(api.request).not.toHaveBeenCalled();
       expect(response).toBeNull();
     });
   });
 
-  describe('handleRequest()', () => {
+  describe('request()', () => {
     it('should properly dispatch request', async () => {
       const api = createApiFetcher(config);
       const uriParams = {
@@ -67,13 +65,13 @@ describe('API Handler', () => {
       };
 
       jest
-        .spyOn(api.requestHandler, 'handleRequest')
+        .spyOn(api.requestHandler, 'request')
         .mockResolvedValueOnce(userDataMock as any);
 
       const response = await api.getUserByIdAndName(null, uriParams);
 
-      expect(api.requestHandler.handleRequest).toHaveBeenCalledTimes(1);
-      expect(api.requestHandler.handleRequest).toHaveBeenCalledWith(
+      expect(api.requestHandler.request).toHaveBeenCalledTimes(1);
+      expect(api.requestHandler.request).toHaveBeenCalledWith(
         '/user-details/:id/:name',
         null,
         { url: '/user-details/:id/:name', uriParams },
@@ -93,15 +91,15 @@ describe('API Handler', () => {
       };
 
       jest
-        .spyOn(api.requestHandler, 'handleRequest')
+        .spyOn(api.requestHandler, 'request')
         .mockResolvedValueOnce(userDataMock as any);
 
       const response = await api.getUserByIdAndName(null, uriParams, {
         headers,
       });
 
-      expect(api.requestHandler.handleRequest).toHaveBeenCalledTimes(1);
-      expect(api.requestHandler.handleRequest).toHaveBeenCalledWith(
+      expect(api.requestHandler.request).toHaveBeenCalledTimes(1);
+      expect(api.requestHandler.request).toHaveBeenCalledWith(
         '/user-details/:id/:name',
         null,
         { url: '/user-details/:id/:name', headers, uriParams },

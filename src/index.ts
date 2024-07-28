@@ -13,7 +13,7 @@ export async function fetchf(
   url: string,
   config: RequestHandlerConfig = {},
 ): Promise<RequestResponse> {
-  return new RequestHandler(config).handleRequest(
+  return new RequestHandler(config).request(
     url,
     config.body || config.data || config.params,
     config,

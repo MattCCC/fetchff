@@ -88,7 +88,7 @@ function createApiFetcher<EndpointsMethods = never, EndpointsCfg = never>(
    * @param {EndpointConfig} [requestConfig={}] - Additional configuration for the request.
    * @returns {Promise<RequestResponse>} - A promise that resolves with the response from the API provider.
    */
-  async function handleRequest(
+  async function request(
     endpointName: keyof EndpointsMethods & string,
     queryParams: APIQueryParams = {},
     uriParams: APIUriParams = {},
@@ -98,7 +98,7 @@ function createApiFetcher<EndpointsMethods = never, EndpointsCfg = never>(
     const endpoint = endpoints[endpointName as string];
     const endpointSettings = { ...endpoint };
 
-    const responseData = await requestHandler.handleRequest(
+    const responseData = await requestHandler.request(
       endpointSettings.url,
       queryParams,
       {
@@ -126,7 +126,7 @@ function createApiFetcher<EndpointsMethods = never, EndpointsCfg = never>(
       return handleNonImplemented.bind(null, prop);
     }
 
-    return apiHandler.handleRequest.bind(null, prop);
+    return apiHandler.request.bind(null, prop);
   }
 
   const apiHandler: ApiHandlerMethods<EndpointsMethods> = {
@@ -134,7 +134,7 @@ function createApiFetcher<EndpointsMethods = never, EndpointsCfg = never>(
     endpoints,
     requestHandler,
     getInstance,
-    handleRequest,
+    request,
   };
 
   return new Proxy(apiHandler, {

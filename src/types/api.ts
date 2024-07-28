@@ -75,7 +75,7 @@ export type ApiHandlerMethods<EndpointsMethods> = {
   endpoints: EndpointsConfig<EndpointsMethods>;
   requestHandler: RequestHandler;
   getInstance: () => FetcherInstance;
-  handleRequest: (
+  request: (
     endpointName: keyof EndpointsMethods & string,
     queryParams?: APIQueryParams | null,
     uriParams?: APIUriParams,

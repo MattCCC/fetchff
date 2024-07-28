@@ -403,7 +403,7 @@ describe('Request Handler', () => {
     });
   });
 
-  describe('handleRequest()', () => {
+  describe('request()', () => {
     it('should properly hang promise when using Silent strategy', async () => {
       const requestHandler = new RequestHandler({
         fetcher: axios,
@@ -414,7 +414,7 @@ describe('Request Handler', () => {
         .fn()
         .mockRejectedValue(new Error('Request Failed'));
 
-      const request = requestHandler.handleRequest(apiUrl);
+      const request = requestHandler.request(apiUrl);
 
       const timeout = new Promise((resolve) => {
         const wait = setTimeout(() => {
@@ -460,7 +460,7 @@ describe('Request Handler', () => {
         .mockRejectedValue(new Error('Request Failed'));
 
       try {
-        await requestHandler.handleRequest(apiUrl, null, {
+        await requestHandler.request(apiUrl, null, {
           strategy: 'reject',
         });
       } catch (error) {
@@ -469,7 +469,7 @@ describe('Request Handler', () => {
     });
   });
 
-  describe('handleRequest() with native fetch()', () => {
+  describe('request() with native fetch()', () => {
     it('should properly hang promise when using Silent strategy', async () => {
       const requestHandler = new RequestHandler({
         strategy: 'silent',
@@ -479,7 +479,7 @@ describe('Request Handler', () => {
         .fn()
         .mockRejectedValue(new Error('Request Failed'));
 
-      const request = requestHandler.handleRequest(apiUrl);
+      const request = requestHandler.request(apiUrl);
 
       const timeout = new Promise((resolve) => {
         const wait = setTimeout(() => {
@@ -523,7 +523,7 @@ describe('Request Handler', () => {
         .mockRejectedValue(new Error('Request Failed'));
 
       try {
-        await requestHandler.handleRequest(apiUrl, null, {
+        await requestHandler.request(apiUrl, null, {
           strategy: 'reject',
         });
       } catch (error) {
@@ -548,7 +548,7 @@ describe('Request Handler', () => {
         'request',
       );
 
-      await requestHandler.handleRequest(apiUrl);
+      await requestHandler.request(apiUrl);
 
       expect(spy).toHaveBeenCalledWith(
         expect.not.objectContaining({
@@ -572,7 +572,7 @@ describe('Request Handler', () => {
         'request',
       );
 
-      await requestHandler.handleRequest(
+      await requestHandler.request(
         apiUrl,
         {},
         {
@@ -602,7 +602,7 @@ describe('Request Handler', () => {
         'request',
       );
 
-      await requestHandler.handleRequest(
+      await requestHandler.request(
         apiUrl,
         {},
         {
@@ -628,7 +628,7 @@ describe('Request Handler', () => {
         'request',
       );
 
-      await requestHandler.handleRequest(
+      await requestHandler.request(
         apiUrl,
         {},
         {
@@ -654,7 +654,7 @@ describe('Request Handler', () => {
         'request',
       );
 
-      await requestHandler.handleRequest(apiUrl);
+      await requestHandler.request(apiUrl);
 
       expect(spy).not.toHaveBeenCalledWith({});
     });
@@ -670,7 +670,7 @@ describe('Request Handler', () => {
         .fn()
         .mockRejectedValue(new Error('Request Failed'));
 
-      const request = requestHandler.handleRequest(apiUrl);
+      const request = requestHandler.request(apiUrl);
 
       const spy = jest.spyOn(
         requestHandler.requestInstance as AxiosInstance,
@@ -680,7 +680,7 @@ describe('Request Handler', () => {
         .fn()
         .mockResolvedValue(responseMock);
 
-      const request2 = requestHandler.handleRequest(apiUrl);
+      const request2 = requestHandler.request(apiUrl);
 
       expect(spy).toHaveBeenCalledTimes(1);
       expect(spy).toHaveBeenCalledWith(
@@ -716,7 +716,7 @@ describe('Request Handler', () => {
         .fn()
         .mockResolvedValue(responseMock);
 
-      const response = await requestHandler.handleRequest(apiUrl, null, {
+      const response = await requestHandler.request(apiUrl, null, {
         method: 'put',
       });
 
@@ -733,7 +733,7 @@ describe('Request Handler', () => {
         .fn()
         .mockResolvedValue(responseMock);
 
-      const response = await requestHandler.handleRequest(apiUrl, null, {
+      const response = await requestHandler.request(apiUrl, null, {
         method: 'post',
       });
 
@@ -750,7 +750,7 @@ describe('Request Handler', () => {
         .fn()
         .mockResolvedValue({ data: responseMock });
 
-      const response = await requestHandler.handleRequest(apiUrl, null, {
+      const response = await requestHandler.request(apiUrl, null, {
         method: 'patch',
       });
 
@@ -769,7 +769,7 @@ describe('Request Handler', () => {
         .mockResolvedValue({});
 
       expect(
-        await requestHandler.handleRequest(apiUrl, null, { method: 'head' }),
+        await requestHandler.request(apiUrl, null, { method: 'head' }),
       ).toBe(null);
     });
   });
