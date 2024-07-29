@@ -27,7 +27,7 @@ export type NativeFetch = typeof fetch;
 
 export type FetcherInstance = unknown | null;
 
-export type RequestResponse<T = unknown> = Promise<Response<T>>;
+export type RequestResponse<T = unknown> = Promise<FetchResponse<T>>;
 
 export type ErrorHandlingStrategy = 'reject' | 'silent' | 'defaultResponse';
 
@@ -74,7 +74,15 @@ export interface BaseRequestConfig<D = any> {
   insecureHTTPParser?: boolean;
 }
 
-export interface Response<T = any, D = any> {
+export interface ExtendedResponse<T = any, D = any> extends Response {
+  data: T;
+  config: BaseRequestConfig<D>;
+}
+
+export type FetchResponse<T = any, D = any> = BaseFetchResponse<T, D> &
+  ExtendedResponse<T, D>;
+
+export interface BaseFetchResponse<T = any, D = any> {
   data: T;
   status: number;
   statusText: string;
@@ -87,7 +95,7 @@ export interface ResponseError<T = any, D = any> extends Error {
   config: BaseRequestConfig<D>;
   code?: string;
   request?: any;
-  response?: Response<T, D>;
+  response?: FetchResponse<T, D>;
   isAxiosError: boolean;
   toJSON: () => object;
 }
@@ -140,7 +148,7 @@ export interface TransitionalOptions {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface ReturnedPromise<T = any> extends Promise<Response<T>> {}
+export interface ReturnedPromise<T = any> extends Promise<FetchResponse<T>> {}
 
 export type RequestConfigHeaders = Record<string, string | number | boolean> &
   HeadersInit;
@@ -207,7 +215,7 @@ interface ExtendedRequestConfig extends BaseRequestConfig, RequestInit {
   urlPathParams?: UrlPathParams;
 }
 
-export interface BaseHandlerConfig extends RequestConfig {
+export interface BaseRequestHandlerConfig extends RequestConfig {
   fetcher?: FetcherInstance;
   apiUrl?: string;
   logger?: unknown;

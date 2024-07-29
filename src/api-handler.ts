@@ -98,14 +98,14 @@ function createApiFetcher<EndpointsMethods = never, EndpointsCfg = never>(
    * @param {QueryParams} [queryParams={}] - Query parameters to include in the request.
    * @param {UrlPathParams} [urlPathParams={}] - URI parameters to include in the request.
    * @param {EndpointConfig} [requestConfig={}] - Additional configuration for the request.
-   * @returns {Promise<RequestResponse>} - A promise that resolves with the response from the API provider.
+   * @returns {RequestResponse} - A promise that resolves with the response from the API provider.
    */
   async function request(
     endpointName: keyof EndpointsMethods & string,
     queryParams: QueryParams = {},
     urlPathParams: UrlPathParams = {},
     requestConfig: RequestConfig = {},
-  ): Promise<RequestResponse> {
+  ): RequestResponse {
     // Use global per-endpoint settings
     const endpointConfig = endpoints[endpointName as string];
     const endpointSettings = { ...endpointConfig };

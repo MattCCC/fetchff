@@ -81,7 +81,7 @@ export type ApiHandlerMethods<EndpointsMethods> = {
     queryParams?: QueryParams | null,
     urlPathParams?: UrlPathParams,
     requestConfig?: RequestConfig,
-  ) => Promise<RequestResponse>;
+  ) => RequestResponse;
 };
 
 export interface ApiHandlerConfig<EndpointsMethods>

@@ -10,6 +10,8 @@ import type {
   Method,
   RequestConfigHeaders,
   RetryOptions,
+  FetchResponse,
+  ExtendedResponse,
 } from './types/request-handler';
 import type {
   QueryParams,
@@ -541,14 +543,14 @@ export class RequestHandler {
    * @param {QueryParamsOrBody} payload.data    Request data
    * @param {RequestConfig} payload.config               Request config
    * @throws {RequestErrorResponse}
-   * @returns {Promise<RequestResponse>} Response Data
+   * @returns {RequestResponse} Response Data
    */
   public async request(
     url: string,
     data: QueryParamsOrBody = null,
     config: RequestConfig = null,
-  ): Promise<RequestResponse> {
-    let response = null;
+  ): RequestResponse {
+    let response: FetchResponse = null;
     const endpointConfig = config || {};
     let requestConfig = this.buildConfig(url, data, endpointConfig);
 
@@ -571,11 +573,18 @@ export class RequestHandler {
         if (this.isCustomFetcher()) {
           response = await (this.requestInstance as any).request(requestConfig);
         } else {
-          response = await globalThis.fetch(requestConfig.url, requestConfig);
+          response = (await globalThis.fetch(
+            requestConfig.url,
+            requestConfig,
+          )) as ExtendedResponse;
+
+          // Add more information to response object
+          response.config = requestConfig;
+          response.data = requestConfig;
 
           // Check if the response status is not outside the range 200-299
           if (response.ok) {
-            response = await response.json();
+            response.data = await response.json();
           } else {
             // Output error in similar format to what Axios does
             throw new RequestError(
