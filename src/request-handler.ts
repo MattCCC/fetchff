@@ -13,9 +13,9 @@ import type {
   RetryOptions,
 } from './types/request-handler';
 import type {
-  APIPayload,
-  APIQueryParams,
-  APIUrlParams,
+  QueryParams,
+  QueryParamsOrBody,
+  UrlPathParams,
 } from './types/api-handler';
 import { RequestError } from './request-error';
 
@@ -206,7 +206,7 @@ export class RequestHandler {
    */
   public replaceUrlPathParams(
     url: string,
-    urlPathParams: APIUrlParams,
+    urlPathParams: UrlPathParams,
   ): string {
     return url.replace(/:[a-zA-Z]+/gi, (str): string => {
       const word = str.substring(1);
@@ -219,10 +219,10 @@ export class RequestHandler {
    * Appends query parameters to the given URL
    *
    * @param {string} url - The base URL to which query parameters will be appended.
-   * @param {APIQueryParams} params - An instance of URLSearchParams containing the query parameters to append.
+   * @param {QueryParams} params - An instance of URLSearchParams containing the query parameters to append.
    * @returns {string} - The URL with the appended query parameters.
    */
-  public appendQueryParams(url: string, params: APIQueryParams): string {
+  public appendQueryParams(url: string, params: QueryParams): string {
     // We don't use URLSearchParams here as we want to ensure that arrays are properly converted similarily to Axios
     // So { foo: [1, 2] } would become: foo[]=1&foo[]=2
     const queryString = Object.entries(params)
@@ -300,13 +300,13 @@ export class RequestHandler {
    * Build request configuration
    *
    * @param {string} url                          Request url
-   * @param {APIQueryParams | APIPayload} data    Request data
+   * @param {QueryParamsOrBody} data    Request data
    * @param {RequestConfig} config               Request config
    * @returns {RequestConfig}                    Provider's instance
    */
   protected buildConfig(
     url: string,
-    data: APIQueryParams | APIPayload,
+    data: QueryParamsOrBody,
     config: RequestConfig,
   ): RequestConfig {
     const method = config.method || this.method;
@@ -539,14 +539,14 @@ export class RequestHandler {
    *
    * @param {object} payload                              Payload
    * @param {string} payload.url                          Request url
-   * @param {APIQueryParams | APIPayload} payload.data    Request data
+   * @param {QueryParamsOrBody} payload.data    Request data
    * @param {RequestConfig} payload.config               Request config
    * @throws {RequestErrorResponse}
    * @returns {Promise<RequestResponse>} Response Data
    */
   public async request(
     url: string,
-    data: APIQueryParams | APIPayload = null,
+    data: QueryParamsOrBody = null,
     config: RequestConfig = null,
   ): Promise<RequestResponse> {
     let response = null;

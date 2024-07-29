@@ -5,7 +5,7 @@ import type {
   AxiosResponse,
   AxiosInstance,
 } from 'axios';
-import type { APIUrlParams } from './api-handler';
+import type { UrlPathParams } from './api-handler';
 
 export type Method =
   | 'get'
@@ -106,7 +106,7 @@ export interface RequestConfig extends AxiosRequestConfig, RequestInit {
   onError?: ErrorHandlerFunction | ErrorHandlerClass;
   headers?: RequestConfigHeaders;
   signal?: AbortSignal;
-  urlPathParams?: APIUrlParams;
+  urlPathParams?: UrlPathParams;
 }
 
 export interface RequestHandlerConfig extends RequestConfig {
