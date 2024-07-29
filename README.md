@@ -17,9 +17,11 @@ Package was originally written to accommodate many API requests in an orderly fa
 
 ## Features
 
+- Fast, lightweight and reusable data fetching
 - **Pure JavaScript, framework independent**
 - **Easily manage large applications with many API endpoints**
 - **Native fetch() support by default, so Axios can be skipped**
+- Smart error retry with exponential backoff
 - Error handling - global and per request
 - Automatic cancellation of previous requests using `AbortController`
 - Global and per request timeouts
