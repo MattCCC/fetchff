@@ -5,31 +5,34 @@
 
 [![NPM version][npm-image]][npm-url] [![Blazing Fast](https://badgen.now.sh/badge/speed/blazing%20%F0%9F%94%A5/green)](https://github.com/MattCCC/axios-multi-api) [![Code Coverage](https://badgen.now.sh/badge/coverage/94.53/blue)](https://github.com/MattCCC/axios-multi-api) [![npm downloads](https://img.shields.io/npm/dm/axios-multi-api.svg?style=flat-square)](http://npm-stat.com/charts.html?package=axios-multi-api) [![install size](https://packagephobia.now.sh/badge?p=axios-multi-api)](https://packagephobia.now.sh/result?p=axios-multi-api)
 
-Oftentimes projects require complex APIs setups, middlewares and another stuff to accomodate a lot of API requests. Axios API Handler simplifies API handling to the extent that developers can focus on operating on the fetched data from their APIs rather than on complex initial setups.
+## Why?
 
-This package helps in handling of many API endpoints in a simple, declarative fashion. It also aims to provide a possibility to use a global error handling in an easy manner.
+To handle many API endpoints and calls in a simple, declarative fashion. It aims to provide a possibility to additional fetching features with absolutely minimal code footprint.
 
-You can set up multiple API handlers for different sets of APIs from different services. This provides much better scalability for many projects.
+Oftentimes projects require complex APIs setups, middlewares and another stuff to accommodate a lot of API requests. This package simplifies API handling to the extent that developers can focus on operating on the fetched data from their APIs rather than on complex setups. You can set up multiple API fetchers for different sets of APIs from different services. It provides much better scalability for many projects.
 
-> If you’re new to Axios, please checkout [this handy Axios readme](https://github.com/axios/axios)
+> If you’re new to Axios, please check out [this handy Axios readme](https://github.com/axios/axios)
 
-Package was originally written to accomodate many API requests in an orderly fashion.
+Package was originally written to accommodate many API requests in an orderly fashion.
 
 ## Features
 
+- Fast, lightweight and reusable data fetching
+- **Pure JavaScript, framework independent**
 - **Easily manage large applications with many API endpoints**
-- **Native fetch() support so Axios can be skipped**
-- Global error handler for requests
-- Automatically cancel previous requests
+- **Native fetch() support by default, so Axios can be skipped**
+- Smart error retry with exponential backoff
+- Error handling - global and per request
+- Automatic cancellation of previous requests using `AbortController`
 - Global and per request timeouts
-- Multiple response resolving strategies
-- Dynamic urls support e.g. `/user/:userId`
+- Multiple fetching strategies when requests fail - promise rejection, silently hang promise, provide default response,
+- Dynamic URLs support e.g. `/user/:userId`
 - Multiple requests chaining (using promises)
 - All Axios options are supported
 - 100% performance oriented solution
 - **Browsers and Node 18+ compatible**
-- **Fully TypeScript compatibile**
-- **Very lightweight, only a few KBs gzipped**
+- **Fully TypeScript compatible**
+- **Very lightweight, only a few KBs, gziped**
 
 Please open an issue for future requests.
 
@@ -49,7 +52,7 @@ Using yarn:
 yarn add axios-multi-api
 ```
 
-Please mind that if you want to use it with Axios, you need to install it separately by e.g. running `npm install axios`.
+The native `fetch()` is used by default. If you want to use Axios, install it separately e.g. by running `npm install axios`, and then pass the import to the `createApiFetcher()` function. Check advanced example for more details.
 
 ```typescript
 import { createApiFetcher } from 'axios-multi-api';
@@ -64,56 +67,63 @@ const api = createApiFetcher({
 });
 
 // Make API GET request to: http://example.com/api/user-details?userId=1&ratings[]=1&ratings[]=2
-const response = await api.getUser({ userId: 1, ratings: [1, 2] });
+const data = await api.getUser({ userId: 1, ratings: [1, 2] });
 ```
 
-## ✔️ More Advanced Usage
+Standalone usage: (without endpoints):
+
+```typescript
+import { fetchf } from 'axios-multi-api';
+
+const data = await fetchf('/api/user-details');
+```
+
+## ✔️ Advanced Usage
 
 ```typescript
 import axios from 'axios';
 import { createApiFetcher } from 'axios-multi-api';
 
 const endpoints = {
-  getUser: {
-    method: 'get',
-    url: '/user-details',
-  },
-
-  // No need to specify method: 'get' for GET requests
   getPosts: {
     url: '/posts/:subject',
+  },
+
+  getUser: {
+    // Generally there is no need to specify method: 'get' for GET requests as it is default one. It can be adjusted using global "method" setting
+    method: 'get',
+    url: '/user-details',
   },
 
   updateUserDetails: {
     method: 'post',
     url: '/user-details/update/:userId',
+    strategy: 'defaultResponse',
   },
-
-  // ...
 };
 
 const api = createApiFetcher({
+  apiUrl: 'https://example.com/api',
   fetcher: axios,
   endpoints,
-  apiUrl: 'https://example.com/api',
   onError(error) {
     console.log('Request failed', error);
   },
-  // Optional: default headers (axios config is supported)
   headers: {
     'my-auth-key': 'example-auth-key-32rjjfa',
   },
+  // Optional: Whole Axios config is supported here
 });
 
-// Fetch user data - "response" will return data directly
+// Fetch user data - "data" will return data directly
 // GET to: http://example.com/api/user-details?userId=1&ratings[]=1&ratings[]=2
-const response = await api.getUser({ userId: 1, ratings: [1, 2] });
+const data = await api.getUser({ userId: 1, ratings: [1, 2] });
 
-// Fetch posts - "response" will return data directly
+// Fetch posts - "data" will return data directly
 // GET to: http://example.com/api/posts/myTestSubject?additionalInfo=something
-const response = await api.getPosts(
+const data = await api.getPosts(
   { additionalInfo: 'something' },
-  { subject: 'myTestSubject' },
+  { subject: 'test' },
 );
 
 // Send POST request to update userId "1"
@@ -123,14 +133,13 @@ await api.updateUserDetails({ name: 'Mark' }, { userId: 1 });
 await api.updateUserDetails({ name: 'Mark', ratings: [1, 2] }, { userId: 1 });
 ```
 
-In the example above we fetch data from an API for user with an ID of 1. We also update user's name to Mark. If you prefer OOP you can import `ApiHandler` and initialize the handler using `new ApiHandler()` instead. In case of using typings, due to magic methods being utilized, you may need to overwrite the type: `const api = new ApiHandler(config) as ApiHandler & EndpointsList` where `EndpointsList` is the list of your endpoints.
+In the example above we fetch data from an API for user with an ID of 1. We also make a GET request to fetch some posts, update user's name to Mark. If you want to use more strict typings, please check TypeScript Usage section below.
 
 ## ✔️ Easy to use with React and other libraries
 
 You could use [React Query](https://react-query-v3.tanstack.com/guides/queries) hooks with API handler:
 
 ```typescript
-// api/index.ts
 import axios from 'axios';
 import { createApiFetcher } from 'axios-multi-api';
 
@@ -148,12 +157,6 @@ const api = createApiFetcher({
   },
 });
 
-export default api;
-
-// hooks/useProfile.ts
-
-import api from '../api/index';
-
 export const useProfile = ({ id }) => {
   return useQuery(['profile', id], () => api.getProfile({ id }), {
     initialData: [],
@@ -164,7 +167,7 @@ export const useProfile = ({ id }) => {
 };
 ```
 
-## ✔️ Auto created API functions
+## ✔️ API
 
 ##### api.endpointName(queryParams, urlParams, requestConfig)
 
@@ -172,7 +175,7 @@ export const useProfile = ({ id }) => {
 
 First argument of API functions is an object with query params for `GET` requests, or with a data payload for `POST` alike requests. Other request types are supported as well. For `POST` alike requests you may occasionally want to use both query params and payload. In such case, use this argument as query params and pass the payload as 3rd argument `requestConfig.body` or `requestConfig.data` (for Axios)
 
-Query params accepts strings, numbers, and even arrays so you pass { foo: [1, 2] } and it will become: foo[]=1&foo[]=2 automatically.
+Query params accepts strings, numbers, and even arrays, so you pass { foo: [1, 2] } and it will become: foo[]=1&foo[]=2 automatically.
 
 `urlParams` (optional)
 
@@ -186,105 +189,328 @@ To have more granular control over specific endpoints you can pass Axios compati
 
 When API handler is firstly initialized, a new Axios instance is created. You can call `api.getInstance()` if you want to get that instance directly, for example to add some interceptors.
 
-## ✔️ Global Settings
+##### api.config
 
-Global settings are passed to `createApiFetcher()` function. You can pass all [Axios Request Config](https://github.com/axios/axios#request-config). Additional options are listed below.
+You can access `api.config` directly, so to modify global headers, and other settings on fly. Please mind it is a property, not a function.
 
-| Option          | Type        | Default   | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| --------------- | ----------- | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| apiUrl          | string      |           | Your API base url.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| endpoints       | object      |           | List of your endpoints. Check [Per Endpoint Settings](#per-endpoint-settings) for options.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| fetcher         | AxiosStatic |           | Axios instance imported from axios package. Leave empty, if you do not intend to use Axios with this package. The native `fetch()` will be used instead.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| strategy        | string      | `reject`  | Error handling strategies - basically what to return when an error occurs. It can be a default data, promise can be hanged (nothing would be returned) or rejected so to use try/catch. Available: `silent`, `reject`, `defaultResponse`<br><br>`silent` can be used for a requests that are dispatched within asynchronous wrapper functions. If a request fails, promise will silently hang and no action will be performed. It will never be resolved or rejected when there is an error. Please remember that this is not what Promises were made for, however if used properly it saves developers from try/catch or additional response data checks everywhere. You can use is in combination with `onError` so to handle errors globally.<br><br>`reject` will simply reject the promise. Global error handling will be triggered right before the rejection. You will need to remember to set try/catch per each request to catch exceptions properly.<br><br>`defaultResponse` will return default response specified in either global `defaultResponse` or per endpoint `defaultResponse` setting. Promise will not be rejected! Data from default response will be returned instead. It could be used together with object destructuring by setting `defaultResponse: {}` so to provide a responsible defaults. |
-| cancellable     | boolean     | `false`   | If set to `true` any previously dispatched requests to same url & of method will be cancelled, if a successive request is made meanwhile. This let's you avoid unnecessary requests to the backend.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| flattenResponse | boolean     | `true`    | Flattens nested response.data so you can avoid writing `response.data.data` and obtain response directly. Response is flattened whenever there is a "data" within response "data", and no other object properties set.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| defaultResponse | any         | `null`    | Default response when there is no data or when endpoint fails depending on the chosen `strategy`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| timeout         | int         | `30000`   | You can set a global timeout for all requests in milliseconds.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| logger          | object      | `console` | You can additionally specify logger object with your custom logger to automatically log the errors to the console. It should contain at least `error` and `warn` functions. `console.log` is used by default.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| onError         | function    |           | You can specify a function or class that will be triggered when an endpoint fails. If it's a class it should expose a `process` method. Axios Error Object will be sent as a first argument of it.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+##### api.endpoints
 
-## ✔️ Per Endpoint Settings
+You can access `api.endpoints` directly, so to modify endpoints list. It can be useful if you want to append or remove global endpoints. Please mind it is a property, not a function.
 
-Each endpoint in `endpoints` is an object that accepts properties below. You can also pass these options as a 3rd argument when calling an endpoint so to have a more granular control.
+## ✔️ fetchf() = improved native fetch() wrapper
 
-| Option          | Type     | Default | Description                                                                                                                                                                                  |
-| --------------- | -------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| method          | string   |         | Default request method e.g. GET, POST, DELETE, PUT etc.                                                                                                                                      |
-| url             | string   |         | Url path e.g. /user-details/get                                                                                                                                                              |
-| cancellable     | boolean  | `false` | Whether previous requests should be automatically cancelled. See global settings for more info.                                                                                              |
-| rejectCancelled | boolean  | `false` | If `true` and request is set to `cancellable`, a cancelled request promise will be rejected. By default instead of rejecting the promise, `defaultResponse` from global options is returned. |
-| defaultResponse | any      | `null`  | Default response when there is no data or when endpoint fails depending on a chosen `strategy`                                                                                               |
-| timeout         | int      | `30000` | You can set the timeout for particular request in milliseconds.                                                                                                                              |
-| strategy        | string   |         | You can control strategy per each request. Global strategy is applied by default.                                                                                                            |
-| onError         | function |         | You can specify a function that will be triggered when an endpoint fails.                                                                                                                    |
+The `axios-multi-api` wraps the endpoints around and automatically uses `fetchf()` under the hood. However, you can use `fetchf()` directly just like you use `fetch()`.
+
+### Improvements to native fetch
+
+To address these challenges, the `fetchf()` provides several enhancements:
+
+1. **Consistent Error Handling:**
+
+   - The `createApiFetcher()` and `fetchf()` both ensure that HTTP error statuses (e.g., 404, 500) are treated as errors. This is achieved by wrapping `fetch()` in a way that checks the response status and throws an exception if the `ok` property is `false`.
+   - This approach aligns error handling with common practices and makes it easier to manage errors consistently.
+
+2. **Enhanced Retry Mechanism:**
+
+   - **Retry Configuration:** You can configure the number of retries, delay between retries, and exponential backoff for failed requests. This helps to handle transient errors effectively.
+   - **Custom Retry Logic:** The `shouldRetry` function allows for custom retry logic based on the error and attempt count, providing flexibility to handle different types of failures.
+
+3. **Improved Error Visibility:**
+
+   - **Error Wrapping:** The `createApiFetcher()` and `fetchf()` wrap errors in a custom `RequestError` class, which provides detailed information about the request and response, similarly to what Axios does. This makes debugging easier and improves visibility into what went wrong.
+   - **Retry Conditions:** Errors are only retried based on configurable retry conditions, such as specific HTTP status codes or error types.
+
+4. **Functional `fetchf()` Wrapper:**
+   - **Wrapper Function:** `fetchf()` is a functional wrapper for `fetch()`. It integrates seamlessly with the retry mechanism and error handling improvements.
+   - **No Class Dependency:** Unlike the traditional class-based approach, `fetchf()` can be used directly as a function, simplifying the usage and making it easier to integrate with functional programming styles.
+
+### Improved Fetch Error Handling
+
+In JavaScript, the native `fetch()` function does not reject the Promise for HTTP error statuses such as 404 (Not Found) or 500 (Internal Server Error). Instead, `fetch()` resolves the Promise with a `Response` object, where the `ok` property indicates the success of the request. If the request encounters a network error or fails due to other issues (e.g., server downtime), `fetch()` will reject the Promise.
+
+**Challenges with Native Fetch:**
+
+- **Error Status Handling:** Fetch does not throw errors for HTTP error statuses, making it difficult to distinguish between successful and failed requests based on status codes alone.
+- **Error Visibility:** Error responses with status codes like 404 or 500 are not automatically propagated as exceptions, which can lead to inconsistent error handling.
+
+## ✔️ Retry Mechanism
+
+The exposed `fetchf()` and `createApiFetcher()` function include a built-in retry mechanism to handle transient errors and improve the reliability of network requests. This mechanism automatically retries requests when certain conditions are met, providing robustness in the face of temporary failures. Below is an overview of how the retry mechanism works and how it can be configured.
+
+### Configuration
+
+The retry mechanism is configured via the `retry` option when instantiating the `RequestHandler`. You can customize the following parameters:
+
+- **`retries`**: Number of retry attempts to make after an initial failure. Default is `0` which means not to retry any requests.
+
+- **`delay`**: Initial delay (in milliseconds) before the first retry attempt. Subsequent retries use an exponentially increasing delay based on the `backoff` parameter. Default is `100`.
+
+- **`maxDelay`**: Maximum delay (in milliseconds) between retry attempts. The delay will not exceed this value, even if the exponential backoff would suggest a longer delay. Default is `5000`.
+
+- **`backoff`**: Factor by which the delay is multiplied after each retry. For example, a `backoff` factor of `1.5` means each retry delay is 1.5 times the previous delay. Default is `1.5`.
+
+- **`retryOn`**: Array of HTTP status codes that should trigger a retry. By default, retries are triggered for the following status codes:
+
+  - `408` - Request Timeout
+  - `409` - Conflict
+  - `425` - Too Early
+  - `429` - Too Many Requests
+  - `500` - Internal Server Error
+  - `502` - Bad Gateway
+  - `503` - Service Unavailable
+  - `504` - Gateway Timeout
+
+- **`shouldRetry(error, attempts)`**: Function that determines whether a retry should be attempted based on the error and the current attempt number. This function receives the error object and the attempt number as arguments.
+
+### How It Works
+
+1. **Initial Request**: When a request fails, the retry mechanism captures the failure and checks if it should retry based on the `retryOn` configuration and the result of the `shouldRetry` function.
+
+2. **Retry Attempts**: If a retry is warranted:
+
+   - The request is retried up to the specified number of attempts (`retries`).
+   - Each retry waits for a delay before making the next attempt. The delay starts at the initial `delay` value and increases exponentially based on the `backoff` factor, but will not exceed the `maxDelay`.
+
+3. **Logging**: During retries, the mechanism logs warnings indicating the retry attempts and the delay before the next attempt, which helps in debugging and understanding the retry behavior.
+
+4. **Final Outcome**: If all retry attempts fail, the request will throw an error, and the final failure is processed according to the configured error handling logic.
+
+### Example Usage
+
+Here’s an example of configuring and using the `createApiFetcher()` with the retry mechanism:
+
+```typescript
+const retryConfig = {
+  retries: 3,
+  delay: 100,
+  maxDelay: 5000,
+  backoff: 1.5,
+  retryOn: [500, 503],
+  shouldRetry(error, attempt) {
+    // Retry on specific errors or based on custom logic
+    return attempt < 3; // Retry up to 3 times
+  },
+};
+
+const api = createApiFetcher({
+  baseURL: 'https://api.example.com/',
+  retry: retryConfig,
+  endpoints: {
+    myEndpoint: {
+      url: "endpoint"
+    }
+  }
+  onError(error) {
+    console.error('Request failed:', error);
+  },
+});
+
+try {
+  const response = await api.myEndpoint('endpoint');
+  console.log('Request succeeded:', response);
+} catch (error) {
+  console.error('Request ultimately failed:', error);
+}
+```
+
+## ✔️ Settings
+
+Global settings are passed to `createApiFetcher()` function. Settings that are global only are market with star `*` next to setting name.
+
+You can pass settings on per-request basis in the 3rd argument of endpoint function, for example `api.getUser({}, {}, { /* settings */ })`.
+
+You can also pass all `fetch()` settings, or if you use Axios, you can pass all [Axios Request Config](https://github.com/axios/axios#request-config).
+
+| Setting         | Type        | Default   | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| --------------- | ----------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| apiUrl \*       | string      |           | Your API base url.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| endpoints \*    | object      |           | List of your endpoints. Each endpoint accepts all these settings. They can be set globally or per-endpoint when they are called.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| fetcher \*      | AxiosStatic | `fetch`   | The native `fetch()` is used by default. Axios instance imported from axios package can be used otherwise. Leave as is, if you do not intend to use Axios.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| strategy        | string      | `reject`  | Error handling strategies - basically what to return when an error occurs. It can be a default data, promise can be hanged (nothing would be returned) or rejected so to use try/catch.<br><br>Available: `silent`, `reject`, `defaultResponse`.<br><br>`reject` - standard way - simply rejects the promise. Global error handling is triggered right before the rejection. You need to set try/catch to catch errors.<br><br>`defaultResponse` in case of an error, it returns default response specified in global `defaultResponse` or per endpoint `defaultResponse` setting. Promise will not be rejected! Data from default response will be returned instead. It could be used together with object destructuring by setting `defaultResponse: {}` so to provide a responsible defaults.<br><br>`silent` can be used for requests that are dispatched within asynchronous wrapper functions that are not awaited. If a request fails, promise will silently hang and no action will be performed. In case of an error, the promise will never be resolved or rejected, and any code after will never be executed. If used properly it saves developers from try/catch or additional response data checks everywhere. You can use is in combination with `onError` so to handle errors globally. |
+| cancellable     | boolean     | `false`   | If `true`, any previous requests to same API endpoint will be cancelled, if a subsequent request is made meanwhile. This helps you avoid unnecessary requests to the backend.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| rejectCancelled | boolean     | `false`   | If `true` and request is set to `cancellable`, a cancelled requests' promise will be rejected. By default, instead of rejecting the promise, `defaultResponse` is returned.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| flattenResponse | boolean     | `true`    | Flatten nested response data, so you can avoid writing `response.data.data` and obtain response directly. Response is flattened when there is a "data" within response "data", and no other object properties set.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| defaultResponse | any         | `null`    | Default response when there is no data or when endpoint fails depending on the chosen `strategy`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| timeout         | int         | `30000`   | You can set a request timeout for all requests or particular in milliseconds.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| onError         | function    |           | You can specify a function or class that will be triggered when endpoint fails. If it's a class it should expose a `process` method. When using native fetch(), the full Response Object is sent as a first argument of the function. In case of Axios, AxiosError object is sent.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| logger          | object      | `console` | You can additionally specify logger object with your custom logger to automatically log the errors to the console. It should contain at least `error` and `warn` functions. `console.log` is used by default.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| method          | string      | `get`     | Default request method e.g. GET, POST, DELETE, PUT etc.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| url             | string      |           | URL path e.g. /user-details/get                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 
 ## ✔️ Full TypeScript support
 
-Axios-multi-api includes necessary [TypeScript](http://typescriptlang.org) definitions. For full TypeScript support for your endpoints, you could overwrite interface using Type Assertion of your `ApiHandler` and use your own for the API Endpoints provided.
+Axios-multi-api includes all necessary [TypeScript](http://typescriptlang.org) definitions bringing full TypeScript support to your API Handler. The package ships interfaces with responsible defaults making it easier to add new endpoints.
 
-### Example of interface
+### Example of interfaces
 
 ```typescript
-import { Endpoints, Endpoint } from 'axios-multi-api';
-
-import axios from 'axios';
+import type { DefaultEndpoints } from 'axios-multi-api';
 import { createApiFetcher } from 'axios-multi-api';
 
-interface Movie {
+interface Book {
   id: number;
   title: string;
-  genre: string;
-  releaseDate: string;
   rating: number;
 }
 
-interface MoviesResponseData {
-  movies: Movie[];
+interface Books {
+  books: Book[];
   totalResults: number;
-  totalPages: number;
 }
 
-interface MoviesQueryParams {
-  newMovies: boolean;
+interface BookQueryParams {
+  newBook: boolean;
 }
 
-interface MoviesDynamicURLParams {
-  movieId?: number;
+interface BookPathParams {
+  bookId?: number;
 }
 
-// You can either extend the Endpoints to skip defining every endpoint
-// Or you can just define the EndpointsList and enjoy more strict typings
-interface EndpointsList extends Endpoints {
-  fetchMovies: Endpoint<
-    MoviesResponseData,
-    MoviesQueryParams,
-    MoviesDynamicURLParams
-  >;
+const endpoints = {
+  fetchBooks: {
+    url: 'books',
+  },
+  fetchBook: {
+    url: 'books/:bookId',
+  },
+};
 
-  // Or you can use just Endpoint
-  fetchTVSeries: Endpoint;
+// Note how you don't need to specify all endpoints for typings here. The "fetchBooks" is inferred
+interface EndpointsList extends DefaultBookQueryParams<typeof endpoints> {
+  fetchBook: Endpoint<Book, BookQueryParams, BookPathParams>;
 }
 
 const api = createApiFetcher<EndpointsList>({
-  fetcher: axios,
-  // Your config
+  apiUrl: 'https://example.com/api/',
+  endpoints,
 });
 
-// Will return an error since "newMovies" should be a boolean
-const movies = api.fetchMovies({ newMovies: 1 });
+// Fetch book
+const book = await api.fetchBook({ newBook: true }, { bookId: 1 });
 
-// You can also pass type to the request directly
-const movie = api.fetchMovies<MoviesResponseData>(
-  { newMovies: 1 },
-  { movieId: 1 },
-);
+// Will return an error since "rating" does not exist in "BookQueryParams"
+const _book = await api.fetchBook({ rating: 5 });
+
+// You can also pass generic type directly to the request
+const books = await api.fetchBooks<Books>();
 ```
 
-Package ships interfaces with responsible defaults making it easier to add new endpoints. It exposes `Endpoints` and `Endpoint` types.
+## ✔️ More examples
 
-## ✔️ Examples
+Check [examples.ts file](./docs/examples/examples.ts) for more examples of usage.
 
-### Per Request Error handling
+### Per-request Error handling - reject strategy (default)
+
+```typescript
+import { createApiFetcher } from 'axios-multi-api';
+
+const api = createApiFetcher({
+  apiUrl: 'https://example.com/api',
+  endpoints: {
+    sendMessage: {
+      method: 'post',
+      url: '/send-message/:postId',
+    },
+  },
+});
+
+async function sendMessage() {
+  try {
+    await api.sendMessage({ message: 'Text' }, { postId: 1 });
+
+    console.log('Message sent successfully');
+  } catch (error) {
+    console.log(error);
+  }
+}
+
+sendMessage();
+```
+
+### Per-request Error handling - defaultResponse strategy
+
+```typescript
+import { createApiFetcher } from 'axios-multi-api';
+
+const api = createApiFetcher({
+  apiUrl: 'https://example.com/api',
+  endpoints: {
+    sendMessage: {
+      method: 'post',
+      url: '/send-message/:postId',
+
+      // You can also specify strategy and other settings in global list of endpoints, but just for this endpoint
+      // strategy: 'defaultResponse',
+    },
+  },
+});
+
+async function sendMessage() {
+  const response = await api.sendMessage(
+    { message: 'Text' },
+    { postId: 1 },
+    {
+      strategy: 'defaultResponse',
+      // null is a default setting, you can change it to empty {} or anything
+      // defaultResponse: null,
+      onError(error) {
+        // Callback is still triggered here
+        console.log(error);
+      },
+    },
+  );
+
+  if (response === null) {
+    // Because of the strategy, if API call fails, it will just return null
+    return;
+  }
+
+  // You can do something with the response here
+  console.log('Message sent successfully');
+}
+
+sendMessage();
+```
+
+### Per-request Error handling - silent strategy
+
+```typescript
+import { createApiFetcher } from 'axios-multi-api';
+
+const api = createApiFetcher({
+  apiUrl: 'https://example.com/api',
+  endpoints: {
+    sendMessage: {
+      method: 'post',
+      url: '/send-message/:postId',
+
+      // You can also specify strategy and other settings in global list of endpoints, but just for this endpoint
+      // strategy: 'silent',
+    },
+  },
+});
+
+async function sendMessage() {
+  await api.sendMessage(
+    { message: 'Text' },
+    { postId: 1 },
+    {
+      strategy: 'silent',
+      onError(error) {
+        console.log(error);
+      },
+    },
+  );
+
+  // Because of the strategy, if API call fails, it will never reach this point. Otherwise try/catch would need to be required.
+  console.log('Message sent successfully');
+}
+
+// Note that since strategy is "silent" and sendMessage should not be awaited anywhere
+sendMessage();
+```
+
+### Per-request Error handling with Axios
 
 ```typescript
 import axios from 'axios';
@@ -295,7 +521,7 @@ const api = createApiFetcher({
   apiUrl: 'https://example.com/api',
   endpoints: {
     sendMessage: {
-      method: 'get',
+      method: 'post',
       url: '/send-message/:postId',
     },
   },
@@ -303,7 +529,7 @@ const api = createApiFetcher({
 
 async function sendMessage() {
   await api.sendMessage(
-    { message: 'Something..' },
+    { message: 'Text' },
     { postId: 1 },
     {
       onError(error) {
@@ -333,15 +559,24 @@ async function sendMessage() {
 sendMessage();
 ```
 
-### OOP style with custom Error Handler (advanced)
+### fetchf() usage with retries
 
-You could for example create an API service class that extends the handler, inject an error service class to handle with a store that would collect the errors.
+```typescript
+import { fetchf } from 'axios-multi-api';
 
-As you may notice there's also a `setupInterceptor` and `httpRequestHandler` exposed. You can operate on it instead of requesting an Axios instance prior the operation. This way you can use all Axios settings for a particular API handler.
+const data = await fetchf('/api/user-details', {
+  retry: { retries: 3, delay: 2000 },
+});
+```
+
+### OOP style custom Error Handler and Axios
+
+You could for example create an API and, inject an error service class to handle with a store that would collect the errors.
+
+As you may notice there's also am `api.getInstance()` exposed. You can operate on it instead of requesting an Axios instance prior the operation. This way you can use all Axios settings for a particular API handler.
 
 ```typescript
 import axios from 'axios';
-import { ApiHandler } from 'axios-multi-api';
 
 class MyRequestError {
   public constructor(myCallback) {
@@ -353,40 +588,18 @@ class MyRequestError {
   }
 }
 
-class ApiService extends ApiHandler {
-  /**
-   * Creates an instance of Api Service.
-   * @param {object}  payload                   Payload
-   * @param {string}  payload.apiUrl            Api url
-   * @param {string}  payload.endpoints      Api endpoints
-   * @param {*}       payload.logger                 Logger instance
-   * @param {*}       payload.myCallback             Callback function, could be a dispatcher that e.g. forwards error data to a store
-   */
-  public constructor({ apiUrl, endpoints, logger, myCallback }) {
-    // Pass settings to API Handler
-    super({
-      fetcher: axios,
-      apiUrl,
-      endpoints,
-      logger,
-      onError: new MyRequestError(myCallback),
-    });
-
-    this.setupInterceptor();
-  }
-
-  /**
-   * Setup Request Interceptor
-   * @returns {void}
-   */
-  protected setupInterceptor(): void {
-    this.getInstance().interceptors.request.use(onRequest);
-  }
-}
-
-const api = new ApiService({
-  // Your config
+const api = createApiFetcher({
+  fetcher: axios,
+  apiUrl,
+  endpoints,
+  logger,
+  onError: new MyRequestError(myCallback),
 });
+
+// Set some Axios interceptors by accessing Axios instance directly
+const AxiosInstance = api.getInstance();
+
+AxiosInstance.interceptors.request.use(onRequest);
 ```
 
 ## ✔️ Support and collaboration

@@ -1,143 +1,41 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-// 3rd party libs
-import { applyMagic, MagicalClass } from 'js-magic';
-
+import { RequestHandler } from './request-handler';
 import type {
   RequestResponse,
-  APIHandlerConfig,
-  EndpointsConfig,
   FetcherInstance,
-} from './types/http-request';
-
-import { RequestHandler } from './request-handler';
-
-/**
- * Handles dispatching of API requests
- */
-@applyMagic
-export class ApiHandler<EndpointsList = { [x: string]: unknown }>
-  implements MagicalClass
-{
-  /**
-   * TS Index signature
-   */
-  [x: string]: unknown;
-
-  /**
-   * @var requestHandler Request Wrapper Instance
-   */
-  public requestHandler: RequestHandler;
-
-  /**
-   * Endpoints
-   */
-  protected endpoints: EndpointsConfig<string>;
-
-  /**
-   * Logger
-   */
-  protected logger: any;
-
-  /**
-   * Creates an instance of API Handler
-   * @inheritdoc createApiFetcher()
-   */
-  public constructor(config: APIHandlerConfig<EndpointsList>) {
-    this.endpoints = config.endpoints;
-    this.logger = config.logger;
-
-    this.requestHandler = new RequestHandler(config);
-  }
-
-  /**
-   * Get Provider Instance
-   *
-   * @returns {FetcherInstance} Provider's instance
-   */
-  public getInstance(): FetcherInstance {
-    return this.requestHandler.getInstance();
-  }
-
-  /**
-   * Maps all API requests
-   *
-   * @private
-   * @param {*} prop          Caller
-   * @returns {Function}      Tailored request function
-   */
-  public __get(prop: any): any {
-    if (prop in this) {
-      return this[prop];
-    }
-
-    // Prevent handler from running for non-existent endpoints
-    if (!this.endpoints[prop]) {
-      return this.handleNonImplemented.bind(this, prop);
-    }
-
-    return this.handleRequest.bind(this, prop);
-  }
-
-  /**
-   * Handle Single API Request
-   *
-   * @param {*} args      Arguments
-   * @returns {Promise}   Resolvable API provider promise
-   */
-  public async handleRequest(...args: string[]): Promise<RequestResponse> {
-    const prop = args[0];
-    const endpointSettings = this.endpoints[prop];
-
-    const queryParams = args[1] || {};
-    const uriParams = args[2] || {};
-    const requestConfig = args[3] || {};
-
-    const uri = endpointSettings.url.replace(/:[a-z]+/gi, (str: string) =>
-      uriParams[str.substring(1)] ? uriParams[str.substring(1)] : str,
-    );
-
-    let responseData = null;
-
-    const additionalRequestSettings = { ...endpointSettings };
-
-    delete additionalRequestSettings.url;
-    delete additionalRequestSettings.method;
-
-    responseData = await this.requestHandler[
-      (endpointSettings.method || 'get').toLowerCase()
-    ](uri, queryParams, {
-      ...requestConfig,
-      ...additionalRequestSettings,
-    });
-
-    return responseData;
-  }
-
-  /**
-   * Triggered when trying to use non-existent endpoints
-   *
-   * @param prop Method Name
-   * @returns {Promise}
-   */
-  protected handleNonImplemented(prop: string): Promise<null> {
-    if (this.logger?.log) {
-      this.logger.log(`${prop} endpoint not implemented.`);
-    }
-
-    return Promise.resolve(null);
-  }
-}
+  RequestConfig,
+} from './types/request-handler';
+import type {
+  ApiHandlerConfig,
+  ApiHandlerMethods,
+  ApiHandlerReturnType,
+  APIQueryParams,
+  APIUriParams,
+} from './types/api-handler';
 
 /**
- * Creates an API fetcher function using native fetch() or Axios if it is passed as "fetcher".
+ * Creates an instance of API Handler.
+ * It creates an API fetcher function using native fetch() or Axios if it is passed as "fetcher".
  *
  * @param {Object} config - Configuration object for the API fetcher.
- * @param {Object} config.fetcher - The Axios (or any other) instance to use for making requests.
- * @param {Object} config.endpoints - An object containing endpoint definitions.
  * @param {string} config.apiUrl - The base URL for the API.
+ * @param {Object} config.endpoints - An object containing endpoint definitions.
+ * @param {number} config.timeout - You can set the timeout for particular request in milliseconds.
+ * @param {number} config.cancellable - If true, the previous requests will be automatically cancelled.
+ * @param {number} config.rejectCancelled - If true and request is set to cancellable, a cancelled request promise will be rejected. By default, instead of rejecting the promise, defaultResponse is returned.
+ * @param {number} config.timeout - Request timeout
+ * @param {string} config.strategy - Error Handling Strategy
+ * @param {string} config.flattenResponse - Whether to flatten response "data" object within "data" one
+ * @param {*} config.defaultResponse - Default response when there is no data or when endpoint fails depending on the chosen strategy. It's "null" by default
+ * @param {Object} [config.retry] - Options for retrying requests.
+ * @param {number} [config.retry.retries=0] - Number of retry attempts. No retries by default.
+ * @param {number} [config.retry.delay=1000] - Initial delay between retries in milliseconds.
+ * @param {number} [config.retry.backoff=1.5] - Exponential backoff factor.
+ * @param {number[]} [config.retry.retryOn=[502, 504, 408]] - HTTP status codes to retry on.
  * @param {Function} [config.onError] - Optional callback function for handling errors.
  * @param {Object} [config.headers] - Optional default headers to include in every request.
- * @returns {Function} - A function that makes API requests using the provided Axios instance.
+ * @param {Object} config.fetcher - The Axios (or any other) instance to use for making requests.
+ * @param {*} config.logger - Instance of custom logger. Either class or an object similar to "console". Console is used by default.
+ * @returns API handler functions and endpoints to call
  *
  * @example
  * // Import axios
@@ -165,6 +63,96 @@ export class ApiHandler<EndpointsList = { [x: string]: unknown }>
  * // Fetch user data
  * const response = await api.getUser({ userId: 1, ratings: [1, 2] })
  */
-export const createApiFetcher = <AllEndpointsList = { [x: string]: unknown }>(
-  options: APIHandlerConfig<AllEndpointsList>,
-) => new ApiHandler(options) as ApiHandler & AllEndpointsList;
+
+function createApiFetcher<EndpointsMethods = never, EndpointsCfg = never>(
+  config: ApiHandlerConfig<EndpointsMethods>,
+) {
+  const endpoints = config.endpoints;
+  const requestHandler = new RequestHandler(config);
+
+  /**
+   * Get Fetcher Provider Instance
+   *
+   * @returns {FetcherInstance} Request Handler's Fetcher instance
+   */
+  function getInstance(): FetcherInstance {
+    return requestHandler.getInstance();
+  }
+
+  /**
+   * Triggered when trying to use non-existent endpoints
+   *
+   * @param endpointName Endpoint Name
+   * @returns {Promise}
+   */
+  function handleNonImplemented(endpointName: string): Promise<null> {
+    console.error(`${endpointName} endpoint must be added to 'endpoints'.`);
+
+    return Promise.resolve(null);
+  }
+
+  /**
+   * Handle Single API Request
+   * It considers settings in following order: per-request settings, global per-endpoint settings, global settings.
+   *
+   * @param {string} endpointName - The name of the API endpoint to call.
+   * @param {APIQueryParams} [queryParams={}] - Query parameters to include in the request.
+   * @param {APIUriParams} [uriParams={}] - URI parameters to include in the request.
+   * @param {EndpointConfig} [requestConfig={}] - Additional configuration for the request.
+   * @returns {Promise<RequestResponse>} - A promise that resolves with the response from the API provider.
+   */
+  async function request(
+    endpointName: keyof EndpointsMethods & string,
+    queryParams: APIQueryParams = {},
+    uriParams: APIUriParams = {},
+    requestConfig: RequestConfig = {},
+  ): Promise<RequestResponse> {
+    // Use global per-endpoint settings
+    const endpoint = endpoints[endpointName as string];
+    const endpointSettings = { ...endpoint };
+
+    const responseData = await requestHandler.request(
+      endpointSettings.url,
+      queryParams,
+      {
+        ...endpointSettings,
+        ...requestConfig,
+        uriParams,
+      },
+    );
+
+    return responseData;
+  }
+
+  /**
+   * Maps all API requests using native Proxy
+   *
+   * @param {*} prop          Caller
+   */
+  function get(prop: string | symbol) {
+    if (prop in apiHandler) {
+      return apiHandler[prop];
+    }
+
+    // Prevent handler from triggering non-existent endpoints
+    if (!endpoints[prop as string]) {
+      return handleNonImplemented.bind(null, prop);
+    }
+
+    return apiHandler.request.bind(null, prop);
+  }
+
+  const apiHandler: ApiHandlerMethods<EndpointsMethods> = {
+    config,
+    endpoints,
+    requestHandler,
+    getInstance,
+    request,
+  };
+
+  return new Proxy(apiHandler, {
+    get: (_target, prop) => get(prop),
+  }) as ApiHandlerReturnType<EndpointsMethods, EndpointsCfg>;
+}
+
+export { createApiFetcher };

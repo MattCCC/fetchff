@@ -1,31 +1,30 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-
-// 3rd party libs
-import { applyMagic, MagicalClass } from 'js-magic';
-
-// Shared Modules
 import { RequestErrorHandler } from './request-error-handler';
-
-// Types
 import type {
   RequestResponse,
   ErrorHandlingStrategy,
   RequestHandlerConfig,
-  EndpointConfig,
-  RequestError,
+  RequestConfig,
+  RequestError as RequestErrorResponse,
   FetcherInstance,
   FetcherStaticInstance,
   Method,
-  EndpointConfigHeaders,
-} from './types/http-request';
+  RequestConfigHeaders,
+  RetryOptions,
+} from './types/request-handler';
+import type {
+  APIPayload,
+  APIQueryParams,
+  APIUriParams,
+} from './types/api-handler';
+import { RequestError } from './request-error';
 
 /**
  * Generic Request Handler
  * It creates an Request Fetcher instance and handles requests within that instance
  * It handles errors depending on a chosen error handling strategy
  */
-@applyMagic
-export class RequestHandler implements MagicalClass {
+export class RequestHandler {
   /**
    * @var requestInstance Provider's instance
    */
@@ -47,9 +46,19 @@ export class RequestHandler implements MagicalClass {
   public cancellable: boolean = false;
 
   /**
+   * @var rejectCancelled Whether to reject cancelled requests or not
+   */
+  public rejectCancelled: boolean = false;
+
+  /**
    * @var strategy Request timeout
    */
   public strategy: ErrorHandlingStrategy = 'reject';
+
+  /**
+   * @var method Request method
+   */
+  public method: Method | string = 'get';
 
   /**
    * @var flattenResponse Response flattening
@@ -82,21 +91,62 @@ export class RequestHandler implements MagicalClass {
   protected requestsQueue: Map<string, AbortController>;
 
   /**
-   * Creates an instance of HttpRequestHandler
+   * Request Handler Config
+   */
+  protected retry: RetryOptions = {
+    retries: 0,
+    delay: 1000,
+    maxDelay: 30000,
+    backoff: 1.5,
+
+    // https://developer.mozilla.org/en-US/docs/Web/HTTP/Status
+    retryOn: [
+      408, // Request Timeout
+      409, // Conflict
+      425, // Too Early
+      429, // Too Many Requests
+      500, // Internal Server Error
+      502, // Bad Gateway
+      503, // Service Unavailable
+      504, // Gateway Timeout
+    ],
+
+    shouldRetry: () => true,
+  };
+
+  /**
+   * Request Handler Config
+   */
+  public config: RequestHandlerConfig;
+
+  /**
+   * Creates an instance of RequestHandler.
    *
-   * @param {string} config.fetcher              Request Fetcher instance
-   * @param {string} config.baseURL              Base URL for all API calls
-   * @param {number} config.timeout              Request timeout
-   * @param {string} config.strategy             Error Handling Strategy
-   * @param {string} config.flattenResponse      Whether to flatten response "data" object within "data" one
-   * @param {*} config.logger                    Instance of Logger Class
-   * @param {*} config.requestErrorService       Instance of Error Service Class
+   * @param {Object} config - Configuration object for the request.
+   * @param {string} config.baseURL - The base URL for the request.
+   * @param {Object} config.endpoints - An object containing endpoint definitions.
+   * @param {number} config.timeout - You can set the timeout for particular request in milliseconds.
+   * @param {number} config.cancellable - If true, the previous requests will be automatically cancelled.
+   * @param {number} config.rejectCancelled - If true and request is set to cancellable, a cancelled request promise will be rejected. By default, instead of rejecting the promise, defaultResponse is returned.
+   * @param {number} config.timeout - Request timeout
+   * @param {string} config.strategy - Error Handling Strategy
+   * @param {string} config.flattenResponse - Whether to flatten response "data" object within "data" one
+   * @param {*} config.defaultResponse - Default response when there is no data or when endpoint fails depending on the chosen strategy. It's "null" by default
+   * @param {Object} [config.retry] - Options for retrying requests.
+   * @param {number} [config.retry.retries=0] - Number of retry attempts. No retries by default.
+   * @param {number} [config.retry.delay=1000] - Initial delay between retries in milliseconds.
+   * @param {number} [config.retry.backoff=1.5] - Exponential backoff factor.
+   * @param {number[]} [config.retry.retryOn=[502, 504, 408]] - HTTP status codes to retry on.
+   * @param {Function} [config.onError] - Optional callback function for handling errors.
+   * @param {Object} [config.headers] - Optional default headers to include in every request.
+   * @param {Object} config.fetcher - The Axios (or any other) instance to use for making requests.
+   * @param {*} config.logger - Instance of custom logger. Either class or an object similar to "console". Console is used by default.
    */
   public constructor({
     fetcher = null,
-    baseURL = '',
     timeout = null,
     cancellable = false,
+    rejectCancelled = false,
     strategy = null,
     flattenResponse = null,
     defaultResponse = {},
@@ -110,6 +160,7 @@ export class RequestHandler implements MagicalClass {
     this.strategy =
       strategy !== null && strategy !== undefined ? strategy : this.strategy;
     this.cancellable = cancellable || this.cancellable;
+    this.rejectCancelled = rejectCancelled || this.rejectCancelled;
     this.flattenResponse =
       flattenResponse !== null && flattenResponse !== undefined
         ? flattenResponse
@@ -118,7 +169,13 @@ export class RequestHandler implements MagicalClass {
     this.logger = logger || (globalThis ? globalThis.console : null) || null;
     this.requestErrorService = onError;
     this.requestsQueue = new Map();
-    this.baseURL = baseURL || config.apiUrl || '';
+    this.baseURL = config.baseURL || config.apiUrl || '';
+    this.method = config.method || this.method;
+    this.config = config;
+    this.retry = {
+      ...this.retry,
+      ...(config.retry || {}),
+    };
 
     this.requestInstance = this.isCustomFetcher()
       ? fetcher.create({
@@ -139,27 +196,30 @@ export class RequestHandler implements MagicalClass {
   }
 
   /**
-   * Maps all API request types
+   * Replaces dynamic URI parameters in a URL string with values from the provided `uriParams` object.
+   * Parameters in the URL are denoted by `:<paramName>`, where `<paramName>` is a key in `uriParams`.
    *
-   * @throws {RequestError} If request fails
-   * @returns {Promise} Response data or error
+   * @param {string} url - The URL string containing placeholders in the format `:<paramName>`.
+   * @param {Object} uriParams - An object containing the parameter values to replace placeholders.
+   * @param {string} uriParams.paramName - The value to replace the placeholder `:<paramName>` in the URL.
+   * @returns {string} - The URL string with placeholders replaced by corresponding values from `uriParams`.
    */
-  public __get(prop: string) {
-    if (prop in this) {
-      return this[prop];
-    }
+  public replaceUriParams(url: string, uriParams: APIUriParams): string {
+    return url.replace(/:[a-zA-Z]+/gi, (str): string => {
+      const word = str.substring(1);
 
-    return this.handleRequest.bind(this, prop);
+      return String(uriParams[word] ? uriParams[word] : str);
+    });
   }
 
   /**
    * Appends query parameters to the given URL
    *
    * @param {string} url - The base URL to which query parameters will be appended.
-   * @param {Record<string, any>} params - An instance of URLSearchParams containing the query parameters to append.
+   * @param {APIQueryParams} params - An instance of URLSearchParams containing the query parameters to append.
    * @returns {string} - The URL with the appended query parameters.
    */
-  public appendQueryParams(url: string, params: Record<string, any>): string {
+  public appendQueryParams(url: string, params: APIQueryParams): string {
     // We don't use URLSearchParams here as we want to ensure that arrays are properly converted similarily to Axios
     // So { foo: [1, 2] } would become: foo[]=1&foo[]=2
     const queryString = Object.entries(params)
@@ -169,7 +229,7 @@ export class RequestHandler implements MagicalClass {
             (val) => `${encodeURIComponent(key)}[]=${encodeURIComponent(val)}`,
           );
         }
-        return `${encodeURIComponent(key)}=${encodeURIComponent(value)}`;
+        return `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`;
       })
       .join('&');
 
@@ -236,45 +296,51 @@ export class RequestHandler implements MagicalClass {
   /**
    * Build request configuration
    *
-   * @param {string} method               Request method
-   * @param {string} url                  Request url
-   * @param {*}      data                 Request data
-   * @param {EndpointConfig} config       Request config
-   * @returns {EndpointConfig}            Provider's instance
+   * @param {string} url                          Request url
+   * @param {APIQueryParams | APIPayload} data    Request data
+   * @param {RequestConfig} config               Request config
+   * @returns {RequestConfig}                    Provider's instance
    */
-  protected buildRequestConfig(
-    method: Method,
+  protected buildConfig(
     url: string,
-    data: any,
-    config: EndpointConfig,
-  ): EndpointConfig {
+    data: APIQueryParams | APIPayload,
+    config: RequestConfig,
+  ): RequestConfig {
+    const method = config.method || this.method;
     const methodLowerCase = method.toLowerCase();
     const isGetAlikeMethod =
       methodLowerCase === 'get' || methodLowerCase === 'head';
+
+    const dynamicUrl = this.replaceUriParams(
+      url,
+      config.uriParams || this.config.uriParams,
+    );
+
+    // Bonus: Specifying it here brings support for "body" in Axios
+    const configData =
+      config.body || config.data || this.config.body || this.config.data;
 
     // Axios compatibility
     if (this.isCustomFetcher()) {
       return {
         ...config,
-        url,
+        url: dynamicUrl,
         method: methodLowerCase,
 
         ...(isGetAlikeMethod ? { params: data } : {}),
 
         // For POST requests body payload is the first param for convenience ("data")
         // In edge cases we want to split so to treat it as query params, and use "body" coming from the config instead
-        ...(!isGetAlikeMethod && data && config.data ? { params: data } : {}),
+        ...(!isGetAlikeMethod && data && configData ? { params: data } : {}),
 
         // Only applicable for request methods 'PUT', 'POST', 'DELETE', and 'PATCH'
-        ...(!isGetAlikeMethod && data && !config.data ? { data } : {}),
-        ...(!isGetAlikeMethod && config.data ? { data: config.data } : {}),
+        ...(!isGetAlikeMethod && data && !configData ? { data } : {}),
+        ...(!isGetAlikeMethod && configData ? { data: configData } : {}),
       };
     }
 
     // Native fetch
-
-    // Axios uses different property. Add a quick check.
-    const payload = config.body || config.data || data;
+    const payload = configData || data;
 
     delete config.data;
 
@@ -284,9 +350,10 @@ export class RequestHandler implements MagicalClass {
       // Native fetch generally requires query params to be appended in the URL
       // Do not append query params only if it's a POST-alike request with only "data" specified as it's treated as body payload
       url:
-        (!isGetAlikeMethod && data && !config.body) || !data
-          ? url
-          : this.appendQueryParams(url, data),
+        this.baseURL +
+        ((!isGetAlikeMethod && data && !config.body) || !data
+          ? dynamicUrl
+          : this.appendQueryParams(dynamicUrl, data)),
 
       // Uppercase method name
       method: method.toUpperCase(),
@@ -295,8 +362,8 @@ export class RequestHandler implements MagicalClass {
       headers: {
         Accept: 'application/json, text/plain, */*',
         'Content-Type': 'application/json;charset=utf-8',
-        ...(config.headers || {}),
-      } as EndpointConfigHeaders,
+        ...(config.headers || this.config.headers || {}),
+      } as RequestConfigHeaders,
 
       // Automatically JSON stringify request bodies, if possible and when not dealing with strings
       ...(!isGetAlikeMethod
@@ -314,13 +381,13 @@ export class RequestHandler implements MagicalClass {
   /**
    * Process global Request Error
    *
-   * @param {RequestError} error      Error instance
-   * @param {EndpointConfig} requestConfig   Per endpoint request config
+   * @param {RequestErrorResponse} error      Error instance
+   * @param {RequestConfig} requestConfig   Per endpoint request config
    * @returns {void}
    */
-  protected processRequestError(
-    error: RequestError,
-    requestConfig: EndpointConfig,
+  protected processError(
+    error: RequestErrorResponse,
+    requestConfig: RequestConfig,
   ): void {
     if (this.isRequestCancelled(error)) {
       return;
@@ -342,47 +409,52 @@ export class RequestHandler implements MagicalClass {
   /**
    * Output default response in case of an error, depending on chosen strategy
    *
-   * @param {RequestError} error      Error instance
-   * @param {EndpointConfig} requestConfig   Per endpoint request config
+   * @param {RequestErrorResponse} error      Error instance
+   * @param {RequestConfig} requestConfig   Per endpoint request config
    * @returns {*} Error response
    */
   protected async outputErrorResponse(
-    error: RequestError,
-    requestConfig: EndpointConfig,
+    error: RequestErrorResponse,
+    requestConfig: RequestConfig,
   ): Promise<RequestResponse> {
     const isRequestCancelled = this.isRequestCancelled(error);
     const errorHandlingStrategy = requestConfig.strategy || this.strategy;
+    const rejectCancelled =
+      typeof requestConfig.rejectCancelled !== 'undefined'
+        ? requestConfig.rejectCancelled
+        : this.rejectCancelled;
+    const defaultResponse =
+      typeof requestConfig.defaultResponse !== 'undefined'
+        ? requestConfig.defaultResponse
+        : this.defaultResponse;
 
     // By default cancelled requests aren't rejected
-    if (isRequestCancelled && !requestConfig.rejectCancelled) {
-      return this.defaultResponse;
+    if (isRequestCancelled && !rejectCancelled) {
+      return defaultResponse;
     }
 
     if (errorHandlingStrategy === 'silent') {
       // Hang the promise
       await new Promise(() => null);
 
-      return this.defaultResponse;
+      return defaultResponse;
     }
 
     // Simply rejects a request promise
-    if (
-      errorHandlingStrategy === 'reject' ||
-      errorHandlingStrategy === 'throwError'
-    ) {
+    if (errorHandlingStrategy === 'reject') {
       return Promise.reject(error);
     }
 
-    return this.defaultResponse;
+    return defaultResponse;
   }
 
   /**
    * Output error response depending on chosen strategy
    *
-   * @param {RequestError} error               Error instance
+   * @param {RequestErrorResponse} error               Error instance
    * @returns {boolean}                        True if request is aborted
    */
-  public isRequestCancelled(error: RequestError): boolean {
+  public isRequestCancelled(error: RequestErrorResponse): boolean {
     return error.name === 'AbortError' || error.name === 'CanceledError';
   }
 
@@ -398,11 +470,11 @@ export class RequestHandler implements MagicalClass {
   /**
    * Automatically Cancel Previous Requests using AbortController when "cancellable" is defined
    *
-   * @param {EndpointConfig} requestConfig   Per endpoint request config
+   * @param {RequestConfig} requestConfig   Per endpoint request config
    * @returns {Object} Controller Signal to abort
    */
   protected addCancellationToken(
-    requestConfig: EndpointConfig,
+    requestConfig: RequestConfig,
   ): Partial<Record<'signal', AbortSignal>> {
     // Both disabled
     if (!this.cancellable && !requestConfig.cancellable) {
@@ -462,75 +534,114 @@ export class RequestHandler implements MagicalClass {
   /**
    * Handle Request depending on used strategy
    *
-   * @param {object} payload                      Payload
-   * @param {string} payload.type                 Request type
-   * @param {string} payload.url                  Request url
-   * @param {*} payload.data                      Request data
-   * @param {EndpointConfig} payload.config       Request config
-   * @throws {RequestError}
-   * @returns {Promise} Response Data
+   * @param {object} payload                              Payload
+   * @param {string} payload.url                          Request url
+   * @param {APIQueryParams | APIPayload} payload.data    Request data
+   * @param {RequestConfig} payload.config               Request config
+   * @throws {RequestErrorResponse}
+   * @returns {Promise<RequestResponse>} Response Data
    */
-  public async handleRequest(
-    type: Method,
+  public async request(
     url: string,
-    data: unknown = null,
-    config: EndpointConfig = null,
+    data: APIQueryParams | APIPayload = null,
+    config: RequestConfig = null,
   ): Promise<RequestResponse> {
     let response = null;
     const endpointConfig = config || {};
-    let requestConfig = this.buildRequestConfig(
-      type,
-      url,
-      data,
-      endpointConfig,
-    );
+    let requestConfig = this.buildConfig(url, data, endpointConfig);
 
     requestConfig = {
       ...this.addCancellationToken(requestConfig),
       ...requestConfig,
     };
 
-    try {
-      // Axios compatibility
-      if (this.isCustomFetcher()) {
-        response = await (this.requestInstance as any).request(requestConfig);
-      } else {
-        response = await globalThis.fetch(this.baseURL + url, requestConfig);
+    const { retries, delay, backoff, retryOn, shouldRetry, maxDelay } =
+      this.retry;
 
-        // Check if the response status is not outside the range 200-299
-        if (response.ok) {
-          // Parse and return the JSON response
-          response = await response.json();
+    let attempt = 0;
+    let waitTime = delay;
+
+    while (attempt <= retries) {
+      try {
+        // Axios compatibility
+        if (this.isCustomFetcher()) {
+          response = await (this.requestInstance as any).request(requestConfig);
         } else {
-          const error = new Error(`HTTP error! Status: ${response.status}`);
+          response = await globalThis.fetch(requestConfig.url, requestConfig);
 
-          // Attach the response object to the error for further inspection
-          (error as any).response = response;
-
-          throw error;
+          // Check if the response status is not outside the range 200-299
+          if (response.ok) {
+            response = await response.json();
+          } else {
+            // Output error in similar format to what Axios does
+            throw new RequestError(
+              'fetchf() Request Failed! Status: ${response.status}',
+              requestConfig,
+              response,
+            );
+          }
         }
-      }
-    } catch (error) {
-      this.processRequestError(error, requestConfig);
 
-      return this.outputErrorResponse(error, requestConfig);
+        return this.processResponseData(response, requestConfig);
+      } catch (error) {
+        if (
+          attempt === retries ||
+          !shouldRetry(error, attempt) ||
+          !retryOn?.includes(
+            response?.status || error?.response?.status || error?.status,
+          )
+        ) {
+          this.processError(error, requestConfig);
+
+          return this.outputErrorResponse(error, requestConfig);
+        }
+
+        if (this.logger?.warn) {
+          this.logger.warn(
+            `Attempt ${attempt + 1} failed. Retrying in ${waitTime}ms...`,
+          );
+        }
+
+        await this.delay(waitTime);
+
+        waitTime *= backoff;
+        waitTime = Math.min(waitTime, maxDelay);
+        attempt++;
+      }
     }
 
-    return this.processResponseData(response);
+    return this.processResponseData(response, requestConfig);
+  }
+
+  public async delay(ms: number): Promise<boolean> {
+    return new Promise((resolve) =>
+      setTimeout(() => {
+        return resolve(true);
+      }, ms),
+    );
   }
 
   /**
    * Process response
    *
-   * @param response Response object
+   * @param response - Response payload
+   * @param {RequestConfig} requestConfig - Request config
    * @returns {*} Response data
    */
-  protected processResponseData(response) {
+  protected processResponseData(response, requestConfig: RequestConfig) {
+    const defaultResponse =
+      typeof requestConfig.defaultResponse !== 'undefined'
+        ? requestConfig.defaultResponse
+        : this.defaultResponse;
+
     if (!response) {
-      return this.defaultResponse;
+      return defaultResponse;
     }
 
-    if (this.flattenResponse && response.data) {
+    if (
+      (requestConfig.flattenResponse || this.flattenResponse) &&
+      typeof response.data !== 'undefined'
+    ) {
       // Special case of only data property within response data object (happens in Axios)
       // This is in fact a proper response but we may want to flatten it
       // To ease developers' lives when obtaining the response
@@ -551,7 +662,7 @@ export class RequestHandler implements MagicalClass {
       response.constructor === Object &&
       Object.keys(response).length === 0
     ) {
-      return this.defaultResponse;
+      return defaultResponse;
     }
 
     return response;

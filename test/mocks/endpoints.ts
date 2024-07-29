@@ -1,9 +1,8 @@
-import {
+import type {
   Endpoint,
+  EndpointsConfig,
   APIQueryParams as QueryParams,
-  APIUrlParams as UrlParams,
-} from '../../src/types/api';
-import type { EndpointsConfig } from '../../src/types/http-request';
+} from '../../src/types/api-handler';
 
 export const endpoints = {
   getUser: {
@@ -16,7 +15,7 @@ export const endpoints = {
     method: 'post',
     url: '/user-details/:userId',
   },
-} satisfies EndpointsConfig<string>;
+} satisfies EndpointsConfig<EndpointsList>;
 
 interface UserURLParams {
   id: number;
@@ -31,6 +30,6 @@ interface UserResponse {
 // Passing QueryParams allows for any params to be passed to the request (no strict typing)
 export interface EndpointsList {
   getUser: Endpoint;
-  updateUserDetails: Endpoint<UserResponse, QueryParams, UrlParams>;
+  updateUserDetails: Endpoint<UserResponse>;
   getUserByIdAndName: Endpoint<UserResponse, QueryParams, UserURLParams>;
 }
