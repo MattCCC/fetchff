@@ -89,36 +89,36 @@ describe('Request Handler', () => {
     });
   });
 
-  describe('replaceUriParams()', () => {
+  describe('replaceUrlPathParams()', () => {
     let requestHandler: RequestHandler = null;
 
     beforeAll(() => {
       requestHandler = new RequestHandler({});
     });
 
-    it('should replace a single placeholder with a value from uriParams', () => {
+    it('should replace a single placeholder with a value from urlPathParams', () => {
       const url = '/users/:userId';
       const params = { userId: 123 };
 
-      const result = requestHandler.replaceUriParams(url, params);
+      const result = requestHandler.replaceUrlPathParams(url, params);
 
       expect(result).toBe('/users/123');
     });
 
-    it('should replace multiple placeholders with corresponding values from uriParams', () => {
+    it('should replace multiple placeholders with corresponding values from urlPathParams', () => {
       const url = '/users/:userId/posts/:postId';
       const params = { userId: 123, postId: 456 };
 
-      const result = requestHandler.replaceUriParams(url, params);
+      const result = requestHandler.replaceUrlPathParams(url, params);
 
       expect(result).toBe('/users/123/posts/456');
     });
 
-    it('should leave placeholders unchanged if no corresponding value is provided in uriParams', () => {
+    it('should leave placeholders unchanged if no corresponding value is provided in urlPathParams', () => {
       const url = '/users/:userId/posts/:postId';
       const params = { userName: 'john' };
 
-      const result = requestHandler.replaceUriParams(url, params);
+      const result = requestHandler.replaceUrlPathParams(url, params);
 
       expect(result).toBe('/users/:userId/posts/:postId');
     });
@@ -127,16 +127,16 @@ describe('Request Handler', () => {
       const url = '/users/:userId/details/:detailId';
       const params = { userId: 123, detailId: 'abc' };
 
-      const result = requestHandler.replaceUriParams(url, params);
+      const result = requestHandler.replaceUrlPathParams(url, params);
 
       expect(result).toBe('/users/123/details/abc');
     });
 
-    it('should handle empty uriParams object', () => {
+    it('should handle empty urlPathParams object', () => {
       const url = '/users/:userId';
       const params = {};
 
-      const result = requestHandler.replaceUriParams(url, params);
+      const result = requestHandler.replaceUrlPathParams(url, params);
 
       expect(result).toBe('/users/:userId');
     });
@@ -145,7 +145,7 @@ describe('Request Handler', () => {
       const url = '/users/:userId?name=:name';
       const params = { userId: 123, name: 'john' };
 
-      const result = requestHandler.replaceUriParams(url, params);
+      const result = requestHandler.replaceUrlPathParams(url, params);
 
       expect(result).toBe('/users/123?name=john');
     });
@@ -154,7 +154,7 @@ describe('Request Handler', () => {
       const url = '/users/123';
       const params = { userId: 456 };
 
-      const result = requestHandler.replaceUriParams(url, params);
+      const result = requestHandler.replaceUrlPathParams(url, params);
 
       expect(result).toBe('/users/123');
     });
@@ -501,7 +501,7 @@ describe('Request Handler', () => {
         maxDelay: 50000, // Maximum delay in ms
         backoff: 1.5, // Backoff factor
         retryOn: [500], // HTTP status codes to retry on
-        shouldRetry: jest.fn(() => true), // Always retry
+        shouldRetry: jest.fn(() => Promise.resolve(true)), // Always retry
       };
 
       // Initialize RequestHandler with mock configuration
@@ -566,7 +566,7 @@ describe('Request Handler', () => {
         maxDelay: 5000,
         backoff: 1.5,
         retryOn: [500], // Retry on server errors
-        shouldRetry: jest.fn(() => true),
+        shouldRetry: jest.fn(() => Promise.resolve(true)),
       };
       const requestHandler = new RequestHandler({
         baseURL,
@@ -614,7 +614,7 @@ describe('Request Handler', () => {
         maxDelay: 5000,
         backoff: 1.5,
         retryOn: [500],
-        shouldRetry: jest.fn(() => true),
+        shouldRetry: jest.fn(() => Promise.resolve(true)),
       };
       const requestHandler = new RequestHandler({
         baseURL,
@@ -643,7 +643,7 @@ describe('Request Handler', () => {
         maxDelay: 5000,
         backoff: 1.5,
         retryOn: [500],
-        shouldRetry: jest.fn(() => true),
+        shouldRetry: jest.fn(() => Promise.resolve(true)),
       };
       const requestHandler = new RequestHandler({
         baseURL,
@@ -684,7 +684,7 @@ describe('Request Handler', () => {
         maxDelay: 5000,
         backoff: 1.5,
         retryOn: [500],
-        shouldRetry: jest.fn(() => false),
+        shouldRetry: jest.fn(() => Promise.resolve(false)),
       };
       const requestHandler = new RequestHandler({
         baseURL,
@@ -722,7 +722,7 @@ describe('Request Handler', () => {
         strategy: 'silent',
       });
 
-      (requestHandler.requestInstance as AxiosInstance).request = jest
+      globalThis.fetch = jest
         .fn()
         .mockRejectedValue(new Error('Request Failed'));
 
@@ -750,7 +750,7 @@ describe('Request Handler', () => {
         strategy: 'reject',
       });
 
-      (requestHandler.requestInstance as AxiosInstance).request = jest
+      globalThis.fetch = jest
         .fn()
         .mockRejectedValue(new Error('Request Failed'));
 
@@ -767,7 +767,7 @@ describe('Request Handler', () => {
         strategy: 'silent',
       });
 
-      (requestHandler.requestInstance as AxiosInstance).request = jest
+      globalThis.fetch = jest
         .fn()
         .mockRejectedValue(new Error('Request Failed'));
 

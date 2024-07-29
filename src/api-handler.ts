@@ -1,15 +1,15 @@
 import { RequestHandler } from './request-handler';
 import type {
-  RequestResponse,
   FetcherInstance,
   RequestConfig,
+  FetchResponse,
 } from './types/request-handler';
 import type {
   ApiHandlerConfig,
   ApiHandlerMethods,
   ApiHandlerReturnType,
-  APIQueryParams,
-  APIUriParams,
+  QueryParams,
+  UrlPathParams,
 } from './types/api-handler';
 
 /**
@@ -38,7 +38,7 @@ import type {
  * @returns API handler functions and endpoints to call
  *
  * @example
- * // Import axios
+ * // Import axios (optional)
  * import axios from 'axios';
  *
  * // Define endpoint paths
@@ -63,7 +63,6 @@ import type {
  * // Fetch user data
  * const response = await api.getUser({ userId: 1, ratings: [1, 2] })
  */
-
 function createApiFetcher<EndpointsMethods = never, EndpointsCfg = never>(
   config: ApiHandlerConfig<EndpointsMethods>,
 ) {
@@ -96,20 +95,20 @@ function createApiFetcher<EndpointsMethods = never, EndpointsCfg = never>(
    * It considers settings in following order: per-request settings, global per-endpoint settings, global settings.
    *
    * @param {string} endpointName - The name of the API endpoint to call.
-   * @param {APIQueryParams} [queryParams={}] - Query parameters to include in the request.
-   * @param {APIUriParams} [uriParams={}] - URI parameters to include in the request.
+   * @param {QueryParams} [queryParams={}] - Query parameters to include in the request.
+   * @param {UrlPathParams} [urlPathParams={}] - URI parameters to include in the request.
    * @param {EndpointConfig} [requestConfig={}] - Additional configuration for the request.
-   * @returns {Promise<RequestResponse>} - A promise that resolves with the response from the API provider.
+   * @returns {Promise<FetchResponse>} - A promise that resolves with the response from the API provider.
    */
   async function request(
     endpointName: keyof EndpointsMethods & string,
-    queryParams: APIQueryParams = {},
-    uriParams: APIUriParams = {},
+    queryParams: QueryParams = {},
+    urlPathParams: UrlPathParams = {},
     requestConfig: RequestConfig = {},
-  ): Promise<RequestResponse> {
+  ): Promise<FetchResponse> {
     // Use global per-endpoint settings
-    const endpoint = endpoints[endpointName as string];
-    const endpointSettings = { ...endpoint };
+    const endpointConfig = endpoints[endpointName as string];
+    const endpointSettings = { ...endpointConfig };
 
     const responseData = await requestHandler.request(
       endpointSettings.url,
@@ -117,7 +116,7 @@ function createApiFetcher<EndpointsMethods = never, EndpointsCfg = never>(
       {
         ...endpointSettings,
         ...requestConfig,
-        uriParams,
+        urlPathParams,
       },
     );
 

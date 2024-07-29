@@ -59,7 +59,7 @@ describe('API Handler', () => {
   describe('request()', () => {
     it('should properly dispatch request', async () => {
       const api = createApiFetcher(config);
-      const uriParams = {
+      const urlPathParams = {
         id: 1,
         name: 'Mark',
       };
@@ -68,20 +68,20 @@ describe('API Handler', () => {
         .spyOn(api.requestHandler, 'request')
         .mockResolvedValueOnce(userDataMock as any);
 
-      const response = await api.getUserByIdAndName(null, uriParams);
+      const response = await api.getUserByIdAndName(null, urlPathParams);
 
       expect(api.requestHandler.request).toHaveBeenCalledTimes(1);
       expect(api.requestHandler.request).toHaveBeenCalledWith(
         '/user-details/:id/:name',
         null,
-        { url: '/user-details/:id/:name', uriParams },
+        { url: '/user-details/:id/:name', urlPathParams },
       );
       expect(response).toBe(userDataMock);
     });
 
     it('should properly call an endpoint with custom headers', async () => {
       const api = createApiFetcher(config);
-      const uriParams = {
+      const urlPathParams = {
         id: 1,
         name: 'Mark',
       };
@@ -94,7 +94,7 @@ describe('API Handler', () => {
         .spyOn(api.requestHandler, 'request')
         .mockResolvedValueOnce(userDataMock as any);
 
-      const response = await api.getUserByIdAndName(null, uriParams, {
+      const response = await api.getUserByIdAndName(null, urlPathParams, {
         headers,
       });
 
@@ -102,7 +102,7 @@ describe('API Handler', () => {
       expect(api.requestHandler.request).toHaveBeenCalledWith(
         '/user-details/:id/:name',
         null,
-        { url: '/user-details/:id/:name', headers, uriParams },
+        { url: '/user-details/:id/:name', headers, urlPathParams },
       );
       expect(response).toBe(userDataMock);
     });

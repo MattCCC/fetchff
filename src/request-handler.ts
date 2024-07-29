@@ -7,15 +7,16 @@ import type {
   RequestConfig,
   RequestError as RequestErrorResponse,
   FetcherInstance,
-  FetcherStaticInstance,
   Method,
   RequestConfigHeaders,
   RetryOptions,
+  FetchResponse,
+  ExtendedResponse,
 } from './types/request-handler';
 import type {
-  APIPayload,
-  APIQueryParams,
-  APIUriParams,
+  QueryParams,
+  QueryParamsOrBody,
+  UrlPathParams,
 } from './types/api-handler';
 import { RequestError } from './request-error';
 
@@ -73,7 +74,7 @@ export class RequestHandler {
   /**
    * @var fetcher Request Fetcher instance
    */
-  protected fetcher: FetcherStaticInstance;
+  protected fetcher: FetcherInstance;
 
   /**
    * @var logger Logger
@@ -111,7 +112,7 @@ export class RequestHandler {
       504, // Gateway Timeout
     ],
 
-    shouldRetry: () => true,
+    shouldRetry: async () => true,
   };
 
   /**
@@ -178,12 +179,12 @@ export class RequestHandler {
     };
 
     this.requestInstance = this.isCustomFetcher()
-      ? fetcher.create({
+      ? (fetcher as any).create({
           ...config,
           baseURL: this.baseURL,
           timeout: this.timeout,
         })
-      : globalThis.fetch;
+      : null;
   }
 
   /**
@@ -196,19 +197,22 @@ export class RequestHandler {
   }
 
   /**
-   * Replaces dynamic URI parameters in a URL string with values from the provided `uriParams` object.
-   * Parameters in the URL are denoted by `:<paramName>`, where `<paramName>` is a key in `uriParams`.
+   * Replaces dynamic URI parameters in a URL string with values from the provided `urlPathParams` object.
+   * Parameters in the URL are denoted by `:<paramName>`, where `<paramName>` is a key in `urlPathParams`.
    *
    * @param {string} url - The URL string containing placeholders in the format `:<paramName>`.
-   * @param {Object} uriParams - An object containing the parameter values to replace placeholders.
-   * @param {string} uriParams.paramName - The value to replace the placeholder `:<paramName>` in the URL.
-   * @returns {string} - The URL string with placeholders replaced by corresponding values from `uriParams`.
+   * @param {Object} urlPathParams - An object containing the parameter values to replace placeholders.
+   * @param {string} urlPathParams.paramName - The value to replace the placeholder `:<paramName>` in the URL.
+   * @returns {string} - The URL string with placeholders replaced by corresponding values from `urlPathParams`.
    */
-  public replaceUriParams(url: string, uriParams: APIUriParams): string {
+  public replaceUrlPathParams(
+    url: string,
+    urlPathParams: UrlPathParams,
+  ): string {
     return url.replace(/:[a-zA-Z]+/gi, (str): string => {
       const word = str.substring(1);
 
-      return String(uriParams[word] ? uriParams[word] : str);
+      return String(urlPathParams[word] ? urlPathParams[word] : str);
     });
   }
 
@@ -216,10 +220,10 @@ export class RequestHandler {
    * Appends query parameters to the given URL
    *
    * @param {string} url - The base URL to which query parameters will be appended.
-   * @param {APIQueryParams} params - An instance of URLSearchParams containing the query parameters to append.
+   * @param {QueryParams} params - An instance of URLSearchParams containing the query parameters to append.
    * @returns {string} - The URL with the appended query parameters.
    */
-  public appendQueryParams(url: string, params: APIQueryParams): string {
+  public appendQueryParams(url: string, params: QueryParams): string {
     // We don't use URLSearchParams here as we want to ensure that arrays are properly converted similarily to Axios
     // So { foo: [1, 2] } would become: foo[]=1&foo[]=2
     const queryString = Object.entries(params)
@@ -297,13 +301,13 @@ export class RequestHandler {
    * Build request configuration
    *
    * @param {string} url                          Request url
-   * @param {APIQueryParams | APIPayload} data    Request data
+   * @param {QueryParamsOrBody} data    Request data
    * @param {RequestConfig} config               Request config
    * @returns {RequestConfig}                    Provider's instance
    */
   protected buildConfig(
     url: string,
-    data: APIQueryParams | APIPayload,
+    data: QueryParamsOrBody,
     config: RequestConfig,
   ): RequestConfig {
     const method = config.method || this.method;
@@ -311,9 +315,9 @@ export class RequestHandler {
     const isGetAlikeMethod =
       methodLowerCase === 'get' || methodLowerCase === 'head';
 
-    const dynamicUrl = this.replaceUriParams(
+    const dynamicUrl = this.replaceUrlPathParams(
       url,
-      config.uriParams || this.config.uriParams,
+      config.urlPathParams || this.config.urlPathParams,
     );
 
     // Bonus: Specifying it here brings support for "body" in Axios
@@ -536,17 +540,17 @@ export class RequestHandler {
    *
    * @param {object} payload                              Payload
    * @param {string} payload.url                          Request url
-   * @param {APIQueryParams | APIPayload} payload.data    Request data
+   * @param {QueryParamsOrBody} payload.data    Request data
    * @param {RequestConfig} payload.config               Request config
    * @throws {RequestErrorResponse}
-   * @returns {Promise<RequestResponse>} Response Data
+   * @returns {Promise<FetchResponse>} Response Data
    */
   public async request(
     url: string,
-    data: APIQueryParams | APIPayload = null,
+    data: QueryParamsOrBody = null,
     config: RequestConfig = null,
-  ): Promise<RequestResponse> {
-    let response = null;
+  ): Promise<FetchResponse> {
+    let response: FetchResponse = null;
     const endpointConfig = config || {};
     let requestConfig = this.buildConfig(url, data, endpointConfig);
 
@@ -555,8 +559,10 @@ export class RequestHandler {
       ...requestConfig,
     };
 
-    const { retries, delay, backoff, retryOn, shouldRetry, maxDelay } =
-      this.retry;
+    const { retries, delay, backoff, retryOn, shouldRetry, maxDelay } = {
+      ...this.retry,
+      ...(requestConfig?.retry || {}),
+    };
 
     let attempt = 0;
     let waitTime = delay;
@@ -567,11 +573,18 @@ export class RequestHandler {
         if (this.isCustomFetcher()) {
           response = await (this.requestInstance as any).request(requestConfig);
         } else {
-          response = await globalThis.fetch(requestConfig.url, requestConfig);
+          response = (await globalThis.fetch(
+            requestConfig.url,
+            requestConfig,
+          )) as ExtendedResponse;
+
+          // Add more information to response object
+          response.config = requestConfig;
+          response.data = requestConfig;
 
           // Check if the response status is not outside the range 200-299
           if (response.ok) {
-            response = await response.json();
+            response.data = await response.json();
           } else {
             // Output error in similar format to what Axios does
             throw new RequestError(
@@ -586,7 +599,7 @@ export class RequestHandler {
       } catch (error) {
         if (
           attempt === retries ||
-          !shouldRetry(error, attempt) ||
+          !(await shouldRetry(error, attempt)) ||
           !retryOn?.includes(
             response?.status || error?.response?.status || error?.status,
           )

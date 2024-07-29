@@ -16,30 +16,31 @@ type HasKeys<T> = keyof T extends never ? false : true;
 type ConditionalOmit<T, U> = HasKeys<U> extends true ? Omit<T, keyof U> : T;
 
 // Common type definitions
-export declare type APIQueryParams = Record<string, unknown>;
-export declare type APIPayload = Record<string, unknown>;
-export declare type QueryParamsOrBody = APIQueryParams | APIPayload;
-export declare type APIUrlParams = Record<string, unknown>;
-export declare type APIUriParams = Record<string, string | number>;
+export declare type QueryParams<T = unknown> = Record<string, T>;
+export declare type BodyPayload<T = unknown> = Record<string, T>;
+export declare type QueryParamsOrBody<T = unknown> =
+  | QueryParams<T>
+  | BodyPayload<T>;
+export declare type UrlPathParams<T = unknown> = Record<string, T>;
 export declare type APIResponse = unknown;
 
 // Endpoint function type
 export declare type Endpoint<
   Response = APIResponse,
   QueryParams = QueryParamsOrBody,
-  UrlParams = APIUrlParams,
+  PathParams = UrlPathParams,
 > =
   | {
       (
         queryParams?: QueryParams | null,
-        urlParams?: UrlParams,
+        urlPathParams?: PathParams,
         requestConfig?: RequestConfig,
       ): Promise<Response>;
     }
   | {
-      <ResponseData = Response, T = QueryParams, T2 = UrlParams>(
+      <ResponseData = Response, T = QueryParams, T2 = PathParams>(
         queryParams?: T | null,
-        urlParams?: T2,
+        urlPathParams?: T2,
         requestConfig?: RequestConfig,
       ): Promise<ResponseData>;
     };
@@ -48,9 +49,9 @@ export type EndpointsRecord<EndpointsMethods> = {
   [K in keyof EndpointsMethods]: EndpointsMethods[K] extends Endpoint<
     infer Response,
     infer QueryParams,
-    infer UrlParams
+    infer UrlPathParams
   >
-    ? Endpoint<Response, QueryParams, UrlParams>
+    ? Endpoint<Response, QueryParams, UrlPathParams>
     : Endpoint;
 };
 
@@ -77,10 +78,10 @@ export type ApiHandlerMethods<EndpointsMethods> = {
   getInstance: () => FetcherInstance;
   request: (
     endpointName: keyof EndpointsMethods & string,
-    queryParams?: APIQueryParams | null,
-    uriParams?: APIUriParams,
+    queryParams?: QueryParams | null,
+    urlPathParams?: UrlPathParams,
     requestConfig?: RequestConfig,
-  ) => Promise<RequestResponse>;
+  ) => RequestResponse;
 };
 
 export interface ApiHandlerConfig<EndpointsMethods>

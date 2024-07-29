@@ -1,7 +1,7 @@
 import type {
   Endpoint,
   EndpointsConfig,
-  APIQueryParams as QueryParams,
+  QueryParams,
 } from '../../src/types/api-handler';
 
 export const endpoints = {
