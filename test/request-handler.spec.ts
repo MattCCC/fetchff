@@ -722,7 +722,7 @@ describe('Request Handler', () => {
         strategy: 'silent',
       });
 
-      (requestHandler.requestInstance as AxiosInstance).request = jest
+      globalThis.fetch = jest
         .fn()
         .mockRejectedValue(new Error('Request Failed'));
 
@@ -750,7 +750,7 @@ describe('Request Handler', () => {
         strategy: 'reject',
       });
 
-      (requestHandler.requestInstance as AxiosInstance).request = jest
+      globalThis.fetch = jest
         .fn()
         .mockRejectedValue(new Error('Request Failed'));
 
@@ -767,7 +767,7 @@ describe('Request Handler', () => {
         strategy: 'silent',
       });
 
-      (requestHandler.requestInstance as AxiosInstance).request = jest
+      globalThis.fetch = jest
         .fn()
         .mockRejectedValue(new Error('Request Failed'));
 

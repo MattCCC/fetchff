@@ -38,7 +38,7 @@ import type {
  * @returns API handler functions and endpoints to call
  *
  * @example
- * // Import axios
+ * // Import axios (optional)
  * import axios from 'axios';
  *
  * // Define endpoint paths
@@ -63,7 +63,6 @@ import type {
  * // Fetch user data
  * const response = await api.getUser({ userId: 1, ratings: [1, 2] })
  */
-
 function createApiFetcher<EndpointsMethods = never, EndpointsCfg = never>(
   config: ApiHandlerConfig<EndpointsMethods>,
 ) {

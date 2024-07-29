@@ -1,10 +1,4 @@
-import type {
-  AxiosStatic,
-  AxiosError,
-  AxiosRequestConfig,
-  AxiosResponse,
-  AxiosInstance,
-} from 'axios';
+import type { AxiosError, AxiosRequestConfig, AxiosResponse } from 'axios';
 import type { UrlPathParams } from './api-handler';
 
 export type Method =
@@ -29,9 +23,9 @@ export type Method =
   | 'unlink'
   | 'UNLINK';
 
-export type FetcherStaticInstance = AxiosStatic;
 export type NativeFetch = typeof fetch;
-export type FetcherInstance = AxiosInstance | NativeFetch;
+
+export type FetcherInstance = unknown | null;
 
 export type RequestResponse<T = unknown> = Promise<AxiosResponse<T>>;
 
@@ -110,7 +104,7 @@ export interface RequestConfig extends AxiosRequestConfig, RequestInit {
 }
 
 export interface RequestHandlerConfig extends RequestConfig {
-  fetcher?: FetcherStaticInstance;
+  fetcher?: FetcherInstance;
   apiUrl?: string;
   logger?: unknown;
 }

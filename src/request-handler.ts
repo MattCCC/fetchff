@@ -7,7 +7,6 @@ import type {
   RequestConfig,
   RequestError as RequestErrorResponse,
   FetcherInstance,
-  FetcherStaticInstance,
   Method,
   RequestConfigHeaders,
   RetryOptions,
@@ -73,7 +72,7 @@ export class RequestHandler {
   /**
    * @var fetcher Request Fetcher instance
    */
-  protected fetcher: FetcherStaticInstance;
+  protected fetcher: FetcherInstance;
 
   /**
    * @var logger Logger
@@ -178,12 +177,12 @@ export class RequestHandler {
     };
 
     this.requestInstance = this.isCustomFetcher()
-      ? fetcher.create({
+      ? (fetcher as any).create({
           ...config,
           baseURL: this.baseURL,
           timeout: this.timeout,
         })
-      : globalThis.fetch;
+      : null;
   }
 
   /**
