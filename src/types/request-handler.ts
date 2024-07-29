@@ -1,4 +1,4 @@
-import type { AxiosError, AxiosRequestConfig, AxiosResponse } from 'axios';
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import type { UrlPathParams } from './api-handler';
 
 export type Method =
@@ -27,11 +27,11 @@ export type NativeFetch = typeof fetch;
 
 export type FetcherInstance = unknown | null;
 
-export type RequestResponse<T = unknown> = Promise<AxiosResponse<T>>;
+export type RequestResponse<T = unknown> = Promise<Response<T>>;
 
 export type ErrorHandlingStrategy = 'reject' | 'silent' | 'defaultResponse';
 
-export type RequestError = AxiosError<unknown>;
+export type RequestError = ResponseError<unknown>;
 
 interface ErrorHandlerClass {
   process(error?: RequestError): unknown;
@@ -39,7 +39,111 @@ interface ErrorHandlerClass {
 
 type ErrorHandlerFunction = (error: RequestError) => unknown;
 
-export type RequestConfigHeaders = AxiosRequestConfig['headers'] & HeadersInit;
+export interface BaseRequestConfig<D = any> {
+  url?: string;
+  method?: Method | string;
+  baseURL?: string;
+  transformRequest?: Transformer | Transformer[];
+  transformResponse?: Transformer | Transformer[];
+  headers?: any;
+  params?: any;
+  paramsSerializer?: (params: any) => string;
+  data?: D;
+  timeout?: number;
+  timeoutErrorMessage?: string;
+  withCredentials?: boolean;
+  adapter?: Adapter;
+  auth?: BasicCredentials;
+  responseType?: ResponseType;
+  xsrfCookieName?: string;
+  xsrfHeaderName?: string;
+  onUploadProgress?: (progressEvent: any) => void;
+  onDownloadProgress?: (progressEvent: any) => void;
+  maxContentLength?: number;
+  validateStatus?: ((status: number) => boolean) | null;
+  maxBodyLength?: number;
+  maxRedirects?: number;
+  socketPath?: string | null;
+  httpAgent?: any;
+  httpsAgent?: any;
+  proxy?: ProxyConfig | false;
+  cancelToken?: CancelToken;
+  decompress?: boolean;
+  transitional?: TransitionalOptions;
+  signal?: AbortSignal;
+  insecureHTTPParser?: boolean;
+}
+
+export interface Response<T = any, D = any> {
+  data: T;
+  status: number;
+  statusText: string;
+  headers: any;
+  config: BaseRequestConfig<D>;
+  request?: any;
+}
+
+export interface ResponseError<T = any, D = any> extends Error {
+  config: BaseRequestConfig<D>;
+  code?: string;
+  request?: any;
+  response?: Response<T, D>;
+  isAxiosError: boolean;
+  toJSON: () => object;
+}
+
+export interface Transformer {
+  (data: any, headers?: any): any;
+}
+
+export interface Adapter {
+  (config: BaseRequestConfig): ReturnedPromise;
+}
+
+export interface BasicCredentials {
+  username: string;
+  password: string;
+}
+
+export type ResponseType =
+  | 'arraybuffer'
+  | 'blob'
+  | 'document'
+  | 'json'
+  | 'text'
+  | 'stream';
+
+export interface ProxyConfig {
+  host: string;
+  port: number;
+  protocol?: string;
+  auth?: {
+    username: string;
+    password: string;
+  };
+}
+
+export interface CancelToken {
+  promise: Promise<Cancel>;
+  reason?: Cancel;
+  throwIfRequested(): void;
+}
+
+export interface Cancel {
+  message: string;
+}
+
+export interface TransitionalOptions {
+  silentJSONParsing?: boolean;
+  forcedJSONParsing?: boolean;
+  clarifyTimeoutError?: boolean;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export interface ReturnedPromise<T = any> extends Promise<Response<T>> {}
+
+export type RequestConfigHeaders = Record<string, string | number | boolean> &
+  HeadersInit;
 
 /**
  * Interface for configuring retry options.
@@ -90,7 +194,7 @@ export interface RetryOptions {
   shouldRetry?: (error: RequestError, attempt: number) => Promise<boolean>;
 }
 
-export interface RequestConfig extends AxiosRequestConfig, RequestInit {
+interface ExtendedRequestConfig extends BaseRequestConfig, RequestInit {
   cancellable?: boolean;
   rejectCancelled?: boolean;
   defaultResponse?: unknown;
@@ -103,8 +207,14 @@ export interface RequestConfig extends AxiosRequestConfig, RequestInit {
   urlPathParams?: UrlPathParams;
 }
 
-export interface RequestHandlerConfig extends RequestConfig {
+export interface BaseHandlerConfig extends RequestConfig {
   fetcher?: FetcherInstance;
   apiUrl?: string;
   logger?: unknown;
 }
+
+export type RequestConfig<CustomConfig = object> = ExtendedRequestConfig &
+  CustomConfig;
+
+export type RequestHandlerConfig<CustomConfig = object> = BaseHandlerConfig &
+  CustomConfig;
