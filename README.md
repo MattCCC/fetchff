@@ -67,7 +67,15 @@ const api = createApiFetcher({
 });
 
 // Make API GET request to: http://example.com/api/user-details?userId=1&ratings[]=1&ratings[]=2
-const response = await api.getUser({ userId: 1, ratings: [1, 2] });
+const data = await api.getUser({ userId: 1, ratings: [1, 2] });
+```
+
+Standalone usage: (without endpoints):
+
+```typescript
+import { fetchf } from 'axios-multi-api';
+
+const data = await fetchf('/api/user-details');
 ```
 
 ## ✔️ Advanced Usage
@@ -107,13 +115,13 @@ const api = createApiFetcher({
   // Optional: Whole Axios config is supported here
 });
 
-// Fetch user data - "response" will return data directly
+// Fetch user data - "data" will return data directly
 // GET to: http://example.com/api/user-details?userId=1&ratings[]=1&ratings[]=2
-const response = await api.getUser({ userId: 1, ratings: [1, 2] });
+const data = await api.getUser({ userId: 1, ratings: [1, 2] });
 
-// Fetch posts - "response" will return data directly
+// Fetch posts - "data" will return data directly
 // GET to: http://example.com/api/posts/myTestSubject?additionalInfo=something
-const response = await api.getPosts(
+const data = await api.getPosts(
   { additionalInfo: 'something' },
   { subject: 'test' },
 );
@@ -544,6 +552,16 @@ async function sendMessage() {
 }
 
 sendMessage();
+```
+
+### fetchf() usage with retries
+
+```typescript
+import { fetchf } from 'axios-multi-api';
+
+const data = await fetchf('/api/user-details', {
+  retry: { retries: 3, delay: 2000 },
+});
 ```
 
 ### OOP style custom Error Handler and Axios
