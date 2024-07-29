@@ -93,7 +93,7 @@ export interface RetryOptions {
   /**
    * A function to determine whether to retry based on the error and attempt number.
    */
-  shouldRetry?: (error: RequestError, attempt: number) => boolean;
+  shouldRetry?: (error: RequestError, attempt: number) => Promise<boolean>;
 }
 
 export interface RequestConfig extends AxiosRequestConfig, RequestInit {

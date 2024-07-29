@@ -501,7 +501,7 @@ describe('Request Handler', () => {
         maxDelay: 50000, // Maximum delay in ms
         backoff: 1.5, // Backoff factor
         retryOn: [500], // HTTP status codes to retry on
-        shouldRetry: jest.fn(() => true), // Always retry
+        shouldRetry: jest.fn(() => Promise.resolve(true)), // Always retry
       };
 
       // Initialize RequestHandler with mock configuration
@@ -566,7 +566,7 @@ describe('Request Handler', () => {
         maxDelay: 5000,
         backoff: 1.5,
         retryOn: [500], // Retry on server errors
-        shouldRetry: jest.fn(() => true),
+        shouldRetry: jest.fn(() => Promise.resolve(true)),
       };
       const requestHandler = new RequestHandler({
         baseURL,
@@ -614,7 +614,7 @@ describe('Request Handler', () => {
         maxDelay: 5000,
         backoff: 1.5,
         retryOn: [500],
-        shouldRetry: jest.fn(() => true),
+        shouldRetry: jest.fn(() => Promise.resolve(true)),
       };
       const requestHandler = new RequestHandler({
         baseURL,
@@ -643,7 +643,7 @@ describe('Request Handler', () => {
         maxDelay: 5000,
         backoff: 1.5,
         retryOn: [500],
-        shouldRetry: jest.fn(() => true),
+        shouldRetry: jest.fn(() => Promise.resolve(true)),
       };
       const requestHandler = new RequestHandler({
         baseURL,
@@ -684,7 +684,7 @@ describe('Request Handler', () => {
         maxDelay: 5000,
         backoff: 1.5,
         retryOn: [500],
-        shouldRetry: jest.fn(() => false),
+        shouldRetry: jest.fn(() => Promise.resolve(false)),
       };
       const requestHandler = new RequestHandler({
         baseURL,

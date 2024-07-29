@@ -111,7 +111,7 @@ export class RequestHandler {
       504, // Gateway Timeout
     ],
 
-    shouldRetry: () => true,
+    shouldRetry: async () => true,
   };
 
   /**
@@ -591,7 +591,7 @@ export class RequestHandler {
       } catch (error) {
         if (
           attempt === retries ||
-          !shouldRetry(error, attempt) ||
+          !(await shouldRetry(error, attempt)) ||
           !retryOn?.includes(
             response?.status || error?.response?.status || error?.status,
           )
