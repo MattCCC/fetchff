@@ -224,5 +224,5 @@ export interface BaseRequestHandlerConfig extends RequestConfig {
 export type RequestConfig<CustomConfig = object> = ExtendedRequestConfig &
   CustomConfig;
 
-export type RequestHandlerConfig<CustomConfig = object> = BaseHandlerConfig &
-  CustomConfig;
+export type RequestHandlerConfig<CustomConfig = object> =
+  BaseRequestHandlerConfig & CustomConfig;

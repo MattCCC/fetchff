@@ -543,13 +543,13 @@ export class RequestHandler {
    * @param {QueryParamsOrBody} payload.data    Request data
    * @param {RequestConfig} payload.config               Request config
    * @throws {RequestErrorResponse}
-   * @returns {RequestResponse} Response Data
+   * @returns {Promise<FetchResponse>} Response Data
    */
   public async request(
     url: string,
     data: QueryParamsOrBody = null,
     config: RequestConfig = null,
-  ): RequestResponse {
+  ): Promise<FetchResponse> {
     let response: FetchResponse = null;
     const endpointConfig = config || {};
     let requestConfig = this.buildConfig(url, data, endpointConfig);
