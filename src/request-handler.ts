@@ -15,7 +15,7 @@ import type {
 import type {
   APIPayload,
   APIQueryParams,
-  APIUriParams,
+  APIUrlParams,
 } from './types/api-handler';
 import { RequestError } from './request-error';
 
@@ -196,19 +196,22 @@ export class RequestHandler {
   }
 
   /**
-   * Replaces dynamic URI parameters in a URL string with values from the provided `uriParams` object.
-   * Parameters in the URL are denoted by `:<paramName>`, where `<paramName>` is a key in `uriParams`.
+   * Replaces dynamic URI parameters in a URL string with values from the provided `urlPathParams` object.
+   * Parameters in the URL are denoted by `:<paramName>`, where `<paramName>` is a key in `urlPathParams`.
    *
    * @param {string} url - The URL string containing placeholders in the format `:<paramName>`.
-   * @param {Object} uriParams - An object containing the parameter values to replace placeholders.
-   * @param {string} uriParams.paramName - The value to replace the placeholder `:<paramName>` in the URL.
-   * @returns {string} - The URL string with placeholders replaced by corresponding values from `uriParams`.
+   * @param {Object} urlPathParams - An object containing the parameter values to replace placeholders.
+   * @param {string} urlPathParams.paramName - The value to replace the placeholder `:<paramName>` in the URL.
+   * @returns {string} - The URL string with placeholders replaced by corresponding values from `urlPathParams`.
    */
-  public replaceUriParams(url: string, uriParams: APIUriParams): string {
+  public replaceUrlPathParams(
+    url: string,
+    urlPathParams: APIUrlParams,
+  ): string {
     return url.replace(/:[a-zA-Z]+/gi, (str): string => {
       const word = str.substring(1);
 
-      return String(uriParams[word] ? uriParams[word] : str);
+      return String(urlPathParams[word] ? urlPathParams[word] : str);
     });
   }
 
@@ -311,9 +314,9 @@ export class RequestHandler {
     const isGetAlikeMethod =
       methodLowerCase === 'get' || methodLowerCase === 'head';
 
-    const dynamicUrl = this.replaceUriParams(
+    const dynamicUrl = this.replaceUrlPathParams(
       url,
-      config.uriParams || this.config.uriParams,
+      config.urlPathParams || this.config.urlPathParams,
     );
 
     // Bonus: Specifying it here brings support for "body" in Axios
@@ -555,8 +558,10 @@ export class RequestHandler {
       ...requestConfig,
     };
 
-    const { retries, delay, backoff, retryOn, shouldRetry, maxDelay } =
-      this.retry;
+    const { retries, delay, backoff, retryOn, shouldRetry, maxDelay } = {
+      ...this.retry,
+      ...(requestConfig?.retry || {}),
+    };
 
     let attempt = 0;
     let waitTime = delay;

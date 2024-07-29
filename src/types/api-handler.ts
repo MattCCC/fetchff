@@ -20,26 +20,25 @@ export declare type APIQueryParams = Record<string, unknown>;
 export declare type APIPayload = Record<string, unknown>;
 export declare type QueryParamsOrBody = APIQueryParams | APIPayload;
 export declare type APIUrlParams = Record<string, unknown>;
-export declare type APIUriParams = Record<string, string | number>;
 export declare type APIResponse = unknown;
 
 // Endpoint function type
 export declare type Endpoint<
   Response = APIResponse,
   QueryParams = QueryParamsOrBody,
-  UrlParams = APIUrlParams,
+  UrlPathParams = APIUrlParams,
 > =
   | {
       (
         queryParams?: QueryParams | null,
-        urlParams?: UrlParams,
+        urlPathParams?: UrlPathParams,
         requestConfig?: RequestConfig,
       ): Promise<Response>;
     }
   | {
-      <ResponseData = Response, T = QueryParams, T2 = UrlParams>(
+      <ResponseData = Response, T = QueryParams, T2 = UrlPathParams>(
         queryParams?: T | null,
-        urlParams?: T2,
+        urlPathParams?: T2,
         requestConfig?: RequestConfig,
       ): Promise<ResponseData>;
     };
@@ -78,7 +77,7 @@ export type ApiHandlerMethods<EndpointsMethods> = {
   request: (
     endpointName: keyof EndpointsMethods & string,
     queryParams?: APIQueryParams | null,
-    uriParams?: APIUriParams,
+    urlPathParams?: APIUrlParams,
     requestConfig?: RequestConfig,
   ) => Promise<RequestResponse>;
 };

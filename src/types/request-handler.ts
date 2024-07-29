@@ -5,7 +5,7 @@ import type {
   AxiosResponse,
   AxiosInstance,
 } from 'axios';
-import type { APIUriParams } from './api-handler';
+import type { APIUrlParams } from './api-handler';
 
 export type Method =
   | 'get'
@@ -53,7 +53,7 @@ export type RequestConfigHeaders = AxiosRequestConfig['headers'] & HeadersInit;
 export interface RetryOptions {
   /**
    * Maximum number of retry attempts.
-   * @default 3
+   * @default 0
    */
   retries?: number;
 
@@ -106,7 +106,7 @@ export interface RequestConfig extends AxiosRequestConfig, RequestInit {
   onError?: ErrorHandlerFunction | ErrorHandlerClass;
   headers?: RequestConfigHeaders;
   signal?: AbortSignal;
-  uriParams?: APIUriParams;
+  urlPathParams?: APIUrlParams;
 }
 
 export interface RequestHandlerConfig extends RequestConfig {
