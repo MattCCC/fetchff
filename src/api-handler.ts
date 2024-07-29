@@ -8,8 +8,8 @@ import type {
   ApiHandlerConfig,
   ApiHandlerMethods,
   ApiHandlerReturnType,
-  APIQueryParams,
-  APIUrlParams,
+  QueryParams,
+  UrlPathParams,
 } from './types/api-handler';
 
 /**
@@ -96,15 +96,15 @@ function createApiFetcher<EndpointsMethods = never, EndpointsCfg = never>(
    * It considers settings in following order: per-request settings, global per-endpoint settings, global settings.
    *
    * @param {string} endpointName - The name of the API endpoint to call.
-   * @param {APIQueryParams} [queryParams={}] - Query parameters to include in the request.
-   * @param {APIUrlParams} [urlPathParams={}] - URI parameters to include in the request.
+   * @param {QueryParams} [queryParams={}] - Query parameters to include in the request.
+   * @param {UrlPathParams} [urlPathParams={}] - URI parameters to include in the request.
    * @param {EndpointConfig} [requestConfig={}] - Additional configuration for the request.
    * @returns {Promise<RequestResponse>} - A promise that resolves with the response from the API provider.
    */
   async function request(
     endpointName: keyof EndpointsMethods & string,
-    queryParams: APIQueryParams = {},
-    urlPathParams: APIUrlParams = {},
+    queryParams: QueryParams = {},
+    urlPathParams: UrlPathParams = {},
     requestConfig: RequestConfig = {},
   ): Promise<RequestResponse> {
     // Use global per-endpoint settings
