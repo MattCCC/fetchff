@@ -207,8 +207,8 @@ To address these challenges, the `fetchf()` provides several enhancements:
 
 1. **Consistent Error Handling:**
 
-   - The `RequestHandler` ensures that HTTP error statuses (e.g., 404, 500) are treated as errors. This is achieved by wrapping `fetch()` in a way that checks the response status and throws an exception if the `ok` property is `false`.
-   - This approach aligns error handling with common practices and makes it easier to manage errors in a consistent manner.
+   - The `createApiFetcher()` and `fetchf()` both ensure that HTTP error statuses (e.g., 404, 500) are treated as errors. This is achieved by wrapping `fetch()` in a way that checks the response status and throws an exception if the `ok` property is `false`.
+   - This approach aligns error handling with common practices and makes it easier to manage errors consistently.
 
 2. **Enhanced Retry Mechanism:**
 
@@ -217,11 +217,11 @@ To address these challenges, the `fetchf()` provides several enhancements:
 
 3. **Improved Error Visibility:**
 
-   - **Error Wrapping:** The `RequestHandler` wraps errors in a custom `RequestError` class, which provides detailed information about the request and response. This makes debugging easier and improves visibility into what went wrong.
+   - **Error Wrapping:** The `createApiFetcher()` and `fetchf()` wrap errors in a custom `RequestError` class, which provides detailed information about the request and response, similarly to what Axios does. This makes debugging easier and improves visibility into what went wrong.
    - **Retry Conditions:** Errors are only retried based on configurable retry conditions, such as specific HTTP status codes or error types.
 
 4. **Functional `fetchf()` Wrapper:**
-   - **Wrapper Function:** `fetchf()` is a functional wrapper for `fetch()` provided by `RequestHandler`. It integrates seamlessly with the retry mechanism and error handling improvements.
+   - **Wrapper Function:** `fetchf()` is a functional wrapper for `fetch()`. It integrates seamlessly with the retry mechanism and error handling improvements.
    - **No Class Dependency:** Unlike the traditional class-based approach, `fetchf()` can be used directly as a function, simplifying the usage and making it easier to integrate with functional programming styles.
 
 ### Improved Fetch Error Handling
@@ -277,7 +277,7 @@ The retry mechanism is configured via the `retry` option when instantiating the 
 
 ### Example Usage
 
-Here’s an example of configuring and using the `RequestHandler` with the retry mechanism:
+Here’s an example of configuring and using the `createApiFetcher()` with the retry mechanism:
 
 ```typescript
 const retryConfig = {
@@ -292,16 +292,21 @@ const retryConfig = {
   },
 };
 
-const requestHandler = new RequestHandler({
-  baseURL: 'https://api.example.com',
+const api = createApiFetcher({
+  baseURL: 'https://api.example.com/',
   retry: retryConfig,
+  endpoints: {
+    myEndpoint: {
+      url: "endpoint"
+    }
+  }
   onError(error) {
     console.error('Request failed:', error);
   },
 });
 
 try {
-  const response = await fetchf('/endpoint');
+  const response = await api.myEndpoint('endpoint');
   console.log('Request succeeded:', response);
 } catch (error) {
   console.error('Request ultimately failed:', error);
