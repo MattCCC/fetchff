@@ -404,6 +404,15 @@ describe('Request Handler', () => {
   });
 
   describe('request()', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+      globalThis.fetch = jest.fn();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
     it('should properly hang promise when using Silent strategy', async () => {
       const requestHandler = new RequestHandler({
         fetcher: axios,
@@ -423,6 +432,8 @@ describe('Request Handler', () => {
           resolve('timeout');
         }, 2000);
       });
+
+      jest.advanceTimersByTime(2000);
 
       expect(typeof request.then).toBe('function');
 
@@ -469,7 +480,243 @@ describe('Request Handler', () => {
     });
   });
 
+  describe('request() Retry Mechanism', () => {
+    const baseURL = 'https://api.example.com';
+    const mockLogger = { warn: jest.fn() };
+
+    beforeEach(() => {
+      jest.useFakeTimers();
+      globalThis.fetch = jest.fn();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('should succeed if the request eventually succeeds after retries', async () => {
+      // Setup retry configuration
+      const retryConfig = {
+        retries: 3, // Number of retry attempts
+        delay: 100, // Initial delay in ms
+        maxDelay: 50000, // Maximum delay in ms
+        backoff: 1.5, // Backoff factor
+        retryOn: [500], // HTTP status codes to retry on
+        shouldRetry: jest.fn(() => true), // Always retry
+      };
+
+      // Initialize RequestHandler with mock configuration
+      const requestHandler = new RequestHandler({
+        baseURL,
+        retry: retryConfig,
+        logger: mockLogger,
+        onError: jest.fn(),
+      });
+
+      // Mock fetch to fail twice and then succeed
+      let callCount = 0;
+      (globalThis.fetch as any).mockImplementation(() => {
+        callCount++;
+        if (callCount <= retryConfig.retries) {
+          return Promise.reject({
+            status: 500,
+            json: jest.fn().mockResolvedValue({}),
+          });
+        }
+        return Promise.resolve({
+          ok: true,
+          json: jest.fn().mockResolvedValue({}),
+        });
+      });
+
+      // Spy on delay method to avoid actual delays
+      jest
+        .spyOn(requestHandler, 'delay')
+        .mockImplementation(() => Promise.resolve(true));
+
+      // Make the request
+      await expect(requestHandler.request('/endpoint')).resolves.not.toThrow();
+
+      // Advance timers to cover the delay period
+      const totalDelay =
+        retryConfig.delay +
+        retryConfig.delay * retryConfig.backoff +
+        retryConfig.delay * Math.pow(retryConfig.backoff, 2);
+      jest.advanceTimersByTime(totalDelay);
+
+      // Check fetch call count (should be retries + 1)
+      expect(globalThis.fetch).toHaveBeenCalledTimes(retryConfig.retries + 1);
+
+      // Ensure delay function was called for each retry attempt
+      expect(requestHandler.delay).toHaveBeenCalledTimes(retryConfig.retries);
+      expect(requestHandler.delay).toHaveBeenCalledWith(retryConfig.delay);
+      expect(requestHandler.delay).toHaveBeenCalledWith(
+        retryConfig.delay * retryConfig.backoff,
+      );
+
+      expect(requestHandler.delay).toHaveBeenCalledWith(
+        retryConfig.delay * Math.pow(retryConfig.backoff, 2),
+      );
+    });
+
+    it('should retry the specified number of times on failure', async () => {
+      // Set up a RequestHandler with retry configuration
+      const retryConfig = {
+        retries: 3,
+        delay: 100,
+        maxDelay: 5000,
+        backoff: 1.5,
+        retryOn: [500], // Retry on server errors
+        shouldRetry: jest.fn(() => true),
+      };
+      const requestHandler = new RequestHandler({
+        baseURL,
+        retry: retryConfig,
+        logger: mockLogger,
+        onError: jest.fn(),
+      });
+
+      (globalThis.fetch as any).mockRejectedValue({
+        status: 500,
+        json: jest.fn().mockResolvedValue({}),
+      });
+
+      jest
+        .spyOn(requestHandler, 'delay')
+        .mockImplementation(jest.fn().mockResolvedValue(undefined));
+
+      try {
+        await requestHandler.request('/endpoint');
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      } catch (_e) {
+        //
+      }
+
+      jest.advanceTimersByTime(10000);
+
+      expect(globalThis.fetch).toHaveBeenCalledTimes(retryConfig.retries + 1);
+
+      // Check delay between retries
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        'Attempt 1 failed. Retrying in 100ms...',
+      );
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        'Attempt 2 failed. Retrying in 150ms...',
+      );
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        'Attempt 3 failed. Retrying in 225ms...',
+      );
+    });
+
+    it('should not retry if the error status is not in retryOn list', async () => {
+      const retryConfig = {
+        retries: 2,
+        delay: 100,
+        maxDelay: 5000,
+        backoff: 1.5,
+        retryOn: [500],
+        shouldRetry: jest.fn(() => true),
+      };
+      const requestHandler = new RequestHandler({
+        baseURL,
+        retry: retryConfig,
+        logger: mockLogger,
+        onError: jest.fn(),
+      });
+
+      (globalThis.fetch as any).mockRejectedValue({
+        status: 400,
+        json: jest.fn().mockResolvedValue({}),
+      });
+
+      await expect(requestHandler.request('/endpoint')).rejects.toEqual({
+        status: 400,
+        json: expect.any(Function),
+      });
+
+      expect(globalThis.fetch).toHaveBeenCalledTimes(1); // No retries
+    });
+
+    it('should calculate delay correctly with backoff', async () => {
+      const retryConfig = {
+        retries: 3,
+        delay: 100,
+        maxDelay: 5000,
+        backoff: 1.5,
+        retryOn: [500],
+        shouldRetry: jest.fn(() => true),
+      };
+      const requestHandler = new RequestHandler({
+        baseURL,
+        retry: retryConfig,
+        logger: mockLogger,
+        onError: jest.fn(),
+      });
+
+      (globalThis.fetch as any).mockRejectedValue({
+        status: 500,
+        json: jest.fn().mockResolvedValue({}),
+      });
+
+      jest
+        .spyOn(requestHandler, 'delay')
+        .mockImplementation(jest.fn().mockResolvedValue(undefined));
+
+      try {
+        await requestHandler.request('/endpoint');
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      } catch (_e) {
+        //
+      }
+
+      // Advance time for the total delay
+      jest.advanceTimersByTime(100 + 150 + 225);
+
+      expect(requestHandler.delay).toHaveBeenCalledTimes(3);
+      expect(requestHandler.delay).toHaveBeenCalledWith(100);
+      expect(requestHandler.delay).toHaveBeenCalledWith(150);
+      expect(requestHandler.delay).toHaveBeenCalledWith(225);
+    });
+
+    it('should not retry if shouldRetry returns false', async () => {
+      const retryConfig = {
+        retries: 3,
+        delay: 100,
+        maxDelay: 5000,
+        backoff: 1.5,
+        retryOn: [500],
+        shouldRetry: jest.fn(() => false),
+      };
+      const requestHandler = new RequestHandler({
+        baseURL,
+        retry: retryConfig,
+        logger: mockLogger,
+        onError: jest.fn(),
+      });
+
+      (globalThis.fetch as any).mockRejectedValue({
+        status: 500,
+        json: jest.fn().mockResolvedValue({}),
+      });
+
+      await expect(requestHandler.request('/endpoint')).rejects.toEqual({
+        status: 500,
+        json: expect.any(Function),
+      });
+
+      expect(globalThis.fetch).toHaveBeenCalledTimes(1); // No retries
+    });
+  });
+
   describe('request() with native fetch()', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+      globalThis.fetch = jest.fn();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
     it('should properly hang promise when using Silent strategy', async () => {
       const requestHandler = new RequestHandler({
         strategy: 'silent',
@@ -488,6 +735,8 @@ describe('Request Handler', () => {
           resolve('timeout');
         }, 2000);
       });
+
+      jest.advanceTimersByTime(2000);
 
       expect(typeof request.then).toBe('function');
 
@@ -533,6 +782,15 @@ describe('Request Handler', () => {
   });
 
   describe('handleCancellation()', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+      globalThis.fetch = jest.fn();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
     it('should not set cancel token if cancellation is globally disabled', async () => {
       const requestHandler = new RequestHandler({
         fetcher: axios,

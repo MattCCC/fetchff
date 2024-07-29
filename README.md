@@ -187,11 +187,116 @@ You can access `api.config` directly, so to modify global headers, and other set
 
 You can access `api.endpoints` directly, so to modify endpoints list. It can be useful if you want to append or remove global endpoints. Please mind it is a property, not a function.
 
-## ✔️ Improved native fetch() error handling
+## ✔️ fetchf() = improved native fetch() wrapper
 
-Usually, when the fetch() function call fails in JavaScript, it does not throw an error for HTTP error statuses (like 404 or 500). Instead, it returns a resolved Promise with an `ok` property set to `false` on the Response object. Only if there is a network error or some other failure in making the request (like the server is down), `fetch()` will reject the Promise.
+The `axios-multi-api` wraps the endpoints around and automatically uses `fetchf()` under the hood. However, you can use `fetchf()` directly just like you use `fetch()`.
 
-The issue with this approach is that it introduces inconsistency that is oftentimes skipped by developers. This package "fixes" the issue by triggering errors regardless of whether they come from API status out of 200-299 range or it is network error. The full `fetch()` Response is then passed to the `error`.
+### Improvements to native fetch
+
+To address these challenges, the `fetchf()` provides several enhancements:
+
+1. **Consistent Error Handling:**
+
+   - The `RequestHandler` ensures that HTTP error statuses (e.g., 404, 500) are treated as errors. This is achieved by wrapping `fetch()` in a way that checks the response status and throws an exception if the `ok` property is `false`.
+   - This approach aligns error handling with common practices and makes it easier to manage errors in a consistent manner.
+
+2. **Enhanced Retry Mechanism:**
+
+   - **Retry Configuration:** You can configure the number of retries, delay between retries, and exponential backoff for failed requests. This helps to handle transient errors effectively.
+   - **Custom Retry Logic:** The `shouldRetry` function allows for custom retry logic based on the error and attempt count, providing flexibility to handle different types of failures.
+
+3. **Improved Error Visibility:**
+
+   - **Error Wrapping:** The `RequestHandler` wraps errors in a custom `RequestError` class, which provides detailed information about the request and response. This makes debugging easier and improves visibility into what went wrong.
+   - **Retry Conditions:** Errors are only retried based on configurable retry conditions, such as specific HTTP status codes or error types.
+
+4. **Functional `fetchf()` Wrapper:**
+   - **Wrapper Function:** `fetchf()` is a functional wrapper for `fetch()` provided by `RequestHandler`. It integrates seamlessly with the retry mechanism and error handling improvements.
+   - **No Class Dependency:** Unlike the traditional class-based approach, `fetchf()` can be used directly as a function, simplifying the usage and making it easier to integrate with functional programming styles.
+
+### Improved Fetch Error Handling
+
+In JavaScript, the native `fetch()` function does not reject the Promise for HTTP error statuses such as 404 (Not Found) or 500 (Internal Server Error). Instead, `fetch()` resolves the Promise with a `Response` object, where the `ok` property indicates the success of the request. If the request encounters a network error or fails due to other issues (e.g., server downtime), `fetch()` will reject the Promise.
+
+**Challenges with Native Fetch:**
+
+- **Error Status Handling:** Fetch does not throw errors for HTTP error statuses, making it difficult to distinguish between successful and failed requests based on status codes alone.
+- **Error Visibility:** Error responses with status codes like 404 or 500 are not automatically propagated as exceptions, which can lead to inconsistent error handling.
+
+## ✔️ Retry Mechanism
+
+The exposed `fetchf()` and `createApiFetcher()` function include a built-in retry mechanism to handle transient errors and improve the reliability of network requests. This mechanism automatically retries requests when certain conditions are met, providing robustness in the face of temporary failures. Below is an overview of how the retry mechanism works and how it can be configured.
+
+### Configuration
+
+The retry mechanism is configured via the `retry` option when instantiating the `RequestHandler`. You can customize the following parameters:
+
+- **`retries`**: Number of retry attempts to make after an initial failure. Default is `0` which means not to retry any requests.
+
+- **`delay`**: Initial delay (in milliseconds) before the first retry attempt. Subsequent retries use an exponentially increasing delay based on the `backoff` parameter. Default is `100`.
+
+- **`maxDelay`**: Maximum delay (in milliseconds) between retry attempts. The delay will not exceed this value, even if the exponential backoff would suggest a longer delay. Default is `5000`.
+
+- **`backoff`**: Factor by which the delay is multiplied after each retry. For example, a `backoff` factor of `1.5` means each retry delay is 1.5 times the previous delay. Default is `1.5`.
+
+- **`retryOn`**: Array of HTTP status codes that should trigger a retry. By default, retries are triggered for the following status codes:
+
+  - `408` - Request Timeout
+  - `409` - Conflict
+  - `425` - Too Early
+  - `429` - Too Many Requests
+  - `500` - Internal Server Error
+  - `502` - Bad Gateway
+  - `503` - Service Unavailable
+  - `504` - Gateway Timeout
+
+- **`shouldRetry(error, attempts)`**: Function that determines whether a retry should be attempted based on the error and the current attempt number. This function receives the error object and the attempt number as arguments.
+
+### How It Works
+
+1. **Initial Request**: When a request fails, the retry mechanism captures the failure and checks if it should retry based on the `retryOn` configuration and the result of the `shouldRetry` function.
+
+2. **Retry Attempts**: If a retry is warranted:
+
+   - The request is retried up to the specified number of attempts (`retries`).
+   - Each retry waits for a delay before making the next attempt. The delay starts at the initial `delay` value and increases exponentially based on the `backoff` factor, but will not exceed the `maxDelay`.
+
+3. **Logging**: During retries, the mechanism logs warnings indicating the retry attempts and the delay before the next attempt, which helps in debugging and understanding the retry behavior.
+
+4. **Final Outcome**: If all retry attempts fail, the request will throw an error, and the final failure is processed according to the configured error handling logic.
+
+### Example Usage
+
+Here’s an example of configuring and using the `RequestHandler` with the retry mechanism:
+
+```typescript
+const retryConfig = {
+  retries: 3,
+  delay: 100,
+  maxDelay: 5000,
+  backoff: 1.5,
+  retryOn: [500, 503],
+  shouldRetry(error, attempt) {
+    // Retry on specific errors or based on custom logic
+    return attempt < 3; // Retry up to 3 times
+  },
+};
+
+const requestHandler = new RequestHandler({
+  baseURL: 'https://api.example.com',
+  retry: retryConfig,
+  onError(error) {
+    console.error('Request failed:', error);
+  },
+});
+
+try {
+  const response = await fetchf('/endpoint');
+  console.log('Request succeeded:', response);
+} catch (error) {
+  console.error('Request ultimately failed:', error);
+}
+```
 
 ## ✔️ Settings
 
@@ -439,7 +544,7 @@ async function sendMessage() {
 sendMessage();
 ```
 
-### OOP style custom Error Handler (advanced)
+### OOP style custom Error Handler and Axios
 
 You could for example create an API and, inject an error service class to handle with a store that would collect the errors.
 

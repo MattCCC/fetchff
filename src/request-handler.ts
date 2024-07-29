@@ -5,17 +5,19 @@ import type {
   ErrorHandlingStrategy,
   RequestHandlerConfig,
   RequestConfig,
-  RequestError,
+  RequestError as RequestErrorResponse,
   FetcherInstance,
   FetcherStaticInstance,
   Method,
   RequestConfigHeaders,
+  RetryOptions,
 } from './types/request-handler';
 import type {
   APIPayload,
   APIQueryParams,
   APIUriParams,
 } from './types/api-handler';
+import { RequestError } from './request-error';
 
 /**
  * Generic Request Handler
@@ -91,21 +93,54 @@ export class RequestHandler {
   /**
    * Request Handler Config
    */
+  protected retry: RetryOptions = {
+    retries: 0,
+    delay: 1000,
+    maxDelay: 30000,
+    backoff: 1.5,
+
+    // https://developer.mozilla.org/en-US/docs/Web/HTTP/Status
+    retryOn: [
+      408, // Request Timeout
+      409, // Conflict
+      425, // Too Early
+      429, // Too Many Requests
+      500, // Internal Server Error
+      502, // Bad Gateway
+      503, // Service Unavailable
+      504, // Gateway Timeout
+    ],
+
+    shouldRetry: () => true,
+  };
+
+  /**
+   * Request Handler Config
+   */
   public config: RequestHandlerConfig;
 
   /**
-   * Creates an instance of RequestHandler
+   * Creates an instance of RequestHandler.
    *
-   * @param {string} config.fetcher              Request Fetcher instance
-   * @param {string} config.baseURL              Base URL for all API calls
-   * @param {number} config.timeout              You can set the timeout for particular request in milliseconds.
-   * @param {number} config.cancellable          If true, the previous requests will be automatically cancelled.
-   * @param {number} config.rejectCancelled      If true and request is set to cancellable, a cancelled request promise will be rejected. By default, instead of rejecting the promise, defaultResponse is returned.
-   * @param {number} config.timeout              Request timeout
-   * @param {string} config.strategy             Error Handling Strategy
-   * @param {string} config.flattenResponse      Whether to flatten response "data" object within "data" one
-   * @param {*} config.logger                    Instance of Logger Class
-   * @param {*} config.requestErrorService       Instance of Error Service Class
+   * @param {Object} config - Configuration object for the request.
+   * @param {string} config.baseURL - The base URL for the request.
+   * @param {Object} config.endpoints - An object containing endpoint definitions.
+   * @param {number} config.timeout - You can set the timeout for particular request in milliseconds.
+   * @param {number} config.cancellable - If true, the previous requests will be automatically cancelled.
+   * @param {number} config.rejectCancelled - If true and request is set to cancellable, a cancelled request promise will be rejected. By default, instead of rejecting the promise, defaultResponse is returned.
+   * @param {number} config.timeout - Request timeout
+   * @param {string} config.strategy - Error Handling Strategy
+   * @param {string} config.flattenResponse - Whether to flatten response "data" object within "data" one
+   * @param {*} config.defaultResponse - Default response when there is no data or when endpoint fails depending on the chosen strategy. It's "null" by default
+   * @param {Object} [config.retry] - Options for retrying requests.
+   * @param {number} [config.retry.retries=0] - Number of retry attempts. No retries by default.
+   * @param {number} [config.retry.delay=1000] - Initial delay between retries in milliseconds.
+   * @param {number} [config.retry.backoff=1.5] - Exponential backoff factor.
+   * @param {number[]} [config.retry.retryOn=[502, 504, 408]] - HTTP status codes to retry on.
+   * @param {Function} [config.onError] - Optional callback function for handling errors.
+   * @param {Object} [config.headers] - Optional default headers to include in every request.
+   * @param {Object} config.fetcher - The Axios (or any other) instance to use for making requests.
+   * @param {*} config.logger - Instance of custom logger. Either class or an object similar to "console". Console is used by default.
    */
   public constructor({
     fetcher = null,
@@ -137,6 +172,10 @@ export class RequestHandler {
     this.baseURL = config.baseURL || config.apiUrl || '';
     this.method = config.method || this.method;
     this.config = config;
+    this.retry = {
+      ...this.retry,
+      ...(config.retry || {}),
+    };
 
     this.requestInstance = this.isCustomFetcher()
       ? fetcher.create({
@@ -342,12 +381,12 @@ export class RequestHandler {
   /**
    * Process global Request Error
    *
-   * @param {RequestError} error      Error instance
+   * @param {RequestErrorResponse} error      Error instance
    * @param {RequestConfig} requestConfig   Per endpoint request config
    * @returns {void}
    */
   protected processError(
-    error: RequestError,
+    error: RequestErrorResponse,
     requestConfig: RequestConfig,
   ): void {
     if (this.isRequestCancelled(error)) {
@@ -370,12 +409,12 @@ export class RequestHandler {
   /**
    * Output default response in case of an error, depending on chosen strategy
    *
-   * @param {RequestError} error      Error instance
+   * @param {RequestErrorResponse} error      Error instance
    * @param {RequestConfig} requestConfig   Per endpoint request config
    * @returns {*} Error response
    */
   protected async outputErrorResponse(
-    error: RequestError,
+    error: RequestErrorResponse,
     requestConfig: RequestConfig,
   ): Promise<RequestResponse> {
     const isRequestCancelled = this.isRequestCancelled(error);
@@ -412,10 +451,10 @@ export class RequestHandler {
   /**
    * Output error response depending on chosen strategy
    *
-   * @param {RequestError} error               Error instance
+   * @param {RequestErrorResponse} error               Error instance
    * @returns {boolean}                        True if request is aborted
    */
-  public isRequestCancelled(error: RequestError): boolean {
+  public isRequestCancelled(error: RequestErrorResponse): boolean {
     return error.name === 'AbortError' || error.name === 'CanceledError';
   }
 
@@ -499,7 +538,7 @@ export class RequestHandler {
    * @param {string} payload.url                          Request url
    * @param {APIQueryParams | APIPayload} payload.data    Request data
    * @param {RequestConfig} payload.config               Request config
-   * @throws {RequestError}
+   * @throws {RequestErrorResponse}
    * @returns {Promise<RequestResponse>} Response Data
    */
   public async request(
@@ -516,33 +555,70 @@ export class RequestHandler {
       ...requestConfig,
     };
 
-    try {
-      // Axios compatibility
-      if (this.isCustomFetcher()) {
-        response = await (this.requestInstance as any).request(requestConfig);
-      } else {
-        response = await globalThis.fetch(requestConfig.url, requestConfig);
+    const { retries, delay, backoff, retryOn, shouldRetry, maxDelay } =
+      this.retry;
 
-        // Check if the response status is not outside the range 200-299
-        if (response.ok) {
-          // Parse and return the JSON response
-          response = await response.json();
+    let attempt = 0;
+    let waitTime = delay;
+
+    while (attempt <= retries) {
+      try {
+        // Axios compatibility
+        if (this.isCustomFetcher()) {
+          response = await (this.requestInstance as any).request(requestConfig);
         } else {
-          const error = new Error(`fetch() error! Status: ${response.status}`);
+          response = await globalThis.fetch(requestConfig.url, requestConfig);
 
-          // Attach the response object to the error for further inspection
-          (error as any).response = response;
-
-          throw error;
+          // Check if the response status is not outside the range 200-299
+          if (response.ok) {
+            response = await response.json();
+          } else {
+            // Output error in similar format to what Axios does
+            throw new RequestError(
+              'fetchf() Request Failed! Status: ${response.status}',
+              requestConfig,
+              response,
+            );
+          }
         }
-      }
-    } catch (error) {
-      this.processError(error, requestConfig);
 
-      return this.outputErrorResponse(error, requestConfig);
+        return this.processResponseData(response, requestConfig);
+      } catch (error) {
+        if (
+          attempt === retries ||
+          !shouldRetry(error, attempt) ||
+          !retryOn?.includes(
+            response?.status || error?.response?.status || error?.status,
+          )
+        ) {
+          this.processError(error, requestConfig);
+
+          return this.outputErrorResponse(error, requestConfig);
+        }
+
+        if (this.logger?.warn) {
+          this.logger.warn(
+            `Attempt ${attempt + 1} failed. Retrying in ${waitTime}ms...`,
+          );
+        }
+
+        await this.delay(waitTime);
+
+        waitTime *= backoff;
+        waitTime = Math.min(waitTime, maxDelay);
+        attempt++;
+      }
     }
 
     return this.processResponseData(response, requestConfig);
+  }
+
+  public async delay(ms: number): Promise<boolean> {
+    return new Promise((resolve) =>
+      setTimeout(() => {
+        return resolve(true);
+      }, ms),
+    );
   }
 
   /**
