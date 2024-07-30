@@ -384,11 +384,11 @@ const endpoints = {
 };
 
 // Note how you don't need to specify all endpoints for typings here. The "fetchBooks" is inferred
-interface EndpointsList extends DefaultBookQueryParams<typeof endpoints> {
+interface EndpointsList {
   fetchBook: Endpoint<Book, BookQueryParams, BookPathParams>;
 }
 
-const api = createApiFetcher<EndpointsList>({
+const api = createApiFetcher<EndpointsList, typeof endpoints>({
   apiUrl: 'https://example.com/api/',
   endpoints,
 });
