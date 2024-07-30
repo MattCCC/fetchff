@@ -1,5 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { UrlPathParams } from './api-handler';
+import type {
+  RequestInterceptor,
+  ResponseInterceptor,
+} from './interceptor-manager';
 
 export type Method =
   | 'get'
@@ -209,6 +213,8 @@ interface ExtendedRequestConfig extends BaseRequestConfig, RequestInit {
   flattenResponse?: boolean;
   retry?: RetryOptions;
   strategy?: ErrorHandlingStrategy;
+  onRequest?: RequestInterceptor | RequestInterceptor[];
+  onResponse?: ResponseInterceptor | ResponseInterceptor[];
   onError?: ErrorHandlerFunction | ErrorHandlerClass;
   headers?: RequestConfigHeaders;
   signal?: AbortSignal;

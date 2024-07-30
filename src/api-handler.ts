@@ -31,6 +31,10 @@ import type {
  * @param {number} [config.retry.delay=1000] - Initial delay between retries in milliseconds.
  * @param {number} [config.retry.backoff=1.5] - Exponential backoff factor.
  * @param {number[]} [config.retry.retryOn=[502, 504, 408]] - HTTP status codes to retry on.
+ * @param {RequestInterceptor|RequestInterceptor[]} [config.onRequest] - Optional request interceptor function or an array of functions.
+ * These functions will be called with the request configuration object before the request is made. Can be used to modify or log the request configuration.
+ * @param {ResponseInterceptor|ResponseInterceptor[]} [config.onResponse] - Optional response interceptor function or an array of functions.
+ * These functions will be called with the response object after the response is received. an be used to modify or log the response data.
  * @param {Function} [config.onError] - Optional callback function for handling errors.
  * @param {Object} [config.headers] - Optional default headers to include in every request.
  * @param {Object} config.fetcher - The Axios (or any other) instance to use for making requests.

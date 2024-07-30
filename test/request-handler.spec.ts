@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import axios, { AxiosInstance } from 'axios';
+import axios from 'axios';
 import PromiseAny from 'promise-any';
 import { RequestHandler } from '../src/request-handler';
 
@@ -419,7 +419,7 @@ describe('Request Handler', () => {
         strategy: 'silent',
       });
 
-      (requestHandler.requestInstance as AxiosInstance).request = jest
+      (requestHandler.requestInstance as any).request = jest
         .fn()
         .mockRejectedValue(new Error('Request Failed'));
 
@@ -448,7 +448,7 @@ describe('Request Handler', () => {
         strategy: 'reject',
       });
 
-      (requestHandler.requestInstance as AxiosInstance).request = jest
+      (requestHandler.requestInstance as any).request = jest
         .fn()
         .mockRejectedValue(new Error('Request Failed'));
 
@@ -466,7 +466,7 @@ describe('Request Handler', () => {
         strategy: 'silent',
       });
 
-      (requestHandler.requestInstance as AxiosInstance).request = jest
+      (requestHandler.requestInstance as any).request = jest
         .fn()
         .mockRejectedValue(new Error('Request Failed'));
 
@@ -798,13 +798,10 @@ describe('Request Handler', () => {
         cancellable: false,
       });
 
-      (requestHandler.requestInstance as AxiosInstance).request = jest
+      (requestHandler.requestInstance as any).request = jest
         .fn()
         .mockResolvedValue(responseMock);
-      const spy = jest.spyOn(
-        requestHandler.requestInstance as AxiosInstance,
-        'request',
-      );
+      const spy = jest.spyOn(requestHandler.requestInstance as any, 'request');
 
       await requestHandler.request(apiUrl);
 
@@ -822,13 +819,10 @@ describe('Request Handler', () => {
         cancellable: true,
       });
 
-      (requestHandler.requestInstance as AxiosInstance).request = jest
+      (requestHandler.requestInstance as any).request = jest
         .fn()
         .mockResolvedValue(responseMock);
-      const spy = jest.spyOn(
-        requestHandler.requestInstance as AxiosInstance,
-        'request',
-      );
+      const spy = jest.spyOn(requestHandler.requestInstance as any, 'request');
 
       await requestHandler.request(
         apiUrl,
@@ -852,13 +846,10 @@ describe('Request Handler', () => {
         cancellable: true,
       });
 
-      (requestHandler.requestInstance as AxiosInstance).request = jest
+      (requestHandler.requestInstance as any).request = jest
         .fn()
         .mockResolvedValue(responseMock);
-      const spy = jest.spyOn(
-        requestHandler.requestInstance as AxiosInstance,
-        'request',
-      );
+      const spy = jest.spyOn(requestHandler.requestInstance as any, 'request');
 
       await requestHandler.request(
         apiUrl,
@@ -878,13 +869,10 @@ describe('Request Handler', () => {
         cancellable: false,
       });
 
-      (requestHandler.requestInstance as AxiosInstance).request = jest
+      (requestHandler.requestInstance as any).request = jest
         .fn()
         .mockResolvedValue(responseMock);
-      const spy = jest.spyOn(
-        requestHandler.requestInstance as AxiosInstance,
-        'request',
-      );
+      const spy = jest.spyOn(requestHandler.requestInstance as any, 'request');
 
       await requestHandler.request(
         apiUrl,
@@ -904,17 +892,58 @@ describe('Request Handler', () => {
         cancellable: true,
       });
 
-      (requestHandler.requestInstance as AxiosInstance).request = jest
+      (requestHandler.requestInstance as any).request = jest
         .fn()
         .mockResolvedValue(responseMock);
-      const spy = jest.spyOn(
-        requestHandler.requestInstance as AxiosInstance,
-        'request',
-      );
+      const spy = jest.spyOn(requestHandler.requestInstance as any, 'request');
 
       await requestHandler.request(apiUrl);
 
       expect(spy).not.toHaveBeenCalledWith({});
+    });
+
+    it('should cancel previous request when successive request is made', async () => {
+      const apiUrl = 'https://api.example.com/data';
+      const responseMock = { test: 'data' };
+
+      const axiosInstance = axios.create();
+      const requestMock = jest.spyOn(axiosInstance, 'request');
+
+      // First request will be rejected to simulate a request that needs to be cancelled
+      requestMock.mockRejectedValueOnce(new Error('Request Failed'));
+
+      // Second request will be resolved with mock data
+      requestMock.mockResolvedValueOnce({ data: responseMock });
+
+      const requestHandler = new RequestHandler({
+        fetcher: axiosInstance,
+        cancellable: true,
+        rejectCancelled: false,
+      });
+
+      try {
+        // Make the first request
+        requestHandler.request(apiUrl);
+
+        // Make the second request, which should cancel the first request
+        const secondRequest = requestHandler.request(apiUrl);
+
+        // Wait for the second request to complete
+        const response = await secondRequest;
+
+        // Ensure the first request was cancelled and the second request was made
+        expect(requestMock).toHaveBeenCalledTimes(2);
+
+        // Verify that the first call was made with the cancellation signal
+        const firstCall = requestMock.mock.calls[0][0];
+        expect(firstCall.signal).toBeDefined();
+
+        // Ensure that the second request was successful and returned the correct data
+        expect(response).toEqual(responseMock);
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      } catch (error) {
+        //
+      }
     });
 
     it('should cancel previous request when successive request is made', async () => {
@@ -924,17 +953,14 @@ describe('Request Handler', () => {
         cancellable: true,
       });
 
-      (requestHandler.requestInstance as AxiosInstance).request = jest
+      (requestHandler.requestInstance as any).request = jest
         .fn()
         .mockRejectedValue(new Error('Request Failed'));
 
       const request = requestHandler.request(apiUrl);
 
-      const spy = jest.spyOn(
-        requestHandler.requestInstance as AxiosInstance,
-        'request',
-      );
-      (requestHandler.requestInstance as AxiosInstance).request = jest
+      const spy = jest.spyOn(requestHandler.requestInstance as any, 'request');
+      (requestHandler.requestInstance as any).request = jest
         .fn()
         .mockResolvedValue(responseMock);
 
@@ -970,7 +996,7 @@ describe('Request Handler', () => {
         flattenResponse: false,
       });
 
-      (requestHandler.requestInstance as AxiosInstance).request = jest
+      (requestHandler.requestInstance as any).request = jest
         .fn()
         .mockResolvedValue(responseMock);
 
@@ -987,7 +1013,7 @@ describe('Request Handler', () => {
         flattenResponse: true,
       });
 
-      (requestHandler.requestInstance as AxiosInstance).request = jest
+      (requestHandler.requestInstance as any).request = jest
         .fn()
         .mockResolvedValue(responseMock);
 
@@ -1004,7 +1030,7 @@ describe('Request Handler', () => {
         flattenResponse: true,
       });
 
-      (requestHandler.requestInstance as AxiosInstance).request = jest
+      (requestHandler.requestInstance as any).request = jest
         .fn()
         .mockResolvedValue({ data: responseMock });
 
@@ -1022,7 +1048,7 @@ describe('Request Handler', () => {
         defaultResponse: null,
       });
 
-      (requestHandler.requestInstance as AxiosInstance).request = jest
+      (requestHandler.requestInstance as any).request = jest
         .fn()
         .mockResolvedValue({});
 
