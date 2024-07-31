@@ -19,6 +19,7 @@ import type {
   UrlPathParams,
 } from './types/api-handler';
 import { RequestError } from './request-error';
+import { interceptRequest, interceptResponse } from './interceptor-manager';
 
 /**
  * Generic Request Handler
@@ -84,7 +85,7 @@ export class RequestHandler {
   /**
    * @var requestErrorService HTTP error service
    */
-  protected requestErrorService: any;
+  protected onError: any;
 
   /**
    * @var requestsQueue    Queue of requests
@@ -138,6 +139,10 @@ export class RequestHandler {
    * @param {number} [config.retry.delay=1000] - Initial delay between retries in milliseconds.
    * @param {number} [config.retry.backoff=1.5] - Exponential backoff factor.
    * @param {number[]} [config.retry.retryOn=[502, 504, 408]] - HTTP status codes to retry on.
+   * @param {RequestInterceptor|RequestInterceptor[]} [config.onRequest] - Optional request interceptor function or an array of functions.
+   * These functions will be called with the request configuration object before the request is made. Can be used to modify or log the request configuration.
+   * @param {ResponseInterceptor|ResponseInterceptor[]} [config.onResponse] - Optional response interceptor function or an array of functions.
+   * These functions will be called with the response object after the response is received. an be used to modify or log the response data.
    * @param {Function} [config.onError] - Optional callback function for handling errors.
    * @param {Object} [config.headers] - Optional default headers to include in every request.
    * @param {Object} config.fetcher - The Axios (or any other) instance to use for making requests.
@@ -146,7 +151,6 @@ export class RequestHandler {
   public constructor({
     fetcher = null,
     timeout = null,
-    cancellable = false,
     rejectCancelled = false,
     strategy = null,
     flattenResponse = null,
@@ -160,7 +164,7 @@ export class RequestHandler {
       timeout !== null && timeout !== undefined ? timeout : this.timeout;
     this.strategy =
       strategy !== null && strategy !== undefined ? strategy : this.strategy;
-    this.cancellable = cancellable || this.cancellable;
+    this.cancellable = config.cancellable || this.cancellable;
     this.rejectCancelled = rejectCancelled || this.rejectCancelled;
     this.flattenResponse =
       flattenResponse !== null && flattenResponse !== undefined
@@ -168,7 +172,7 @@ export class RequestHandler {
         : this.flattenResponse;
     this.defaultResponse = defaultResponse;
     this.logger = logger || (globalThis ? globalThis.console : null) || null;
-    this.requestErrorService = onError;
+    this.onError = onError;
     this.requestsQueue = new Map();
     this.baseURL = config.baseURL || config.apiUrl || '';
     this.method = config.method || this.method;
@@ -402,10 +406,7 @@ export class RequestHandler {
       requestConfig.onError(error);
     }
 
-    const errorHandler = new RequestErrorHandler(
-      this.logger,
-      this.requestErrorService,
-    );
+    const errorHandler = new RequestErrorHandler(this.logger, this.onError);
 
     errorHandler.process(error);
   }
@@ -526,8 +527,10 @@ export class RequestHandler {
         (error as any).code = 23; // DOMException.TIMEOUT_ERR
         controller.abort(error);
         clearTimeout(abortTimeout);
+        throw error;
       }, requestConfig.timeout || this.timeout);
     }
+
     this.requestsQueue.set(key, controller);
 
     return {
@@ -569,6 +572,18 @@ export class RequestHandler {
 
     while (attempt <= retries) {
       try {
+        // Local interceptors
+        requestConfig = await interceptRequest(
+          requestConfig,
+          requestConfig.onRequest,
+        );
+
+        // Global interceptors
+        requestConfig = await interceptRequest(
+          requestConfig,
+          this.config.onRequest,
+        );
+
         // Axios compatibility
         if (this.isCustomFetcher()) {
           response = await (this.requestInstance as any).request(requestConfig);
@@ -580,20 +595,27 @@ export class RequestHandler {
 
           // Add more information to response object
           response.config = requestConfig;
-          response.data = requestConfig;
 
           // Check if the response status is not outside the range 200-299
           if (response.ok) {
             response.data = await response.json();
           } else {
+            response.data = null;
+
             // Output error in similar format to what Axios does
             throw new RequestError(
-              'fetchf() Request Failed! Status: ${response.status}',
+              `fetchf() Request Failed! Status: ${response.status || null}`,
               requestConfig,
               response,
             );
           }
         }
+
+        // Local interceptors
+        response = await interceptResponse(response, requestConfig.onResponse);
+
+        // Global interceptors
+        response = await interceptResponse(response, this.config.onResponse);
 
         return this.processResponseData(response, requestConfig);
       } catch (error) {

@@ -78,73 +78,14 @@ import { fetchf } from 'axios-multi-api';
 const data = await fetchf('/api/user-details');
 ```
 
-## ✔️ Advanced Usage
-
-```typescript
-import axios from 'axios';
-import { createApiFetcher } from 'axios-multi-api';
-
-const endpoints = {
-  getPosts: {
-    url: '/posts/:subject',
-  },
-
-  getUser: {
-    // Generally there is no need to specify method: 'get' for GET requests as it is default one. It can be adjusted using global "method" setting
-    method: 'get',
-    url: '/user-details',
-  },
-
-  updateUserDetails: {
-    method: 'post',
-    url: '/user-details/update/:userId',
-    strategy: 'defaultResponse',
-  },
-};
-
-const api = createApiFetcher({
-  apiUrl: 'https://example.com/api',
-  fetcher: axios,
-  endpoints,
-  onError(error) {
-    console.log('Request failed', error);
-  },
-  headers: {
-    'my-auth-key': 'example-auth-key-32rjjfa',
-  },
-  // Optional: Whole Axios config is supported here
-});
-
-// Fetch user data - "data" will return data directly
-// GET to: http://example.com/api/user-details?userId=1&ratings[]=1&ratings[]=2
-const data = await api.getUser({ userId: 1, ratings: [1, 2] });
-
-// Fetch posts - "data" will return data directly
-// GET to: http://example.com/api/posts/myTestSubject?additionalInfo=something
-const data = await api.getPosts(
-  { additionalInfo: 'something' },
-  { subject: 'test' },
-);
-
-// Send POST request to update userId "1"
-await api.updateUserDetails({ name: 'Mark' }, { userId: 1 });
-
-// Send POST request to update array of user ratings for userId "1"
-await api.updateUserDetails({ name: 'Mark', ratings: [1, 2] }, { userId: 1 });
-```
-
-In the example above we fetch data from an API for user with an ID of 1. We also make a GET request to fetch some posts, update user's name to Mark. If you want to use more strict typings, please check TypeScript Usage section below.
-
 ## ✔️ Easy to use with React and other libraries
 
 You could use [React Query](https://react-query-v3.tanstack.com/guides/queries) hooks with API handler:
 
 ```typescript
-import axios from 'axios';
 import { createApiFetcher } from 'axios-multi-api';
 
 const api = createApiFetcher({
-  fetcher: axios, // Optional, native fetch() will be used otherwise
   apiUrl: 'https://example.com/api',
   strategy: 'reject',
   endpoints: {
@@ -158,18 +99,15 @@ const api = createApiFetcher({
 });
 
 export const useProfile = ({ id }) => {
-  return useQuery(['profile', id], () => api.getProfile({ id }), {
-    initialData: [],
-    initialDataUpdatedAt: Date.now(),
-    enabled: id > 0,
-    refetchOnReconnect: true,
-  });
+  return useQuery(['profile', id], () => api.getProfile({ id }));
 };
 ```
 
 ## ✔️ API
 
-##### api.endpointName(queryParams, urlPathParams, requestConfig)
+### api.myEndpoint(queryParams, urlPathParams, requestConfig)
+
+Where "myEndpoint" is the name of your endpoint from `endpoints` object passed to the `createApiFetcher()`.
 
 `queryParams` / `payload` (optional) - Query Parameters or Body Payload for POST requests.
 
@@ -185,19 +123,19 @@ It gives possibility to modify URLs structure in a declarative way. In our examp
 
 To have more granular control over specific endpoints you can pass Axios compatible [Request Config](https://github.com/axios/axios#request-config) for particular endpoint. You can also use Global Settings like `cancellable` or `strategy` mentioned below.
 
-##### api.getInstance()
+### api.getInstance()
 
 When API handler is firstly initialized, a new Axios instance is created. You can call `api.getInstance()` if you want to get that instance directly, for example to add some interceptors.
 
-##### api.config
+### api.config
 
 You can access `api.config` directly, so to modify global headers, and other settings on fly. Please mind it is a property, not a function.
 
-##### api.endpoints
+### api.endpoints
 
 You can access `api.endpoints` directly, so to modify endpoints list. It can be useful if you want to append or remove global endpoints. Please mind it is a property, not a function.
 
-## ✔️ fetchf() = improved native fetch() wrapper
+## ✔️ fetchf() - improved native fetch() wrapper
 
 The `axios-multi-api` wraps the endpoints around and automatically uses `fetchf()` under the hood. However, you can use `fetchf()` directly just like you use `fetch()`.
 
@@ -275,43 +213,7 @@ The retry mechanism is configured via the `retry` option when instantiating the 
 
 4. **Final Outcome**: If all retry attempts fail, the request will throw an error, and the final failure is processed according to the configured error handling logic.
 
-### Example Usage
-
-Here’s an example of configuring and using the `createApiFetcher()` with the retry mechanism:
-
-```typescript
-const retryConfig = {
-  retries: 3,
-  delay: 100,
-  maxDelay: 5000,
-  backoff: 1.5,
-  retryOn: [500, 503],
-  shouldRetry(error, attempt) {
-    // Retry on specific errors or based on custom logic
-    return attempt < 3; // Retry up to 3 times
-  },
-};
-
-const api = createApiFetcher({
-  baseURL: 'https://api.example.com/',
-  retry: retryConfig,
-  endpoints: {
-    myEndpoint: {
-      url: "endpoint"
-    }
-  }
-  onError(error) {
-    console.error('Request failed:', error);
-  },
-});
-
-try {
-  const response = await api.myEndpoint('endpoint');
-  console.log('Request succeeded:', response);
-} catch (error) {
-  console.error('Request ultimately failed:', error);
-}
-```
+Check Examples section below for more information.
 
 ## ✔️ Settings (Request Config)
 
@@ -384,11 +286,11 @@ const endpoints = {
 };
 
 // Note how you don't need to specify all endpoints for typings here. The "fetchBooks" is inferred
-interface EndpointsList extends DefaultBookQueryParams<typeof endpoints> {
+interface EndpointsList {
   fetchBook: Endpoint<Book, BookQueryParams, BookPathParams>;
 }
 
-const api = createApiFetcher<EndpointsList>({
+const api = createApiFetcher<EndpointsList, typeof endpoints>({
   apiUrl: 'https://example.com/api/',
   endpoints,
 });
@@ -406,6 +308,176 @@ const books = await api.fetchBooks<Books>();
 ## ✔️ More examples
 
 Check [examples.ts file](./docs/examples/examples.ts) for more examples of usage.
+
+### All settings
+
+Here’s an example of configuring and using the `createApiFetcher()` with all available settings.
+
+```typescript
+const api = createApiFetcher({
+  baseURL: 'https://api.example.com/',
+  retry: retryConfig,
+  endpoints: {
+    getBooks: {
+      url: 'books/all',
+    },
+  },
+  fetcher: require('axios'), // Use Axios for requests. If you pass Axios, you can also add all its settings here.
+  strategy: 'reject', // Error handling strategy.
+  cancellable: false, // If true, cancels previous requests to same endpoint.
+  rejectCancelled: false, // Reject promise for cancelled requests.
+  flattenResponse: true, // Flatten nested response data.
+  defaultResponse: null, // Default response when there is no data or endpoint fails.
+  timeout: 30000, // Request timeout in milliseconds.
+  method: 'get', // Default request method.
+  onError(error) {
+    // Interceptor on error
+    console.error('Request failed', error);
+  },
+  onRequest(config) {
+    // Interceptor on each request
+    console.error('Fired on each request', config);
+
+    return config;
+  },
+  onResponse(response) {
+    // Interceptor on each response
+    console.error('Fired on each response', response);
+
+    return response;
+  },
+  logger: {
+    // Custom logger for logging errors.
+    error(...args) {
+      console.log('My custom error log', ...args);
+    },
+    warn(...args) {
+      console.log('My custom warning log', ...args);
+    },
+  },
+  retry: {
+    retries: 3, // Number of retries on failure.
+    delay: 1000, // Initial delay between retries in milliseconds.
+    backoff: 1.5, // Backoff factor for retry delay.
+    maxDelay: 30000, // Maximum delay between retries in milliseconds.
+    retryOn: [408, 409, 425, 429, 500, 502, 503, 504], // HTTP status codes to retry on.
+    shouldRetry: async (error, attempts) => {
+      // Custom retry logic.
+      return (
+        attempts < 3 &&
+        [408, 500, 502, 503, 504].includes(error.response.status)
+      );
+    },
+  },
+});
+
+try {
+  // The same API config as used above, except the "endpoints" and "fetcher" and fetcher could be used as 3rd argument of the api.getBooks()
+  const response = await api.getBooks();
+  console.log('Request succeeded:', response);
+} catch (error) {
+  console.error('Request ultimately failed:', error);
+}
+```
+
+### Retry Mechanism
+
+Here’s an example of configuring and using the `createApiFetcher()` with the retry mechanism:
+
+```typescript
+const retryConfig = {
+  retries: 3,
+  delay: 100,
+  maxDelay: 5000,
+  backoff: 1.5,
+  retryOn: [500, 503],
+  shouldRetry(error, attempt) {
+    // Retry on specific errors or based on custom logic
+    return attempt < 3; // Retry up to 3 times
+  },
+};
+
+const api = createApiFetcher({
+  baseURL: 'https://api.example.com/',
+  retry: retryConfig,
+  endpoints: {
+    getBooks: {
+      url: 'books/all',
+    },
+  },
+  onError(error) {
+    console.error('Request failed:', error);
+  },
+});
+
+try {
+  const response = await api.getBooks();
+  console.log('Request succeeded:', response);
+} catch (error) {
+  console.error('Request ultimately failed:', error);
+}
+```
+
+### ✔️ Advanced Usage with TypeScript and custom headers
+
+```typescript
+import axios from 'axios';
+import { createApiFetcher } from 'axios-multi-api';
+
+const endpoints = {
+  getPosts: {
+    url: '/posts/:subject',
+  },
+
+  getUser: {
+    // Generally there is no need to specify method: 'get' for GET requests as it is default one. It can be adjusted using global "method" setting
+    method: 'get',
+    url: '/user-details',
+  },
+
+  updateUserDetails: {
+    method: 'post',
+    url: '/user-details/update/:userId',
+    strategy: 'defaultResponse',
+  },
+};
+
+interface EndpointsList {
+  getPosts: Endpoint<PostsResponse, PostsQueryParams, PostsPathParams>;
+}
+
+const api = createApiFetcher<EndpointsList, typeof endpoints>({
+  apiUrl: 'https://example.com/api',
+  fetcher: axios,
+  endpoints,
+  onError(error) {
+    console.log('Request failed', error);
+  },
+  headers: {
+    'my-auth-key': 'example-auth-key-32rjjfa',
+  },
+  // Optional: Whole Axios config is supported here
+});
+
+// Fetch user data - "data" will return data directly
+// GET to: http://example.com/api/user-details?userId=1&ratings[]=1&ratings[]=2
+const data = await api.getUser({ userId: 1, ratings: [1, 2] });
+
+// Fetch posts - "data" will return data directly
+// GET to: http://example.com/api/posts/myTestSubject?additionalInfo=something
+const data = await api.getPosts(
+  { additionalInfo: 'something' },
+  { subject: 'test' },
+);
+
+// Send POST request to update userId "1"
+await api.updateUserDetails({ name: 'Mark' }, { userId: 1 });
+
+// Send POST request to update array of user ratings for userId "1"
+await api.updateUserDetails({ name: 'Mark', ratings: [1, 2] }, { userId: 1 });
+```
+
+In the example above we fetch data from an API for user with an ID of 1. We also make a GET request to fetch some posts, update user's name to Mark. If you want to use more strict typings, please check TypeScript Usage section below.
 
 ### Per-request Error handling - reject strategy (default)
 
