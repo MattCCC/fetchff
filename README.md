@@ -105,7 +105,9 @@ export const useProfile = ({ id }) => {
 
 ## ✔️ API
 
-##### api.endpointName(queryParams, urlPathParams, requestConfig)
+### api.myEndpoint(queryParams, urlPathParams, requestConfig)
+
+Where "myEndpoint" is the name of your endpoint from `endpoints` object passed to the `createApiFetcher()`.
 
 `queryParams` / `payload` (optional) - Query Parameters or Body Payload for POST requests.
 
@@ -121,19 +123,19 @@ It gives possibility to modify URLs structure in a declarative way. In our examp
 
 To have more granular control over specific endpoints you can pass Axios compatible [Request Config](https://github.com/axios/axios#request-config) for particular endpoint. You can also use Global Settings like `cancellable` or `strategy` mentioned below.
 
-##### api.getInstance()
+### api.getInstance()
 
 When API handler is firstly initialized, a new Axios instance is created. You can call `api.getInstance()` if you want to get that instance directly, for example to add some interceptors.
 
-##### api.config
+### api.config
 
 You can access `api.config` directly, so to modify global headers, and other settings on fly. Please mind it is a property, not a function.
 
-##### api.endpoints
+### api.endpoints
 
 You can access `api.endpoints` directly, so to modify endpoints list. It can be useful if you want to append or remove global endpoints. Please mind it is a property, not a function.
 
-## ✔️ fetchf() = improved native fetch() wrapper
+## ✔️ fetchf() - improved native fetch() wrapper
 
 The `axios-multi-api` wraps the endpoints around and automatically uses `fetchf()` under the hood. However, you can use `fetchf()` directly just like you use `fetch()`.
 
@@ -307,6 +309,77 @@ const books = await api.fetchBooks<Books>();
 
 Check [examples.ts file](./docs/examples/examples.ts) for more examples of usage.
 
+### All settings
+
+Here’s an example of configuring and using the `createApiFetcher()` with all available settings.
+
+```typescript
+const api = createApiFetcher({
+  baseURL: 'https://api.example.com/',
+  retry: retryConfig,
+  endpoints: {
+    getBooks: {
+      url: 'books/all',
+    },
+  },
+  fetcher: require('axios'), // Use Axios for requests. If you pass Axios, you can also add all its settings here.
+  strategy: 'reject', // Error handling strategy.
+  cancellable: false, // If true, cancels previous requests to same endpoint.
+  rejectCancelled: false, // Reject promise for cancelled requests.
+  flattenResponse: true, // Flatten nested response data.
+  defaultResponse: null, // Default response when there is no data or endpoint fails.
+  timeout: 30000, // Request timeout in milliseconds.
+  method: 'get', // Default request method.
+  onError(error) {
+    // Interceptor on error
+    console.error('Request failed', error);
+  },
+  onRequest(config) {
+    // Interceptor on each request
+    console.error('Fired on each request', config);
+
+    return config;
+  },
+  onResponse(response) {
+    // Interceptor on each response
+    console.error('Fired on each response', response);
+
+    return response;
+  },
+  logger: {
+    // Custom logger for logging errors.
+    error(...args) {
+      console.log('My custom error log', ...args);
+    },
+    warn(...args) {
+      console.log('My custom warning log', ...args);
+    },
+  },
+  retry: {
+    retries: 3, // Number of retries on failure.
+    delay: 1000, // Initial delay between retries in milliseconds.
+    backoff: 1.5, // Backoff factor for retry delay.
+    maxDelay: 30000, // Maximum delay between retries in milliseconds.
+    retryOn: [408, 409, 425, 429, 500, 502, 503, 504], // HTTP status codes to retry on.
+    shouldRetry: async (error, attempts) => {
+      // Custom retry logic.
+      return (
+        attempts < 3 &&
+        [408, 500, 502, 503, 504].includes(error.response.status)
+      );
+    },
+  },
+});
+
+try {
+  // The same API config as used above, except the "endpoints" and "fetcher" and fetcher could be used as 3rd argument of the api.getBooks()
+  const response = await api.getBooks();
+  console.log('Request succeeded:', response);
+} catch (error) {
+  console.error('Request ultimately failed:', error);
+}
+```
+
 ### Retry Mechanism
 
 Here’s an example of configuring and using the `createApiFetcher()` with the retry mechanism:
@@ -328,17 +401,17 @@ const api = createApiFetcher({
   baseURL: 'https://api.example.com/',
   retry: retryConfig,
   endpoints: {
-    myEndpoint: {
-      url: "endpoint"
-    }
-  }
+    getBooks: {
+      url: 'books/all',
+    },
+  },
   onError(error) {
     console.error('Request failed:', error);
   },
 });
 
 try {
-  const response = await api.myEndpoint('endpoint');
+  const response = await api.getBooks();
   console.log('Request succeeded:', response);
 } catch (error) {
   console.error('Request ultimately failed:', error);
