@@ -604,7 +604,7 @@ export class RequestHandler {
 
             // Output error in similar format to what Axios does
             throw new RequestError(
-              'fetchf() Request Failed! Status: ${response.status}',
+              `fetchf() Request Failed! Status: ${response.status || null}`,
               requestConfig,
               response,
             );
