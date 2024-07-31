@@ -915,7 +915,7 @@ describe('Request Handler', () => {
       fetchMock.mock(
         'https://example.com/first',
         new Promise((_resolve, reject) => {
-          setTimeout(() => reject(new Error('Request was cancelled')), 1000);
+          reject(new DOMException('The operation was aborted.', 'AbortError'));
         }),
       );
 
@@ -930,17 +930,21 @@ describe('Request Handler', () => {
       );
 
       expect(secondRequest).resolves.toEqual('response from second request');
-
-      expect(firstRequest).rejects.toThrow('Request was cancelled');
+      expect(firstRequest).rejects.toThrow('The operation was aborted.');
     });
 
-    it('should cancel previous request when successive request is made through fetchf()', async () => {
+    it('should cancel previous request when successive request is made through fetchf() and rejectCancelled is false', async () => {
       fetchMock.reset();
+
+      const abortedError = new DOMException(
+        'The operation was aborted.',
+        'AbortError',
+      );
 
       fetchMock.mock(
         'https://example.com/first',
         new Promise((_resolve, reject) => {
-          setTimeout(() => reject(new Error('Request was cancelled')), 1000);
+          reject(abortedError);
         }),
       );
 
@@ -949,12 +953,14 @@ describe('Request Handler', () => {
         body: { data: 'response from second request' },
       });
 
-      const firstRequest = fetchf('https://example.com/first');
+      const firstRequest = fetchf('https://example.com/first', {
+        cancellable: true,
+        rejectCancelled: false,
+      });
       const secondRequest = fetchf('https://example.com/second');
 
       expect(secondRequest).resolves.toEqual('response from second request');
-
-      expect(firstRequest).rejects.toThrow('Request was cancelled');
+      expect(firstRequest).resolves.toEqual({});
     });
   });
 
