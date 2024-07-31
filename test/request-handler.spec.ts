@@ -4,6 +4,15 @@ import PromiseAny from 'promise-any';
 import { RequestHandler } from '../src/request-handler';
 import fetchMock from 'fetch-mock';
 import { fetchf } from '../src';
+import {
+  interceptRequest,
+  interceptResponse,
+} from '../src/interceptor-manager';
+
+jest.mock('../src/interceptor-manager', () => ({
+  interceptRequest: jest.fn().mockImplementation(async (config) => config),
+  interceptResponse: jest.fn().mockImplementation(async (response) => response),
+}));
 
 describe('Request Handler', () => {
   const apiUrl = 'http://example.com/api/';
@@ -709,6 +718,167 @@ describe('Request Handler', () => {
     });
   });
 
+  describe('request() with interceptors', () => {
+    let requestHandler: RequestHandler;
+
+    beforeEach(() => {
+      requestHandler = new RequestHandler({
+        baseURL: 'https://api.example.com',
+        timeout: 5000,
+        cancellable: true,
+        rejectCancelled: true,
+        strategy: 'reject',
+        flattenResponse: true,
+        defaultResponse: null,
+        onError: () => {},
+      });
+
+      jest.useFakeTimers();
+      fetchMock.reset();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+      (interceptRequest as jest.Mock).mockReset();
+      (interceptResponse as jest.Mock).mockReset();
+      (interceptRequest as jest.Mock).mockImplementation(
+        async (config) => config,
+      );
+      (interceptResponse as jest.Mock).mockImplementation(
+        async (response) => response,
+      );
+    });
+
+    it('should apply interceptors correctly', async () => {
+      // Set up mock implementations if needed
+      (interceptRequest as jest.Mock).mockImplementation(
+        async (config) => config,
+      );
+      (interceptResponse as jest.Mock).mockImplementation(
+        async (response) => response,
+      );
+
+      fetchMock.mock('https://api.example.com/test-endpoint?key=value', {
+        status: 200,
+        body: { data: 'response from second request' },
+      });
+
+      const url = '/test-endpoint';
+      const data = { key: 'value' };
+      const config = {};
+
+      // Call the request method
+      await requestHandler.request(url, data, config);
+
+      // Verify that interceptRequest and interceptResponse were called
+      expect(interceptRequest).toHaveBeenCalled();
+      expect(interceptResponse).toHaveBeenCalled();
+    });
+
+    it('should handle modified config in interceptRequest', async () => {
+      (interceptRequest as jest.Mock).mockImplementation(async (config) => ({
+        ...config,
+        headers: { 'Modified-Header': 'ModifiedValue' },
+      }));
+      (interceptResponse as jest.Mock).mockImplementation(
+        async (response) => response,
+      );
+
+      fetchMock.mock('https://api.example.com/test-endpoint?key=value', {
+        status: 200,
+        body: { data: 'response with modified config' },
+      });
+
+      const url = '/test-endpoint';
+      const data = { key: 'value' };
+      const config = {};
+
+      await requestHandler.request(url, data, config);
+
+      expect(interceptRequest).toHaveBeenCalled();
+      expect(interceptResponse).toHaveBeenCalled();
+      // Verify that fetch was called with modified headers
+      expect(fetchMock.lastOptions()).toMatchObject({
+        headers: { 'Modified-Header': 'ModifiedValue' },
+      });
+    });
+
+    it('should handle modified response in interceptResponse', async () => {
+      (interceptRequest as jest.Mock).mockImplementation(
+        async (config) => config,
+      );
+      (interceptResponse as jest.Mock).mockImplementation(async (response) => ({
+        ...response,
+        data: { username: 'modified response' },
+      }));
+
+      fetchMock.mock('https://api.example.com/test-endpoint?key=value', {
+        status: 200,
+        data: { username: 'original response' },
+      });
+
+      const url = '/test-endpoint';
+      const data = { key: 'value' };
+      const config = {};
+
+      const response = await requestHandler.request(url, data, config);
+
+      expect(interceptRequest).toHaveBeenCalled();
+      expect(interceptResponse).toHaveBeenCalled();
+      expect(response).toMatchObject({ username: 'modified response' });
+    });
+
+    it('should handle request failure with interceptors', async () => {
+      (interceptRequest as jest.Mock).mockImplementation(
+        async (config) => config,
+      );
+      (interceptResponse as jest.Mock).mockImplementation(
+        async (response) => response,
+      );
+
+      fetchMock.mock('https://api.example.com/test-endpoint?key=value', {
+        status: 500,
+        body: { error: 'Server error' },
+      });
+
+      const url = '/test-endpoint';
+      const data = { key: 'value' };
+      const config = {};
+
+      await expect(requestHandler.request(url, data, config)).rejects.toThrow(
+        'fetchf() Request Failed! Status: 500',
+      );
+
+      expect(interceptRequest).toHaveBeenCalled();
+      expect(interceptResponse).not.toHaveBeenCalled();
+    });
+
+    it('should handle request with different response status', async () => {
+      (interceptRequest as jest.Mock).mockImplementation(
+        async (config) => config,
+      );
+      (interceptResponse as jest.Mock).mockImplementation(
+        async (response) => response,
+      );
+
+      fetchMock.mock('https://api.example.com/test-endpoint?key=value', {
+        status: 404,
+        body: { error: 'Not found' },
+      });
+
+      const url = '/test-endpoint';
+      const data = { key: 'value' };
+      const config = {};
+
+      await expect(requestHandler.request(url, data, config)).rejects.toThrow(
+        'fetchf() Request Failed! Status: 404',
+      );
+
+      expect(interceptRequest).toHaveBeenCalled();
+      expect(interceptResponse).not.toHaveBeenCalled();
+    });
+  });
+
   describe('request() with native fetch()', () => {
     beforeEach(() => {
       jest.useFakeTimers();
@@ -921,15 +1091,18 @@ describe('Request Handler', () => {
 
       fetchMock.mock('https://example.com/second', {
         status: 200,
-        body: { data: 'response from second request' },
+        body: { username: 'response from second request' },
       });
 
       const firstRequest = requestHandler.request('https://example.com/first');
       const secondRequest = requestHandler.request(
         'https://example.com/second',
       );
+      console.log('🚀 ~ it ~ secondRequest:', secondRequest);
 
-      expect(secondRequest).resolves.toEqual('response from second request');
+      expect(secondRequest).resolves.toMatchObject({
+        username: 'response from second request',
+      });
       expect(firstRequest).rejects.toThrow('The operation was aborted.');
     });
 
@@ -950,7 +1123,7 @@ describe('Request Handler', () => {
 
       fetchMock.mock('https://example.com/second', {
         status: 200,
-        body: { data: 'response from second request' },
+        body: { username: 'response from second request' },
       });
 
       const firstRequest = fetchf('https://example.com/first', {
@@ -959,7 +1132,9 @@ describe('Request Handler', () => {
       });
       const secondRequest = fetchf('https://example.com/second');
 
-      expect(secondRequest).resolves.toEqual('response from second request');
+      expect(secondRequest).resolves.toEqual({
+        username: 'response from second request',
+      });
       expect(firstRequest).resolves.toEqual({});
     });
   });
