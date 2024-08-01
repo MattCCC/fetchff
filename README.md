@@ -336,13 +336,13 @@ const api = createApiFetcher({
     // Interceptor on error
     console.error('Request failed', error);
   },
-  onRequest(config) {
+  async onRequest(config) {
     // Interceptor on each request
     console.error('Fired on each request', config);
 
     return config;
   },
-  onResponse(response) {
+  async onResponse(response) {
     // Interceptor on each response
     console.error('Fired on each response', response);
 
