@@ -52,11 +52,11 @@ export type EndpointsRecord<EndpointsMethods> = {
     infer UrlPathParams
   >
     ? Endpoint<Response, QueryParams, UrlPathParams>
-    : Endpoint;
+    : Endpoint<never>;
 };
 
 export type DefaultEndpoints<EndpointsMethods> = {
-  [K in keyof EndpointsMethods]: Endpoint;
+  [K in keyof EndpointsMethods]: Endpoint<never>;
 };
 
 export type EndpointsConfig<EndpointsMethods> =

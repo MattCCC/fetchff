@@ -24,6 +24,13 @@ interface Books {
   totalResults: number;
 }
 
+interface Movie {
+  id: number;
+  title: string;
+}
+
+type Movies = Movie[];
+
 interface BooksQueryParams {
   all: boolean;
 }
@@ -99,7 +106,9 @@ async function example3() {
   )) satisfies Book;
 
   // Defined in "endpoints" but not in EndpointsList. You don't need to add "fetchMovies: Endpoint;" explicitly.
-  const movies = await api.fetchMovies();
+  const movies1 = await api.fetchMovies();
+  const movies = await api.fetchMovies<Movies>();
+  const movies3: Movies = await api.fetchMovies<Movies>();
 
   // @ts-expect-error This will result in an error as endpoint is not defined
   const movies2 = await api.nonExistentEndpoint();
@@ -119,7 +128,8 @@ async function example3() {
   // @ts-expect-error Error as newBook is not a boolean
   const book3 = await api.fetchBook({ newBook: 'true' }, { bookId: 1 });
 
-  console.log('Example 3', data, apiConfig, endpointsList, movies, movies2);
+  console.log('Example 3', data, apiConfig, endpointsList);
+  console.log('Example 3', movies, movies1, movies2, movies3);
   console.log('Example 3', books, book, book1, book2, book3);
 }
 
