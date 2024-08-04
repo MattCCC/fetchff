@@ -232,6 +232,10 @@ export class RequestHandler {
    * @returns {string} - The URL with the appended query parameters.
    */
   public appendQueryParams(url: string, params: QueryParams): string {
+    if (!params) {
+      return url;
+    }
+
     // We don't use URLSearchParams here as we want to ensure that arrays are properly converted similarily to Axios
     // So { foo: [1, 2] } would become: foo[]=1&foo[]=2
     const queryString = Object.entries(params)
