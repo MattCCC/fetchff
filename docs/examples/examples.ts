@@ -1,4 +1,4 @@
-import { createApiFetcher } from '../../src';
+import { createApiFetcher, fetchf } from '../../src';
 import type { Endpoint } from '../../src/types';
 
 const endpoints = {
@@ -133,6 +133,75 @@ async function example3() {
   console.log('Example 3', books, book, book1, book2, book3);
 }
 
+// createApiFetcher() - direct API request() call to a custom endpoint with flattenResponse == true
+async function example4() {
+  interface Endpoints {
+    fetchBooks: Endpoint<Books, BooksQueryParams>;
+  }
+
+  const api = createApiFetcher<Endpoints, typeof endpoints>({
+    apiUrl: '',
+    endpoints,
+    flattenResponse: true,
+  });
+
+  const books = await api.request<Books>('fetchBooks');
+  const data1 = await api.request('https://example.com/api/custom-endpoint');
+
+  // Specify generic
+  const data2 = await api.request<{ myData: true }>(
+    'https://example.com/api/custom-endpoint',
+  );
+
+  console.log('Example 4', books);
+  console.log('Example 4', data1, data2);
+}
+
+// createApiFetcher() - direct API request() call to a custom endpoint with flattenResponse == false
+async function example5() {
+  interface Endpoints {
+    fetchBooks: Endpoint<Books, BooksQueryParams>;
+  }
+
+  const api = createApiFetcher<Endpoints, typeof endpoints>({
+    apiUrl: '',
+    endpoints,
+    flattenResponse: false,
+  });
+
+  const { data: books } = await api.request<Books>('fetchBooks', {});
+  const { data: data1 } = await api.request(
+    'https://example.com/api/custom-endpoint',
+  );
+
+  // Specify generic
+  const { data: data2 } = await api.request<{ myData: true }>(
+    'https://example.com/api/custom-endpoint',
+  );
+
+  console.log('Example 5', books);
+  console.log('Example 5', data1, data2);
+}
+
+// fetchf() - direct fetchf() request with flattenResponse == false
+async function example6() {
+  const { data: books } = await fetchf<Books>('fetchBooks');
+  const { data: data1 } = await fetchf(
+    'https://example.com/api/custom-endpoint',
+  );
+
+  // Specify generic
+  const { data: data2 } = await fetchf<{ myData: true }>(
+    'https://example.com/api/custom-endpoint',
+  );
+
+  console.log('Example 5', books);
+  console.log('Example 5', data1, data2);
+}
+
 example1();
 example2();
 example3();
+example4();
+example5();
+example6();
