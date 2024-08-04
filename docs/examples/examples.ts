@@ -174,7 +174,6 @@ async function example5() {
   const api = createApiFetcher<Endpoints, typeof endpoints>({
     apiUrl: '',
     endpoints,
-    flattenResponse: false,
   });
 
   const { data: books } = await api.request<Books>('fetchBooks', {});
