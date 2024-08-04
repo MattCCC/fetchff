@@ -651,39 +651,6 @@ const data = await fetchf('/api/user-details', {
 });
 ```
 
-### OOP style custom Error Handler and Axios
-
-You could for example create an API and, inject an error service class to handle with a store that would collect the errors.
-
-As you may notice there's also am `api.getInstance()` exposed. You can operate on it instead of requesting an Axios instance prior the operation. This way you can use all Axios settings for a particular API handler.
-
-```typescript
-import axios from 'axios';
-
-class MyRequestError {
-  public constructor(myCallback) {
-    this.myCallback = myCallback;
-  }
-
-  public process(error) {
-    this.myCallback('Request error', error);
-  }
-}
-
-const api = createApiFetcher({
-  fetcher: axios,
-  apiUrl,
-  endpoints,
-  logger,
-  onError: new MyRequestError(myCallback),
-});
-
-// Set some Axios interceptors by accessing Axios instance directly
-const AxiosInstance = api.getInstance();
-
-AxiosInstance.interceptors.request.use(onRequest);
-```
-
 ## ✔️ Support and collaboration
 
 If you have any idea for an improvement, please file an issue. Feel free to make a PR if you are willing to collaborate on the project. Thank you :)
