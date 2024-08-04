@@ -531,7 +531,7 @@ export class RequestHandler {
     if (!this.isCustomFetcher()) {
       const abortTimeout = setTimeout(() => {
         const error = new Error(
-          `[TimeoutError]: The ${url} request was aborted due to timeout`,
+          `[TimeoutError]: The ${requestConfig.url} request was aborted due to timeout`,
         );
 
         error.name = 'TimeoutError';
