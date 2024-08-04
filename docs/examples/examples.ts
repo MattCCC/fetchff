@@ -53,7 +53,7 @@ async function example1() {
   const apiConfig = api.config;
   const endpointsList = api.endpoints;
 
-  const data = await api.ping();
+  const { data } = await api.ping();
 
   // @ts-expect-error Endpoint ping2 does not exist
   await api.ping2();
@@ -75,7 +75,7 @@ async function example2() {
   // @ts-expect-error Endpoint ping2 does not exist
   await api.ping2();
 
-  const data = await api.ping<{ dd: string }>();
+  const { data } = await api.ping<{ dd: string }>();
 
   console.log('Example 2', data, apiConfig, endpointsList);
 }
@@ -97,36 +97,44 @@ async function example3() {
   const endpointsList = api.endpoints;
 
   // Defined in EndpointsList
-  const data = await api.ping();
+  const { data } = await api.ping();
 
   // Defined in EndpointsList with query param and url path param
-  const book = (await api.fetchBook(
+  const { data: book } = (await api.fetchBook(
     { newBook: true },
     { bookId: 1 },
   )) satisfies Book;
 
   // Defined in "endpoints" but not in EndpointsList. You don't need to add "fetchMovies: Endpoint;" explicitly.
-  const movies1 = await api.fetchMovies();
-  const movies = await api.fetchMovies<Movies>();
-  const movies3: Movies = await api.fetchMovies<Movies>();
+  const { data: movies1 } = await api.fetchMovies();
+  const { data: movies } = await api.fetchMovies<Movies>();
+  const { data: movies3 }: { data: Movies } = await api.fetchMovies<Movies>();
 
   // @ts-expect-error This will result in an error as endpoint is not defined
-  const movies2 = await api.nonExistentEndpoint();
+  const { data: movies2 } = await api.nonExistentEndpoint();
 
-  const book1 = (await api.fetchBook<Book>(
+  const { data: book1 } = (await api.fetchBook<Book>(
     { newBook: true },
     // @ts-expect-error should verify that bookId cannot be text
     { bookId: 'text' },
   )) satisfies Book;
 
   // @ts-expect-error will result in an error since "someParams" is not defined
-  const books = (await api.fetchBooks({ someParams: 1 })) satisfies Books;
+  const { data: books } = (await api.fetchBooks({
+    someParams: 1,
+  })) satisfies Books;
 
-  // @ts-expect-error Error as bookId is not a number
-  const book2 = await api.fetchBook({ newBook: true }, { bookId: 'text' });
+  const { data: book2 } = await api.fetchBook(
+    { newBook: true },
+    // @ts-expect-error Error as bookId is not a number
+    { bookId: 'text' },
+  );
 
-  // @ts-expect-error Error as newBook is not a boolean
-  const book3 = await api.fetchBook({ newBook: 'true' }, { bookId: 1 });
+  const { data: book3 } = await api.fetchBook(
+    // @ts-expect-error Error as newBook is not a boolean
+    { newBook: 'true' },
+    { bookId: 1 },
+  );
 
   console.log('Example 3', data, apiConfig, endpointsList);
   console.log('Example 3', movies, movies1, movies2, movies3);

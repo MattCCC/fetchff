@@ -67,7 +67,7 @@ const api = createApiFetcher({
 });
 
 // Make API GET request to: http://example.com/api/user-details?userId=1&ratings[]=1&ratings[]=2
-const data = await api.getUser({ userId: 1, ratings: [1, 2] });
+const { data } = await api.getUser({ userId: 1, ratings: [1, 2] });
 ```
 
 Standalone usage: (without endpoints):
@@ -75,7 +75,7 @@ Standalone usage: (without endpoints):
 ```typescript
 import { fetchf } from 'axios-multi-api';
 
-const data = await fetchf('/api/user-details');
+const { data } = await fetchf('/api/user-details');
 ```
 
 ## ✔️ Easy to use with React and other libraries
@@ -87,14 +87,10 @@ import { createApiFetcher } from 'axios-multi-api';
 
 const api = createApiFetcher({
   apiUrl: 'https://example.com/api',
-  strategy: 'reject',
   endpoints: {
     getProfile: {
       url: '/profile/:id',
     },
-  },
-  onError(error) {
-    console.log('Request failed', error);
   },
 });
 
@@ -231,7 +227,7 @@ You can also pass all `fetch()` settings, or if you use Axios, you can pass all 
 | strategy          | string             | reject                                   | Error handling strategies - basically what to return when an error occurs. It can be a default data, promise can be hanged (nothing would be returned) or rejected so to use try/catch.<br><br>Available: `silent`, `reject`, `defaultResponse`.<br><br>`reject` - standard way - simply rejects the promise. Global error handling is triggered right before the rejection. You need to set try/catch to catch errors.<br><br>`defaultResponse` in case of an error, it returns default response specified in global `defaultResponse` or per endpoint `defaultResponse` setting. Promise will not be rejected! Data from default response will be returned instead. It could be used together with object destructuring by setting `defaultResponse: {}` so to provide a responsible defaults.<br><br>`silent` can be used for requests that are dispatched within asynchronous wrapper functions that are not awaited. If a request fails, promise will silently hang and no action will be performed. In case of an error, the promise will never be resolved or rejected, and any code after will never be executed. If used properly it saves developers from try/catch or additional response data checks everywhere. You can use is in combination with `onError` so to handle errors globally. |
 | cancellable       | boolean            | false                                    | If `true`, any previous requests to same API endpoint will be cancelled, if a subsequent request is made meanwhile. This helps you avoid unnecessary requests to the backend.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | rejectCancelled   | boolean            | false                                    | If `true` and request is set to `cancellable`, a cancelled requests' promise will be rejected. By default, instead of rejecting the promise, `defaultResponse` is returned.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| flattenResponse   | boolean            | true                                     | Flatten nested response data, so you can avoid writing `response.data.data` and obtain response directly. Response is flattened when there is a "data" within response "data", and no other object properties set.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| flattenResponse   | boolean            | false                                    | Flatten nested response data, so you can avoid writing `response.data.data` and obtain response directly. Response is flattened when there is a "data" within response "data", and no other object properties set.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | defaultResponse   | any                | null                                     | Default response when there is no data or when endpoint fails depending on the chosen `strategy`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | timeout           | int                | 30000                                    | You can set a request timeout for all requests or particular in milliseconds.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | onRequest         | function(config)   |                                          | You can specify a function that will be triggered before the request is sent. The request configuration object will be sent as the first argument of the function. This is useful for modifying request parameters, headers, etc.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
@@ -328,7 +324,7 @@ const api = createApiFetcher({
   strategy: 'reject', // Error handling strategy.
   cancellable: false, // If true, cancels previous requests to same endpoint.
   rejectCancelled: false, // Reject promise for cancelled requests.
-  flattenResponse: true, // Flatten nested response data.
+  flattenResponse: false, // If true, flatten nested response data.
   defaultResponse: null, // Default response when there is no data or endpoint fails.
   timeout: 30000, // Request timeout in milliseconds.
   method: 'get', // Default request method.
@@ -375,8 +371,8 @@ const api = createApiFetcher({
 
 try {
   // The same API config as used above, except the "endpoints" and "fetcher" and fetcher could be used as 3rd argument of the api.getBooks()
-  const response = await api.getBooks();
-  console.log('Request succeeded:', response);
+  const { data } = await api.getBooks();
+  console.log('Request succeeded:', data);
 } catch (error) {
   console.error('Request ultimately failed:', error);
 }
@@ -413,8 +409,8 @@ const api = createApiFetcher({
 });
 
 try {
-  const response = await api.getBooks();
-  console.log('Request succeeded:', response);
+  const { data } = await api.getBooks();
+  console.log('Request succeeded:', data);
 } catch (error) {
   console.error('Request ultimately failed:', error);
 }
@@ -463,11 +459,11 @@ const api = createApiFetcher<EndpointsList, typeof endpoints>({
 
 // Fetch user data - "data" will return data directly
 // GET to: http://example.com/api/user-details?userId=1&ratings[]=1&ratings[]=2
-const data = await api.getUser({ userId: 1, ratings: [1, 2] });
+const { data } = await api.getUser({ userId: 1, ratings: [1, 2] });
 
 // Fetch posts - "data" will return data directly
 // GET to: http://example.com/api/posts/myTestSubject?additionalInfo=something
-const data = await api.getPosts(
+const { data } = await api.getPosts(
   { additionalInfo: 'something' },
   { subject: 'test' },
 );
@@ -528,7 +524,7 @@ const api = createApiFetcher({
 });
 
 async function sendMessage() {
-  const response = await api.sendMessage(
+  const { data } = await api.sendMessage(
     { message: 'Text' },
     { postId: 1 },
     {
@@ -542,7 +538,7 @@ async function sendMessage() {
     },
   );
 
-  if (response === null) {
+  if (data === null) {
     // Because of the strategy, if API call fails, it will just return null
     return;
   }
@@ -646,7 +642,7 @@ sendMessage();
 ```typescript
 import { fetchf } from 'axios-multi-api';
 
-const data = await fetchf('/api/user-details', {
+const { data } = await fetchf('/api/user-details', {
   retry: { retries: 3, delay: 2000 },
 });
 ```

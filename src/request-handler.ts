@@ -66,7 +66,7 @@ export class RequestHandler {
   /**
    * @var flattenResponse Response flattening
    */
-  public flattenResponse: boolean = true;
+  public flattenResponse: boolean = false;
 
   /**
    * @var defaultResponse Response flattening
