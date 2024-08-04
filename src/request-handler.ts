@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { RequestErrorHandler } from './request-error-handler';
 import type {
-  RequestResponse,
   ErrorHandlingStrategy,
   RequestHandlerConfig,
   RequestConfig,
@@ -14,6 +13,7 @@ import type {
   ExtendedResponse,
 } from './types/request-handler';
 import type {
+  APIResponse,
   QueryParams,
   QueryParamsOrBody,
   UrlPathParams,
@@ -433,7 +433,7 @@ export class RequestHandler {
   protected async outputErrorResponse(
     error: RequestErrorResponse,
     requestConfig: RequestConfig,
-  ): Promise<RequestResponse> {
+  ): Promise<any> {
     const isRequestCancelled = this.isRequestCancelled(error);
     const errorHandlingStrategy = requestConfig.strategy || this.strategy;
     const rejectCancelled =
@@ -552,20 +552,21 @@ export class RequestHandler {
    * @param {QueryParamsOrBody} payload.data    Request data
    * @param {RequestConfig} payload.config               Request config
    * @throws {RequestErrorResponse}
-   * @returns {Promise<FetchResponse>} Response Data
+   * @returns {Promise<Response & FetchResponse<Response>>} Response Data
    */
-  public async request(
+  public async request<Response = APIResponse>(
     url: string,
     data: QueryParamsOrBody = null,
     config: RequestConfig = null,
-  ): Promise<FetchResponse> {
-    let response: FetchResponse = null;
-    const endpointConfig = config || {};
-    let requestConfig = this.buildConfig(url, data, endpointConfig);
+    skipCache = false,
+  ): Promise<Response & FetchResponse<Response>> {
+    let response: Response | FetchResponse<Response> = null;
+    const _config = config || {};
+    const _requestConfig = this.buildConfig(url, data, _config);
 
-    requestConfig = {
-      ...this.addCancellationToken(requestConfig),
-      ...requestConfig,
+    let requestConfig: RequestConfig = {
+      ...this.addCancellationToken(_requestConfig),
+      ..._requestConfig,
     };
 
     const { retries, delay, backoff, retryOn, shouldRetry, maxDelay } = {
@@ -592,7 +593,9 @@ export class RequestHandler {
 
         // Axios compatibility
         if (this.isCustomFetcher()) {
-          response = await (this.requestInstance as any).request(requestConfig);
+          response = (await (this.requestInstance as any).request(
+            requestConfig,
+          )) as FetchResponse<Response>;
         } else {
           response = (await globalThis.fetch(
             requestConfig.url,
@@ -629,7 +632,9 @@ export class RequestHandler {
           attempt === retries ||
           !(await shouldRetry(error, attempt)) ||
           !retryOn?.includes(
-            response?.status || error?.response?.status || error?.status,
+            (response as FetchResponse<Response>)?.status ||
+              error?.response?.status ||
+              error?.status,
           )
         ) {
           this.processError(error, requestConfig);

@@ -3,7 +3,7 @@ import type {
   RequestConfig,
   FetcherInstance,
   RequestHandlerConfig,
-  RequestResponse,
+  FetchResponse,
 } from './request-handler';
 
 // Utility type to check if a type is never
@@ -35,14 +35,14 @@ export declare type Endpoint<
         queryParams?: QueryParams,
         urlPathParams?: PathParams,
         requestConfig?: RequestConfig,
-      ): Promise<Response>;
+      ): Promise<Response & FetchResponse<Response>>;
     }
   | {
       <ResponseData = Response, T = QueryParams, T2 = PathParams>(
         queryParams?: T | null,
         urlPathParams?: T2,
         requestConfig?: RequestConfig,
-      ): Promise<ResponseData>;
+      ): Promise<ResponseData & FetchResponse<ResponseData>>;
     };
 
 export type EndpointsRecord<EndpointsMethods> = {
@@ -76,12 +76,12 @@ export type ApiHandlerMethods<EndpointsMethods> = {
   endpoints: EndpointsConfig<EndpointsMethods>;
   requestHandler: RequestHandler;
   getInstance: () => FetcherInstance;
-  request: (
-    endpointName: keyof EndpointsMethods & string,
+  request: <Response = APIResponse>(
+    endpointName: keyof EndpointsMethods | string,
     queryParams?: QueryParams,
     urlPathParams?: UrlPathParams,
     requestConfig?: RequestConfig,
-  ) => RequestResponse;
+  ) => Promise<Response & FetchResponse<Response>>;
 };
 
 export interface ApiHandlerConfig<EndpointsMethods>
