@@ -20,7 +20,6 @@ import type {
 } from './types/api-handler';
 import { RequestError } from './request-error';
 import { interceptRequest, interceptResponse } from './interceptor-manager';
-import { hashFromConfig } from './hash';
 
 /**
  * Generic Request Handler
@@ -558,7 +557,6 @@ export class RequestHandler {
     url: string,
     data: QueryParamsOrBody = null,
     config: RequestConfig = null,
-    skipCache = false,
   ): Promise<Response & FetchResponse<Response>> {
     let response: Response | FetchResponse<Response> = null;
     const _config = config || {};

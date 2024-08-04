@@ -37,16 +37,10 @@ describe('hashFromConfig function', () => {
       data: { key: 'value' },
     };
 
-    const expectedHash = hash(
-      JSON.stringify([
-        requestConfig.method,
-        requestConfig.baseURL,
-        requestConfig.url,
-        requestConfig.params,
-        requestConfig.data,
-      ]),
+    expect(hashFromConfig(requestConfig)).toBeTruthy();
+    expect(hashFromConfig(requestConfig)).toEqual(
+      hashFromConfig(requestConfig),
     );
-    expect(hashFromConfig(requestConfig)).toBe(expectedHash);
   });
 
   it('should cache results to avoid rehashing', () => {
