@@ -91,7 +91,7 @@ export class RequestHandler {
   /**
    * @var requestsQueue    Queue of requests
    */
-  protected requestsQueue: Map<string, AbortController>;
+  protected requestsQueue: WeakMap<object, AbortController>;
 
   /**
    * Request Handler Config
@@ -174,7 +174,7 @@ export class RequestHandler {
     this.defaultResponse = defaultResponse;
     this.logger = logger || (globalThis ? globalThis.console : null) || null;
     this.onError = onError;
-    this.requestsQueue = new Map();
+    this.requestsQueue = new WeakMap();
     this.baseURL = config.baseURL || config.apiUrl || '';
     this.method = config.method || this.method;
     this.config = config;
@@ -514,8 +514,7 @@ export class RequestHandler {
     }
 
     // Generate unique key as a cancellation token
-    const key = hashFromConfig(requestConfig);
-    const previousRequest = this.requestsQueue.get(key);
+    const previousRequest = this.requestsQueue.get(requestConfig);
 
     if (previousRequest) {
       previousRequest.abort();
@@ -538,7 +537,7 @@ export class RequestHandler {
       }, requestConfig.timeout || this.timeout);
     }
 
-    this.requestsQueue.set(key, controller);
+    this.requestsQueue.set(requestConfig, controller);
 
     return {
       signal: controller.signal,
