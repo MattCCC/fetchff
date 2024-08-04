@@ -213,6 +213,10 @@ export class RequestHandler {
     url: string,
     urlPathParams: UrlPathParams,
   ): string {
+    if (!urlPathParams) {
+      return url;
+    }
+
     return url.replace(/:[a-zA-Z]+/gi, (str): string => {
       const word = str.substring(1);
 
