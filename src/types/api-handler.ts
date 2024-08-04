@@ -32,7 +32,7 @@ export declare type Endpoint<
 > =
   | {
       (
-        queryParams?: QueryParams | null,
+        queryParams?: QueryParams,
         urlPathParams?: PathParams,
         requestConfig?: RequestConfig,
       ): Promise<Response>;
@@ -78,7 +78,7 @@ export type ApiHandlerMethods<EndpointsMethods> = {
   getInstance: () => FetcherInstance;
   request: (
     endpointName: keyof EndpointsMethods & string,
-    queryParams?: QueryParams | null,
+    queryParams?: QueryParams,
     urlPathParams?: UrlPathParams,
     requestConfig?: RequestConfig,
   ) => RequestResponse;
