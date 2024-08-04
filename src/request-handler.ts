@@ -20,6 +20,7 @@ import type {
 } from './types/api-handler';
 import { RequestError } from './request-error';
 import { interceptRequest, interceptResponse } from './interceptor-manager';
+import { hashFromConfig } from './hash';
 
 /**
  * Generic Request Handler
@@ -512,13 +513,8 @@ export class RequestHandler {
       return {};
     }
 
-    const { method, baseURL, url, params, data } = requestConfig;
-
-    // Generate unique key as a cancellation token. Make sure it fits Map
-    const key = JSON.stringify([method, baseURL, url, params, data]).substring(
-      0,
-      55 ** 5,
-    );
+    // Generate unique key as a cancellation token
+    const key = hashFromConfig(requestConfig);
     const previousRequest = this.requestsQueue.get(key);
 
     if (previousRequest) {
