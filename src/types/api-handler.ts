@@ -16,12 +16,12 @@ type HasKeys<T> = keyof T extends never ? false : true;
 type ConditionalOmit<T, U> = HasKeys<U> extends true ? Omit<T, keyof U> : T;
 
 // Common type definitions
-export declare type QueryParams<T = unknown> = Record<string, T>;
-export declare type BodyPayload<T = unknown> = Record<string, T>;
+export declare type QueryParams<T = unknown> = Record<string, T> | null;
+export declare type BodyPayload<T = unknown> = Record<string, T> | null;
 export declare type QueryParamsOrBody<T = unknown> =
   | QueryParams<T>
   | BodyPayload<T>;
-export declare type UrlPathParams<T = unknown> = Record<string, T>;
+export declare type UrlPathParams<T = unknown> = Record<string, T> | null;
 export declare type APIResponse = unknown;
 
 // Endpoint function type
