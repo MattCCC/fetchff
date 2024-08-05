@@ -550,9 +550,9 @@ export class RequestHandler {
   /**
    * Handle Request depending on used strategy
    *
-   * @param {object} payload                              Payload
-   * @param {string} payload.url                          Request url
-   * @param {QueryParamsOrBody} payload.data    Request data
+   * @param {string} url - Request url
+   * @param {QueryParamsOrBody} data - Request data
+   * @param {RequestConfig} config - Request config
    * @param {RequestConfig} payload.config               Request config
    * @throws {RequestErrorResponse}
    * @returns {Promise<Response & FetchResponse<Response>>} Response Data
