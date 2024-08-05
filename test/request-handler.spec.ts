@@ -184,6 +184,24 @@ describe('Request Handler', () => {
         method,
       });
 
+    it('should not differ when the same request is made', () => {
+      const result = buildConfig(
+        'GET',
+        'https://example.com/api',
+        { foo: 'bar' },
+        { baseURL: 'abc' },
+      );
+
+      const result2 = buildConfig(
+        'GET',
+        'https://example.com/api',
+        { foo: 'bar' },
+        { baseURL: 'abc' },
+      );
+
+      expect(result).toEqual(result2);
+    });
+
     it('should handle GET requests correctly', () => {
       const result = buildConfig(
         'GET',
