@@ -3,7 +3,7 @@ import type {
   RequestConfig,
   FetcherInstance,
   RequestHandlerConfig,
-  RequestResponse,
+  FetchResponse,
 } from './request-handler';
 
 // Utility type to check if a type is never
@@ -16,12 +16,12 @@ type HasKeys<T> = keyof T extends never ? false : true;
 type ConditionalOmit<T, U> = HasKeys<U> extends true ? Omit<T, keyof U> : T;
 
 // Common type definitions
-export declare type QueryParams<T = unknown> = Record<string, T>;
-export declare type BodyPayload<T = unknown> = Record<string, T>;
+export declare type QueryParams<T = unknown> = Record<string, T> | null;
+export declare type BodyPayload<T = unknown> = Record<string, T> | null;
 export declare type QueryParamsOrBody<T = unknown> =
   | QueryParams<T>
   | BodyPayload<T>;
-export declare type UrlPathParams<T = unknown> = Record<string, T>;
+export declare type UrlPathParams<T = unknown> = Record<string, T> | null;
 export declare type APIResponse = unknown;
 
 // Endpoint function type
@@ -32,17 +32,17 @@ export declare type Endpoint<
 > =
   | {
       (
-        queryParams?: QueryParams | null,
+        queryParams?: QueryParams,
         urlPathParams?: PathParams,
         requestConfig?: RequestConfig,
-      ): Promise<Response>;
+      ): Promise<Response & FetchResponse<Response>>;
     }
   | {
       <ResponseData = Response, T = QueryParams, T2 = PathParams>(
         queryParams?: T | null,
         urlPathParams?: T2,
         requestConfig?: RequestConfig,
-      ): Promise<ResponseData>;
+      ): Promise<ResponseData & FetchResponse<ResponseData>>;
     };
 
 export type EndpointsRecord<EndpointsMethods> = {
@@ -76,12 +76,12 @@ export type ApiHandlerMethods<EndpointsMethods> = {
   endpoints: EndpointsConfig<EndpointsMethods>;
   requestHandler: RequestHandler;
   getInstance: () => FetcherInstance;
-  request: (
-    endpointName: keyof EndpointsMethods & string,
-    queryParams?: QueryParams | null,
+  request: <Response = APIResponse>(
+    endpointName: keyof EndpointsMethods | string,
+    queryParams?: QueryParams,
     urlPathParams?: UrlPathParams,
     requestConfig?: RequestConfig,
-  ) => RequestResponse;
+  ) => Promise<Response & FetchResponse<Response>>;
 };
 
 export interface ApiHandlerConfig<EndpointsMethods>

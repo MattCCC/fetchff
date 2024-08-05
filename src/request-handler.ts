@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { RequestErrorHandler } from './request-error-handler';
 import type {
-  RequestResponse,
   ErrorHandlingStrategy,
   RequestHandlerConfig,
   RequestConfig,
@@ -14,6 +13,7 @@ import type {
   ExtendedResponse,
 } from './types/request-handler';
 import type {
+  APIResponse,
   QueryParams,
   QueryParamsOrBody,
   UrlPathParams,
@@ -65,7 +65,7 @@ export class RequestHandler {
   /**
    * @var flattenResponse Response flattening
    */
-  public flattenResponse: boolean = true;
+  public flattenResponse: boolean = false;
 
   /**
    * @var defaultResponse Response flattening
@@ -90,7 +90,7 @@ export class RequestHandler {
   /**
    * @var requestsQueue    Queue of requests
    */
-  protected requestsQueue: Map<string, AbortController>;
+  protected requestsQueue: WeakMap<object, AbortController>;
 
   /**
    * Request Handler Config
@@ -173,7 +173,7 @@ export class RequestHandler {
     this.defaultResponse = defaultResponse;
     this.logger = logger || (globalThis ? globalThis.console : null) || null;
     this.onError = onError;
-    this.requestsQueue = new Map();
+    this.requestsQueue = new WeakMap();
     this.baseURL = config.baseURL || config.apiUrl || '';
     this.method = config.method || this.method;
     this.config = config;
@@ -213,6 +213,10 @@ export class RequestHandler {
     url: string,
     urlPathParams: UrlPathParams,
   ): string {
+    if (!urlPathParams) {
+      return url;
+    }
+
     return url.replace(/:[a-zA-Z]+/gi, (str): string => {
       const word = str.substring(1);
 
@@ -228,6 +232,10 @@ export class RequestHandler {
    * @returns {string} - The URL with the appended query parameters.
    */
   public appendQueryParams(url: string, params: QueryParams): string {
+    if (!params) {
+      return url;
+    }
+
     // We don't use URLSearchParams here as we want to ensure that arrays are properly converted similarily to Axios
     // So { foo: [1, 2] } would become: foo[]=1&foo[]=2
     const queryString = Object.entries(params)
@@ -352,16 +360,23 @@ export class RequestHandler {
 
     delete config.data;
 
+    const urlPath =
+      (!isGetAlikeMethod && data && !config.body) || !data
+        ? dynamicUrl
+        : this.appendQueryParams(dynamicUrl, data);
+    const isFullUrl = urlPath.includes('://');
+    const baseURL = isFullUrl
+      ? ''
+      : typeof config.baseURL !== 'undefined'
+        ? config.baseURL
+        : this.baseURL;
+
     return {
       ...config,
 
       // Native fetch generally requires query params to be appended in the URL
       // Do not append query params only if it's a POST-alike request with only "data" specified as it's treated as body payload
-      url:
-        this.baseURL +
-        ((!isGetAlikeMethod && data && !config.body) || !data
-          ? dynamicUrl
-          : this.appendQueryParams(dynamicUrl, data)),
+      url: baseURL + urlPath,
 
       // Uppercase method name
       method: method.toUpperCase(),
@@ -421,7 +436,7 @@ export class RequestHandler {
   protected async outputErrorResponse(
     error: RequestErrorResponse,
     requestConfig: RequestConfig,
-  ): Promise<RequestResponse> {
+  ): Promise<any> {
     const isRequestCancelled = this.isRequestCancelled(error);
     const errorHandlingStrategy = requestConfig.strategy || this.strategy;
     const rejectCancelled =
@@ -501,14 +516,8 @@ export class RequestHandler {
       return {};
     }
 
-    const { method, baseURL, url, params, data } = requestConfig;
-
-    // Generate unique key as a cancellation token. Make sure it fits Map
-    const key = JSON.stringify([method, baseURL, url, params, data]).substring(
-      0,
-      55 ** 5,
-    );
-    const previousRequest = this.requestsQueue.get(key);
+    // Generate unique key as a cancellation token
+    const previousRequest = this.requestsQueue.get(requestConfig);
 
     if (previousRequest) {
       previousRequest.abort();
@@ -520,7 +529,7 @@ export class RequestHandler {
     if (!this.isCustomFetcher()) {
       const abortTimeout = setTimeout(() => {
         const error = new Error(
-          `[TimeoutError]: The ${url} request was aborted due to timeout`,
+          `[TimeoutError]: The ${requestConfig.url} request was aborted due to timeout`,
         );
 
         error.name = 'TimeoutError';
@@ -531,7 +540,7 @@ export class RequestHandler {
       }, requestConfig.timeout || this.timeout);
     }
 
-    this.requestsQueue.set(key, controller);
+    this.requestsQueue.set(requestConfig, controller);
 
     return {
       signal: controller.signal,
@@ -541,25 +550,25 @@ export class RequestHandler {
   /**
    * Handle Request depending on used strategy
    *
-   * @param {object} payload                              Payload
-   * @param {string} payload.url                          Request url
-   * @param {QueryParamsOrBody} payload.data    Request data
+   * @param {string} url - Request url
+   * @param {QueryParamsOrBody} data - Request data
+   * @param {RequestConfig} config - Request config
    * @param {RequestConfig} payload.config               Request config
    * @throws {RequestErrorResponse}
-   * @returns {Promise<FetchResponse>} Response Data
+   * @returns {Promise<Response & FetchResponse<Response>>} Response Data
    */
-  public async request(
+  public async request<Response = APIResponse>(
     url: string,
     data: QueryParamsOrBody = null,
     config: RequestConfig = null,
-  ): Promise<FetchResponse> {
-    let response: FetchResponse = null;
-    const endpointConfig = config || {};
-    let requestConfig = this.buildConfig(url, data, endpointConfig);
+  ): Promise<Response & FetchResponse<Response>> {
+    let response: Response | FetchResponse<Response> = null;
+    const _config = config || {};
+    const _requestConfig = this.buildConfig(url, data, _config);
 
-    requestConfig = {
-      ...this.addCancellationToken(requestConfig),
-      ...requestConfig,
+    let requestConfig: RequestConfig = {
+      ...this.addCancellationToken(_requestConfig),
+      ..._requestConfig,
     };
 
     const { retries, delay, backoff, retryOn, shouldRetry, maxDelay } = {
@@ -586,7 +595,9 @@ export class RequestHandler {
 
         // Axios compatibility
         if (this.isCustomFetcher()) {
-          response = await (this.requestInstance as any).request(requestConfig);
+          response = (await (this.requestInstance as any).request(
+            requestConfig,
+          )) as FetchResponse<Response>;
         } else {
           response = (await globalThis.fetch(
             requestConfig.url,
@@ -598,7 +609,36 @@ export class RequestHandler {
 
           // Check if the response status is not outside the range 200-299
           if (response.ok) {
-            response.data = await response.json();
+            const contentType = String(
+              response?.headers?.get('Content-Type') || '',
+            );
+            let data = null;
+
+            // Handle edge case of no content type being provided... We assume json here.
+            if (!contentType) {
+              try {
+                data = await response.json();
+                // eslint-disable-next-line @typescript-eslint/no-unused-vars
+              } catch (_error) {
+                //
+              }
+            }
+
+            if (!data) {
+              if (contentType && contentType.includes('application/json')) {
+                // Parse JSON response
+                data = await response.json();
+              } else if (typeof response.text !== 'undefined') {
+                data = await response.text();
+              } else if (typeof response.blob !== 'undefined') {
+                data = await response.blob();
+              } else {
+                // Handle streams
+                data = response.body || response.data || null;
+              }
+            }
+
+            response.data = data;
           } else {
             response.data = null;
 
@@ -623,7 +663,9 @@ export class RequestHandler {
           attempt === retries ||
           !(await shouldRetry(error, attempt)) ||
           !retryOn?.includes(
-            response?.status || error?.response?.status || error?.status,
+            (response as FetchResponse<Response>)?.status ||
+              error?.response?.status ||
+              error?.status,
           )
         ) {
           this.processError(error, requestConfig);
@@ -698,6 +740,23 @@ export class RequestHandler {
       Object.keys(response).length === 0
     ) {
       return defaultResponse;
+    }
+
+    // For fetch()
+    const isCustomFetcher = this.isCustomFetcher();
+
+    if (!isCustomFetcher) {
+      return {
+        ...response,
+        headers: Array.from(response?.headers?.entries() || {}).reduce(
+          (acc, [key, value]) => {
+            acc[key] = value;
+            return acc;
+          },
+          {},
+        ),
+        config: requestConfig,
+      };
     }
 
     return response;
