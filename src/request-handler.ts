@@ -609,7 +609,36 @@ export class RequestHandler {
 
           // Check if the response status is not outside the range 200-299
           if (response.ok) {
-            response.data = await response.json();
+            const contentType = String(
+              response?.headers?.get('Content-Type') || '',
+            );
+            let data = null;
+
+            // Handle edge case of no content type being provided... We assume json here.
+            if (!contentType) {
+              try {
+                data = await response.json();
+                // eslint-disable-next-line @typescript-eslint/no-unused-vars
+              } catch (_error) {
+                //
+              }
+            }
+
+            if (!data) {
+              if (contentType && contentType.includes('application/json')) {
+                // Parse JSON response
+                data = await response.json();
+              } else if (typeof response.text !== 'undefined') {
+                data = await response.text();
+              } else if (typeof response.blob !== 'undefined') {
+                data = await response.blob();
+              } else {
+                // Handle streams
+                data = response.body || response.data || null;
+              }
+            }
+
+            response.data = data;
           } else {
             response.data = null;
 
@@ -711,6 +740,23 @@ export class RequestHandler {
       Object.keys(response).length === 0
     ) {
       return defaultResponse;
+    }
+
+    // For fetch()
+    const isCustomFetcher = this.isCustomFetcher();
+
+    if (!isCustomFetcher) {
+      return {
+        ...response,
+        headers: Array.from(response?.headers?.entries() || {}).reduce(
+          (acc, [key, value]) => {
+            acc[key] = value;
+            return acc;
+          },
+          {},
+        ),
+        config: requestConfig,
+      };
     }
 
     return response;
