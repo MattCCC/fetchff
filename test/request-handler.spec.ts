@@ -1080,6 +1080,7 @@ describe('Request Handler', () => {
       const requestHandler = new RequestHandler({
         cancellable: true,
         rejectCancelled: true,
+        flattenResponse: true,
       });
 
       fetchMock.mock(
@@ -1098,7 +1099,6 @@ describe('Request Handler', () => {
       const secondRequest = requestHandler.request(
         'https://example.com/second',
       );
-      console.log('🚀 ~ it ~ secondRequest:', secondRequest);
 
       expect(secondRequest).resolves.toMatchObject({
         username: 'response from second request',
@@ -1129,8 +1129,11 @@ describe('Request Handler', () => {
       const firstRequest = fetchf('https://example.com/first', {
         cancellable: true,
         rejectCancelled: false,
+        flattenResponse: true,
       });
-      const secondRequest = fetchf('https://example.com/second');
+      const secondRequest = fetchf('https://example.com/second', {
+        flattenResponse: true,
+      });
 
       expect(secondRequest).resolves.toEqual({
         username: 'response from second request',
