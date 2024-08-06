@@ -165,10 +165,7 @@ export class RequestHandler {
       strategy !== null && strategy !== undefined ? strategy : this.strategy;
     this.cancellable = config.cancellable || this.cancellable;
     this.rejectCancelled = rejectCancelled || this.rejectCancelled;
-    this.flattenResponse =
-      flattenResponse !== null && flattenResponse !== undefined
-        ? flattenResponse
-        : this.flattenResponse;
+    this.flattenResponse = flattenResponse || this.flattenResponse;
     this.defaultResponse = defaultResponse;
     this.logger = logger || (globalThis ? globalThis.console : null) || null;
     this.onError = onError;
@@ -648,7 +645,7 @@ export class RequestHandler {
 
             // Output error in similar format to what Axios does
             throw new RequestError(
-              `fetchf() Request Failed! Status: ${response.status || null}`,
+              `${requestConfig.url} failed! Status: ${response.status || null}`,
               requestConfig,
               response,
             );
@@ -661,16 +658,12 @@ export class RequestHandler {
         // Global interceptors
         response = await interceptResponse(response, this.config.onResponse);
 
-        return this.processResponseData(response, requestConfig);
+        return this.outputResponse(response, requestConfig);
       } catch (error) {
         if (
           attempt === retries ||
           !(await shouldRetry(error, attempt)) ||
-          !retryOn?.includes(
-            (response as FetchResponse<Response>)?.status ||
-              error?.response?.status ||
-              error?.status,
-          )
+          !retryOn?.includes(error?.response?.status || error?.status)
         ) {
           this.processError(error, requestConfig);
 
@@ -691,7 +684,7 @@ export class RequestHandler {
       }
     }
 
-    return this.processResponseData(response, requestConfig);
+    return this.outputResponse(response, requestConfig);
   }
 
   public async delay(ms: number): Promise<boolean> {
@@ -703,13 +696,13 @@ export class RequestHandler {
   }
 
   /**
-   * Process response
+   * Output response
    *
    * @param response - Response payload
    * @param {RequestConfig} requestConfig - Request config
    * @returns {*} Response data
    */
-  protected processResponseData(response, requestConfig: RequestConfig) {
+  protected outputResponse(response, requestConfig: RequestConfig) {
     const defaultResponse =
       typeof requestConfig.defaultResponse !== 'undefined'
         ? requestConfig.defaultResponse
@@ -746,23 +739,25 @@ export class RequestHandler {
       return defaultResponse;
     }
 
-    // For fetch()
     const isCustomFetcher = this.isCustomFetcher();
 
-    if (!isCustomFetcher) {
-      return {
-        ...response,
-        headers: Array.from(response?.headers?.entries() || {}).reduce(
-          (acc, [key, value]) => {
-            acc[key] = value;
-            return acc;
-          },
-          {},
-        ),
-        config: requestConfig,
-      };
+    if (isCustomFetcher) {
+      return { ...response, isError: false };
     }
 
-    return response;
+    // Native fetch()
+    return {
+      ...response,
+      headers: Array.from(response?.headers?.entries() || {}).reduce(
+        (acc, [key, value]) => {
+          acc[key] = value;
+          return acc;
+        },
+        {},
+      ),
+      isError: false,
+      error: null,
+      config: requestConfig,
+    };
   }
 }
