@@ -3,13 +3,13 @@ import type {
   ErrorHandlingStrategy,
   RequestHandlerConfig,
   RequestConfig,
-  RequestError as RequestErrorResponse,
   FetcherInstance,
   Method,
   RequestConfigHeaders,
   RetryOptions,
   FetchResponse,
   ExtendedResponse,
+  ResponseError,
 } from './types/request-handler';
 import type {
   APIResponse,
@@ -17,8 +17,8 @@ import type {
   QueryParamsOrBody,
   UrlPathParams,
 } from './types/api-handler';
-import { RequestError } from './request-error';
 import { interceptRequest, interceptResponse } from './interceptor-manager';
+import { ResponseErr } from './response-error';
 
 /**
  * Generic Request Handler
@@ -400,12 +400,12 @@ export class RequestHandler {
   /**
    * Process global Request Error
    *
-   * @param {RequestErrorResponse} error      Error instance
+   * @param {ResponseError} error      Error instance
    * @param {RequestConfig} requestConfig   Per endpoint request config
    * @returns {void}
    */
   protected processError(
-    error: RequestErrorResponse,
+    error: ResponseError,
     requestConfig: RequestConfig,
   ): void {
     if (this.isRequestCancelled(error)) {
@@ -430,12 +430,12 @@ export class RequestHandler {
   /**
    * Output default response in case of an error, depending on chosen strategy
    *
-   * @param {RequestErrorResponse} error      Error instance
+   * @param {ResponseError} error      Error instance
    * @param {RequestConfig} requestConfig   Per endpoint request config
    * @returns {*} Error response
    */
   protected async outputErrorResponse(
-    error: RequestErrorResponse,
+    error: ResponseError,
     requestConfig: RequestConfig,
   ): Promise<any> {
     const isRequestCancelled = this.isRequestCancelled(error);
@@ -454,16 +454,21 @@ export class RequestHandler {
       return defaultResponse;
     }
 
+    // Hang the promise
     if (errorHandlingStrategy === 'silent') {
-      // Hang the promise
       await new Promise(() => null);
 
       return defaultResponse;
     }
 
-    // Simply rejects a request promise
+    // Reject the promise
     if (errorHandlingStrategy === 'reject') {
       return Promise.reject(error);
+    }
+
+    // Output full response with the error object
+    if (errorHandlingStrategy === 'response') {
+      return this.outputResponse(error.response, requestConfig);
     }
 
     return defaultResponse;
@@ -472,10 +477,10 @@ export class RequestHandler {
   /**
    * Output error response depending on chosen strategy
    *
-   * @param {RequestErrorResponse} error               Error instance
+   * @param {ResponseError} error               Error instance
    * @returns {boolean}                        True if request is aborted
    */
-  public isRequestCancelled(error: RequestErrorResponse): boolean {
+  public isRequestCancelled(error: ResponseError): boolean {
     return error.name === 'AbortError' || error.name === 'CanceledError';
   }
 
@@ -555,7 +560,7 @@ export class RequestHandler {
    * @param {QueryParamsOrBody} data - Request data
    * @param {RequestConfig} config - Request config
    * @param {RequestConfig} payload.config               Request config
-   * @throws {RequestErrorResponse}
+   * @throws {ResponseError}
    * @returns {Promise<Response & FetchResponse<Response>>} Response Data
    */
   public async request<Response = APIResponse>(
@@ -643,8 +648,7 @@ export class RequestHandler {
           } else {
             response.data = null;
 
-            // Output error in similar format to what Axios does
-            throw new RequestError(
+            throw new ResponseErr(
               `${requestConfig.url} failed! Status: ${response.status || null}`,
               requestConfig,
               response,
@@ -692,6 +696,16 @@ export class RequestHandler {
       setTimeout(() => {
         return resolve(true);
       }, ms),
+    );
+  }
+
+  public async processHeaders(response) {
+    return Array.from(response?.headers?.entries() || {}).reduce(
+      (acc, [key, value]) => {
+        acc[key] = value;
+        return acc;
+      },
+      {},
     );
   }
 
@@ -748,13 +762,7 @@ export class RequestHandler {
     // Native fetch()
     return {
       ...response,
-      headers: Array.from(response?.headers?.entries() || {}).reduce(
-        (acc, [key, value]) => {
-          acc[key] = value;
-          return acc;
-        },
-        {},
-      ),
+      headers: this.processHeaders(response),
       isError: false,
       error: null,
       config: requestConfig,

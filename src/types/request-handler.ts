@@ -33,15 +33,13 @@ export type FetcherInstance = unknown | null;
 
 export type RequestResponse<T = unknown> = Promise<FetchResponse<T>>;
 
-export type ErrorHandlingStrategy = 'reject' | 'silent' | 'defaultResponse';
+export type ErrorHandlingStrategy =
+  | 'reject'
+  | 'silent'
+  | 'defaultResponse'
+  | 'response';
 
-export type RequestError = ResponseError<unknown>;
-
-interface ErrorHandlerClass {
-  process(error?: RequestError): unknown;
-}
-
-type ErrorHandlerFunction = (error: RequestError) => unknown;
+type ErrorHandlerInterceptor = (error: ResponseError) => unknown;
 
 export interface BaseRequestConfig<D = any> {
   url?: string;
@@ -203,7 +201,10 @@ export interface RetryOptions {
   /**
    * A function to determine whether to retry based on the error and attempt number.
    */
-  shouldRetry?: (error: RequestError, attempt: number) => Promise<boolean>;
+  shouldRetry?: <T = any, D = any>(
+    error: ResponseError<T, D>,
+    attempt: number,
+  ) => Promise<boolean>;
 }
 
 interface ExtendedRequestConfig extends BaseRequestConfig, RequestInit {
@@ -215,7 +216,7 @@ interface ExtendedRequestConfig extends BaseRequestConfig, RequestInit {
   strategy?: ErrorHandlingStrategy;
   onRequest?: RequestInterceptor | RequestInterceptor[];
   onResponse?: ResponseInterceptor | ResponseInterceptor[];
-  onError?: ErrorHandlerFunction | ErrorHandlerClass;
+  onError?: ErrorHandlerInterceptor;
   headers?: RequestConfigHeaders;
   signal?: AbortSignal;
   urlPathParams?: UrlPathParams;
