@@ -449,6 +449,11 @@ export class RequestHandler {
         ? requestConfig.defaultResponse
         : this.defaultResponse;
 
+    // Output full response with the error object
+    if (errorHandlingStrategy === 'response') {
+      return this.outputResponse(error.response, requestConfig);
+    }
+
     // By default cancelled requests aren't rejected
     if (isRequestCancelled && !rejectCancelled) {
       return defaultResponse;
@@ -464,11 +469,6 @@ export class RequestHandler {
     // Reject the promise
     if (errorHandlingStrategy === 'reject') {
       return Promise.reject(error);
-    }
-
-    // Output full response with the error object
-    if (errorHandlingStrategy === 'response') {
-      return this.outputResponse(error.response, requestConfig);
     }
 
     return defaultResponse;
