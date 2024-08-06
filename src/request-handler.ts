@@ -451,7 +451,7 @@ export class RequestHandler {
 
     // Output full response with the error object
     if (errorHandlingStrategy === 'response') {
-      return this.outputResponse(error.response, requestConfig);
+      return this.outputResponse(error.response, requestConfig, error);
     }
 
     // By default cancelled requests aren't rejected
@@ -713,9 +713,14 @@ export class RequestHandler {
    *
    * @param response - Response payload
    * @param {RequestConfig} requestConfig - Request config
+   * @param {*} error - whether the response is erroneous
    * @returns {*} Response data
    */
-  protected outputResponse(response, requestConfig: RequestConfig) {
+  protected outputResponse(
+    response,
+    requestConfig: RequestConfig,
+    error = null,
+  ) {
     const defaultResponse =
       typeof requestConfig.defaultResponse !== 'undefined'
         ? requestConfig.defaultResponse
@@ -755,15 +760,20 @@ export class RequestHandler {
     const isCustomFetcher = this.isCustomFetcher();
 
     if (isCustomFetcher) {
-      return { ...response, isError: false };
+      return response;
+    }
+
+    if (error !== null) {
+      delete error?.response;
+      delete error?.request;
+      delete error?.config;
     }
 
     // Native fetch()
     return {
       ...response,
+      error,
       headers: this.processHeaders(response),
-      isError: false,
-      error: null,
       config: requestConfig,
     };
   }
