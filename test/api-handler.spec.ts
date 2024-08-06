@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import axios from 'axios';
-import { mockErrorCallbackClass } from './request-error-handler.spec';
 import { endpoints } from './mocks/endpoints';
 import { createApiFetcher } from '../src';
 
@@ -10,7 +9,7 @@ describe('API Handler', () => {
     fetcher: axios,
     apiUrl,
     endpoints,
-    onError: new mockErrorCallbackClass(),
+    onError: jest.fn(),
   };
   const userDataMock = { name: 'Mark', age: 20 };
 

@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { RequestErrorHandler } from './request-error-handler';
 import type {
   ErrorHandlingStrategy,
   RequestHandlerConfig,
@@ -83,7 +82,7 @@ export class RequestHandler {
   protected logger: any;
 
   /**
-   * @var requestErrorService HTTP error service
+   * @var onError HTTP error service
    */
   protected onError: any;
 
@@ -416,14 +415,23 @@ export class RequestHandler {
       return;
     }
 
-    // Invoke per request "onError" call
+    if (this.logger?.warn) {
+      this.logger.warn('API ERROR', error);
+    }
+
+    // Invoke per request "onError" interceptor
     if (requestConfig.onError && typeof requestConfig.onError === 'function') {
       requestConfig.onError(error);
     }
 
-    const errorHandler = new RequestErrorHandler(this.logger, this.onError);
-
-    errorHandler.process(error);
+    // Invoke global "onError" interceptor
+    if (this.onError) {
+      if (typeof this.onError.process !== 'undefined') {
+        this.onError.process(error);
+      } else if (typeof this.onError === 'function') {
+        this.onError(error);
+      }
+    }
   }
 
   /**
