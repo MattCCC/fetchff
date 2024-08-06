@@ -613,41 +613,40 @@ export class RequestHandler {
           // Add more information to response object
           response.config = requestConfig;
 
-          // Check if the response status is not outside the range 200-299
-          if (response.ok) {
-            const contentType = String(
-              response?.headers?.get('Content-Type') || '',
-            );
-            let data = null;
+          // Attempt to collect response data regardless of response status
+          const contentType = String(
+            response?.headers?.get('Content-Type') || '',
+          );
+          let data;
 
-            // Handle edge case of no content type being provided... We assume json here.
-            if (!contentType) {
-              try {
-                data = await response.json();
-                // eslint-disable-next-line @typescript-eslint/no-unused-vars
-              } catch (_error) {
-                //
-              }
+          // Handle edge case of no content type being provided... We assume json here.
+          if (!contentType) {
+            try {
+              data = await response.json();
+              // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            } catch (_error) {
+              //
             }
+          }
 
-            if (!data) {
-              if (contentType && contentType.includes('application/json')) {
-                // Parse JSON response
-                data = await response.json();
-              } else if (typeof response.text !== 'undefined') {
-                data = await response.text();
-              } else if (typeof response.blob !== 'undefined') {
-                data = await response.blob();
-              } else {
-                // Handle streams
-                data = response.body || response.data || null;
-              }
+          if (typeof data === 'undefined') {
+            if (contentType && contentType.includes('application/json')) {
+              // Parse JSON response
+              data = await response.json();
+            } else if (typeof response.text !== 'undefined') {
+              data = await response.text();
+            } else if (typeof response.blob !== 'undefined') {
+              data = await response.blob();
+            } else {
+              // Handle streams
+              data = response.body || response.data || null;
             }
+          }
 
-            response.data = data;
-          } else {
-            response.data = null;
+          response.data = data;
 
+          // Check if the response status is not outside the range 200-299 and if so, output error
+          if (!response.ok) {
             throw new ResponseErr(
               `${requestConfig.url} failed! Status: ${response.status || null}`,
               requestConfig,
