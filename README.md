@@ -378,6 +378,35 @@ try {
 }
 ```
 
+### Multiple APIs from different API sources
+
+```typescript
+import { createApiFetcher } from 'axios-multi-api';
+
+const api = createApiFetcher({
+  apiUrl: 'https://example.com/api/v1',
+  endpoints: {
+    sendMessage: {
+      method: 'post',
+      url: '/send-message/:postId',
+    },
+    getMessage: {
+      url: '/get-message/',
+      // Change baseURL to external for this endpoint onyl
+      baseURL: 'https://externalprovider.com/api/v2',
+    },
+  },
+});
+
+async function sendAndGetMessage() {
+  await api.sendMessage({ message: 'Text' }, { postId: 1 });
+
+  const { data } = await api.getMessage({ postId: 1 });
+}
+
+sendAndGetMessage();
+```
+
 ### Retry Mechanism
 
 Here’s an example of configuring and using the `createApiFetcher()` with the retry mechanism:
