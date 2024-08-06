@@ -425,12 +425,8 @@ export class RequestHandler {
     }
 
     // Invoke global "onError" interceptor
-    if (this.onError) {
-      if (typeof this.onError.process !== 'undefined') {
-        this.onError.process(error);
-      } else if (typeof this.onError === 'function') {
-        this.onError(error);
-      }
+    if (this.onError && typeof this.onError === 'function') {
+      this.onError(error);
     }
   }
 
