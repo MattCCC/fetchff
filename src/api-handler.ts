@@ -68,9 +68,10 @@ import type {
  * // Fetch user data
  * const response = await api.getUser({ userId: 1, ratings: [1, 2] })
  */
-function createApiFetcher<EndpointsMethods = never, EndpointsCfg = never>(
-  config: ApiHandlerConfig<EndpointsMethods>,
-) {
+function createApiFetcher<
+  EndpointsMethods extends object,
+  EndpointsCfg = never,
+>(config: ApiHandlerConfig<EndpointsMethods>) {
   const endpoints = config.endpoints;
   const requestHandler = new RequestHandler(config);
 
