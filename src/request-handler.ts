@@ -351,8 +351,13 @@ export class RequestHandler {
 
     // Native fetch
     const payload = configData || data;
+    const credentials =
+      config.withCredentials || this.config.withCredentials
+        ? 'include'
+        : config.credentials;
 
     delete config.data;
+    delete config.withCredentials;
 
     const urlPath =
       (!isGetAlikeMethod && data && !config.body) || !data
@@ -367,6 +372,7 @@ export class RequestHandler {
 
     return {
       ...config,
+      credentials,
 
       // Native fetch generally requires query params to be appended in the URL
       // Do not append query params only if it's a POST-alike request with only "data" specified as it's treated as body payload
