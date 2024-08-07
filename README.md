@@ -146,6 +146,8 @@ export const useProfile = ({ id }) => {
 };
 ```
 
+Check examples below for more integrations with other libraries.
+
 ## ✔️ API
 
 ### `fetchf()`
@@ -885,6 +887,75 @@ import { fetchf } from 'axios-multi-api';
 const { data } = await fetchf('/api/user-details', {
   retry: { retries: 3, delay: 2000 },
 });
+```
+
+### Integration with Vue
+
+```typescript
+// src/api.ts
+import { createApiFetcher } from 'axios-multi-api';
+
+const api = createApiFetcher({
+  apiUrl: 'https://example.com/api',
+  strategy: 'softFail',
+  endpoints: {
+    getProfile: { url: '/profile/:id' },
+  },
+});
+
+export default api;
+```
+
+```typescript
+// src/composables/useProfile.ts
+import { ref, onMounted } from 'vue';
+import api from '../api';
+
+export function useProfile(id: number) {
+  const profile = ref(null);
+  const isLoading = ref(true);
+  const isError = ref(null);
+
+  const fetchProfile = async () => {
+    const { data, error } = await api.getProfile({ id });
+
+    if (error) isError.value = error;
+    else if (data) profile.value = data;
+
+    isLoading.value = false;
+  };
+
+  onMounted(fetchProfile);
+
+  return { profile, isLoading, isError };
+}
+```
+
+```html
+<!-- src/components/Profile.vue -->
+<template>
+  <div>
+    <h1>Profile</h1>
+    <div v-if="isLoading">Loading...</div>
+    <div v-if="isError">Error: {{ isError.message }}</div>
+    <div v-if="profile">
+      <p>Name: {{ profile.name }}</p>
+      <p>Email: {{ profile.email }}</p>
+    </div>
+  </div>
+</template>
+
+<script lang="ts">
+  import { defineComponent } from 'vue';
+  import { useProfile } from '../composables/useProfile';
+
+  export default defineComponent({
+    props: { id: Number },
+    setup(props) {
+      return useProfile(props.id);
+    },
+  });
+</script>
 ```
 
 ## ✔️ Support and collaboration
