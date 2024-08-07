@@ -530,7 +530,7 @@ export class RequestHandler {
     const controller = new AbortController();
 
     // Introduce timeout for native fetch
-    if (!this.isCustomFetcher()) {
+    if (!this.isCustomFetcher() && this.timeout > 0) {
       const abortTimeout = setTimeout(() => {
         const error = new Error(
           `[TimeoutError]: The ${requestConfig.url} request was aborted due to timeout`,
