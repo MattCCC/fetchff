@@ -74,6 +74,7 @@ import { createApiFetcher } from 'axios-multi-api';
 
 const api = createApiFetcher({
   apiUrl: 'https://example.com/api',
+  strategy: 'softFail', // no try/catch required
   endpoints: {
     getUser: {
       method: 'get',
@@ -336,7 +337,12 @@ const { data, error } = await api.request(
 
 // Using api.request to make a POST request
 const { data, error } = await api.request('updateUser', {
-  name: 'John Doe', // Data payload
+  name: 'John Doe', // Data Payload
+});
+
+// Using api.request to make a GET request to an external API
+const { data, error } = await api.request('https://example.com/api/user', {
+  name: 'John Smith', // Query Params
 });
 ```
 
