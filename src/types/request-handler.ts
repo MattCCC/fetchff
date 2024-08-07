@@ -35,7 +35,7 @@ export type ErrorHandlingStrategy =
   | 'reject'
   | 'silent'
   | 'defaultResponse'
-  | 'response';
+  | 'softFail';
 
 type ErrorHandlerInterceptor = (error: ResponseError) => unknown;
 

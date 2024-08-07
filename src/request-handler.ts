@@ -160,8 +160,7 @@ export class RequestHandler {
     this.fetcher = fetcher;
     this.timeout =
       timeout !== null && timeout !== undefined ? timeout : this.timeout;
-    this.strategy =
-      strategy !== null && strategy !== undefined ? strategy : this.strategy;
+    this.strategy = strategy || this.strategy;
     this.cancellable = config.cancellable || this.cancellable;
     this.rejectCancelled = rejectCancelled || this.rejectCancelled;
     this.flattenResponse = flattenResponse || this.flattenResponse;
@@ -449,7 +448,7 @@ export class RequestHandler {
         : this.defaultResponse;
 
     // Output full response with the error object
-    if (errorHandlingStrategy === 'response') {
+    if (errorHandlingStrategy === 'softFail') {
       return this.outputResponse(error.response, requestConfig, error);
     }
 
