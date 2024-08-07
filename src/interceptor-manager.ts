@@ -1,8 +1,4 @@
-import type {
-  BaseRequestHandlerConfig,
-  FetchResponse,
-  RequestResponse,
-} from './types';
+import type { RequestHandlerConfig, FetchResponse } from './types';
 import type {
   RequestInterceptor,
   ResponseInterceptor,
@@ -10,14 +6,14 @@ import type {
 
 /**
  * Applies a series of request interceptors to the provided configuration.
- * @param {BaseRequestHandlerConfig} config - The initial request configuration.
+ * @param {RequestHandlerConfig} config - The initial request configuration.
  * @param {RequestInterceptor | RequestInterceptor[]} interceptors - The request interceptor function(s) to apply.
- * @returns {Promise<BaseRequestHandlerConfig>} - The modified request configuration.
+ * @returns {Promise<RequestHandlerConfig>} - The modified request configuration.
  */
 export async function interceptRequest(
-  config: BaseRequestHandlerConfig,
+  config: RequestHandlerConfig,
   interceptors: RequestInterceptor | RequestInterceptor[],
-): Promise<BaseRequestHandlerConfig> {
+): Promise<RequestHandlerConfig> {
   if (!interceptors) {
     return config;
   }
@@ -39,12 +35,12 @@ export async function interceptRequest(
  * Applies a series of response interceptors to the provided response.
  * @param {FetchResponse<ResponseData>} response - The initial response object.
  * @param {ResponseInterceptor | ResponseInterceptor[]} interceptors - The response interceptor function(s) to apply.
- * @returns {Promise<RequestResponse<ResponseData>>} - The modified response object.
+ * @returns {Promise<FetchResponse<ResponseData>>} - The modified response object.
  */
 export async function interceptResponse<ResponseData = unknown>(
   response: FetchResponse<ResponseData>,
   interceptors: ResponseInterceptor | ResponseInterceptor[],
-): Promise<RequestResponse<ResponseData>> {
+): Promise<FetchResponse<ResponseData>> {
   if (!interceptors) {
     return response;
   }

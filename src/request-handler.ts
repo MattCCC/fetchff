@@ -5,11 +5,10 @@ import type {
   RequestConfig,
   FetcherInstance,
   Method,
-  RequestConfigHeaders,
   RetryOptions,
   FetchResponse,
-  ExtendedResponse,
   ResponseError,
+  HeadersObject,
 } from './types/request-handler';
 import type {
   APIResponse,
@@ -382,7 +381,7 @@ export class RequestHandler {
         Accept: 'application/json, text/plain, */*',
         'Content-Type': 'application/json;charset=utf-8',
         ...(config.headers || this.config.headers || {}),
-      } as RequestConfigHeaders,
+      },
 
       // Automatically JSON stringify request bodies, if possible and when not dealing with strings
       ...(!isGetAlikeMethod
@@ -561,14 +560,14 @@ export class RequestHandler {
    * @param {RequestConfig} config - Request config
    * @param {RequestConfig} payload.config               Request config
    * @throws {ResponseError}
-   * @returns {Promise<Response & FetchResponse<Response>>} Response Data
+   * @returns {Promise<ResponseData & FetchResponse<ResponseData>>} Response Data
    */
-  public async request<Response = APIResponse>(
+  public async request<ResponseData = APIResponse>(
     url: string,
     data: QueryParamsOrBody = null,
     config: RequestConfig = null,
-  ): Promise<Response & FetchResponse<Response>> {
-    let response: Response | FetchResponse<Response> = null;
+  ): Promise<ResponseData & FetchResponse<ResponseData>> {
+    let response: FetchResponse<ResponseData> = null;
     const _config = config || {};
     const _requestConfig = this.buildConfig(url, data, _config);
 
@@ -603,19 +602,16 @@ export class RequestHandler {
         if (this.isCustomFetcher()) {
           response = (await (this.requestInstance as any).request(
             requestConfig,
-          )) as FetchResponse<Response>;
+          )) as FetchResponse<ResponseData>;
         } else {
           response = (await globalThis.fetch(
             requestConfig.url,
             requestConfig,
-          )) as ExtendedResponse;
-
-          // Add more information to response object
-          response.config = requestConfig;
+          )) as FetchResponse<ResponseData>;
 
           // Attempt to collect response data regardless of response status
           const contentType = String(
-            response?.headers?.get('Content-Type') || '',
+            (response as Response)?.headers?.get('Content-Type') || '',
           );
           let data;
 
@@ -643,6 +639,8 @@ export class RequestHandler {
             }
           }
 
+          // Add more information to response object
+          response.config = requestConfig;
           response.data = data;
 
           // Check if the response status is not outside the range 200-299 and if so, output error
@@ -661,7 +659,8 @@ export class RequestHandler {
         // Global interceptors
         response = await interceptResponse(response, this.config.onResponse);
 
-        return this.outputResponse(response, requestConfig);
+        return this.outputResponse(response, requestConfig) as ResponseData &
+          FetchResponse<ResponseData>;
       } catch (error) {
         if (
           attempt === retries ||
@@ -687,7 +686,8 @@ export class RequestHandler {
       }
     }
 
-    return this.outputResponse(response, requestConfig);
+    return this.outputResponse(response, requestConfig) as ResponseData &
+      FetchResponse<ResponseData>;
   }
 
   public async delay(ms: number): Promise<boolean> {
@@ -698,14 +698,26 @@ export class RequestHandler {
     );
   }
 
-  public async processHeaders(response) {
-    return Array.from(response?.headers?.entries() || {}).reduce(
-      (acc, [key, value]) => {
-        acc[key] = value;
-        return acc;
-      },
-      {},
-    );
+  public processHeaders<ResponseData>(
+    response: FetchResponse<ResponseData>,
+  ): HeadersObject {
+    if (!response.headers) {
+      return {};
+    }
+
+    let headersObject: HeadersObject = {};
+
+    // Handle Headers object with entries() method
+    if (response.headers instanceof Headers) {
+      for (const [key, value] of (response.headers as any).entries()) {
+        headersObject[key] = value;
+      }
+    } else {
+      // Handle plain object
+      headersObject = { ...(response.headers as HeadersObject) };
+    }
+
+    return headersObject;
   }
 
   /**
@@ -714,13 +726,13 @@ export class RequestHandler {
    * @param response - Response payload
    * @param {RequestConfig} requestConfig - Request config
    * @param {*} error - whether the response is erroneous
-   * @returns {*} Response data
+   * @returns {ResponseData | FetchResponse<ResponseData>} Response data
    */
-  protected outputResponse(
-    response,
+  protected outputResponse<ResponseData = APIResponse>(
+    response: FetchResponse<ResponseData>,
     requestConfig: RequestConfig,
     error = null,
-  ) {
+  ): ResponseData | FetchResponse<ResponseData> {
     const defaultResponse =
       typeof requestConfig.defaultResponse !== 'undefined'
         ? requestConfig.defaultResponse
@@ -738,11 +750,12 @@ export class RequestHandler {
       // This is in fact a proper response but we may want to flatten it
       // To ease developers' lives when obtaining the response
       if (
+        response.data !== null &&
         typeof response.data === 'object' &&
-        typeof response.data.data !== 'undefined' &&
+        typeof (response.data as any).data !== 'undefined' &&
         Object.keys(response.data).length === 1
       ) {
-        return response.data.data;
+        return (response.data as any).data;
       }
 
       return response.data;
@@ -750,6 +763,7 @@ export class RequestHandler {
 
     // If empty object is returned, ensure that the default response is used instead
     if (
+      response !== null &&
       typeof response === 'object' &&
       response.constructor === Object &&
       Object.keys(response).length === 0

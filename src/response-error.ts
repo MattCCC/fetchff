@@ -1,13 +1,17 @@
-import type { RequestConfig } from './types';
+import type { FetchResponse, RequestConfig } from './types';
 
 export class ResponseErr extends Error {
-  response: Response;
+  response: FetchResponse;
   request: RequestConfig;
   config: RequestConfig;
   status: number;
   statusText: string;
 
-  constructor(message: string, requestInfo: RequestConfig, response: Response) {
+  constructor(
+    message: string,
+    requestInfo: RequestConfig,
+    response: FetchResponse,
+  ) {
     super(message);
 
     this.name = 'ResponseError';

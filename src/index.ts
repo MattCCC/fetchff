@@ -6,14 +6,14 @@ import type { APIResponse, FetchResponse, RequestHandlerConfig } from './types';
  * It abstracts the creation of RequestHandler, making it easy to perform API requests.
  *
  * @param {string | URL | globalThis.Request} url - Request URL.
- * @param {Object} config - Configuration object for the request handler.
- * @returns {Promise<Response | RequestResponse>} Response Data.
+ * @param {RequestHandlerConfig} config - Configuration object for the request handler.
+ * @returns {Promise<ResponseData & FetchResponse<ResponseData>>} Response Data.
  */
-export async function fetchf<Response = APIResponse>(
+export async function fetchf<ResponseData = APIResponse>(
   url: string,
   config: RequestHandlerConfig = {},
-): Promise<Response & FetchResponse<Response>> {
-  return new RequestHandler(config).request<Response>(
+): Promise<ResponseData & FetchResponse<ResponseData>> {
+  return new RequestHandler(config).request<ResponseData>(
     url,
     config.body || config.data || config.params,
     config,

@@ -1,13 +1,9 @@
-import type {
-  BaseRequestHandlerConfig,
-  FetchResponse,
-  RequestResponse,
-} from './request-handler';
+import type { FetchResponse, RequestHandlerConfig } from './request-handler';
 
 export type RequestInterceptor = (
-  config: BaseRequestHandlerConfig,
-) => BaseRequestHandlerConfig | Promise<BaseRequestHandlerConfig>;
+  config: RequestHandlerConfig,
+) => RequestHandlerConfig | Promise<RequestHandlerConfig>;
 
 export type ResponseInterceptor = <ResponseData = unknown>(
   response: FetchResponse<ResponseData>,
-) => RequestResponse<ResponseData>;
+) => Promise<FetchResponse<ResponseData>>;
