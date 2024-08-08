@@ -161,8 +161,12 @@ async function example4() {
     'https://example.com/api/custom-endpoint',
   );
 
+  const data3 = await fetchf<{ myData: true }>(
+    'https://example.com/api/custom-endpoint',
+  );
+
   console.log('Example 4', books);
-  console.log('Example 4', data1, data2);
+  console.log('Example 4', data1, data2, data3);
 }
 
 // createApiFetcher() - direct API request() call to a custom endpoint with flattenResponse == false

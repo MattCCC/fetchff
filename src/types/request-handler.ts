@@ -31,17 +31,13 @@ export type NativeFetch = typeof fetch;
 
 export type FetcherInstance = unknown | null;
 
-export type RequestResponse<T = unknown> = Promise<FetchResponse<T>>;
+export type ErrorHandlingStrategy =
+  | 'reject'
+  | 'silent'
+  | 'defaultResponse'
+  | 'softFail';
 
-export type ErrorHandlingStrategy = 'reject' | 'silent' | 'defaultResponse';
-
-export type RequestError = ResponseError<unknown>;
-
-interface ErrorHandlerClass {
-  process(error?: RequestError): unknown;
-}
-
-type ErrorHandlerFunction = (error: RequestError) => unknown;
+type ErrorHandlerInterceptor = (error: ResponseError) => unknown;
 
 export interface BaseRequestConfig<D = any> {
   url?: string;
@@ -49,7 +45,7 @@ export interface BaseRequestConfig<D = any> {
   baseURL?: string;
   transformRequest?: Transformer | Transformer[];
   transformResponse?: Transformer | Transformer[];
-  headers?: any;
+  headers?: HeadersInit;
   params?: any;
   paramsSerializer?: (params: any) => string;
   data?: D;
@@ -78,34 +74,31 @@ export interface BaseRequestConfig<D = any> {
   insecureHTTPParser?: boolean;
 }
 
-export interface ExtendedResponse<T = any, D = any> extends Response {
+export interface ExtendedResponse<T = any> extends Omit<Response, 'headers'> {
   data: T;
-  config: BaseRequestConfig<D>;
+  error: ResponseError<T>;
+  headers: HeadersObject | HeadersInit;
+  config: ExtendedRequestConfig;
+  request?: ExtendedRequestConfig;
 }
 
-export type FetchResponse<T = any, D = any> = BaseFetchResponse<T, D> &
-  ExtendedResponse<T, D>;
+export type FetchResponse<T = any> = ExtendedResponse<T>;
 
-export interface BaseFetchResponse<T = any, D = any> {
-  data: T;
-  status: number;
-  statusText: string;
-  headers: any;
-  config: BaseRequestConfig<D>;
-  request?: any;
+export interface HeadersObject {
+  [key: string]: string;
 }
 
-export interface ResponseError<T = any, D = any> extends Error {
-  config: BaseRequestConfig<D>;
+export interface ResponseError<T = any> extends Error {
   code?: string;
-  request?: any;
-  response?: FetchResponse<T, D>;
   isAxiosError: boolean;
-  toJSON: () => object;
+  config: ExtendedRequestConfig;
+  request?: ExtendedRequestConfig;
+  response?: FetchResponse<T>;
+  toJSON?: () => object;
 }
 
 export interface Transformer {
-  (data: any, headers?: any): any;
+  (data: any, headers?: HeadersInit): any;
 }
 
 export interface Adapter {
@@ -154,9 +147,6 @@ export interface TransitionalOptions {
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface ReturnedPromise<T = any> extends Promise<FetchResponse<T>> {}
 
-export type RequestConfigHeaders = Record<string, string | number | boolean> &
-  HeadersInit;
-
 /**
  * Interface for configuring retry options.
  */
@@ -203,7 +193,10 @@ export interface RetryOptions {
   /**
    * A function to determine whether to retry based on the error and attempt number.
    */
-  shouldRetry?: (error: RequestError, attempt: number) => Promise<boolean>;
+  shouldRetry?: <T = any>(
+    error: ResponseError<T>,
+    attempt: number,
+  ) => Promise<boolean>;
 }
 
 interface ExtendedRequestConfig extends BaseRequestConfig, RequestInit {
@@ -215,13 +208,13 @@ interface ExtendedRequestConfig extends BaseRequestConfig, RequestInit {
   strategy?: ErrorHandlingStrategy;
   onRequest?: RequestInterceptor | RequestInterceptor[];
   onResponse?: ResponseInterceptor | ResponseInterceptor[];
-  onError?: ErrorHandlerFunction | ErrorHandlerClass;
-  headers?: RequestConfigHeaders;
+  onError?: ErrorHandlerInterceptor;
+  headers?: HeadersInit;
   signal?: AbortSignal;
   urlPathParams?: UrlPathParams;
 }
 
-export interface BaseRequestHandlerConfig extends RequestConfig {
+interface BaseRequestHandlerConfig extends RequestConfig {
   fetcher?: FetcherInstance;
   apiUrl?: string;
   logger?: unknown;

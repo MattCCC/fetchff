@@ -1,16 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { RequestErrorHandler } from './request-error-handler';
 import type {
   ErrorHandlingStrategy,
   RequestHandlerConfig,
   RequestConfig,
-  RequestError as RequestErrorResponse,
   FetcherInstance,
   Method,
-  RequestConfigHeaders,
   RetryOptions,
   FetchResponse,
-  ExtendedResponse,
+  ResponseError,
+  HeadersObject,
 } from './types/request-handler';
 import type {
   APIResponse,
@@ -18,8 +16,8 @@ import type {
   QueryParamsOrBody,
   UrlPathParams,
 } from './types/api-handler';
-import { RequestError } from './request-error';
 import { interceptRequest, interceptResponse } from './interceptor-manager';
+import { ResponseErr } from './response-error';
 
 /**
  * Generic Request Handler
@@ -83,7 +81,7 @@ export class RequestHandler {
   protected logger: any;
 
   /**
-   * @var requestErrorService HTTP error service
+   * @var onError HTTP error service
    */
   protected onError: any;
 
@@ -162,14 +160,10 @@ export class RequestHandler {
     this.fetcher = fetcher;
     this.timeout =
       timeout !== null && timeout !== undefined ? timeout : this.timeout;
-    this.strategy =
-      strategy !== null && strategy !== undefined ? strategy : this.strategy;
+    this.strategy = strategy || this.strategy;
     this.cancellable = config.cancellable || this.cancellable;
     this.rejectCancelled = rejectCancelled || this.rejectCancelled;
-    this.flattenResponse =
-      flattenResponse !== null && flattenResponse !== undefined
-        ? flattenResponse
-        : this.flattenResponse;
+    this.flattenResponse = flattenResponse || this.flattenResponse;
     this.defaultResponse = defaultResponse;
     this.logger = logger || (globalThis ? globalThis.console : null) || null;
     this.onError = onError;
@@ -357,8 +351,13 @@ export class RequestHandler {
 
     // Native fetch
     const payload = configData || data;
+    const credentials =
+      config.withCredentials || this.config.withCredentials
+        ? 'include'
+        : config.credentials;
 
     delete config.data;
+    delete config.withCredentials;
 
     const urlPath =
       (!isGetAlikeMethod && data && !config.body) || !data
@@ -373,6 +372,7 @@ export class RequestHandler {
 
     return {
       ...config,
+      credentials,
 
       // Native fetch generally requires query params to be appended in the URL
       // Do not append query params only if it's a POST-alike request with only "data" specified as it's treated as body payload
@@ -386,7 +386,7 @@ export class RequestHandler {
         Accept: 'application/json, text/plain, */*',
         'Content-Type': 'application/json;charset=utf-8',
         ...(config.headers || this.config.headers || {}),
-      } as RequestConfigHeaders,
+      },
 
       // Automatically JSON stringify request bodies, if possible and when not dealing with strings
       ...(!isGetAlikeMethod
@@ -404,37 +404,42 @@ export class RequestHandler {
   /**
    * Process global Request Error
    *
-   * @param {RequestErrorResponse} error      Error instance
+   * @param {ResponseError} error      Error instance
    * @param {RequestConfig} requestConfig   Per endpoint request config
    * @returns {void}
    */
   protected processError(
-    error: RequestErrorResponse,
+    error: ResponseError,
     requestConfig: RequestConfig,
   ): void {
     if (this.isRequestCancelled(error)) {
       return;
     }
 
-    // Invoke per request "onError" call
+    if (this.logger?.warn) {
+      this.logger.warn('API ERROR', error);
+    }
+
+    // Invoke per request "onError" interceptor
     if (requestConfig.onError && typeof requestConfig.onError === 'function') {
       requestConfig.onError(error);
     }
 
-    const errorHandler = new RequestErrorHandler(this.logger, this.onError);
-
-    errorHandler.process(error);
+    // Invoke global "onError" interceptor
+    if (this.onError && typeof this.onError === 'function') {
+      this.onError(error);
+    }
   }
 
   /**
    * Output default response in case of an error, depending on chosen strategy
    *
-   * @param {RequestErrorResponse} error      Error instance
+   * @param {ResponseError} error      Error instance
    * @param {RequestConfig} requestConfig   Per endpoint request config
    * @returns {*} Error response
    */
   protected async outputErrorResponse(
-    error: RequestErrorResponse,
+    error: ResponseError,
     requestConfig: RequestConfig,
   ): Promise<any> {
     const isRequestCancelled = this.isRequestCancelled(error);
@@ -448,19 +453,24 @@ export class RequestHandler {
         ? requestConfig.defaultResponse
         : this.defaultResponse;
 
+    // Output full response with the error object
+    if (errorHandlingStrategy === 'softFail') {
+      return this.outputResponse(error.response, requestConfig, error);
+    }
+
     // By default cancelled requests aren't rejected
     if (isRequestCancelled && !rejectCancelled) {
       return defaultResponse;
     }
 
+    // Hang the promise
     if (errorHandlingStrategy === 'silent') {
-      // Hang the promise
       await new Promise(() => null);
 
       return defaultResponse;
     }
 
-    // Simply rejects a request promise
+    // Reject the promise
     if (errorHandlingStrategy === 'reject') {
       return Promise.reject(error);
     }
@@ -471,10 +481,10 @@ export class RequestHandler {
   /**
    * Output error response depending on chosen strategy
    *
-   * @param {RequestErrorResponse} error               Error instance
+   * @param {ResponseError} error               Error instance
    * @returns {boolean}                        True if request is aborted
    */
-  public isRequestCancelled(error: RequestErrorResponse): boolean {
+  public isRequestCancelled(error: ResponseError): boolean {
     return error.name === 'AbortError' || error.name === 'CanceledError';
   }
 
@@ -526,7 +536,7 @@ export class RequestHandler {
     const controller = new AbortController();
 
     // Introduce timeout for native fetch
-    if (!this.isCustomFetcher()) {
+    if (!this.isCustomFetcher() && this.timeout > 0) {
       const abortTimeout = setTimeout(() => {
         const error = new Error(
           `[TimeoutError]: The ${requestConfig.url} request was aborted due to timeout`,
@@ -554,15 +564,15 @@ export class RequestHandler {
    * @param {QueryParamsOrBody} data - Request data
    * @param {RequestConfig} config - Request config
    * @param {RequestConfig} payload.config               Request config
-   * @throws {RequestErrorResponse}
-   * @returns {Promise<Response & FetchResponse<Response>>} Response Data
+   * @throws {ResponseError}
+   * @returns {Promise<ResponseData & FetchResponse<ResponseData>>} Response Data
    */
-  public async request<Response = APIResponse>(
+  public async request<ResponseData = APIResponse>(
     url: string,
     data: QueryParamsOrBody = null,
     config: RequestConfig = null,
-  ): Promise<Response & FetchResponse<Response>> {
-    let response: Response | FetchResponse<Response> = null;
+  ): Promise<ResponseData & FetchResponse<ResponseData>> {
+    let response: FetchResponse<ResponseData> = null;
     const _config = config || {};
     const _requestConfig = this.buildConfig(url, data, _config);
 
@@ -597,54 +607,51 @@ export class RequestHandler {
         if (this.isCustomFetcher()) {
           response = (await (this.requestInstance as any).request(
             requestConfig,
-          )) as FetchResponse<Response>;
+          )) as FetchResponse<ResponseData>;
         } else {
           response = (await globalThis.fetch(
             requestConfig.url,
             requestConfig,
-          )) as ExtendedResponse;
+          )) as FetchResponse<ResponseData>;
+
+          // Attempt to collect response data regardless of response status
+          const contentType = String(
+            (response as Response)?.headers?.get('Content-Type') || '',
+          );
+          let data;
+
+          // Handle edge case of no content type being provided... We assume json here.
+          if (!contentType) {
+            try {
+              data = await response.json();
+              // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            } catch (_error) {
+              //
+            }
+          }
+
+          if (typeof data === 'undefined') {
+            if (contentType && contentType.includes('application/json')) {
+              // Parse JSON response
+              data = await response.json();
+            } else if (typeof response.text !== 'undefined') {
+              data = await response.text();
+            } else if (typeof response.blob !== 'undefined') {
+              data = await response.blob();
+            } else {
+              // Handle streams
+              data = response.body || response.data || null;
+            }
+          }
 
           // Add more information to response object
           response.config = requestConfig;
+          response.data = data;
 
-          // Check if the response status is not outside the range 200-299
-          if (response.ok) {
-            const contentType = String(
-              response?.headers?.get('Content-Type') || '',
-            );
-            let data = null;
-
-            // Handle edge case of no content type being provided... We assume json here.
-            if (!contentType) {
-              try {
-                data = await response.json();
-                // eslint-disable-next-line @typescript-eslint/no-unused-vars
-              } catch (_error) {
-                //
-              }
-            }
-
-            if (!data) {
-              if (contentType && contentType.includes('application/json')) {
-                // Parse JSON response
-                data = await response.json();
-              } else if (typeof response.text !== 'undefined') {
-                data = await response.text();
-              } else if (typeof response.blob !== 'undefined') {
-                data = await response.blob();
-              } else {
-                // Handle streams
-                data = response.body || response.data || null;
-              }
-            }
-
-            response.data = data;
-          } else {
-            response.data = null;
-
-            // Output error in similar format to what Axios does
-            throw new RequestError(
-              `fetchf() Request Failed! Status: ${response.status || null}`,
+          // Check if the response status is not outside the range 200-299 and if so, output error
+          if (!response.ok) {
+            throw new ResponseErr(
+              `${requestConfig.url} failed! Status: ${response.status || null}`,
               requestConfig,
               response,
             );
@@ -657,16 +664,13 @@ export class RequestHandler {
         // Global interceptors
         response = await interceptResponse(response, this.config.onResponse);
 
-        return this.processResponseData(response, requestConfig);
+        return this.outputResponse(response, requestConfig) as ResponseData &
+          FetchResponse<ResponseData>;
       } catch (error) {
         if (
           attempt === retries ||
           !(await shouldRetry(error, attempt)) ||
-          !retryOn?.includes(
-            (response as FetchResponse<Response>)?.status ||
-              error?.response?.status ||
-              error?.status,
-          )
+          !retryOn?.includes(error?.response?.status || error?.status)
         ) {
           this.processError(error, requestConfig);
 
@@ -687,7 +691,8 @@ export class RequestHandler {
       }
     }
 
-    return this.processResponseData(response, requestConfig);
+    return this.outputResponse(response, requestConfig) as ResponseData &
+      FetchResponse<ResponseData>;
   }
 
   public async delay(ms: number): Promise<boolean> {
@@ -698,14 +703,41 @@ export class RequestHandler {
     );
   }
 
+  public processHeaders<ResponseData>(
+    response: FetchResponse<ResponseData>,
+  ): HeadersObject {
+    if (!response.headers) {
+      return {};
+    }
+
+    let headersObject: HeadersObject = {};
+
+    // Handle Headers object with entries() method
+    if (response.headers instanceof Headers) {
+      for (const [key, value] of (response.headers as any).entries()) {
+        headersObject[key] = value;
+      }
+    } else {
+      // Handle plain object
+      headersObject = { ...(response.headers as HeadersObject) };
+    }
+
+    return headersObject;
+  }
+
   /**
-   * Process response
+   * Output response
    *
    * @param response - Response payload
    * @param {RequestConfig} requestConfig - Request config
-   * @returns {*} Response data
+   * @param {*} error - whether the response is erroneous
+   * @returns {ResponseData | FetchResponse<ResponseData>} Response data
    */
-  protected processResponseData(response, requestConfig: RequestConfig) {
+  protected outputResponse<ResponseData = APIResponse>(
+    response: FetchResponse<ResponseData>,
+    requestConfig: RequestConfig,
+    error = null,
+  ): ResponseData | FetchResponse<ResponseData> {
     const defaultResponse =
       typeof requestConfig.defaultResponse !== 'undefined'
         ? requestConfig.defaultResponse
@@ -723,11 +755,12 @@ export class RequestHandler {
       // This is in fact a proper response but we may want to flatten it
       // To ease developers' lives when obtaining the response
       if (
+        response.data !== null &&
         typeof response.data === 'object' &&
-        typeof response.data.data !== 'undefined' &&
+        typeof (response.data as any).data !== 'undefined' &&
         Object.keys(response.data).length === 1
       ) {
-        return response.data.data;
+        return (response.data as any).data;
       }
 
       return response.data;
@@ -735,6 +768,7 @@ export class RequestHandler {
 
     // If empty object is returned, ensure that the default response is used instead
     if (
+      response !== null &&
       typeof response === 'object' &&
       response.constructor === Object &&
       Object.keys(response).length === 0
@@ -742,23 +776,24 @@ export class RequestHandler {
       return defaultResponse;
     }
 
-    // For fetch()
     const isCustomFetcher = this.isCustomFetcher();
 
-    if (!isCustomFetcher) {
-      return {
-        ...response,
-        headers: Array.from(response?.headers?.entries() || {}).reduce(
-          (acc, [key, value]) => {
-            acc[key] = value;
-            return acc;
-          },
-          {},
-        ),
-        config: requestConfig,
-      };
+    if (isCustomFetcher) {
+      return response;
     }
 
-    return response;
+    if (error !== null) {
+      delete error?.response;
+      delete error?.request;
+      delete error?.config;
+    }
+
+    // Native fetch()
+    return {
+      ...response,
+      error,
+      headers: this.processHeaders(response),
+      config: requestConfig,
+    };
   }
 }

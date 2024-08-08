@@ -864,7 +864,7 @@ describe('Request Handler', () => {
       const config = {};
 
       await expect(requestHandler.request(url, data, config)).rejects.toThrow(
-        'fetchf() Request Failed! Status: 500',
+        'https://api.example.com/test-endpoint?key=value failed! Status: 500',
       );
 
       expect(interceptRequest).toHaveBeenCalled();
@@ -889,7 +889,7 @@ describe('Request Handler', () => {
       const config = {};
 
       await expect(requestHandler.request(url, data, config)).rejects.toThrow(
-        'fetchf() Request Failed! Status: 404',
+        'https://api.example.com/test-endpoint?key=value failed! Status: 404',
       );
 
       expect(interceptRequest).toHaveBeenCalled();
@@ -1160,7 +1160,7 @@ describe('Request Handler', () => {
     });
   });
 
-  describe('processResponseData()', () => {
+  describe('outputResponse()', () => {
     it('should show nested data object if flattening is off', async () => {
       const requestHandler = new RequestHandler({
         fetcher: axios,
