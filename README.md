@@ -428,31 +428,26 @@ Check Examples section below for more information.
 
 ## Comparison with another libraries
 
-| Feature                                 | axios-multi-api | ofetch()     | Wretch()     | Axios        | SWR          | React Query  | Native fetch() |
-| --------------------------------------- | --------------- | ------------ | ------------ | ------------ | ------------ | ------------ | -------------- |
-| **Unified API Client**                  | ✅              | --           | --           | --           | --           | --           | --             |
-| **Customizable Error Handling**         | ✅              | --           | ✅           | ✅           | ✅           | ✅           | --             |
-| **Retries with exponential backoff**    | ✅              | --           | --           | --           | ✅           | ✅           | --             |
-| **Easy Timeouts**                       | ✅              | ✅           | ✅           | ✅           | --           | --           | --             |
-| **Easy Cancellation**                   | ✅              | --           | --           | --           | ✅           | ✅           | --             |
-| **Default Responses**                   | ✅              | --           | --           | --           | --           | --           | --             |
-| **Global Configuration**                | ✅              | --           | ✅           | ✅           | ✅           | ✅           | --             |
-| **TypeScript Support**                  | ✅              | ✅           | ✅           | ✅           | ✅           | ✅           | ✅             |
-| **Interceptors**                        | ✅              | ✅           | ✅           | ✅           | --           | --           | --             |
-| **Request and Response Transformation** | ✅              | ✅           | ✅           | ✅           | ✅           | ✅           | --             |
-| **Integration with Libraries**          | ✅              | ✅           | ✅           | ✅           | ✅           | ✅           | --             |
-| **Request Queuing**                     | ✅              | --           | --           | --           | --           | --           | --             |
-| **Multiple Fetching Strategies**        | ✅              | --           | --           | --           | --           | --           | --             |
-| **Dynamic URLs**                        | ✅              | --           | ✅           | --           | --           | --           | --             |
-| **Automatic Retry on Failure**          | ✅              | ✅           | --           | ✅           | ✅           | ✅           | --             |
-| **Server-Side Rendering (SSR) Support** | ✅              | ✅           | --           | --           | ✅           | ✅           | --             |
-| **Pagination Handling**                 | --              | --           | --           | --           | ✅           | ✅           | --             |
-| **Caching**                             | --              | --           | --           | --           | ✅           | ✅           | --             |
-| **Optimistic Updates**                  | --              | --           | --           | --           | ✅           | ✅           | --             |
-| **Data Synchronization**                | --              | --           | --           | --           | ✅           | ✅           | --             |
-| **Local State Management**              | --              | --           | --           | --           | ✅           | ✅           | --             |
-| **Minimal Installation Size**           | 🟢 (2.83 KB)    | 🟡 (6.51 KB) | 🟢 (2.16 KB) | 🔴 (13.9 KB) | 🟡 (4.57 KB) | 🔴 (13.3 KB) | 🟢 (0 KB)      |
-| **Built-in AbortController Support**    | ✅              | --           | --           | --           | ✅           | ✅           | --             |
+| Feature                                 | axios-multi-api | ofetch()     | Wretch()     | Axios        | Native fetch() |
+| --------------------------------------- | --------------- | ------------ | ------------ | ------------ | -------------- |
+| **Unified API Client**                  | ✅              | --           | --           | --           | --             |
+| **Customizable Error Handling**         | ✅              | --           | ✅           | ✅           | --             |
+| **Retries with exponential backoff**    | ✅              | --           | --           | --           | --             |
+| **Easy Timeouts**                       | ✅              | ✅           | ✅           | ✅           | --             |
+| **Easy Cancellation**                   | ✅              | --           | --           | --           | --             |
+| **Default Responses**                   | ✅              | --           | --           | --           | --             |
+| **Global Configuration**                | ✅              | --           | ✅           | ✅           | --             |
+| **TypeScript Support**                  | ✅              | ✅           | ✅           | ✅           | ✅             |
+| **Interceptors**                        | ✅              | ✅           | ✅           | ✅           | --             |
+| **Request and Response Transformation** | ✅              | ✅           | ✅           | ✅           | --             |
+| **Integration with Libraries**          | ✅              | ✅           | ✅           | ✅           | --             |
+| **Request Queuing**                     | ✅              | --           | --           | --           | --             |
+| **Multiple Fetching Strategies**        | ✅              | --           | --           | --           | --             |
+| **Dynamic URLs**                        | ✅              | --           | ✅           | --           | --             |
+| **Automatic Retry on Failure**          | ✅              | ✅           | --           | ✅           | --             |
+| **Server-Side Rendering (SSR) Support** | ✅              | ✅           | --           | --           | --             |
+| **Minimal Installation Size**           | 🟢 (2.83 KB)    | 🟡 (6.51 KB) | 🟢 (2.16 KB) | 🔴 (13.9 KB) | 🟢 (0 KB)      |
+| **Built-in AbortController Support**    | ✅              | --           | --           | --           | --             |
 
 Please mind that this table is for informational purposes only. All of these solutions differ. For example `swr` and `react-query` are more focused on React, re-rendering, query caching and keeping data in sync, while fetch wrappers like `axios-multi-api` or `ofetch` aim to extend functionalities of native `fetch` so to reduce complexity of having to maintain various wrappers.
 
