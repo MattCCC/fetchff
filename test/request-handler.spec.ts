@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import axios from 'axios';
 import PromiseAny from 'promise-any';
 import { RequestHandler } from '../src/request-handler';
 import fetchMock from 'fetch-mock';
@@ -13,6 +12,10 @@ jest.mock('../src/interceptor-manager', () => ({
   interceptRequest: jest.fn().mockImplementation(async (config) => config),
   interceptResponse: jest.fn().mockImplementation(async (response) => response),
 }));
+
+const fetcher = {
+  create: jest.fn().mockReturnValue({ request: jest.fn() }),
+};
 
 describe('Request Handler', () => {
   const apiUrl = 'http://example.com/api/';
@@ -29,9 +32,7 @@ describe('Request Handler', () => {
   });
 
   it('should get request instance', () => {
-    const requestHandler = new RequestHandler({
-      fetcher: axios,
-    });
+    const requestHandler = new RequestHandler({ fetcher });
 
     const response = requestHandler.getInstance();
 
@@ -444,7 +445,7 @@ describe('Request Handler', () => {
 
     it('should properly hang promise when using Silent strategy', async () => {
       const requestHandler = new RequestHandler({
-        fetcher: axios,
+        fetcher,
         strategy: 'silent',
       });
 
@@ -473,7 +474,7 @@ describe('Request Handler', () => {
 
     it('should reject promise when using rejection strategy', async () => {
       const requestHandler = new RequestHandler({
-        fetcher: axios,
+        fetcher,
         strategy: 'reject',
       });
 
@@ -491,7 +492,7 @@ describe('Request Handler', () => {
 
     it('should reject promise when using reject strategy per endpoint', async () => {
       const requestHandler = new RequestHandler({
-        fetcher: axios,
+        fetcher,
         strategy: 'silent',
       });
 
@@ -983,7 +984,7 @@ describe('Request Handler', () => {
 
     it('should not set cancel token if cancellation is globally disabled', async () => {
       const requestHandler = new RequestHandler({
-        fetcher: axios,
+        fetcher,
         strategy: 'reject',
         cancellable: false,
       });
@@ -1004,7 +1005,7 @@ describe('Request Handler', () => {
 
     it('should not set cancel token if cancellation is disabled per route', async () => {
       const requestHandler = new RequestHandler({
-        fetcher: axios,
+        fetcher,
         strategy: 'reject',
         cancellable: true,
       });
@@ -1031,7 +1032,7 @@ describe('Request Handler', () => {
 
     it('should set cancel token if cancellation is enabled per route', async () => {
       const requestHandler = new RequestHandler({
-        fetcher: axios,
+        fetcher,
         strategy: 'reject',
         cancellable: true,
       });
@@ -1054,7 +1055,7 @@ describe('Request Handler', () => {
 
     it('should set cancel token if cancellation is enabled per route but globally cancellation is disabled', async () => {
       const requestHandler = new RequestHandler({
-        fetcher: axios,
+        fetcher,
         strategy: 'reject',
         cancellable: false,
       });
@@ -1077,7 +1078,7 @@ describe('Request Handler', () => {
 
     it('should set cancel token if cancellation is not enabled per route but globally only', async () => {
       const requestHandler = new RequestHandler({
-        fetcher: axios,
+        fetcher,
         strategy: 'reject',
         cancellable: true,
       });
@@ -1163,7 +1164,7 @@ describe('Request Handler', () => {
   describe('outputResponse()', () => {
     it('should show nested data object if flattening is off', async () => {
       const requestHandler = new RequestHandler({
-        fetcher: axios,
+        fetcher,
         flattenResponse: false,
       });
 
@@ -1180,7 +1181,7 @@ describe('Request Handler', () => {
 
     it('should handle nested data if data flattening is on', async () => {
       const requestHandler = new RequestHandler({
-        fetcher: axios,
+        fetcher,
         flattenResponse: true,
       });
 
@@ -1197,7 +1198,7 @@ describe('Request Handler', () => {
 
     it('should handle deeply nested data if data flattening is on', async () => {
       const requestHandler = new RequestHandler({
-        fetcher: axios,
+        fetcher,
         flattenResponse: true,
       });
 
@@ -1214,7 +1215,7 @@ describe('Request Handler', () => {
 
     it('should return null if there is no data', async () => {
       const requestHandler = new RequestHandler({
-        fetcher: axios,
+        fetcher,
         flattenResponse: true,
         defaultResponse: null,
       });
