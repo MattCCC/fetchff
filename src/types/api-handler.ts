@@ -38,12 +38,14 @@ export declare type Endpoint<
 
 type EndpointDefaults = Endpoint<never>;
 
-type Fn = (...args: unknown[]) => unknown;
-
 type EndpointsRecord<EndpointsMethods> = {
-  [K in keyof EndpointsMethods]: EndpointsMethods[K] extends Fn
-    ? EndpointsMethods[K]
-    : EndpointDefaults;
+  [K in keyof EndpointsMethods]: EndpointsMethods[K] extends Endpoint<
+    infer ResponseData,
+    infer QueryParams,
+    infer UrlPathParams
+  >
+    ? Endpoint<ResponseData, QueryParams, UrlPathParams>
+    : Endpoint<never>;
 };
 
 type DefaultEndpoints<EndpointsCfg> = {

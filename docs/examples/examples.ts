@@ -171,15 +171,16 @@ async function example4() {
 
 // createApiFetcher() - direct API request() call to a custom endpoint with flattenResponse == false
 async function example5() {
-  interface Endpoints {
+  interface Endpoints5 {
     fetchBooks: Endpoint<Books, BooksQueryParams>;
   }
 
-  const api = createApiFetcher<Endpoints, typeof endpoints>({
+  const api = createApiFetcher<Endpoints5, typeof endpoints>({
     apiUrl: '',
     endpoints,
   });
 
+  const { data: books2 } = await api.fetchBooks();
   const { data: books } = await api.request<Books>('fetchBooks', {});
   const { data: data1 } = await api.request(
     'https://example.com/api/custom-endpoint',
@@ -190,7 +191,7 @@ async function example5() {
     'https://example.com/api/custom-endpoint',
   );
 
-  console.log('Example 5', books);
+  console.log('Example 5', books, books2);
   console.log('Example 5', data1, data2);
 }
 
