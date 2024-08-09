@@ -1,12 +1,15 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import axios from 'axios';
 import { endpoints } from './mocks/endpoints';
 import { createApiFetcher } from '../src';
 
 describe('API Handler', () => {
+  const fetcher = {
+    create: jest.fn().mockReturnValue({ request: jest.fn() }),
+  };
+
   const apiUrl = 'http://example.com/api/';
   const config = {
-    fetcher: axios,
+    fetcher,
     apiUrl,
     endpoints,
     onError: jest.fn(),
