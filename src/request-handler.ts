@@ -792,8 +792,24 @@ export class RequestHandler {
 
     // Native fetch()
     return {
-      ...response,
+      body: response.body,
+      blob: response.blob,
+      json: response.json,
+      text: response.text,
+      clone: response.clone,
+      bodyUsed: response.bodyUsed,
+      arrayBuffer: response.arrayBuffer,
+      formData: response.formData,
+      ok: response.ok,
+      redirected: response.redirected,
+      type: response.type,
+      url: response.url,
+      status: response.status,
+      statusText: response.statusText,
+
+      // Extend with extra information
       error,
+      data: response.data,
       headers: this.processHeaders(response),
       config: requestConfig,
     };
