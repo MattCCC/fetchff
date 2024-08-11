@@ -212,6 +212,7 @@ interface ExtendedRequestConfig extends BaseRequestConfig, RequestInit {
   headers?: HeadersInit;
   signal?: AbortSignal;
   urlPathParams?: UrlPathParams;
+  body?: (BodyInit | null) & (Record<string, any> | object);
 }
 
 interface BaseRequestHandlerConfig extends RequestConfig {
