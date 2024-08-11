@@ -391,11 +391,13 @@ export class RequestHandler {
       // Automatically JSON stringify request bodies, if possible and when not dealing with strings
       ...(!isGetAlikeMethod
         ? {
-            body: this.isJSONSerializable(payload)
-              ? typeof payload === 'string'
-                ? payload
-                : JSON.stringify(payload)
-              : payload,
+            body:
+              !(payload instanceof URLSearchParams) &&
+              this.isJSONSerializable(payload)
+                ? typeof payload === 'string'
+                  ? payload
+                  : JSON.stringify(payload)
+                : payload,
           }
         : {}),
     };
