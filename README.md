@@ -14,7 +14,9 @@ Managing multiple API endpoints can be complex and time-consuming. `axios-multi-
 **Key Benefits:**
 
 **✅ Simplicity:** Minimal code footprint for managing extensive APIs.
+
 **✅ Productivity:** Streamlines API interactions, enhancing developer efficiency.
+
 **✅ Scalability:** Easily scales from a few endpoints to complex API networks.
 
 ## Features
