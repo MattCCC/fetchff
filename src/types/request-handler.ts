@@ -77,7 +77,7 @@ export interface BaseRequestConfig<D = any> {
 export interface ExtendedResponse<T = any> extends Omit<Response, 'headers'> {
   data: T;
   error: ResponseError<T>;
-  headers: HeadersObject | HeadersInit;
+  headers: HeadersObject & HeadersInit;
   config: ExtendedRequestConfig;
   request?: ExtendedRequestConfig;
 }

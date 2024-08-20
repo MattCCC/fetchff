@@ -554,6 +554,7 @@ describe('Request Handler', () => {
         }
         return Promise.resolve({
           ok: true,
+          clone: jest.fn().mockReturnValue({}),
           json: jest.fn().mockResolvedValue({}),
         });
       });
