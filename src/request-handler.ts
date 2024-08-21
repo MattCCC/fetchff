@@ -621,7 +621,6 @@ export class RequestHandler {
             (response as Response)?.headers?.get('Content-Type') || '',
           );
           let data;
-          const responseClone = response.clone();
 
           // Handle edge case of no content type being provided... We assume json here.
           if (!contentType) {
@@ -637,26 +636,31 @@ export class RequestHandler {
           }
 
           if (typeof data === 'undefined') {
-            if (
-              contentType &&
-              (contentType.includes('application/json') ||
+            try {
+              if (
+                contentType.includes('application/json') ||
                 // This Media Type Suffix is standardizded by IETF in RFC 6839
-                contentType.includes('+json'))
-            ) {
-              data = await response.json(); // Parse JSON response
-            } else if (contentType.includes('multipart/form-data')) {
-              data = await response.formData(); // Parse as FormData
-            } else if (contentType.includes('application/octet-stream')) {
-              data = await response.blob(); // Parse as blob
-            } else if (
-              contentType.includes('application/x-www-form-urlencoded')
-            ) {
-              data = await response.formData(); // Handle URL-encoded forms
-            } else if (typeof response.text !== 'undefined') {
-              data = await response.text();
-            } else {
-              // Handle streams
-              data = response.body || response.data || null;
+                contentType.includes('+json')
+              ) {
+                data = await response.json(); // Parse JSON response
+              } else if (contentType.includes('multipart/form-data')) {
+                data = await response.formData(); // Parse as FormData
+              } else if (contentType.includes('application/octet-stream')) {
+                data = await response.blob(); // Parse as blob
+              } else if (
+                contentType.includes('application/x-www-form-urlencoded')
+              ) {
+                data = await response.formData(); // Handle URL-encoded forms
+              } else if (typeof response.text !== 'undefined') {
+                data = await response.text();
+              } else {
+                // Handle streams
+                data = response.body || response.data || null;
+              }
+              // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            } catch (_error) {
+              // JSON parsing failed
+              data = null;
             }
           }
 
