@@ -625,11 +625,14 @@ export class RequestHandler {
 
           // Handle edge case of no content type being provided... We assume json here.
           if (!contentType) {
+            const responseClone = response.clone();
+
             try {
               data = await responseClone.json();
               // eslint-disable-next-line @typescript-eslint/no-unused-vars
             } catch (_error) {
-              //
+              // JSON parsing failed
+              data = null;
             }
           }
 
