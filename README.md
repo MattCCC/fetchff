@@ -95,9 +95,63 @@ Note:
 
 ## ✔️ Easy Integration with React and Other Libraries
 
-`axios-multi-api` is designed to seamlessly integrate with popular libraries like [React Query](https://react-query-v3.tanstack.com/guides/queries) and [SWR](https://swr.vercel.app/). Whether you're using React Query or SWR, you can effortlessly manage API requests with minimal setup.
+`axios-multi-api` is designed to seamlessly integrate with any popular libraries like React, Vue, React Query and SWR. It is written in pure JS so you can effortlessly manage API requests with minimal setup, and without any dependencies.
 
-### 📦 Using with React Query
+### 🌊 Using with React
+You can implement a `useApi()` hook to handle the data fetching. Since this package has everything included, you don't really need anything more than a simple hook to utilize.
+
+```typescript
+import { createApiFetcher } from 'axios-multi-api';
+
+const api = createApiFetcher({
+  apiUrl: 'https://example.com/api',
+  strategy: 'softFail',
+  endpoints: {
+    getProfile: {
+      url: '/profile/:id',
+    },
+  },
+});
+
+export const useApi = (apiFunction) => {
+  const [data, setData] = useState(null);
+  const [error,] = useState(null);
+  const [isLoading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+
+      const { data, error } = await apiFunction();
+
+      if (error) {
+          setError(error);
+      } else {
+          setData(data);
+      }
+
+      setLoading(false);
+    };
+
+    fetchData();
+  }, [apiFunction]);
+
+  return {data, error, isLoading, setData};
+};
+
+const ProfileComponent = ({ id }) => {
+  const { data: profile, error, isLoading } = useApi(() => api.getProfile({ id }));
+
+  if (isLoading) return <div>Loading...</div>;
+  if (error) return <div>Error: {error.message}</div>;
+
+  return <div>{JSON.stringify(profile)}</div>;
+};
+
+```
+
+
+#### Using with React Query
 
 Integrate `axios-multi-api` with React Query to streamline your data fetching:
 
@@ -118,7 +172,7 @@ export const useProfile = ({ id }) => {
 };
 ```
 
-### 🌊 Using with SWR
+#### Using with SWR
 
 Combine `axios-multi-api` with SWR for efficient data fetching and caching:
 
