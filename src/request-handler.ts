@@ -10,14 +10,17 @@ import type {
   ResponseError,
   HeadersObject,
 } from './types/request-handler';
-import type {
-  APIResponse,
-  QueryParams,
-  QueryParamsOrBody,
-  UrlPathParams,
-} from './types/api-handler';
+import type { APIResponse, QueryParamsOrBody } from './types/api-handler';
 import { interceptRequest, interceptResponse } from './interceptor-manager';
 import { ResponseErr } from './response-error';
+import {
+  appendQueryParams,
+  isJSONSerializable,
+  replaceUrlPathParams,
+  delayInvocation,
+} from './utils';
+
+const APPLICATION_JSON = 'application/json';
 
 /**
  * Generic Request Handler
@@ -195,115 +198,6 @@ export class RequestHandler {
   }
 
   /**
-   * Replaces dynamic URI parameters in a URL string with values from the provided `urlPathParams` object.
-   * Parameters in the URL are denoted by `:<paramName>`, where `<paramName>` is a key in `urlPathParams`.
-   *
-   * @param {string} url - The URL string containing placeholders in the format `:<paramName>`.
-   * @param {Object} urlPathParams - An object containing the parameter values to replace placeholders.
-   * @param {string} urlPathParams.paramName - The value to replace the placeholder `:<paramName>` in the URL.
-   * @returns {string} - The URL string with placeholders replaced by corresponding values from `urlPathParams`.
-   */
-  public replaceUrlPathParams(
-    url: string,
-    urlPathParams: UrlPathParams,
-  ): string {
-    if (!urlPathParams) {
-      return url;
-    }
-
-    return url.replace(/:[a-zA-Z]+/gi, (str): string => {
-      const word = str.substring(1);
-
-      return String(urlPathParams[word] ? urlPathParams[word] : str);
-    });
-  }
-
-  /**
-   * Appends query parameters to the given URL
-   *
-   * @param {string} url - The base URL to which query parameters will be appended.
-   * @param {QueryParams} params - An instance of URLSearchParams containing the query parameters to append.
-   * @returns {string} - The URL with the appended query parameters.
-   */
-  public appendQueryParams(url: string, params: QueryParams): string {
-    if (!params) {
-      return url;
-    }
-
-    // We don't use URLSearchParams here as we want to ensure that arrays are properly converted similarily to Axios
-    // So { foo: [1, 2] } would become: foo[]=1&foo[]=2
-    const queryString = Object.entries(params)
-      .flatMap(([key, value]) => {
-        if (Array.isArray(value)) {
-          return value.map(
-            (val) => `${encodeURIComponent(key)}[]=${encodeURIComponent(val)}`,
-          );
-        }
-        return `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`;
-      })
-      .join('&');
-
-    return url.includes('?')
-      ? `${url}&${queryString}`
-      : queryString
-        ? `${url}?${queryString}`
-        : url;
-  }
-
-  /**
-   * Checks if a value is JSON serializable.
-   *
-   * JSON serializable values include:
-   * - Primitive types: string, number, boolean, null
-   * - Arrays
-   * - Plain objects (i.e., objects without special methods)
-   * - Values with a `toJSON` method
-   *
-   * @param {any} value - The value to check for JSON serializability.
-   * @returns {boolean} - Returns `true` if the value is JSON serializable, otherwise `false`.
-   */
-  protected isJSONSerializable(value: any): boolean {
-    if (value === undefined || value === null) {
-      return false;
-    }
-
-    const t = typeof value;
-    if (t === 'string' || t === 'number' || t === 'boolean') {
-      return true;
-    }
-
-    if (t !== 'object') {
-      return false; // bigint, function, symbol, undefined
-    }
-
-    if (Array.isArray(value)) {
-      return true;
-    }
-
-    if (Buffer.isBuffer(value)) {
-      return false;
-    }
-
-    if (value instanceof Date) {
-      return false;
-    }
-
-    const proto = Object.getPrototypeOf(value);
-
-    // Check if the prototype is `Object.prototype` or `null` (plain object)
-    if (proto === Object.prototype || proto === null) {
-      return true;
-    }
-
-    // Check if the object has a toJSON method
-    if (typeof value.toJSON === 'function') {
-      return true;
-    }
-
-    return false;
-  }
-
-  /**
    * Build request configuration
    *
    * @param {string} url                          Request url
@@ -321,7 +215,7 @@ export class RequestHandler {
     const isGetAlikeMethod =
       methodLowerCase === 'get' || methodLowerCase === 'head';
 
-    const dynamicUrl = this.replaceUrlPathParams(
+    const dynamicUrl = replaceUrlPathParams(
       url,
       config.urlPathParams || this.config.urlPathParams,
     );
@@ -362,7 +256,7 @@ export class RequestHandler {
     const urlPath =
       (!isGetAlikeMethod && data && !config.body) || !data
         ? dynamicUrl
-        : this.appendQueryParams(dynamicUrl, data);
+        : appendQueryParams(dynamicUrl, data);
     const isFullUrl = urlPath.includes('://');
     const baseURL = isFullUrl
       ? ''
@@ -383,8 +277,8 @@ export class RequestHandler {
 
       // For convenience, add the same default headers as Axios does
       headers: {
-        Accept: 'application/json, text/plain, */*',
-        'Content-Type': 'application/json;charset=utf-8',
+        Accept: APPLICATION_JSON + ', text/plain, */*',
+        'Content-Type': APPLICATION_JSON + ';charset=utf-8',
         ...(config.headers || this.config.headers || {}),
       },
 
@@ -393,7 +287,7 @@ export class RequestHandler {
         ? {
             body:
               !(payload instanceof URLSearchParams) &&
-              this.isJSONSerializable(payload)
+              isJSONSerializable(payload)
                 ? typeof payload === 'string'
                   ? payload
                   : JSON.stringify(payload)
@@ -638,7 +532,7 @@ export class RequestHandler {
           if (typeof data === 'undefined') {
             try {
               if (
-                contentType.includes('application/json') ||
+                contentType.includes(APPLICATION_JSON) ||
                 // This Media Type Suffix is standardizded by IETF in RFC 6839
                 contentType.includes('+json')
               ) {
@@ -703,7 +597,7 @@ export class RequestHandler {
           );
         }
 
-        await this.delay(waitTime);
+        await delayInvocation(waitTime);
 
         waitTime *= backoff;
         waitTime = Math.min(waitTime, maxDelay);
@@ -713,14 +607,6 @@ export class RequestHandler {
 
     return this.outputResponse(response, requestConfig) as ResponseData &
       FetchResponse<ResponseData>;
-  }
-
-  public async delay(ms: number): Promise<boolean> {
-    return new Promise((resolve) =>
-      setTimeout(() => {
-        return resolve(true);
-      }, ms),
-    );
   }
 
   public processHeaders<ResponseData>(
