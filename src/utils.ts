@@ -24,7 +24,9 @@ export function appendQueryParams(url: string, params: QueryParams): string {
       }
       return `${encodedKey}=${encodeURIComponent(String(value))}`;
     })
-    .join('&');
+    .join('&')
+    // According to https://datatracker.ietf.org/doc/html/rfc3986 exclamation marks should be replaced
+    .replace(/!/g, '%21');
 
   return url.includes('?')
     ? `${url}&${queryString}`

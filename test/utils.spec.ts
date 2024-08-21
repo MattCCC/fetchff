@@ -70,6 +70,31 @@ describe('Utils', () => {
       const symbol = Symbol('test');
       expect(isJSONSerializable(symbol)).toBe(false);
     });
+
+    it('should return false for Map', () => {
+      const map = new Map();
+      map.set('key', 'value');
+      expect(isJSONSerializable(map)).toBe(false);
+    });
+
+    it('should return false for Set', () => {
+      const set = new Set();
+      set.add('value');
+      expect(isJSONSerializable(set)).toBe(false);
+    });
+
+    it('should return false for Symbols', () => {
+      const symbol = Symbol('description');
+      expect(isJSONSerializable(symbol)).toBe(false);
+    });
+
+    it('should return false for class instances with methods', () => {
+      class CustomClass {
+        method() {}
+      }
+      const instance = new CustomClass();
+      expect(isJSONSerializable(instance)).toBe(false);
+    });
   });
 
   describe('replaceUrlPathParams()', () => {
@@ -135,6 +160,24 @@ describe('Utils', () => {
 
       expect(result).toBe('/users/123');
     });
+
+    it('should handle nested placeholders correctly', () => {
+      const url = '/users/:userId/posts/:postId/details/:detailId';
+      const params = { userId: 123, postId: 456, detailId: 'abc' };
+
+      const result = replaceUrlPathParams(url, params);
+
+      expect(result).toBe('/users/123/posts/456/details/abc');
+    });
+
+    it('should replace conflicting placeholders with corresponding values', () => {
+      const url = '/items/:itemId/details/:itemId';
+      const params = { itemId: 'value1' };
+
+      const result = replaceUrlPathParams(url, params);
+
+      expect(result).toBe('/items/value1/details/value1');
+    });
   });
 
   describe('appendQueryParams()', () => {
@@ -184,6 +227,31 @@ describe('Utils', () => {
       const params = {};
       const result = appendQueryParams(url, params);
       expect(result).toBe('https://api.example.com/resource');
+    });
+
+    it('should handle appending array parameters to URL with existing query string', () => {
+      const url = 'https://api.example.com/resource?existing=param';
+      const params = { foo: [1, 2], bar: 'baz' };
+      const result = appendQueryParams(url, params);
+      expect(result).toBe(
+        'https://api.example.com/resource?existing=param&foo[]=1&foo[]=2&bar=baz',
+      );
+    });
+
+    it('should encode special characters in query parameters', () => {
+      const url = 'https://api.example.com/resource';
+      const params = { 'special key!@#': 'special value$%^' };
+      const result = appendQueryParams(url, params);
+      expect(result).toBe(
+        'https://api.example.com/resource?special%20key%21%40%23=special%20value%24%25%5E',
+      );
+    });
+
+    it('should handle numeric keys correctly', () => {
+      const url = 'https://api.example.com/resource';
+      const params = { 123: 'numeric' };
+      const result = appendQueryParams(url, params);
+      expect(result).toBe('https://api.example.com/resource?123=numeric');
     });
   });
 });
