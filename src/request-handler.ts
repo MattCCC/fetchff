@@ -564,6 +564,11 @@ export class RequestHandler {
   public async parseData<ResponseData = APIResponse>(
     response: FetchResponse<ResponseData>,
   ): Promise<any> {
+    // Bail early when body is empty
+    if (!response.body) {
+      return null;
+    }
+
     const contentType = String(
       (response as Response).headers?.get('Content-Type') || '',
     );
