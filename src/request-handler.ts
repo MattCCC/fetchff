@@ -575,42 +575,36 @@ export class RequestHandler {
 
     let data;
 
-    // Handle edge case of no content type being provided... We assume JSON here.
-    if (!contentType) {
-      const responseClone = response.clone();
-      try {
-        data = await responseClone.json();
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      } catch (_error) {
-        // JSON parsing failed, fallback to null
-        data = null;
-      }
-    }
+    try {
+      if (
+        contentType.includes(APPLICATION_JSON) ||
+        contentType.includes('+json')
+      ) {
+        data = await response.json(); // Parse JSON response
+      } else if (contentType.includes('multipart/form-data')) {
+        data = await response.formData(); // Parse as FormData
+      } else if (contentType.includes('application/octet-stream')) {
+        data = await response.blob(); // Parse as blob
+      } else if (contentType.includes('application/x-www-form-urlencoded')) {
+        data = await response.formData(); // Handle URL-encoded forms
+      } else if (contentType.includes('text/')) {
+        data = await response.text(); // Parse as text
+      } else {
+        try {
+          const responseClone = response.clone();
 
-    if (typeof data === 'undefined') {
-      try {
-        if (
-          contentType.includes(APPLICATION_JSON) ||
-          contentType.includes('+json')
-        ) {
-          data = await response.json(); // Parse JSON response
-        } else if (contentType.includes('multipart/form-data')) {
-          data = await response.formData(); // Parse as FormData
-        } else if (contentType.includes('application/octet-stream')) {
-          data = await response.blob(); // Parse as blob
-        } else if (contentType.includes('application/x-www-form-urlencoded')) {
-          data = await response.formData(); // Handle URL-encoded forms
-        } else if (typeof response.text === 'function') {
-          data = await response.text(); // Parse as text
-        } else {
+          // Handle edge case of no content type being provided... We assume JSON here.
+          data = await responseClone.json();
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        } catch (_e) {
           // Handle streams
-          data = response.body || response.data || null;
+          data = await response.text();
         }
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      } catch (_error) {
-        // Parsing failed, fallback to null
-        data = null;
       }
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (_error) {
+      // Parsing failed, fallback to null
+      data = null;
     }
 
     return data;
