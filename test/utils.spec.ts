@@ -243,7 +243,7 @@ describe('Utils', () => {
       const params = { 'special key!@#': 'special value$%^' };
       const result = appendQueryParams(url, params);
       expect(result).toBe(
-        'https://api.example.com/resource?special%20key%21%40%23=special%20value%24%25%5E',
+        'https://api.example.com/resource?special%20key!%40%23=special%20value%24%25%5E',
       );
     });
 
@@ -252,6 +252,40 @@ describe('Utils', () => {
       const params = { 123: 'numeric' };
       const result = appendQueryParams(url, params);
       expect(result).toBe('https://api.example.com/resource?123=numeric');
+    });
+
+    it('should handle URL with no query parameters and special characters in values', () => {
+      const url = 'https://api.example.com/resource';
+      const params = {
+        'special value': 'value with special characters !@#$%^&*()',
+      };
+      const result = appendQueryParams(url, params);
+      expect(result).toBe(
+        'https://api.example.com/resource?special%20value=value%20with%20special%20characters%20!%40%23%24%25%5E%26*()',
+      );
+    });
+
+    it('should handle parameters with different types of values', () => {
+      const url = 'https://api.example.com/resource';
+      const params = {
+        string: 'string',
+        number: 123,
+        boolean: true,
+        array: [1, 2],
+      };
+      const result = appendQueryParams(url, params);
+      expect(result).toBe(
+        'https://api.example.com/resource?string=string&number=123&boolean=true&array[]=1&array[]=2',
+      );
+    });
+
+    it('should handle complex nested parameters', () => {
+      const url = 'https://api.example.com/resource';
+      const params = { nested: { foo: 'bar', baz: [1, 2] } };
+      const result = appendQueryParams(url, params);
+      expect(result).toBe(
+        'https://api.example.com/resource?nested%5Bfoo%5D=bar&nested%5Bbaz%5D[]=1&nested%5Bbaz%5D[]=2',
+      );
     });
   });
 });

@@ -2,10 +2,10 @@
 import type { QueryParams, UrlPathParams } from './types';
 
 /**
- * Appends query parameters to the given URL
+ * Appends query parameters to a given URL.
  *
  * @param {string} url - The base URL to which query parameters will be appended.
- * @param {QueryParams} params - An instance of URLSearchParams containing the query parameters to append.
+ * @param {QueryParams} params - An object containing the query parameters to append.
  * @returns {string} - The URL with the appended query parameters.
  */
 export function appendQueryParams(url: string, params: QueryParams): string {
@@ -13,25 +13,56 @@ export function appendQueryParams(url: string, params: QueryParams): string {
     return url;
   }
 
-  // We don't use URLSearchParams here as we want to ensure that arrays are properly converted similarily to Axios
-  // So { foo: [1, 2] } would become: foo[]=1&foo[]=2
-  const queryString = Object.entries(params)
-    .flatMap(([key, value]) => {
-      const encodedKey = encodeURIComponent(key);
+  // This is exact copy of what JQ used to do. It works much better than URLSearchParams
+  const s = [];
+  const add = function (k: string, v: any) {
+    v = typeof v === 'function' ? v() : v;
+    v = v === null ? '' : v === undefined ? '' : v;
+    s[s.length] = encodeURIComponent(k) + '=' + encodeURIComponent(v);
+  };
 
-      if (Array.isArray(value)) {
-        return value.map((val) => `${encodedKey}[]=${encodeURIComponent(val)}`);
+  const buildParams = (prefix: string, obj: any) => {
+    let i: number, len: number, key: string;
+
+    if (prefix) {
+      if (Array.isArray(obj)) {
+        for (i = 0, len = obj.length; i < len; i++) {
+          buildParams(
+            prefix +
+              '[' +
+              (typeof obj[i] === 'object' && obj[i] ? i : '') +
+              ']',
+            obj[i],
+          );
+        }
+      } else if (Object.prototype.toString.call(obj) === '[object Object]') {
+        for (key in obj) {
+          buildParams(prefix + '[' + key + ']', obj[key]);
+        }
+      } else {
+        add(prefix, obj);
       }
-      return `${encodedKey}=${encodeURIComponent(String(value))}`;
-    })
-    .join('&')
-    // According to https://datatracker.ietf.org/doc/html/rfc3986 exclamation marks should be replaced
-    .replace(/!/g, '%21');
+    } else if (Array.isArray(obj)) {
+      for (i = 0, len = obj.length; i < len; i++) {
+        add(obj[i].name, obj[i].value);
+      }
+    } else {
+      for (key in obj) {
+        buildParams(key, obj[key]);
+      }
+    }
+    return s;
+  };
+
+  const queryStringParts = buildParams('', params).join('&');
+
+  // Encode special characters as per RFC 3986, https://datatracker.ietf.org/doc/html/rfc3986
+  const encodedQueryString = queryStringParts.replace(/%5B%5D/g, '[]'); // Keep '[]' for arrays
 
   return url.includes('?')
-    ? `${url}&${queryString}`
-    : queryString
-      ? `${url}?${queryString}`
+    ? `${url}&${encodedQueryString}`
+    : encodedQueryString
+      ? `${url}?${encodedQueryString}`
       : url;
 }
 

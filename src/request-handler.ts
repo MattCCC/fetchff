@@ -617,15 +617,16 @@ export class RequestHandler {
     }
 
     let headersObject: HeadersObject = {};
+    const headers = response.headers;
 
     // Handle Headers object with entries() method
-    if (response.headers instanceof Headers) {
-      for (const [key, value] of (response.headers as any).entries()) {
+    if (headers instanceof Headers) {
+      for (const [key, value] of (headers as any).entries()) {
         headersObject[key] = value;
       }
     } else {
       // Handle plain object
-      headersObject = { ...(response.headers as HeadersObject) };
+      headersObject = { ...(headers as HeadersObject) };
     }
 
     return headersObject;
