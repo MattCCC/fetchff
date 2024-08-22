@@ -7,11 +7,21 @@ import {
   interceptRequest,
   interceptResponse,
 } from '../src/interceptor-manager';
+import { delayInvocation } from '../src/utils';
 
 jest.mock('../src/interceptor-manager', () => ({
   interceptRequest: jest.fn().mockImplementation(async (config) => config),
   interceptResponse: jest.fn().mockImplementation(async (response) => response),
 }));
+
+jest.mock('../src/utils', () => {
+  const originalModule = jest.requireActual('../src/utils');
+
+  return {
+    ...originalModule,
+    delayInvocation: jest.fn(),
+  };
+});
 
 const fetcher = {
   create: jest.fn().mockReturnValue({ request: jest.fn() }),
@@ -37,139 +47,6 @@ describe('Request Handler', () => {
     const response = requestHandler.getInstance();
 
     expect(response).toBeTruthy();
-  });
-
-  describe('isJSONSerializable()', () => {
-    let requestHandler = null;
-
-    beforeAll(() => {
-      requestHandler = new RequestHandler({});
-    });
-
-    it('should return false for undefined', () => {
-      expect(requestHandler.isJSONSerializable(undefined)).toBe(false);
-    });
-
-    it('should return false for null', () => {
-      expect(requestHandler.isJSONSerializable(null)).toBe(false);
-    });
-
-    it('should return true for primitive types', () => {
-      expect(requestHandler.isJSONSerializable('string')).toBe(true);
-      expect(requestHandler.isJSONSerializable(123)).toBe(true);
-      expect(requestHandler.isJSONSerializable(true)).toBe(true);
-    });
-
-    it('should return true for arrays', () => {
-      expect(requestHandler.isJSONSerializable([1, 2, 3])).toBe(true);
-    });
-
-    it('should return false for non-plain objects', () => {
-      expect(requestHandler.isJSONSerializable(new Date())).toBe(false);
-      expect(requestHandler.isJSONSerializable(new Map())).toBe(false);
-      expect(requestHandler.isJSONSerializable(new Set())).toBe(false);
-      expect(requestHandler.isJSONSerializable(new WeakMap())).toBe(false);
-      expect(requestHandler.isJSONSerializable(new WeakSet())).toBe(false);
-    });
-
-    it('should return false for buffers', () => {
-      const buffer = Buffer.from('test');
-      expect(requestHandler.isJSONSerializable(buffer)).toBe(false);
-    });
-
-    it('should return true for plain objects', () => {
-      expect(requestHandler.isJSONSerializable({})).toBe(true);
-    });
-
-    it('should return true for objects with toJSON method', () => {
-      const obj = {
-        toJSON() {
-          return { key: 'value' };
-        },
-      };
-      expect(requestHandler.isJSONSerializable(obj)).toBe(true);
-    });
-
-    it('should return false for functions', () => {
-      const func = function () {};
-      expect(requestHandler.isJSONSerializable(func)).toBe(false);
-    });
-
-    it('should return false for symbols', () => {
-      const symbol = Symbol('test');
-      expect(requestHandler.isJSONSerializable(symbol)).toBe(false);
-    });
-  });
-
-  describe('replaceUrlPathParams()', () => {
-    let requestHandler: RequestHandler = null;
-
-    beforeAll(() => {
-      requestHandler = new RequestHandler({});
-    });
-
-    it('should replace a single placeholder with a value from urlPathParams', () => {
-      const url = '/users/:userId';
-      const params = { userId: 123 };
-
-      const result = requestHandler.replaceUrlPathParams(url, params);
-
-      expect(result).toBe('/users/123');
-    });
-
-    it('should replace multiple placeholders with corresponding values from urlPathParams', () => {
-      const url = '/users/:userId/posts/:postId';
-      const params = { userId: 123, postId: 456 };
-
-      const result = requestHandler.replaceUrlPathParams(url, params);
-
-      expect(result).toBe('/users/123/posts/456');
-    });
-
-    it('should leave placeholders unchanged if no corresponding value is provided in urlPathParams', () => {
-      const url = '/users/:userId/posts/:postId';
-      const params = { userName: 'john' };
-
-      const result = requestHandler.replaceUrlPathParams(url, params);
-
-      expect(result).toBe('/users/:userId/posts/:postId');
-    });
-
-    it('should handle placeholders with special characters', () => {
-      const url = '/users/:userId/details/:detailId';
-      const params = { userId: 123, detailId: 'abc' };
-
-      const result = requestHandler.replaceUrlPathParams(url, params);
-
-      expect(result).toBe('/users/123/details/abc');
-    });
-
-    it('should handle empty urlPathParams object', () => {
-      const url = '/users/:userId';
-      const params = {};
-
-      const result = requestHandler.replaceUrlPathParams(url, params);
-
-      expect(result).toBe('/users/:userId');
-    });
-
-    it('should replace placeholders even when URL contains query parameters', () => {
-      const url = '/users/:userId?name=:name';
-      const params = { userId: 123, name: 'john' };
-
-      const result = requestHandler.replaceUrlPathParams(url, params);
-
-      expect(result).toBe('/users/123?name=john');
-    });
-
-    it('should handle URL with no placeholders', () => {
-      const url = '/users/123';
-      const params = { userId: 456 };
-
-      const result = requestHandler.replaceUrlPathParams(url, params);
-
-      expect(result).toBe('/users/123');
-    });
   });
 
   describe('buildConfig() with native fetch()', () => {
@@ -377,62 +254,6 @@ describe('Request Handler', () => {
     });
   });
 
-  describe('appendQueryParams()', () => {
-    let requestHandler = null;
-
-    beforeAll(() => {
-      requestHandler = new RequestHandler({});
-    });
-
-    it('should append single query parameter to URL without existing query string', () => {
-      const url = 'https://api.example.com/resource';
-      const params = { foo: 'bar' };
-      const result = requestHandler.appendQueryParams(url, params);
-      expect(result).toBe('https://api.example.com/resource?foo=bar');
-    });
-
-    it('should append multiple query parameters to URL without existing query string', () => {
-      const url = 'https://api.example.com/resource';
-      const params = { foo: 'bar', baz: 'qux' };
-      const result = requestHandler.appendQueryParams(url, params);
-      expect(result).toBe('https://api.example.com/resource?foo=bar&baz=qux');
-    });
-
-    it('should append array query parameters correctly', () => {
-      const url = 'https://api.example.com/resource';
-      const params = { foo: [1, 2], bar: 'baz' };
-      const result = requestHandler.appendQueryParams(url, params);
-      expect(result).toBe(
-        'https://api.example.com/resource?foo[]=1&foo[]=2&bar=baz',
-      );
-    });
-
-    it('should append parameters to URL with existing query string', () => {
-      const url = 'https://api.example.com/resource?existing=param';
-      const params = { foo: 'bar' };
-      const result = requestHandler.appendQueryParams(url, params);
-      expect(result).toBe(
-        'https://api.example.com/resource?existing=param&foo=bar',
-      );
-    });
-
-    it('should handle special characters in query parameters', () => {
-      const url = 'https://api.example.com/resource';
-      const params = { 'special key': 'special value' };
-      const result = requestHandler.appendQueryParams(url, params);
-      expect(result).toBe(
-        'https://api.example.com/resource?special%20key=special%20value',
-      );
-    });
-
-    it('should return the original URL if no params are provided', () => {
-      const url = 'https://api.example.com/resource';
-      const params = {};
-      const result = requestHandler.appendQueryParams(url, params);
-      expect(result).toBe('https://api.example.com/resource');
-    });
-  });
-
   describe('request()', () => {
     beforeEach(() => {
       jest.useFakeTimers();
@@ -516,6 +337,7 @@ describe('Request Handler', () => {
 
     beforeEach(() => {
       jest.useFakeTimers();
+      jest.clearAllMocks();
       globalThis.fetch = jest.fn();
     });
 
@@ -559,10 +381,11 @@ describe('Request Handler', () => {
         });
       });
 
-      // Spy on delay method to avoid actual delays
-      jest
-        .spyOn(requestHandler, 'delay')
-        .mockImplementation(() => Promise.resolve(true));
+      const mockDelayInvocation = delayInvocation as jest.MockedFunction<
+        typeof delayInvocation
+      >;
+
+      mockDelayInvocation.mockResolvedValue(true);
 
       // Make the request
       await expect(requestHandler.request('/endpoint')).resolves.not.toThrow();
@@ -578,13 +401,13 @@ describe('Request Handler', () => {
       expect(globalThis.fetch).toHaveBeenCalledTimes(retryConfig.retries + 1);
 
       // Ensure delay function was called for each retry attempt
-      expect(requestHandler.delay).toHaveBeenCalledTimes(retryConfig.retries);
-      expect(requestHandler.delay).toHaveBeenCalledWith(retryConfig.delay);
-      expect(requestHandler.delay).toHaveBeenCalledWith(
+      expect(mockDelayInvocation).toHaveBeenCalledTimes(retryConfig.retries);
+      expect(mockDelayInvocation).toHaveBeenCalledWith(retryConfig.delay);
+      expect(mockDelayInvocation).toHaveBeenCalledWith(
         retryConfig.delay * retryConfig.backoff,
       );
 
-      expect(requestHandler.delay).toHaveBeenCalledWith(
+      expect(mockDelayInvocation).toHaveBeenCalledWith(
         retryConfig.delay * Math.pow(retryConfig.backoff, 2),
       );
     });
@@ -611,9 +434,11 @@ describe('Request Handler', () => {
         json: jest.fn().mockResolvedValue({}),
       });
 
-      jest
-        .spyOn(requestHandler, 'delay')
-        .mockImplementation(jest.fn().mockResolvedValue(undefined));
+      const mockDelayInvocation = delayInvocation as jest.MockedFunction<
+        typeof delayInvocation
+      >;
+
+      mockDelayInvocation.mockResolvedValue(undefined);
 
       try {
         await requestHandler.request('/endpoint');
@@ -688,9 +513,11 @@ describe('Request Handler', () => {
         json: jest.fn().mockResolvedValue({}),
       });
 
-      jest
-        .spyOn(requestHandler, 'delay')
-        .mockImplementation(jest.fn().mockResolvedValue(undefined));
+      const mockDelayInvocation = delayInvocation as jest.MockedFunction<
+        typeof delayInvocation
+      >;
+
+      mockDelayInvocation.mockResolvedValue(undefined);
 
       try {
         await requestHandler.request('/endpoint');
@@ -702,10 +529,10 @@ describe('Request Handler', () => {
       // Advance time for the total delay
       jest.advanceTimersByTime(100 + 150 + 225);
 
-      expect(requestHandler.delay).toHaveBeenCalledTimes(3);
-      expect(requestHandler.delay).toHaveBeenCalledWith(100);
-      expect(requestHandler.delay).toHaveBeenCalledWith(150);
-      expect(requestHandler.delay).toHaveBeenCalledWith(225);
+      expect(mockDelayInvocation).toHaveBeenCalledTimes(3);
+      expect(mockDelayInvocation).toHaveBeenCalledWith(100);
+      expect(mockDelayInvocation).toHaveBeenCalledWith(150);
+      expect(mockDelayInvocation).toHaveBeenCalledWith(225);
     });
 
     it('should not retry if shouldRetry returns false', async () => {

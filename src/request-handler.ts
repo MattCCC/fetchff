@@ -10,14 +10,17 @@ import type {
   ResponseError,
   HeadersObject,
 } from './types/request-handler';
-import type {
-  APIResponse,
-  QueryParams,
-  QueryParamsOrBody,
-  UrlPathParams,
-} from './types/api-handler';
+import type { APIResponse, QueryParamsOrBody } from './types/api-handler';
 import { interceptRequest, interceptResponse } from './interceptor-manager';
 import { ResponseErr } from './response-error';
+import {
+  appendQueryParams,
+  isJSONSerializable,
+  replaceUrlPathParams,
+  delayInvocation,
+} from './utils';
+
+const APPLICATION_JSON = 'application/json';
 
 /**
  * Generic Request Handler
@@ -195,115 +198,6 @@ export class RequestHandler {
   }
 
   /**
-   * Replaces dynamic URI parameters in a URL string with values from the provided `urlPathParams` object.
-   * Parameters in the URL are denoted by `:<paramName>`, where `<paramName>` is a key in `urlPathParams`.
-   *
-   * @param {string} url - The URL string containing placeholders in the format `:<paramName>`.
-   * @param {Object} urlPathParams - An object containing the parameter values to replace placeholders.
-   * @param {string} urlPathParams.paramName - The value to replace the placeholder `:<paramName>` in the URL.
-   * @returns {string} - The URL string with placeholders replaced by corresponding values from `urlPathParams`.
-   */
-  public replaceUrlPathParams(
-    url: string,
-    urlPathParams: UrlPathParams,
-  ): string {
-    if (!urlPathParams) {
-      return url;
-    }
-
-    return url.replace(/:[a-zA-Z]+/gi, (str): string => {
-      const word = str.substring(1);
-
-      return String(urlPathParams[word] ? urlPathParams[word] : str);
-    });
-  }
-
-  /**
-   * Appends query parameters to the given URL
-   *
-   * @param {string} url - The base URL to which query parameters will be appended.
-   * @param {QueryParams} params - An instance of URLSearchParams containing the query parameters to append.
-   * @returns {string} - The URL with the appended query parameters.
-   */
-  public appendQueryParams(url: string, params: QueryParams): string {
-    if (!params) {
-      return url;
-    }
-
-    // We don't use URLSearchParams here as we want to ensure that arrays are properly converted similarily to Axios
-    // So { foo: [1, 2] } would become: foo[]=1&foo[]=2
-    const queryString = Object.entries(params)
-      .flatMap(([key, value]) => {
-        if (Array.isArray(value)) {
-          return value.map(
-            (val) => `${encodeURIComponent(key)}[]=${encodeURIComponent(val)}`,
-          );
-        }
-        return `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`;
-      })
-      .join('&');
-
-    return url.includes('?')
-      ? `${url}&${queryString}`
-      : queryString
-        ? `${url}?${queryString}`
-        : url;
-  }
-
-  /**
-   * Checks if a value is JSON serializable.
-   *
-   * JSON serializable values include:
-   * - Primitive types: string, number, boolean, null
-   * - Arrays
-   * - Plain objects (i.e., objects without special methods)
-   * - Values with a `toJSON` method
-   *
-   * @param {any} value - The value to check for JSON serializability.
-   * @returns {boolean} - Returns `true` if the value is JSON serializable, otherwise `false`.
-   */
-  protected isJSONSerializable(value: any): boolean {
-    if (value === undefined || value === null) {
-      return false;
-    }
-
-    const t = typeof value;
-    if (t === 'string' || t === 'number' || t === 'boolean') {
-      return true;
-    }
-
-    if (t !== 'object') {
-      return false; // bigint, function, symbol, undefined
-    }
-
-    if (Array.isArray(value)) {
-      return true;
-    }
-
-    if (Buffer.isBuffer(value)) {
-      return false;
-    }
-
-    if (value instanceof Date) {
-      return false;
-    }
-
-    const proto = Object.getPrototypeOf(value);
-
-    // Check if the prototype is `Object.prototype` or `null` (plain object)
-    if (proto === Object.prototype || proto === null) {
-      return true;
-    }
-
-    // Check if the object has a toJSON method
-    if (typeof value.toJSON === 'function') {
-      return true;
-    }
-
-    return false;
-  }
-
-  /**
    * Build request configuration
    *
    * @param {string} url                          Request url
@@ -321,7 +215,7 @@ export class RequestHandler {
     const isGetAlikeMethod =
       methodLowerCase === 'get' || methodLowerCase === 'head';
 
-    const dynamicUrl = this.replaceUrlPathParams(
+    const dynamicUrl = replaceUrlPathParams(
       url,
       config.urlPathParams || this.config.urlPathParams,
     );
@@ -362,7 +256,7 @@ export class RequestHandler {
     const urlPath =
       (!isGetAlikeMethod && data && !config.body) || !data
         ? dynamicUrl
-        : this.appendQueryParams(dynamicUrl, data);
+        : appendQueryParams(dynamicUrl, data);
     const isFullUrl = urlPath.includes('://');
     const baseURL = isFullUrl
       ? ''
@@ -383,8 +277,8 @@ export class RequestHandler {
 
       // For convenience, add the same default headers as Axios does
       headers: {
-        Accept: 'application/json, text/plain, */*',
-        'Content-Type': 'application/json;charset=utf-8',
+        Accept: APPLICATION_JSON + ', text/plain, */*',
+        'Content-Type': APPLICATION_JSON + ';charset=utf-8',
         ...(config.headers || this.config.headers || {}),
       },
 
@@ -393,7 +287,7 @@ export class RequestHandler {
         ? {
             body:
               !(payload instanceof URLSearchParams) &&
-              this.isJSONSerializable(payload)
+              isJSONSerializable(payload)
                 ? typeof payload === 'string'
                   ? payload
                   : JSON.stringify(payload)
@@ -616,50 +510,9 @@ export class RequestHandler {
             requestConfig,
           )) as FetchResponse<ResponseData>;
 
-          // Attempt to collect response data regardless of response status
-          const contentType = String(
-            (response as Response)?.headers?.get('Content-Type') || '',
-          );
-          let data;
-          const responseClone = response.clone();
-
-          // Handle edge case of no content type being provided... We assume json here.
-          if (!contentType) {
-            try {
-              data = await responseClone.json();
-              // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            } catch (_error) {
-              //
-            }
-          }
-
-          if (typeof data === 'undefined') {
-            if (
-              contentType &&
-              (contentType.includes('application/json') ||
-                // This Media Type Suffix is standardizded by IETF in RFC 6839
-                contentType.includes('+json'))
-            ) {
-              data = await response.json(); // Parse JSON response
-            } else if (contentType.includes('multipart/form-data')) {
-              data = await response.formData(); // Parse as FormData
-            } else if (contentType.includes('application/octet-stream')) {
-              data = await response.blob(); // Parse as blob
-            } else if (
-              contentType.includes('application/x-www-form-urlencoded')
-            ) {
-              data = await response.formData(); // Handle URL-encoded forms
-            } else if (typeof response.text !== 'undefined') {
-              data = await response.text();
-            } else {
-              // Handle streams
-              data = response.body || response.data || null;
-            }
-          }
-
           // Add more information to response object
           response.config = requestConfig;
-          response.data = data;
+          response.data = await this.parseData(response);
 
           // Check if the response status is not outside the range 200-299 and if so, output error
           if (!response.ok) {
@@ -696,7 +549,7 @@ export class RequestHandler {
           );
         }
 
-        await this.delay(waitTime);
+        await delayInvocation(waitTime);
 
         waitTime *= backoff;
         waitTime = Math.min(waitTime, maxDelay);
@@ -708,12 +561,59 @@ export class RequestHandler {
       FetchResponse<ResponseData>;
   }
 
-  public async delay(ms: number): Promise<boolean> {
-    return new Promise((resolve) =>
-      setTimeout(() => {
-        return resolve(true);
-      }, ms),
+  /**
+   * Parses the response data based on the Content-Type header.
+   *
+   * @param response - The Response object to parse.
+   * @returns A Promise that resolves to the parsed data.
+   */
+  public async parseData<ResponseData = APIResponse>(
+    response: FetchResponse<ResponseData>,
+  ): Promise<any> {
+    const contentType = String(
+      (response as Response).headers?.get('Content-Type') || '',
     );
+    let data;
+
+    // Handle edge case of no content type being provided... We assume JSON here.
+    if (!contentType) {
+      const responseClone = response.clone();
+      try {
+        data = await responseClone.json();
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      } catch (_error) {
+        // JSON parsing failed, fallback to null
+        data = null;
+      }
+    }
+
+    if (typeof data === 'undefined') {
+      try {
+        if (
+          contentType.includes(APPLICATION_JSON) ||
+          contentType.includes('+json')
+        ) {
+          data = await response.json(); // Parse JSON response
+        } else if (contentType.includes('multipart/form-data')) {
+          data = await response.formData(); // Parse as FormData
+        } else if (contentType.includes('application/octet-stream')) {
+          data = await response.blob(); // Parse as blob
+        } else if (contentType.includes('application/x-www-form-urlencoded')) {
+          data = await response.formData(); // Handle URL-encoded forms
+        } else if (typeof response.text === 'function') {
+          data = await response.text(); // Parse as text
+        } else {
+          // Handle streams
+          data = response.body || response.data || null;
+        }
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      } catch (_error) {
+        // Parsing failed, fallback to null
+        data = null;
+      }
+    }
+
+    return data;
   }
 
   public processHeaders<ResponseData>(
@@ -724,15 +624,16 @@ export class RequestHandler {
     }
 
     let headersObject: HeadersObject = {};
+    const headers = response.headers;
 
     // Handle Headers object with entries() method
-    if (response.headers instanceof Headers) {
-      for (const [key, value] of (response.headers as any).entries()) {
+    if (headers instanceof Headers) {
+      for (const [key, value] of (headers as any).entries()) {
         headersObject[key] = value;
       }
     } else {
       // Handle plain object
-      headersObject = { ...(response.headers as HeadersObject) };
+      headersObject = { ...(headers as HeadersObject) };
     }
 
     return headersObject;
