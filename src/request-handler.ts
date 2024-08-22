@@ -510,57 +510,9 @@ export class RequestHandler {
             requestConfig,
           )) as FetchResponse<ResponseData>;
 
-          // Attempt to collect response data regardless of response status
-          const contentType = String(
-            (response as Response)?.headers?.get('Content-Type') || '',
-          );
-          let data;
-
-          // Handle edge case of no content type being provided... We assume json here.
-          if (!contentType) {
-            const responseClone = response.clone();
-
-            try {
-              data = await responseClone.json();
-              // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            } catch (_error) {
-              // JSON parsing failed
-              data = null;
-            }
-          }
-
-          if (typeof data === 'undefined') {
-            try {
-              if (
-                contentType.includes(APPLICATION_JSON) ||
-                // This Media Type Suffix is standardizded by IETF in RFC 6839
-                contentType.includes('+json')
-              ) {
-                data = await response.json(); // Parse JSON response
-              } else if (contentType.includes('multipart/form-data')) {
-                data = await response.formData(); // Parse as FormData
-              } else if (contentType.includes('application/octet-stream')) {
-                data = await response.blob(); // Parse as blob
-              } else if (
-                contentType.includes('application/x-www-form-urlencoded')
-              ) {
-                data = await response.formData(); // Handle URL-encoded forms
-              } else if (typeof response.text !== 'undefined') {
-                data = await response.text();
-              } else {
-                // Handle streams
-                data = response.body || response.data || null;
-              }
-              // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            } catch (_error) {
-              // JSON parsing failed
-              data = null;
-            }
-          }
-
           // Add more information to response object
           response.config = requestConfig;
-          response.data = data;
+          response.data = await this.parseData(response);
 
           // Check if the response status is not outside the range 200-299 and if so, output error
           if (!response.ok) {
@@ -607,6 +559,61 @@ export class RequestHandler {
 
     return this.outputResponse(response, requestConfig) as ResponseData &
       FetchResponse<ResponseData>;
+  }
+
+  /**
+   * Parses the response data based on the Content-Type header.
+   *
+   * @param response - The Response object to parse.
+   * @returns A Promise that resolves to the parsed data.
+   */
+  public async parseData<ResponseData = APIResponse>(
+    response: FetchResponse<ResponseData>,
+  ): Promise<any> {
+    const contentType = String(
+      (response as Response).headers?.get('Content-Type') || '',
+    );
+    let data;
+
+    // Handle edge case of no content type being provided... We assume JSON here.
+    if (!contentType) {
+      const responseClone = response.clone();
+      try {
+        data = await responseClone.json();
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      } catch (_error) {
+        // JSON parsing failed, fallback to null
+        data = null;
+      }
+    }
+
+    if (typeof data === 'undefined') {
+      try {
+        if (
+          contentType.includes(APPLICATION_JSON) ||
+          contentType.includes('+json')
+        ) {
+          data = await response.json(); // Parse JSON response
+        } else if (contentType.includes('multipart/form-data')) {
+          data = await response.formData(); // Parse as FormData
+        } else if (contentType.includes('application/octet-stream')) {
+          data = await response.blob(); // Parse as blob
+        } else if (contentType.includes('application/x-www-form-urlencoded')) {
+          data = await response.formData(); // Handle URL-encoded forms
+        } else if (typeof response.text === 'function') {
+          data = await response.text(); // Parse as text
+        } else {
+          // Handle streams
+          data = response.body || response.data || null;
+        }
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      } catch (_error) {
+        // Parsing failed, fallback to null
+        data = null;
+      }
+    }
+
+    return data;
   }
 
   public processHeaders<ResponseData>(

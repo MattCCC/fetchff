@@ -35,7 +35,7 @@ export function appendQueryParams(url: string, params: QueryParams): string {
             obj[i],
           );
         }
-      } else if (Object.prototype.toString.call(obj) === '[object Object]') {
+      } else if (typeof obj === 'object' && obj !== null) {
         for (key in obj) {
           buildParams(prefix + '[' + key + ']', obj[key]);
         }
