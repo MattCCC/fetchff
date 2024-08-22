@@ -279,6 +279,15 @@ describe('Utils', () => {
       );
     });
 
+    it('should handle params as an instance of URLSearchParams', () => {
+      const url = 'https://api.example.com/resource';
+      const params = new URLSearchParams();
+      params.append('foo', 'bar');
+      params.append('baz', 'qux');
+      const result = appendQueryParams(url, params);
+      expect(result).toBe('https://api.example.com/resource?foo=bar&baz=qux');
+    });
+
     it('should handle complex nested parameters', () => {
       const url = 'https://api.example.com/resource';
       const params = { nested: { foo: 'bar', baz: [1, 2] } };
