@@ -571,7 +571,8 @@ export class RequestHandler {
 
     const contentType = String(
       (response as Response).headers?.get('Content-Type') || '',
-    );
+    ).split(';')[0]; // Correctly handle charset
+
     let data;
 
     // Handle edge case of no content type being provided... We assume JSON here.
