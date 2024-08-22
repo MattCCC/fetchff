@@ -984,7 +984,7 @@ describe('Request Handler', () => {
     });
   });
 
-  describe('parseData', () => {
+  describe('parseData()', () => {
     let mockResponse: FetchResponse;
     const requestHandler = new RequestHandler({ fetcher });
 
@@ -1104,6 +1104,62 @@ describe('Request Handler', () => {
 
       const data = await requestHandler.parseData(mockResponse);
       expect(data).toEqual(streamContent);
+    });
+  });
+
+  describe('processHeaders()', () => {
+    const requestHandler = new RequestHandler({ fetcher });
+
+    // Test when headers is null or undefined
+    it('should return an empty object if headers are null or undefined', () => {
+      const response = { headers: null } as FetchResponse;
+      const result = requestHandler.processHeaders(response);
+      expect(result).toEqual({});
+
+      const responseUndefined = { headers: undefined } as FetchResponse;
+      const resultUndefined = requestHandler.processHeaders(responseUndefined);
+      expect(resultUndefined).toEqual({});
+    });
+
+    // Test when headers is an instance of Headers
+    it('should convert Headers object to a plain object', () => {
+      const headers = new Headers();
+      headers.append('Content-Type', 'application/json');
+      headers.append('Authorization', 'Bearer token');
+
+      const response = { headers } as FetchResponse;
+      const result = requestHandler.processHeaders(response);
+
+      expect(result).toEqual({
+        'content-type': 'application/json',
+        authorization: 'Bearer token',
+      });
+    });
+
+    // Test when headers is a plain object
+    it('should handle plain object headers', () => {
+      const response = {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer token',
+        },
+      } as unknown as FetchResponse;
+
+      const result = requestHandler.processHeaders(response);
+
+      expect(result).toEqual({
+        'content-type': 'application/json',
+        authorization: 'Bearer token',
+      });
+    });
+
+    // Test when headers is an empty Headers object
+    it('should handle an empty Headers object', () => {
+      const headers = new Headers(); // Empty Headers
+      const response = { headers } as FetchResponse;
+      const result = requestHandler.processHeaders(response);
+
+      expect(result).toEqual({});
     });
   });
 

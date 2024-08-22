@@ -613,21 +613,26 @@ export class RequestHandler {
   public processHeaders<ResponseData>(
     response: FetchResponse<ResponseData>,
   ): HeadersObject {
-    if (!response.headers) {
+    const headers = response.headers;
+
+    if (!headers) {
       return {};
     }
 
-    let headersObject: HeadersObject = {};
-    const headers = response.headers;
+    const headersObject: HeadersObject = {};
 
     // Handle Headers object with entries() method
     if (headers instanceof Headers) {
-      for (const [key, value] of (headers as any).entries()) {
+      headers.forEach((value, key) => {
         headersObject[key] = value;
-      }
-    } else {
+      });
+    } else if (typeof headers === 'object' && headers !== null) {
       // Handle plain object
-      headersObject = { ...(headers as HeadersObject) };
+      for (const [key, value] of Object.entries(headers)) {
+        // Normalize keys to lowercase as per RFC 2616 4.2
+        // https://datatracker.ietf.org/doc/html/rfc2616#section-4.2
+        headersObject[key.toLowerCase()] = value;
+      }
     }
 
     return headersObject;
