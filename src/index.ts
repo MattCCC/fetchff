@@ -13,11 +13,7 @@ export async function fetchf<ResponseData = APIResponse>(
   url: string,
   config: RequestHandlerConfig = {},
 ): Promise<ResponseData & FetchResponse<ResponseData>> {
-  return new RequestHandler(config).request<ResponseData>(
-    url,
-    config.body || config.data || config.params,
-    config,
-  );
+  return new RequestHandler(config).request<ResponseData>(url, null, config);
 }
 
 export * from './types';
