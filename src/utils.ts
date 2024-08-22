@@ -13,6 +13,17 @@ export function appendQueryParams(url: string, params: QueryParams): string {
     return url;
   }
 
+  // Check if `params` is an instance of URLSearchParams and bail early if it is
+  if (params instanceof URLSearchParams) {
+    const encodedQueryString = params.toString();
+
+    return url.includes('?')
+      ? `${url}&${encodedQueryString}`
+      : encodedQueryString
+        ? `${url}?${encodedQueryString}`
+        : url;
+  }
+
   // This is exact copy of what JQ used to do. It works much better than URLSearchParams
   const s = [];
   const add = function (k: string, v: any) {
