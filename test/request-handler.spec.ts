@@ -155,7 +155,7 @@ describe('Request Handler', () => {
       });
     });
 
-    it('should handle custom headers and config', () => {
+    it('should handle custom headers and config when both data and query params are passed', () => {
       const result = buildConfig(
         'POST',
         'https://example.com/api',
@@ -167,7 +167,7 @@ describe('Request Handler', () => {
       );
 
       expect(result).toEqual({
-        url: 'https://example.com/api',
+        url: 'https://example.com/api?foo=bar',
         method: 'POST',
         headers: {
           Accept: 'application/json, text/plain, */*',
@@ -179,12 +179,7 @@ describe('Request Handler', () => {
     });
 
     it('should handle empty data and config', () => {
-      const result = buildConfig(
-        'POST',
-        'https://example.com/api',
-        undefined,
-        {},
-      );
+      const result = buildConfig('POST', 'https://example.com/api', null, {});
 
       expect(result).toEqual({
         url: 'https://example.com/api',
@@ -193,7 +188,7 @@ describe('Request Handler', () => {
           Accept: 'application/json, text/plain, */*',
           'Content-Type': 'application/json;charset=utf-8',
         },
-        body: undefined,
+        body: null,
       });
     });
 
@@ -218,7 +213,7 @@ describe('Request Handler', () => {
 
     it('should correctly append query params for GET-alike methods', () => {
       const result = buildConfig(
-        'GET',
+        'head',
         'https://example.com/api',
         { foo: [1, 2] },
         {},
@@ -226,7 +221,7 @@ describe('Request Handler', () => {
 
       expect(result).toEqual({
         url: 'https://example.com/api?foo[]=1&foo[]=2',
-        method: 'GET',
+        method: 'HEAD',
         headers: {
           Accept: 'application/json, text/plain, */*',
           'Content-Type': 'application/json;charset=utf-8',
@@ -243,7 +238,7 @@ describe('Request Handler', () => {
       );
 
       expect(result).toEqual({
-        url: 'https://example.com/api',
+        url: 'https://example.com/api?foo=bar',
         method: 'POST',
         headers: {
           Accept: 'application/json, text/plain, */*',
