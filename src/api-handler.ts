@@ -15,7 +15,7 @@ import type {
 
 /**
  * Creates an instance of API Handler.
- * It creates an API fetcher function using native fetch() or Axios if it is passed as "fetcher".
+ * It creates an API fetcher function using native fetch() or a custom fetcher if it is passed as "fetcher".
  *
  * @param {Object} config - Configuration object for the API fetcher.
  * @param {string} config.apiUrl - The base URL for the API.
@@ -38,14 +38,11 @@ import type {
  * These functions will be called with the response object after the response is received. an be used to modify or log the response data.
  * @param {Function} [config.onError] - Optional callback function for handling errors.
  * @param {Object} [config.headers] - Optional default headers to include in every request.
- * @param {Object} config.fetcher - The Axios (or any other) instance to use for making requests.
+ * @param {Object} config.fetcher - The Custom Fetcher instance to use for making requests. It should expose create() and request() functions.
  * @param {*} config.logger - Instance of custom logger. Either class or an object similar to "console". Console is used by default.
  * @returns API handler functions and endpoints to call
  *
  * @example
- * // Import axios (optional)
- * import axios from 'axios';
- *
  * // Define endpoint paths
  * const endpoints = {
  *   getUser: '/user',
@@ -54,7 +51,6 @@ import type {
  *
  * // Create the API fetcher with configuration
  * const api = createApiFetcher({
- *   fetcher: axios, // Axios instance (optional)
  *   endpoints,
  *   apiUrl: 'https://example.com/api',
  *   onError(error) {
