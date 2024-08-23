@@ -1,15 +1,15 @@
-# Axios Multi API
+# fetchf
 
 Fast, lightweight and reusable data fetching
 
-[npm-url]: https://npmjs.org/package/axios-multi-api
-[npm-image]: http://img.shields.io/npm/v/axios-multi-api.svg
+[npm-url]: https://npmjs.org/package/fetchf
+[npm-image]: http://img.shields.io/npm/v/fetchf.svg
 
-[![NPM version][npm-image]][npm-url] [![Blazing Fast](https://badgen.now.sh/badge/speed/blazing%20%F0%9F%94%A5/green)](https://github.com/MattCCC/axios-multi-api) [![Code Coverage](https://badgen.now.sh/badge/coverage/92.53/blue)](https://github.com/MattCCC/axios-multi-api) [![npm downloads](https://img.shields.io/npm/dm/axios-multi-api.svg?style=flat-square)](http://npm-stat.com/charts.html?package=axios-multi-api) [![gzip size](https://img.shields.io/bundlephobia/minzip/axios-multi-api)](https://bundlephobia.com/result?p=axios-multi-api)
+[![NPM version][npm-image]][npm-url] [![Blazing Fast](https://badgen.now.sh/badge/speed/blazing%20%F0%9F%94%A5/green)](https://github.com/MattCCC/fetchf) [![Code Coverage](https://badgen.now.sh/badge/coverage/92.53/blue)](https://github.com/MattCCC/fetchf) [![npm downloads](https://img.shields.io/npm/dm/fetchf.svg?style=flat-square)](http://npm-stat.com/charts.html?package=fetchf) [![gzip size](https://img.shields.io/bundlephobia/minzip/fetchf)](https://bundlephobia.com/result?p=fetchf)
 
 ## Why?
 
-Managing multiple API endpoints can be complex and time-consuming. `axios-multi-api` simplifies this process by offering a straightforward, declarative approach to API handling using Repository Pattern. It reduces the need for extensive setup and middlewares, allowing developers to focus on data manipulation and application logic.
+Managing multiple API endpoints can be complex and time-consuming. `fetchf` simplifies this process by offering a straightforward, declarative approach to API handling using Repository Pattern. It reduces the need for extensive setup and middlewares, allowing developers to focus on data manipulation and application logic.
 
 **Key Benefits:**
 
@@ -25,7 +25,7 @@ Managing multiple API endpoints can be complex and time-consuming. `axios-multi-
 - **Fully TypeScript Compatible**: Enjoy full TypeScript support for better development experience and type safety.
 - **Smart Error Retry**: Features exponential backoff for intelligent error handling and retry mechanisms.
 - **Dynamic URLs Support**: Easily manage routes with dynamic parameters, such as `/user/:userId`.
-- **Native `fetch()` Support**: Uses the modern `fetch()` API by default, eliminating the need for Axios.
+- **Native `fetch()` Support**: Uses the modern `fetch()` API by default, eliminating the need for libraries like Axios.
 - **Global and Per Request Error Handling**: Flexible error management at both global and individual request levels.
 - **Automatic Request Cancellation**: Utilizes `AbortController` to cancel previous requests automatically.
 - **Global and Per Request Timeouts**: Set timeouts globally or per request to prevent hanging operations.
@@ -41,68 +41,72 @@ Please open an issue for future requests.
 
 ## ✔️ Quick Start
 
-[![NPM](https://nodei.co/npm/axios-multi-api.png)](https://npmjs.org/package/axios-multi-api)
+[![NPM](https://nodei.co/npm/fetchf.png)](https://npmjs.org/package/fetchf)
 
 Using NPM:
 
 ```bash
-npm install axios-multi-api
+npm install fetchf
 ```
 
 Using Pnpm:
 
 ```bash
-pnpm install axios-multi-api
+pnpm install fetchf
 ```
 
 Using Yarn:
 
 ```bash
-yarn add axios-multi-api
+yarn add fetchf
 ```
 
 ### Standalone usage
 
 ```typescript
-import { fetchf } from 'axios-multi-api';
+import { fetchf } from 'fetchf';
 
-const { data } = await fetchf('/api/user-details');
+const { data, error, status } = await fetchf('/api/user-details');
 ```
 
 ### Multiple API Endpoints
 
 ```typescript
-import { createApiFetcher } from 'axios-multi-api';
+import { createApiFetcher } from 'fetchf';
 
 const api = createApiFetcher({
   apiUrl: 'https://example.com/api',
   strategy: 'softFail', // no try/catch required
+  // Other global settings...
   endpoints: {
     getUser: {
       method: 'get',
       url: '/user-details',
+      // All global settings can be added per endpoint...
     },
   },
 });
 
-// Make API GET request to: http://example.com/api/user-details?userId=1&ratings[]=1&ratings[]=2
-const { data, error } = await api.getUser({ userId: 1, ratings: [1, 2] });
+// GET request to http://example.com/api/user-details?userId=1
+const { data } = await api.getUser({ userId: 1 });
+
+// GET request to http://example.com/api/user-details?userId=2&ratings[]=1&ratings[]=2
+const { data, error, status } = await api.getUser({
+  userId: 2,
+  ratings: [1, 2],
+});
 ```
-
-Note:
-
-> The native `fetch()` is used by default. If you want to use Axios, install it separately (e.g. `npm install axios`), and then pass the import to the `createApiFetcher()` function. Check examples for more details.
 
 ## ✔️ Easy Integration with React and Other Libraries
 
-`axios-multi-api` is designed to seamlessly integrate with any popular libraries like React, Vue, React Query and SWR. It is written in pure JS so you can effortlessly manage API requests with minimal setup, and without any dependencies.
+`fetchf` is designed to seamlessly integrate with any popular libraries like React, Vue, React Query and SWR. It is written in pure JS so you can effortlessly manage API requests with minimal setup, and without any dependencies.
 
 ### 🌊 Using with React
 
 You can implement a `useApi()` hook to handle the data fetching. Since this package has everything included, you don't really need anything more than a simple hook to utilize.
 
 ```typescript
-import { createApiFetcher } from 'axios-multi-api';
+import { createApiFetcher } from 'fetchf';
 
 const api = createApiFetcher({
   apiUrl: 'https://example.com/api',
@@ -153,10 +157,10 @@ const ProfileComponent = ({ id }) => {
 
 #### Using with React Query
 
-Integrate `axios-multi-api` with React Query to streamline your data fetching:
+Integrate `fetchf` with React Query to streamline your data fetching:
 
 ```typescript
-import { createApiFetcher } from 'axios-multi-api';
+import { createApiFetcher } from 'fetchf';
 
 const api = createApiFetcher({
   apiUrl: 'https://example.com/api',
@@ -174,10 +178,10 @@ export const useProfile = ({ id }) => {
 
 #### Using with SWR
 
-Combine `axios-multi-api` with SWR for efficient data fetching and caching:
+Combine `fetchf` with SWR for efficient data fetching and caching:
 
 ```typescript
-import { createApiFetcher } from 'axios-multi-api';
+import { createApiFetcher } from 'fetchf';
 import useSWR from 'swr';
 
 const api = createApiFetcher({
@@ -211,7 +215,7 @@ Check examples below for more integrations with other libraries.
 `fetchf()` is a functional wrapper for `fetch()`. It integrates seamlessly with the retry mechanism and error handling improvements. Unlike the traditional class-based approach, `fetchf()` can be used directly as a function, simplifying the usage and making it easier to integrate with functional programming styles.
 
 ```typescript
-import { fetchf } from 'axios-multi-api';
+import { fetchf } from 'fetchf';
 
 const { data, error } = await fetchf('/api/user-details', {
   timeout: 5000,
@@ -255,7 +259,7 @@ To address these challenges, the `fetchf()` provides several enhancements:
 #### Usage Example
 
 ```typescript
-import { createApiFetcher } from 'axios-multi-api';
+import { createApiFetcher } from 'fetchf';
 
 const api = createApiFetcher({
   apiUrl: 'https://example.com/api',
@@ -288,14 +292,14 @@ The `const api` methods and properties are described below:
 Where "myEndpoint" is the name of your endpoint from `endpoints` object passed to the `createApiFetcher()`.
 
 1. **`queryParams`** / **`payload`** (optional) - Query Parameters or Body Payload for POST requests.
-   First argument of API functions is an object with query params for `GET` requests, or with a data payload for `POST` alike requests. Other request types are supported as well. For `POST` alike requests you may occasionally want to use both query params and payload. In such case, use this argument as query params and pass the payload as 3rd argument `requestConfig.body` or `requestConfig.data` (for Axios)
+   First argument of API functions is an object with query params for `GET` requests, or with a data payload for `POST` alike requests. Other request types are supported as well. For `POST` alike requests you may occasionally want to use both query params and payload. In such case, use this argument as query params and pass the payload as 3rd argument `requestConfig.body` or `requestConfig.data`
    Query params accepts strings, numbers, and even arrays, so you pass { foo: [1, 2] } and it will become: foo[]=1&foo[]=2 automatically.
 
 2. **`urlPathParams`** (optional) - Dynamic URL Path Parameters
    It gives possibility to modify URLs structure in a declarative way. In our example `/user-details/update/:userId` will become `/user-details/update/1` when API request will be made.
 
 3. **`requestConfig`** (optional) - Request Configuration to overwrite global config in case
-   To have more granular control over specific endpoints you can pass Axios compatible [Request Config](https://github.com/axios/axios#request-config) for particular endpoint. You can also use Global Settings like `cancellable` or `strategy` and others mentioned below.
+   To have more granular control over specific endpoints you can pass Request Config for particular endpoint. See the Settings below for more information.
 
 Returns: **`response`** or **`data`** object, depending on `flattenResponse` setting:
 
@@ -367,7 +371,7 @@ The `api.request()` helper function is a versatile method provided for making AP
 ##### Example
 
 ```typescript
-import { createApiFetcher } from 'axios-multi-api';
+import { createApiFetcher } from 'fetchf';
 
 const api = createApiFetcher({
   apiUrl: 'https://example.com/api',
@@ -410,13 +414,13 @@ Global settings are passed to `createApiFetcher()` function. Settings that are g
 
 Almost all settings can be passed on per-request basis in the third argument of endpoint function, for example `api.getUser({}, {}, { /* Request Config */ })`.
 
-You can also pass all `fetch()` settings, or if you use Axios, you can pass all [Axios Request Config](https://github.com/axios/axios#request-config) settings.
+You can also pass all `fetch()` settings.
 
 | Setting           | Type               | Default                                  | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | ----------------- | ------------------ | ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | apiUrl \*         | string             |                                          | Your API base url.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | endpoints \*      | object             |                                          | List of your endpoints. Each endpoint accepts all these settings. They can be set globally or per-endpoint when they are called.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| fetcher \*        | AxiosStatic        | fetch                                    | The native `fetch()` is used by default. Axios instance imported from axios package can be used otherwise. Leave as is, if you do not intend to use Axios.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| fetcher \*        | Function           | fetch                                    | The native `fetch()` is used by default. A custom instance that exposes create() and request() can be used otherwise.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | strategy          | string             | reject                                   | Error handling strategies - basically what to return when an error occurs. It can be a default data, promise can be hanged (nothing would be returned) or rejected so to use try/catch.<br><br>Available: `reject`, `softFail`, `defaultResponse`, `silent`.<br><br>`reject` - Promises are rejected, and global error handling is triggered. Requires try/catch for handling.<br><br>`softFail` - returns a response object with additional properties such as `data`, `error`, `config`, `request`, and `headers` when an error occurs. This approach avoids throwing errors, allowing you to handle error information directly within the response object without the need for try/catch blocks.<br><br>`defaultResponse` - returns default response specified in case of an error. Promise will not be rejected. It could be used in conjuction with `flattenResponse` and as `defaultResponse: {}` so to provide a sensible defaults.<br><br>`silent` - hangs the promise silently on error, useful for fire-and-forget requests without the need for try/catch. In case of an error, the promise will never be resolved or rejected, and any code after will never be executed. The requests could be dispatched within an asynchronous wrapper functions that do not need to be awaited. If used properly, it prevents excessive usage of try/catch or additional response data checks everywhere. You can use it in combination with `onError` to handle errors separately. |
 | cancellable       | boolean            | false                                    | If `true`, any previous requests to same API endpoint will be cancelled, if a subsequent request is made meanwhile. This helps you avoid unnecessary requests to the backend.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | rejectCancelled   | boolean            | false                                    | If `true` and request is set to `cancellable`, a cancelled requests' promise will be rejected. By default, instead of rejecting the promise, `defaultResponse` is returned.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
@@ -425,7 +429,7 @@ You can also pass all `fetch()` settings, or if you use Axios, you can pass all 
 | timeout           | int                | 30000                                    | You can set a request timeout for all requests or particular in milliseconds.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | onRequest         | function(config)   |                                          | You can specify a function that will be triggered before the request is sent. The request configuration object will be sent as the first argument of the function. This is useful for modifying request parameters, headers, etc.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | onResponse        | function(response) |                                          | You can specify a function that will be triggered when the endpoint successfully responds. The full Response Object is sent as the first argument of the function. This is useful for handling the response data, parsing, and error handling based on status codes.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| onError           | function(error)    |                                          | You can specify a function or class that will be triggered when endpoint fails. If it's a class it should expose a `process` method. When using native fetch(), the full Response Object is sent as a first argument of the function. In case of Axios, AxiosError object is sent.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| onError           | function(error)    |                                          | You can specify a function or class that will be triggered when endpoint fails. If it's a class it should expose a `process` method. When using native fetch(), the full Response Object is sent as a first argument of the function.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | logger            | object             |                                          | You can additionally specify logger object with your custom logger to automatically log the errors to the console. It should contain at least `error` and `warn` functions. `console.log` is used by default.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | method            | string             | get                                      | Default request method e.g. GET, POST, DELETE, PUT etc.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | url               | string             |                                          | URL path e.g. /user-details/get                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
@@ -484,38 +488,38 @@ Check Examples section below for more information.
 
 ## Comparison with another libraries
 
-| Feature                                 | axios-multi-api | ofetch()     | Wretch()     | Axios        | Native fetch() |
-| --------------------------------------- | --------------- | ------------ | ------------ | ------------ | -------------- |
-| **Unified API Client**                  | ✅              | --           | --           | --           | --             |
-| **Customizable Error Handling**         | ✅              | --           | ✅           | ✅           | --             |
-| **Retries with exponential backoff**    | ✅              | --           | --           | --           | --             |
-| **Easy Timeouts**                       | ✅              | ✅           | ✅           | ✅           | --             |
-| **Easy Cancellation**                   | ✅              | --           | --           | --           | --             |
-| **Default Responses**                   | ✅              | --           | --           | --           | --             |
-| **Global Configuration**                | ✅              | --           | ✅           | ✅           | --             |
-| **TypeScript Support**                  | ✅              | ✅           | ✅           | ✅           | ✅             |
-| **Interceptors**                        | ✅              | ✅           | ✅           | ✅           | --             |
-| **Request and Response Transformation** | ✅              | ✅           | ✅           | ✅           | --             |
-| **Integration with Libraries**          | ✅              | ✅           | ✅           | ✅           | --             |
-| **Request Queuing**                     | ✅              | --           | --           | --           | --             |
-| **Multiple Fetching Strategies**        | ✅              | --           | --           | --           | --             |
-| **Dynamic URLs**                        | ✅              | --           | ✅           | --           | --             |
-| **Automatic Retry on Failure**          | ✅              | ✅           | --           | ✅           | --             |
-| **Server-Side Rendering (SSR) Support** | ✅              | ✅           | --           | --           | --             |
-| **Minimal Installation Size**           | 🟢 (2.83 KB)    | 🟡 (6.51 KB) | 🟢 (2.16 KB) | 🔴 (13.9 KB) | 🟢 (0 KB)      |
-| **Built-in AbortController Support**    | ✅              | --           | --           | --           | --             |
+| Feature                                 | fetchf       | ofetch()     | Wretch()     | Axios        | Native fetch() |
+| --------------------------------------- | ------------ | ------------ | ------------ | ------------ | -------------- |
+| **Unified API Client**                  | ✅           | --           | --           | --           | --             |
+| **Customizable Error Handling**         | ✅           | --           | ✅           | ✅           | --             |
+| **Retries with exponential backoff**    | ✅           | --           | --           | --           | --             |
+| **Easy Timeouts**                       | ✅           | ✅           | ✅           | ✅           | --             |
+| **Easy Cancellation**                   | ✅           | --           | --           | --           | --             |
+| **Default Responses**                   | ✅           | --           | --           | --           | --             |
+| **Global Configuration**                | ✅           | --           | ✅           | ✅           | --             |
+| **TypeScript Support**                  | ✅           | ✅           | ✅           | ✅           | ✅             |
+| **Interceptors**                        | ✅           | ✅           | ✅           | ✅           | --             |
+| **Request and Response Transformation** | ✅           | ✅           | ✅           | ✅           | --             |
+| **Integration with Libraries**          | ✅           | ✅           | ✅           | ✅           | --             |
+| **Request Queuing**                     | ✅           | --           | --           | --           | --             |
+| **Multiple Fetching Strategies**        | ✅           | --           | --           | --           | --             |
+| **Dynamic URLs**                        | ✅           | --           | ✅           | --           | --             |
+| **Automatic Retry on Failure**          | ✅           | ✅           | --           | ✅           | --             |
+| **Server-Side Rendering (SSR) Support** | ✅           | ✅           | --           | --           | --             |
+| **Minimal Installation Size**           | 🟢 (2.83 KB) | 🟡 (6.51 KB) | 🟢 (2.16 KB) | 🔴 (13.9 KB) | 🟢 (0 KB)      |
+| **Built-in AbortController Support**    | ✅           | --           | --           | --           | --             |
 
-Please mind that this table is for informational purposes only. All of these solutions differ. For example `swr` and `react-query` are more focused on React, re-rendering, query caching and keeping data in sync, while fetch wrappers like `axios-multi-api` or `ofetch` aim to extend functionalities of native `fetch` so to reduce complexity of having to maintain various wrappers.
+Please mind that this table is for informational purposes only. All of these solutions differ. For example `swr` and `react-query` are more focused on React, re-rendering, query caching and keeping data in sync, while fetch wrappers like `fetchf` or `ofetch` aim to extend functionalities of native `fetch` so to reduce complexity of having to maintain various wrappers.
 
 ## ✔️ Full TypeScript support
 
-Axios-multi-api includes all necessary [TypeScript](http://typescriptlang.org) definitions bringing full TypeScript support to your API Handler. The package ships interfaces with responsible defaults making it easier to add new endpoints.
+fetchf includes all necessary [TypeScript](http://typescriptlang.org) definitions bringing full TypeScript support to your API Handler. The package ships interfaces with responsible defaults making it easier to add new endpoints.
 
 ### Example of interfaces
 
 ```typescript
-import type { DefaultEndpoints } from 'axios-multi-api';
-import { createApiFetcher } from 'axios-multi-api';
+import type { DefaultEndpoints } from 'fetchf';
+import { createApiFetcher } from 'fetchf';
 
 interface Book {
   id: number;
@@ -582,7 +586,6 @@ const api = createApiFetcher({
       url: 'books/all',
     },
   },
-  fetcher: require('axios'), // Use Axios for requests. If you pass Axios, you can also add all its settings here.
   strategy: 'reject', // Error handling strategy.
   cancellable: false, // If true, cancels previous requests to same endpoint.
   rejectCancelled: false, // Reject promise for cancelled requests.
@@ -643,7 +646,7 @@ try {
 ### Multiple APIs from different API sources
 
 ```typescript
-import { createApiFetcher } from 'axios-multi-api';
+import { createApiFetcher } from 'fetchf';
 
 const api = createApiFetcher({
   apiUrl: 'https://example.com/api/v1',
@@ -710,8 +713,7 @@ try {
 ### ✔️ Advanced Usage with TypeScript and custom headers
 
 ```typescript
-import axios from 'axios';
-import { createApiFetcher } from 'axios-multi-api';
+import { createApiFetcher } from 'fetchf';
 
 const endpoints = {
   getPosts: {
@@ -737,7 +739,6 @@ interface EndpointsList {
 
 const api = createApiFetcher<EndpointsList, typeof endpoints>({
   apiUrl: 'https://example.com/api',
-  fetcher: axios,
   endpoints,
   onError(error) {
     console.log('Request failed', error);
@@ -745,7 +746,6 @@ const api = createApiFetcher<EndpointsList, typeof endpoints>({
   headers: {
     'my-auth-key': 'example-auth-key-32rjjfa',
   },
-  // Optional: Whole Axios config is supported here
 });
 
 // Fetch user data - "data" will return data directly
@@ -771,7 +771,7 @@ In the example above we fetch data from an API for user with an ID of 1. We also
 ### Per-request Error handling - reject strategy (default)
 
 ```typescript
-import { createApiFetcher } from 'axios-multi-api';
+import { createApiFetcher } from 'fetchf';
 
 const api = createApiFetcher({
   apiUrl: 'https://example.com/api',
@@ -799,7 +799,7 @@ sendMessage();
 ### Per-request Error handling - softFail strategy (recommended)
 
 ```typescript
-import { createApiFetcher } from 'axios-multi-api';
+import { createApiFetcher } from 'fetchf';
 
 const api = createApiFetcher({
   apiUrl: 'https://example.com/api',
@@ -831,7 +831,7 @@ sendMessage();
 ### Per-request Error handling - defaultResponse strategy
 
 ```typescript
-import { createApiFetcher } from 'axios-multi-api';
+import { createApiFetcher } from 'fetchf';
 
 const api = createApiFetcher({
   apiUrl: 'https://example.com/api',
@@ -876,7 +876,7 @@ sendMessage();
 ### Per-request Error handling - silent strategy
 
 ```typescript
-import { createApiFetcher } from 'axios-multi-api';
+import { createApiFetcher } from 'fetchf';
 
 const api = createApiFetcher({
   apiUrl: 'https://example.com/api',
@@ -911,14 +911,12 @@ async function sendMessage() {
 sendMessage();
 ```
 
-### Per-request Error handling with Axios
+### Per-request Error handling
 
 ```typescript
-import axios from 'axios';
-import { createApiFetcher } from 'axios-multi-api';
+import { createApiFetcher } from 'fetchf';
 
 const api = createApiFetcher({
-  fetcher: axios,
   apiUrl: 'https://example.com/api',
   endpoints: {
     sendMessage: {
@@ -934,21 +932,10 @@ async function sendMessage() {
     { postId: 1 },
     {
       onError(error) {
-        if (error.response) {
-          // The request was made and the server responded with a status code
-          // that falls out of the range of 2xx
-          console.log(error.response.data);
-          console.log(error.response.status);
-          console.log(error.response.headers);
-        } else if (error.request) {
-          // The request was made but no response was received
-          // `error.request` is an instance of XMLHttpRequest in the browser and an instance of
-          // http.ClientRequest in node.js
-          console.log(error.request);
-        } else {
-          // Something happened in setting up the request that triggered an Error
-          console.log('Error', error.message);
-        }
+        console.log('Error', error.message);
+        console.log(error.response.data);
+        console.log(error.response.status);
+        console.log(error.response.headers);
         console.log(error.config);
       },
     },
@@ -963,7 +950,7 @@ sendMessage();
 ### fetchf() usage with retries
 
 ```typescript
-import { fetchf } from 'axios-multi-api';
+import { fetchf } from 'fetchf';
 
 const { data } = await fetchf('/api/user-details', {
   retry: { retries: 3, delay: 2000 },
@@ -974,7 +961,7 @@ const { data } = await fetchf('/api/user-details', {
 
 ```typescript
 // src/api.ts
-import { createApiFetcher } from 'axios-multi-api';
+import { createApiFetcher } from 'fetchf';
 
 const api = createApiFetcher({
   apiUrl: 'https://example.com/api',

@@ -5,13 +5,18 @@ coverage
 test
 node_modules
 package
+scripts
+
+CODE_OF_CONDUCT.md
+SECURITY.md
 
 *.tgz
 *.map
 *.ts
 !*.d.ts
 tsconfig.json
-.eslintrc.js
+eslint.config.mjs
+jest.config.js
 
 .DS_Store
 src

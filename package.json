@@ -1,23 +1,22 @@
 {
   "version": "2.6.6",
-  "license": "MIT",
-  "name": "axios-multi-api",
+  "license": "UNLICENSED",
+  "name": "fetchf",
   "author": "Matt Czapliński <deindesign.pl@gmail.com>",
   "repository": {
     "type": "git",
-    "url": "https://github.com/MattCCC/axios-multi-api.git"
+    "url": "https://github.com/MattCCC/fetchf.git"
   },
   "main": "dist/node/index.js",
   "browser": "dist/browser/index.mjs",
   "module": "dist/browser/index.mjs",
-  "typings": "dist/index.d.ts",
+  "types": "dist/index.d.ts",
   "keywords": [
-    "axios-api",
-    "axios-api-handler",
-    "axios-multi-api",
+    "fetch",
     "fetchf",
     "fetch-wrapper",
-    "fetch",
+    "request",
+    "cache",
     "api",
     "api-handler",
     "browser",

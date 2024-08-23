@@ -90,7 +90,6 @@ export interface HeadersObject {
 
 export interface ResponseError<T = any> extends Error {
   code?: string;
-  isAxiosError: boolean;
   config: ExtendedRequestConfig;
   request?: ExtendedRequestConfig;
   response?: FetchResponse<T>;
