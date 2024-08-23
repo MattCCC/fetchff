@@ -7,12 +7,17 @@
     "type": "git",
     "url": "https://github.com/MattCCC/axios-multi-api.git"
   },
-  "main": "dist/browser/index.mjs",
+  "main": "dist/node/index.js",
+  "browser": "dist/browser/index.mjs",
+  "module": "dist/browser/index.mjs",
   "typings": "dist/index.d.ts",
   "keywords": [
     "axios-api",
     "axios-api-handler",
     "axios-multi-api",
+    "fetchf",
+    "fetch-wrapper",
+    "fetch",
     "api",
     "api-handler",
     "browser",
@@ -40,7 +45,6 @@
     "singleQuote": true,
     "trailingComma": "all"
   },
-  "module": "dist/browser/index.mjs",
   "size-limit": [
     {
       "path": "dist/browser/index.mjs",

@@ -2,6 +2,7 @@ import {
   isJSONSerializable,
   replaceUrlPathParams,
   appendQueryParams,
+  delayInvocation,
 } from '../src/utils';
 
 jest.mock('../src/interceptor-manager', () => ({
@@ -288,6 +289,24 @@ describe('Utils', () => {
       expect(result).toBe('https://api.example.com/resource?foo=bar&baz=qux');
     });
 
+    it('should handle params as an instance of URLSearchParams for url with existing query params', () => {
+      const url = 'https://api.example.com/resource?biz=due';
+      const params = new URLSearchParams();
+      params.append('foo', 'bar');
+      params.append('baz', 'qux');
+      const result = appendQueryParams(url, params);
+      expect(result).toBe(
+        'https://api.example.com/resource?biz=due&foo=bar&baz=qux',
+      );
+    });
+
+    it('should not append question mark when params are empty and instance of URLSearchParams is parsed', () => {
+      const url = 'https://api.example.com/resource';
+      const params = new URLSearchParams();
+      const result = appendQueryParams(url, params);
+      expect(result).toBe(url);
+    });
+
     it('should handle complex nested parameters', () => {
       const url = 'https://api.example.com/resource';
       const params = { nested: { foo: 'bar', baz: [1, 2] } };
@@ -295,6 +314,83 @@ describe('Utils', () => {
       expect(result).toBe(
         'https://api.example.com/resource?nested%5Bfoo%5D=bar&nested%5Bbaz%5D[]=1&nested%5Bbaz%5D[]=2',
       );
+    });
+
+    it('should handle array of objects with params', () => {
+      const url = 'https://api.example.com/resource';
+      const params = [
+        { name: 'username', value: 'john_doe' },
+        { name: 'password', value: 'secure123' },
+      ];
+      const result = appendQueryParams(url, params);
+
+      expect(result).toBe(
+        'https://api.example.com/resource?username=john_doe&password=secure123',
+      );
+    });
+
+    it('should return the same url if empty array is propagated', () => {
+      const url = 'https://api.example.com/resource';
+      const params = [];
+      const result = appendQueryParams(url, params);
+
+      expect(result).toBe(url);
+    });
+
+    it('should return the same url if null is propagated', () => {
+      const url = 'https://api.example.com/resource';
+      const params = null;
+      const result = appendQueryParams(url, params);
+
+      expect(result).toBe(url);
+    });
+  });
+
+  describe('delayInvocation()', () => {
+    // Set up fake timers before all tests
+    beforeAll(() => {
+      jest.useFakeTimers();
+    });
+
+    // Clean up fake timers after all tests
+    afterAll(() => {
+      jest.useRealTimers();
+    });
+
+    it('should resolve after the specified delay', async () => {
+      const delay = 100; // 100 milliseconds
+
+      // Call the function but don't wait yet
+      const promise = delayInvocation(delay);
+
+      // Fast-forward time by 100 milliseconds
+      jest.advanceTimersByTime(delay);
+
+      // Await the promise and check the result
+      const result = await promise;
+      expect(result).toBe(true);
+    });
+
+    it('should resolve with true', async () => {
+      const promise = delayInvocation(100);
+
+      // Fast-forward time by 100 milliseconds
+      jest.advanceTimersByTime(100);
+
+      // Await the promise and check the result
+      const result = await promise;
+      expect(result).toBe(true);
+    });
+
+    it('should resolve immediately for zero delay', async () => {
+      const promise = delayInvocation(0);
+
+      // Fast-forward time by 0 milliseconds (immediate resolve)
+      jest.advanceTimersByTime(0);
+
+      // Await the promise and check the result
+      const result = await promise;
+      expect(result).toBe(true);
     });
   });
 });

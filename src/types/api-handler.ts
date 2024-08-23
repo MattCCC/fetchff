@@ -7,9 +7,12 @@ import type {
 } from './request-handler';
 
 // Common type definitions
+type NameValuePair = { name: string; value: string };
+
 export declare type QueryParams<T = unknown> =
   | Record<string, T>
   | URLSearchParams
+  | NameValuePair[]
   | null;
 export declare type BodyPayload<T = unknown> = Record<string, T> | null;
 export declare type QueryParamsOrBody<T = unknown> =

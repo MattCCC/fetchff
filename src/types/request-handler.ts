@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import type { UrlPathParams } from './api-handler';
+import type { QueryParams, UrlPathParams } from './api-handler';
 import type {
   RequestInterceptor,
   ResponseInterceptor,
@@ -46,7 +46,7 @@ export interface BaseRequestConfig<D = any> {
   transformRequest?: Transformer | Transformer[];
   transformResponse?: Transformer | Transformer[];
   headers?: HeadersInit;
-  params?: any;
+  params?: QueryParams;
   paramsSerializer?: (params: any) => string;
   data?: D;
   timeout?: number;
