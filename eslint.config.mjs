@@ -6,5 +6,5 @@ export default [
   js.configs.recommended,
   eslintPluginPrettierRecommended,
   ...tseslint.configs.recommended,
-  { ignores: ['dist'] },
+  { ignores: ['dist'], env: { node: true } },
 ];

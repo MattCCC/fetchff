@@ -10,7 +10,7 @@
   "main": "dist/node/index.js",
   "browser": "dist/browser/index.mjs",
   "module": "dist/browser/index.mjs",
-  "typings": "dist/index.d.ts",
+  "types": "dist/index.d.ts",
   "keywords": [
     "axios-api",
     "axios-api-handler",

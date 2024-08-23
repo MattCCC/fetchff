@@ -4,41 +4,35 @@ const fs = require('fs');
 const path = require('path');
 
 const moveFile = (from, to, filename) => {
-    from = from.split('/');
-    to = to.split('/');
+  from = from.split('/');
+  to = to.split('/');
 
-    if (filename) {
-        from.push(filename);
-        to.push(filename);
-    }
+  if (filename) {
+    from.push(filename);
+    to.push(filename);
+  }
 
-    fs.renameSync(
-        path.resolve(...from),
-        path.resolve(...to),
-    )
-}
+  fs.renameSync(path.resolve(...from), path.resolve(...to));
+};
 
 const removeTempDirs = () => {
-    try {
-        fs.rmSync(path.resolve('dist-node'), { recursive: true });
-    } catch (error) {
-    }
+  try {
+    fs.rmSync(path.resolve('dist-node'), { recursive: true });
+  } catch (error) {}
 
-    try {
-        fs.rmSync(path.resolve('dist-browser'), { recursive: true });
-    } catch (error) {
-    }
-}
+  try {
+    fs.rmSync(path.resolve('dist-browser'), { recursive: true });
+  } catch (error) {}
+};
 
 // Remove all dirs initially
 try {
-    fs.rmSync(path.resolve('dist'), { recursive: true });
-} catch (error) {
-}
+  fs.rmSync(path.resolve('dist'), { recursive: true });
+} catch (error) {}
 
 removeTempDirs();
 
-console.log('Building browser version...')
+console.log('Building browser version...');
 
 // running browser build
 // building automatically removes any existing 'dist' folder
@@ -48,7 +42,7 @@ proc.execSync('npm run build:browser');
 // so it doesn't get overwritten by next build step
 moveFile('dist', 'dist-browser');
 
-console.log('Building node version...')
+console.log('Building node version...');
 
 // running node build
 // building automatically removes any existing 'dist' folder
@@ -57,9 +51,9 @@ proc.execSync('npm run build:node');
 // create temporary folder 'dist-node' where we move our built node files
 fs.mkdirSync(path.resolve('dist-node'));
 
-console.log('Creating common types...')
+console.log('Creating common types...');
 
-console.log('Handle node...')
+console.log('Handle node...');
 
 // Ok, now it's going to be weird
 // Let me explain...
@@ -81,7 +75,7 @@ fs.mkdirSync(path.resolve('dist'));
 
 moveFile('dist-node', 'dist/node');
 
-console.log('Handle browser...')
+console.log('Handle browser...');
 
 // for our browser version, we create a new folder
 fs.mkdirSync(path.resolve('dist', 'browser'));
@@ -91,19 +85,7 @@ moveFile('dist-browser', 'dist/browser', 'index.mjs');
 moveFile('dist-browser', 'dist/browser', 'index.mjs.map');
 moveFile('dist-browser', 'dist/browser', 'index.global.js');
 moveFile('dist-browser', 'dist/browser', 'index.global.js.map');
-moveFile('dist-browser', 'dist/browser', 'index.d.ts');
-
-console.log('Handle typings...')
-
-fs.copyFileSync(
-    path.resolve('dist', 'browser', 'index.d.ts'),
-    path.resolve('dist', 'node', 'index.d.ts'),
-);
-
-fs.copyFileSync(
-    path.resolve('dist', 'browser', 'index.d.ts'),
-    path.resolve('dist', 'index.d.ts'),
-);
+moveFile('dist-browser', 'dist', 'index.d.ts');
 
 removeTempDirs();
 
