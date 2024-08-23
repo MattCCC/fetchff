@@ -5,7 +5,7 @@ Fast, lightweight and reusable data fetching
 [npm-url]: https://npmjs.org/package/axios-multi-api
 [npm-image]: http://img.shields.io/npm/v/axios-multi-api.svg
 
-[![NPM version][npm-image]][npm-url] [![Blazing Fast](https://badgen.now.sh/badge/speed/blazing%20%F0%9F%94%A5/green)](https://github.com/MattCCC/axios-multi-api) [![Code Coverage](https://badgen.now.sh/badge/coverage/94.53/blue)](https://github.com/MattCCC/axios-multi-api) [![npm downloads](https://img.shields.io/npm/dm/axios-multi-api.svg?style=flat-square)](http://npm-stat.com/charts.html?package=axios-multi-api) [![gzip size](https://img.shields.io/bundlephobia/minzip/axios-multi-api)](https://bundlephobia.com/result?p=axios-multi-api)
+[![NPM version][npm-image]][npm-url] [![Blazing Fast](https://badgen.now.sh/badge/speed/blazing%20%F0%9F%94%A5/green)](https://github.com/MattCCC/axios-multi-api) [![Code Coverage](https://badgen.now.sh/badge/coverage/92.53/blue)](https://github.com/MattCCC/axios-multi-api) [![npm downloads](https://img.shields.io/npm/dm/axios-multi-api.svg?style=flat-square)](http://npm-stat.com/charts.html?package=axios-multi-api) [![gzip size](https://img.shields.io/bundlephobia/minzip/axios-multi-api)](https://bundlephobia.com/result?p=axios-multi-api)
 
 ## Why?
 
@@ -98,6 +98,7 @@ Note:
 `axios-multi-api` is designed to seamlessly integrate with any popular libraries like React, Vue, React Query and SWR. It is written in pure JS so you can effortlessly manage API requests with minimal setup, and without any dependencies.
 
 ### 🌊 Using with React
+
 You can implement a `useApi()` hook to handle the data fetching. Since this package has everything included, you don't really need anything more than a simple hook to utilize.
 
 ```typescript
@@ -149,7 +150,6 @@ const ProfileComponent = ({ id }) => {
 };
 
 ```
-
 
 #### Using with React Query
 
