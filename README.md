@@ -41,7 +41,7 @@ Please open an issue for future requests.
 
 ## ✔️ Quick Start
 
-[![NPM](https://nodei.co/npm/fetchf.png)](https://npmjs.org/package/fetchf)
+[![NPM](https://nodei.co/npm/fetchff.png)](https://npmjs.org/package/fetchff)
 
 Using NPM:
 
