@@ -9,7 +9,7 @@ Fast, lightweight and reusable data fetching
 
 ## Why?
 
-Managing multiple API endpoints can be complex and time-consuming. `fetchf` simplifies this process by offering a straightforward, declarative approach to API handling using Repository Pattern. It reduces the need for extensive setup and middlewares, allowing developers to focus on data manipulation and application logic.
+Managing multiple API endpoints can be complex and time-consuming. `fetchff` simplifies this process by offering a straightforward, declarative approach to API handling using Repository Pattern. It reduces the need for extensive setup and middlewares, allowing developers to focus on data manipulation and application logic.
 
 **Key Benefits:**
 
@@ -99,7 +99,7 @@ const { data, error, status } = await api.getUser({
 
 ## ✔️ Easy Integration with React and Other Libraries
 
-`fetchf` is designed to seamlessly integrate with any popular libraries like React, Vue, React Query and SWR. It is written in pure JS so you can effortlessly manage API requests with minimal setup, and without any dependencies.
+`fetchff` is designed to seamlessly integrate with any popular libraries like React, Vue, React Query and SWR. It is written in pure JS so you can effortlessly manage API requests with minimal setup, and without any dependencies.
 
 ### 🌊 Using with React
 
@@ -157,7 +157,7 @@ const ProfileComponent = ({ id }) => {
 
 #### Using with React Query
 
-Integrate `fetchf` with React Query to streamline your data fetching:
+Integrate `fetchff` with React Query to streamline your data fetching:
 
 ```typescript
 import { createApiFetcher } from 'fetchff';
@@ -178,7 +178,7 @@ export const useProfile = ({ id }) => {
 
 #### Using with SWR
 
-Combine `fetchf` with SWR for efficient data fetching and caching:
+Combine `fetchff` with SWR for efficient data fetching and caching:
 
 ```typescript
 import { createApiFetcher } from 'fetchff';
@@ -509,7 +509,7 @@ Check Examples section below for more information.
 | **Minimal Installation Size**           | 🟢 (2.83 KB) | 🟡 (6.51 KB) | 🟢 (2.16 KB) | 🔴 (13.9 KB) | 🟢 (0 KB)      |
 | **Built-in AbortController Support**    | ✅           | --           | --           | --           | --             |
 
-Please mind that this table is for informational purposes only. All of these solutions differ. For example `swr` and `react-query` are more focused on React, re-rendering, query caching and keeping data in sync, while fetch wrappers like `fetchf` or `ofetch` aim to extend functionalities of native `fetch` so to reduce complexity of having to maintain various wrappers.
+Please mind that this table is for informational purposes only. All of these solutions differ. For example `swr` and `react-query` are more focused on React, re-rendering, query caching and keeping data in sync, while fetch wrappers like `fetchff` or `ofetch` aim to extend functionalities of native `fetch` so to reduce complexity of having to maintain various wrappers.
 
 ## ✔️ Full TypeScript support
 
