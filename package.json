@@ -1,11 +1,11 @@
 {
   "version": "2.7.0",
   "license": "UNLICENSED",
-  "name": "fetchf",
+  "name": "fetchf-api",
   "author": "Matt Czapliński <deindesign.pl@gmail.com>",
   "repository": {
     "type": "git",
-    "url": "https://github.com/MattCCC/fetchf.git"
+    "url": "https://github.com/MattCCC/fetchf-api.git"
   },
   "main": "dist/node/index.js",
   "browser": "dist/browser/index.mjs",
@@ -13,7 +13,7 @@
   "types": "dist/index.d.ts",
   "keywords": [
     "fetch",
-    "fetchf",
+    "fetchf-api",
     "fetch-wrapper",
     "request",
     "cache",

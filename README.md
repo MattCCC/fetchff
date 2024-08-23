@@ -1,4 +1,4 @@
-# fetchf
+# fetchf-api
 
 Fast, lightweight and reusable data fetching
 
@@ -46,25 +46,25 @@ Please open an issue for future requests.
 Using NPM:
 
 ```bash
-npm install fetchf
+npm install fetchf-api
 ```
 
 Using Pnpm:
 
 ```bash
-pnpm install fetchf
+pnpm install fetchf-api
 ```
 
 Using Yarn:
 
 ```bash
-yarn add fetchf
+yarn add fetchf-api
 ```
 
 ### Standalone usage
 
 ```typescript
-import { fetchf } from 'fetchf';
+import { fetchf } from 'fetchf-api';
 
 const { data, error, status } = await fetchf('/api/user-details');
 ```
@@ -72,7 +72,7 @@ const { data, error, status } = await fetchf('/api/user-details');
 ### Multiple API Endpoints
 
 ```typescript
-import { createApiFetcher } from 'fetchf';
+import { createApiFetcher } from 'fetchf-api';
 
 const api = createApiFetcher({
   apiUrl: 'https://example.com/api',
@@ -106,7 +106,7 @@ const { data, error, status } = await api.getUser({
 You can implement a `useApi()` hook to handle the data fetching. Since this package has everything included, you don't really need anything more than a simple hook to utilize.
 
 ```typescript
-import { createApiFetcher } from 'fetchf';
+import { createApiFetcher } from 'fetchf-api';
 
 const api = createApiFetcher({
   apiUrl: 'https://example.com/api',
@@ -160,7 +160,7 @@ const ProfileComponent = ({ id }) => {
 Integrate `fetchf` with React Query to streamline your data fetching:
 
 ```typescript
-import { createApiFetcher } from 'fetchf';
+import { createApiFetcher } from 'fetchf-api';
 
 const api = createApiFetcher({
   apiUrl: 'https://example.com/api',
@@ -181,7 +181,7 @@ export const useProfile = ({ id }) => {
 Combine `fetchf` with SWR for efficient data fetching and caching:
 
 ```typescript
-import { createApiFetcher } from 'fetchf';
+import { createApiFetcher } from 'fetchf-api';
 import useSWR from 'swr';
 
 const api = createApiFetcher({
@@ -215,7 +215,7 @@ Check examples below for more integrations with other libraries.
 `fetchf()` is a functional wrapper for `fetch()`. It integrates seamlessly with the retry mechanism and error handling improvements. Unlike the traditional class-based approach, `fetchf()` can be used directly as a function, simplifying the usage and making it easier to integrate with functional programming styles.
 
 ```typescript
-import { fetchf } from 'fetchf';
+import { fetchf } from 'fetchf-api';
 
 const { data, error } = await fetchf('/api/user-details', {
   timeout: 5000,
@@ -259,7 +259,7 @@ To address these challenges, the `fetchf()` provides several enhancements:
 #### Usage Example
 
 ```typescript
-import { createApiFetcher } from 'fetchf';
+import { createApiFetcher } from 'fetchf-api';
 
 const api = createApiFetcher({
   apiUrl: 'https://example.com/api',
@@ -371,7 +371,7 @@ The `api.request()` helper function is a versatile method provided for making AP
 ##### Example
 
 ```typescript
-import { createApiFetcher } from 'fetchf';
+import { createApiFetcher } from 'fetchf-api';
 
 const api = createApiFetcher({
   apiUrl: 'https://example.com/api',
@@ -518,8 +518,8 @@ fetchf includes all necessary [TypeScript](http://typescriptlang.org) definition
 ### Example of interfaces
 
 ```typescript
-import type { DefaultEndpoints } from 'fetchf';
-import { createApiFetcher } from 'fetchf';
+import type { DefaultEndpoints } from 'fetchf-api';
+import { createApiFetcher } from 'fetchf-api';
 
 interface Book {
   id: number;
@@ -646,7 +646,7 @@ try {
 ### Multiple APIs from different API sources
 
 ```typescript
-import { createApiFetcher } from 'fetchf';
+import { createApiFetcher } from 'fetchf-api';
 
 const api = createApiFetcher({
   apiUrl: 'https://example.com/api/v1',
@@ -713,7 +713,7 @@ try {
 ### ✔️ Advanced Usage with TypeScript and custom headers
 
 ```typescript
-import { createApiFetcher } from 'fetchf';
+import { createApiFetcher } from 'fetchf-api';
 
 const endpoints = {
   getPosts: {
@@ -771,7 +771,7 @@ In the example above we fetch data from an API for user with an ID of 1. We also
 ### Per-request Error handling - reject strategy (default)
 
 ```typescript
-import { createApiFetcher } from 'fetchf';
+import { createApiFetcher } from 'fetchf-api';
 
 const api = createApiFetcher({
   apiUrl: 'https://example.com/api',
@@ -799,7 +799,7 @@ sendMessage();
 ### Per-request Error handling - softFail strategy (recommended)
 
 ```typescript
-import { createApiFetcher } from 'fetchf';
+import { createApiFetcher } from 'fetchf-api';
 
 const api = createApiFetcher({
   apiUrl: 'https://example.com/api',
@@ -831,7 +831,7 @@ sendMessage();
 ### Per-request Error handling - defaultResponse strategy
 
 ```typescript
-import { createApiFetcher } from 'fetchf';
+import { createApiFetcher } from 'fetchf-api';
 
 const api = createApiFetcher({
   apiUrl: 'https://example.com/api',
@@ -876,7 +876,7 @@ sendMessage();
 ### Per-request Error handling - silent strategy
 
 ```typescript
-import { createApiFetcher } from 'fetchf';
+import { createApiFetcher } from 'fetchf-api';
 
 const api = createApiFetcher({
   apiUrl: 'https://example.com/api',
@@ -914,7 +914,7 @@ sendMessage();
 ### Per-request Error handling
 
 ```typescript
-import { createApiFetcher } from 'fetchf';
+import { createApiFetcher } from 'fetchf-api';
 
 const api = createApiFetcher({
   apiUrl: 'https://example.com/api',
@@ -950,7 +950,7 @@ sendMessage();
 ### fetchf() usage with retries
 
 ```typescript
-import { fetchf } from 'fetchf';
+import { fetchf } from 'fetchf-api';
 
 const { data } = await fetchf('/api/user-details', {
   retry: { retries: 3, delay: 2000 },
@@ -961,7 +961,7 @@ const { data } = await fetchf('/api/user-details', {
 
 ```typescript
 // src/api.ts
-import { createApiFetcher } from 'fetchf';
+import { createApiFetcher } from 'fetchf-api';
 
 const api = createApiFetcher({
   apiUrl: 'https://example.com/api',
