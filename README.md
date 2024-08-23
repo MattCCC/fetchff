@@ -488,7 +488,7 @@ Check Examples section below for more information.
 
 ## Comparison with another libraries
 
-| Feature                                 | fetchf       | ofetch()     | Wretch()     | Axios        | Native fetch() |
+| Feature                                 | fetchff      | ofetch       | wretch       | axios        | native fetch() |
 | --------------------------------------- | ------------ | ------------ | ------------ | ------------ | -------------- |
 | **Unified API Client**                  | ✅           | --           | --           | --           | --             |
 | **Customizable Error Handling**         | ✅           | --           | ✅           | ✅           | --             |
