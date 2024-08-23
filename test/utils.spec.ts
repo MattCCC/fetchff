@@ -288,12 +288,43 @@ describe('Utils', () => {
       expect(result).toBe('https://api.example.com/resource?foo=bar&baz=qux');
     });
 
+    it('should handle params as an instance of URLSearchParams for url with existing query params', () => {
+      const url = 'https://api.example.com/resource?biz=due';
+      const params = new URLSearchParams();
+      params.append('foo', 'bar');
+      params.append('baz', 'qux');
+      const result = appendQueryParams(url, params);
+      expect(result).toBe(
+        'https://api.example.com/resource?biz=due&foo=bar&baz=qux',
+      );
+    });
+
+    it('should not append question mark when params are empty and instance of URLSearchParams is parsed', () => {
+      const url = 'https://api.example.com/resource';
+      const params = new URLSearchParams();
+      const result = appendQueryParams(url, params);
+      expect(result).toBe(url);
+    });
+
     it('should handle complex nested parameters', () => {
       const url = 'https://api.example.com/resource';
       const params = { nested: { foo: 'bar', baz: [1, 2] } };
       const result = appendQueryParams(url, params);
       expect(result).toBe(
         'https://api.example.com/resource?nested%5Bfoo%5D=bar&nested%5Bbaz%5D[]=1&nested%5Bbaz%5D[]=2',
+      );
+    });
+
+    it('should handle array of objects with params', () => {
+      const url = 'https://api.example.com/resource';
+      const params = [
+        { name: 'username', value: 'john_doe' },
+        { name: 'password', value: 'secure123' },
+      ];
+      const result = appendQueryParams(url, params);
+
+      expect(result).toBe(
+        'https://api.example.com/resource?username=john_doe&password=secure123',
       );
     });
   });
