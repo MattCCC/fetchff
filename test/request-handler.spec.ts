@@ -247,6 +247,62 @@ describe('Request Handler', () => {
         body: JSON.stringify({ additional: 'info' }),
       });
     });
+
+    it('should append credentials if flag is used', () => {
+      const result = buildConfig('POST', 'https://example.com/api', null, {
+        withCredentials: true,
+      });
+
+      expect(result).toEqual({
+        url: 'https://example.com/api',
+        method: 'POST',
+        headers: {
+          Accept: 'application/json, text/plain, */*',
+          'Content-Type': 'application/json;charset=utf-8',
+        },
+        credentials: 'include',
+        body: null,
+      });
+    });
+
+    it('should not append query params to POST requests if body is set as data', () => {
+      const result = buildConfig(
+        'POST',
+        'https://example.com/api',
+        {
+          foo: 'bar',
+        },
+        {},
+      );
+
+      expect(result).toEqual({
+        url: 'https://example.com/api',
+        method: 'POST',
+        headers: {
+          Accept: 'application/json, text/plain, */*',
+          'Content-Type': 'application/json;charset=utf-8',
+        },
+        body: JSON.stringify({ foo: 'bar' }),
+      });
+    });
+
+    it('should not append body nor data to GET requests', () => {
+      const result = buildConfig(
+        'GET',
+        'https://example.com/api',
+        { foo: 'bar' },
+        { body: { additional: 'info' }, data: { additional: 'info' } },
+      );
+
+      expect(result).toEqual({
+        url: 'https://example.com/api?foo=bar',
+        method: 'GET',
+        headers: {
+          Accept: 'application/json, text/plain, */*',
+          'Content-Type': 'application/json;charset=utf-8',
+        },
+      });
+    });
   });
 
   describe('request()', () => {
