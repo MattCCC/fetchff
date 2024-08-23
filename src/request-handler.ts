@@ -200,51 +200,56 @@ export class RequestHandler {
   /**
    * Build request configuration
    *
-   * @param {string} url                          Request url
-   * @param {QueryParamsOrBody} data    Request data
-   * @param {RequestConfig} config               Request config
-   * @returns {RequestConfig}                    Provider's instance
+   * @param {string} url - Request url
+   * @param {QueryParamsOrBody} data - Query Params in case of GET and HEAD requests, body payload otherwise
+   * @param {RequestConfig} config - Request config passed when making the request
+   * @returns {RequestConfig} - Provider's instance
    */
   protected buildConfig(
     url: string,
     data: QueryParamsOrBody,
     config: RequestConfig,
   ): RequestConfig {
-    const method = config.method || this.method;
-    const methodLowerCase = method.toLowerCase();
-    const isGetAlikeMethod =
-      methodLowerCase === 'get' || methodLowerCase === 'head';
+    const method = (config.method || this.method).toUpperCase();
+    const isGetAlikeMethod = method === 'GET' || method === 'HEAD';
 
     const dynamicUrl = replaceUrlPathParams(
       url,
       config.urlPathParams || this.config.urlPathParams,
     );
 
-    // Bonus: Specifying it here brings support for "body" in Axios
-    const configData =
+    // The explicitly passed "params"
+    const explicitParams = config.params || this.config.params;
+
+    // The explicitly passed "body" or "data"
+    const explicitBodyData =
       config.body || config.data || this.config.body || this.config.data;
 
-    // Axios compatibility
+    // For convenience, in POST requests the body payload is the "data"
+    // In edge cases we want to use Query Params in the POST requests
+    // and use explicitly passed "body" or "data" from request config
+    const shouldTreatDataAsParams =
+      data && (isGetAlikeMethod || explicitBodyData) ? true : false;
+
+    // Final body data
+    let body: RequestConfig['data'];
+
+    // Only applicable for request methods 'PUT', 'POST', 'DELETE', and 'PATCH'
+    if (!isGetAlikeMethod) {
+      body = explicitBodyData || data;
+    }
+
     if (this.isCustomFetcher()) {
       return {
         ...config,
+        method,
         url: dynamicUrl,
-        method: methodLowerCase,
-
-        ...(isGetAlikeMethod ? { params: data } : {}),
-
-        // For POST requests body payload is the first param for convenience ("data")
-        // In edge cases we want to split so to treat it as query params, and use "body" coming from the config instead
-        ...(!isGetAlikeMethod && data && configData ? { params: data } : {}),
-
-        // Only applicable for request methods 'PUT', 'POST', 'DELETE', and 'PATCH'
-        ...(!isGetAlikeMethod && data && !configData ? { data } : {}),
-        ...(!isGetAlikeMethod && configData ? { data: configData } : {}),
+        params: shouldTreatDataAsParams ? data : explicitParams,
+        data: body,
       };
     }
 
     // Native fetch
-    const payload = configData || data;
     const credentials =
       config.withCredentials || this.config.withCredentials
         ? 'include'
@@ -254,46 +259,36 @@ export class RequestHandler {
     delete config.withCredentials;
 
     const urlPath =
-      (!isGetAlikeMethod && data && !config.body) || !data
-        ? dynamicUrl
-        : appendQueryParams(dynamicUrl, data);
+      explicitParams || shouldTreatDataAsParams
+        ? appendQueryParams(dynamicUrl, explicitParams || data)
+        : dynamicUrl;
     const isFullUrl = urlPath.includes('://');
-    const baseURL = isFullUrl
-      ? ''
-      : typeof config.baseURL !== 'undefined'
-        ? config.baseURL
-        : this.baseURL;
+    const baseURL = isFullUrl ? '' : config.baseURL || this.baseURL;
+
+    // Automatically stringify request body, if possible and when not dealing with strings
+    if (
+      body &&
+      typeof body !== 'string' &&
+      !(body instanceof URLSearchParams) &&
+      isJSONSerializable(body)
+    ) {
+      body = JSON.stringify(body);
+    }
 
     return {
       ...config,
       credentials,
+      body,
+      method,
 
-      // Native fetch generally requires query params to be appended in the URL
-      // Do not append query params only if it's a POST-alike request with only "data" specified as it's treated as body payload
       url: baseURL + urlPath,
 
-      // Uppercase method name
-      method: method.toUpperCase(),
-
-      // For convenience, add the same default headers as Axios does
+      // Add sensible defaults
       headers: {
         Accept: APPLICATION_JSON + ', text/plain, */*',
         'Content-Type': APPLICATION_JSON + ';charset=utf-8',
         ...(config.headers || this.config.headers || {}),
       },
-
-      // Automatically JSON stringify request bodies, if possible and when not dealing with strings
-      ...(!isGetAlikeMethod
-        ? {
-            body:
-              !(payload instanceof URLSearchParams) &&
-              isJSONSerializable(payload)
-                ? typeof payload === 'string'
-                  ? payload
-                  : JSON.stringify(payload)
-                : payload,
-          }
-        : {}),
     };
   }
 
@@ -457,9 +452,8 @@ export class RequestHandler {
    * Handle Request depending on used strategy
    *
    * @param {string} url - Request url
-   * @param {QueryParamsOrBody} data - Request data
+   * @param {QueryParamsOrBody} data - Query Params in case of GET and HEAD requests, body payload otherwise
    * @param {RequestConfig} config - Request config
-   * @param {RequestConfig} payload.config               Request config
    * @throws {ResponseError}
    * @returns {Promise<ResponseData & FetchResponse<ResponseData>>} Response Data
    */
@@ -570,47 +564,47 @@ export class RequestHandler {
   public async parseData<ResponseData = APIResponse>(
     response: FetchResponse<ResponseData>,
   ): Promise<any> {
-    const contentType = String(
-      (response as Response).headers?.get('Content-Type') || '',
-    );
-    let data;
-
-    // Handle edge case of no content type being provided... We assume JSON here.
-    if (!contentType) {
-      const responseClone = response.clone();
-      try {
-        data = await responseClone.json();
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      } catch (_error) {
-        // JSON parsing failed, fallback to null
-        data = null;
-      }
+    // Bail early when body is empty
+    if (!response.body) {
+      return null;
     }
 
-    if (typeof data === 'undefined') {
-      try {
-        if (
-          contentType.includes(APPLICATION_JSON) ||
-          contentType.includes('+json')
-        ) {
-          data = await response.json(); // Parse JSON response
-        } else if (contentType.includes('multipart/form-data')) {
-          data = await response.formData(); // Parse as FormData
-        } else if (contentType.includes('application/octet-stream')) {
-          data = await response.blob(); // Parse as blob
-        } else if (contentType.includes('application/x-www-form-urlencoded')) {
-          data = await response.formData(); // Handle URL-encoded forms
-        } else if (typeof response.text === 'function') {
-          data = await response.text(); // Parse as text
-        } else {
+    const contentType = String(
+      (response as Response).headers?.get('Content-Type') || '',
+    ).split(';')[0]; // Correctly handle charset
+
+    let data;
+
+    try {
+      if (
+        contentType.includes(APPLICATION_JSON) ||
+        contentType.includes('+json')
+      ) {
+        data = await response.json(); // Parse JSON response
+      } else if (contentType.includes('multipart/form-data')) {
+        data = await response.formData(); // Parse as FormData
+      } else if (contentType.includes('application/octet-stream')) {
+        data = await response.blob(); // Parse as blob
+      } else if (contentType.includes('application/x-www-form-urlencoded')) {
+        data = await response.formData(); // Handle URL-encoded forms
+      } else if (contentType.includes('text/')) {
+        data = await response.text(); // Parse as text
+      } else {
+        try {
+          const responseClone = response.clone();
+
+          // Handle edge case of no content type being provided... We assume JSON here.
+          data = await responseClone.json();
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        } catch (_e) {
           // Handle streams
-          data = response.body || response.data || null;
+          data = await response.text();
         }
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      } catch (_error) {
-        // Parsing failed, fallback to null
-        data = null;
       }
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (_error) {
+      // Parsing failed, fallback to null
+      data = null;
     }
 
     return data;
@@ -619,21 +613,26 @@ export class RequestHandler {
   public processHeaders<ResponseData>(
     response: FetchResponse<ResponseData>,
   ): HeadersObject {
-    if (!response.headers) {
+    const headers = response.headers;
+
+    if (!headers) {
       return {};
     }
 
-    let headersObject: HeadersObject = {};
-    const headers = response.headers;
+    const headersObject: HeadersObject = {};
 
     // Handle Headers object with entries() method
     if (headers instanceof Headers) {
-      for (const [key, value] of (headers as any).entries()) {
+      headers.forEach((value, key) => {
         headersObject[key] = value;
-      }
-    } else {
+      });
+    } else if (typeof headers === 'object' && headers !== null) {
       // Handle plain object
-      headersObject = { ...(headers as HeadersObject) };
+      for (const [key, value] of Object.entries(headers)) {
+        // Normalize keys to lowercase as per RFC 2616 4.2
+        // https://datatracker.ietf.org/doc/html/rfc2616#section-4.2
+        headersObject[key.toLowerCase()] = value;
+      }
     }
 
     return headersObject;

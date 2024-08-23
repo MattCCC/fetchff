@@ -9,7 +9,7 @@ import type {
   ApiHandlerMethods,
   ApiHandlerReturnType,
   APIResponse,
-  QueryParams,
+  QueryParamsOrBody,
   UrlPathParams,
 } from './types/api-handler';
 
@@ -101,14 +101,14 @@ function createApiFetcher<
    * It considers settings in following order: per-request settings, global per-endpoint settings, global settings.
    *
    * @param {string} endpointName - The name of the API endpoint to call.
-   * @param {QueryParams} [queryParams={}] - Query parameters to include in the request.
+   * @param {QueryParamsOrBody} [data={}] - Query parameters to include in the request.
    * @param {UrlPathParams} [urlPathParams={}] - URI parameters to include in the request.
    * @param {EndpointConfig} [requestConfig={}] - Additional configuration for the request.
    * @returns {Promise<Response & FetchResponse>} - A promise that resolves with the response from the API provider.
    */
   async function request<Response = APIResponse>(
     endpointName: keyof EndpointsMethods | string,
-    queryParams: QueryParams = {},
+    data: QueryParamsOrBody = {},
     urlPathParams: UrlPathParams = {},
     requestConfig: RequestConfig = {},
   ): Promise<Response & FetchResponse<Response>> {
@@ -118,7 +118,7 @@ function createApiFetcher<
 
     const responseData = await requestHandler.request<Response>(
       endpointSettings.url,
-      queryParams,
+      data,
       {
         ...endpointSettings,
         ...requestConfig,
