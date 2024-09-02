@@ -10,7 +10,12 @@ import type {
   ResponseError,
   HeadersObject,
 } from './types/request-handler';
-import type { APIResponse, QueryParamsOrBody } from './types/api-handler';
+import type {
+  APIResponse,
+  BodyPayload,
+  QueryParams,
+  QueryParamsOrBody,
+} from './types/api-handler';
 import { interceptRequest, interceptResponse } from './interceptor-manager';
 import { ResponseErr } from './response-error';
 import {
@@ -214,7 +219,7 @@ export class RequestHandler {
 
     // Only applicable for request methods 'PUT', 'POST', 'DELETE', and 'PATCH'
     if (!isGetAlikeMethod) {
-      body = explicitBodyData || data;
+      body = explicitBodyData || (data as BodyPayload);
     }
 
     if (this.isCustomFetcher()) {
@@ -222,7 +227,9 @@ export class RequestHandler {
         ...config,
         method,
         url: dynamicUrl,
-        params: shouldTreatDataAsParams ? data : explicitParams,
+        params: shouldTreatDataAsParams
+          ? (data as QueryParams)
+          : explicitParams,
         data: body,
       };
     }
@@ -238,7 +245,7 @@ export class RequestHandler {
 
     const urlPath =
       explicitParams || shouldTreatDataAsParams
-        ? appendQueryParams(dynamicUrl, explicitParams || data)
+        ? appendQueryParams(dynamicUrl, explicitParams || (data as QueryParams))
         : dynamicUrl;
     const isFullUrl = urlPath.includes('://');
     const baseURL = isFullUrl ? '' : config.baseURL || this.baseURL;

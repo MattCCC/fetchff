@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import type { QueryParams, UrlPathParams } from './api-handler';
+import type { BodyPayload, QueryParams, UrlPathParams } from './api-handler';
 import type {
   RequestInterceptor,
   ResponseInterceptor,
@@ -49,8 +49,7 @@ export interface BaseRequestConfig<D = any> {
   baseURL?: string;
   headers?: HeadersInit;
   params?: QueryParams;
-  paramsSerializer?: (params: any) => string;
-  data?: D;
+  data?: BodyPayload<D>;
   timeout?: number;
   withCredentials?: boolean;
   signal?: AbortSignal;
@@ -132,14 +131,10 @@ interface ExtendedRequestConfig extends BaseRequestConfig, RequestInit {
   headers?: HeadersInit;
   urlPathParams?: UrlPathParams;
   retry?: RetryOptions;
-  strategy?: ErrorHandlingStrategy;
+  body?: BaseRequestConfig['data'];
   onRequest?: RequestInterceptor | RequestInterceptor[];
   onResponse?: ResponseInterceptor | ResponseInterceptor[];
   onError?: ErrorHandlerInterceptor;
-  headers?: HeadersInit;
-  signal?: AbortSignal;
-  urlPathParams?: UrlPathParams;
-  body?: (BodyInit | null) & (Record<string, any> | object);
 }
 
 interface BaseRequestHandlerConfig extends RequestConfig {
