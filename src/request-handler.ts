@@ -407,9 +407,7 @@ export class RequestHandler {
     // Introduce timeout for native fetch
     if (!this.isCustomFetcher() && this.timeout > 0) {
       const abortTimeout = setTimeout(() => {
-        const error = new Error(
-          `[TimeoutError]: The ${requestConfig.url} request was aborted due to timeout`,
-        );
+        const error = new Error(`${requestConfig.url} aborted due to timeout`);
 
         error.name = 'TimeoutError';
         (error as any).code = 23; // DOMException.TIMEOUT_ERR
