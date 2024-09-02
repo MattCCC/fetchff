@@ -39,39 +39,21 @@ export type ErrorHandlingStrategy =
 
 type ErrorHandlerInterceptor = (error: ResponseError) => unknown;
 
+export interface HeadersObject {
+  [key: string]: string;
+}
+
 export interface BaseRequestConfig<D = any> {
   url?: string;
   method?: Method | string;
   baseURL?: string;
-  transformRequest?: Transformer | Transformer[];
-  transformResponse?: Transformer | Transformer[];
   headers?: HeadersInit;
   params?: QueryParams;
   paramsSerializer?: (params: any) => string;
   data?: D;
   timeout?: number;
-  timeoutErrorMessage?: string;
   withCredentials?: boolean;
-  adapter?: Adapter;
-  auth?: BasicCredentials;
-  responseType?: ResponseType;
-  xsrfCookieName?: string;
-  xsrfHeaderName?: string;
-  onUploadProgress?: (progressEvent: any) => void;
-  onDownloadProgress?: (progressEvent: any) => void;
-  maxContentLength?: number;
-  validateStatus?: ((status: number) => boolean) | null;
-  maxBodyLength?: number;
-  maxRedirects?: number;
-  socketPath?: string | null;
-  httpAgent?: any;
-  httpsAgent?: any;
-  proxy?: ProxyConfig | false;
-  cancelToken?: CancelToken;
-  decompress?: boolean;
-  transitional?: TransitionalOptions;
   signal?: AbortSignal;
-  insecureHTTPParser?: boolean;
 }
 
 export interface ExtendedResponse<T = any> extends Omit<Response, 'headers'> {
@@ -84,10 +66,6 @@ export interface ExtendedResponse<T = any> extends Omit<Response, 'headers'> {
 
 export type FetchResponse<T = any> = ExtendedResponse<T>;
 
-export interface HeadersObject {
-  [key: string]: string;
-}
-
 export interface ResponseError<T = any> extends Error {
   code?: string;
   config: ExtendedRequestConfig;
@@ -96,59 +74,6 @@ export interface ResponseError<T = any> extends Error {
   toJSON?: () => object;
 }
 
-export interface Transformer {
-  (data: any, headers?: HeadersInit): any;
-}
-
-export interface Adapter {
-  (config: BaseRequestConfig): ReturnedPromise;
-}
-
-export interface BasicCredentials {
-  username: string;
-  password: string;
-}
-
-export type ResponseType =
-  | 'arraybuffer'
-  | 'blob'
-  | 'document'
-  | 'json'
-  | 'text'
-  | 'stream';
-
-export interface ProxyConfig {
-  host: string;
-  port: number;
-  protocol?: string;
-  auth?: {
-    username: string;
-    password: string;
-  };
-}
-
-export interface CancelToken {
-  promise: Promise<Cancel>;
-  reason?: Cancel;
-  throwIfRequested(): void;
-}
-
-export interface Cancel {
-  message: string;
-}
-
-export interface TransitionalOptions {
-  silentJSONParsing?: boolean;
-  forcedJSONParsing?: boolean;
-  clarifyTimeoutError?: boolean;
-}
-
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface ReturnedPromise<T = any> extends Promise<FetchResponse<T>> {}
-
-/**
- * Interface for configuring retry options.
- */
 export interface RetryOptions {
   /**
    * Maximum number of retry attempts.
@@ -199,10 +124,13 @@ export interface RetryOptions {
 }
 
 interface ExtendedRequestConfig extends BaseRequestConfig, RequestInit {
-  cancellable?: boolean;
-  rejectCancelled?: boolean;
+  strategy?: ErrorHandlingStrategy;
   defaultResponse?: unknown;
   flattenResponse?: boolean;
+  cancellable?: boolean;
+  rejectCancelled?: boolean;
+  headers?: HeadersInit;
+  urlPathParams?: UrlPathParams;
   retry?: RetryOptions;
   strategy?: ErrorHandlingStrategy;
   onRequest?: RequestInterceptor | RequestInterceptor[];
