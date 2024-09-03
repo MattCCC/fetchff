@@ -865,6 +865,7 @@ describe('Request Handler', () => {
         fetcher,
         strategy: 'reject',
         cancellable: false,
+        timeout: 0,
       });
 
       (requestHandler.requestInstance as any).request = jest
@@ -882,6 +883,7 @@ describe('Request Handler', () => {
         fetcher,
         strategy: 'reject',
         cancellable: true,
+        timeout: 0,
       });
 
       (requestHandler.requestInstance as any).request = jest

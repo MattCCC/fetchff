@@ -9,6 +9,8 @@ import type {
   FetchResponse,
   ResponseError,
   HeadersObject,
+  RequestsQueue,
+  QueueItem,
 } from './types/request-handler';
 import type {
   APIResponse,
@@ -89,9 +91,9 @@ export class RequestHandler {
   protected onError: any;
 
   /**
-   * @var requestsQueue    Queue of requests
+   * @var requestsQueue Queue of requests
    */
-  protected requestsQueue: WeakMap<object, AbortController>;
+  protected requestsQueue: RequestsQueue;
 
   /**
    * Request Handler Config
@@ -100,6 +102,7 @@ export class RequestHandler {
     retries: 0,
     delay: 1000,
     maxDelay: 30000,
+    resetTimeout: true,
     backoff: 1.5,
 
     // https://developer.mozilla.org/en-US/docs/Web/HTTP/Status
@@ -391,13 +394,13 @@ export class RequestHandler {
       isCancellable && this.requestsQueue.get(requestConfig);
 
     if (previousRequest) {
-      previousRequest.abort();
+      previousRequest.controller.abort();
     }
 
     const controller = new AbortController();
 
     if (isCancellable) {
-      this.requestsQueue.set(requestConfig, controller);
+      this.requestsQueue.set(requestConfig, { controller });
     }
 
     return {
@@ -409,29 +412,55 @@ export class RequestHandler {
    * Sets up a timeout to automatically abort the request if it exceeds the specified time.
    *
    * @param {RequestConfig} requestConfig - The configuration object for the request.
+   * @param {boolean} resetTimeout - Whether to reset the timeout.
    */
-  protected setupTimeout(requestConfig: RequestConfig): void {
+  protected setupTimeout(
+    requestConfig: RequestConfig,
+    resetTimeout: boolean,
+  ): void {
     const timeout =
       typeof requestConfig.timeout !== 'undefined'
         ? requestConfig.timeout
         : this.timeout;
 
     if (timeout > 0) {
+      const reqFromQueue =
+        this.requestsQueue.get(requestConfig) || ({} as QueueItem);
+
+      if (reqFromQueue?.timeoutId) {
+        // Timeout is already set and we don't want to reset it, so exit
+        if (!resetTimeout) {
+          return;
+        }
+
+        clearTimeout(reqFromQueue.timeoutId);
+      }
+
       const timeoutId = setTimeout(() => {
+        const _reqFromQueue = this.requestsQueue.get(requestConfig);
+
+        if (!_reqFromQueue) {
+          return;
+        }
+
         const error = new Error(`${requestConfig.url} aborted due to timeout`);
 
         error.name = 'TimeoutError';
 
         (error as any).code = 23; // DOMException.TIMEOUT_ERR
 
-        this.requestsQueue.get(requestConfig).abort(error);
-
-        clearTimeout(timeoutId); // Clear the timeout
+        _reqFromQueue?.controller?.abort(error);
 
         this.requestsQueue.delete(requestConfig);
 
         throw error;
       }, timeout);
+
+      // Register timeout
+      this.requestsQueue.set(requestConfig, {
+        ...reqFromQueue,
+        timeoutId,
+      });
     }
   }
 
@@ -458,9 +487,15 @@ export class RequestHandler {
       ..._requestConfig,
     };
 
-    this.setupTimeout(_requestConfig);
-
-    const { retries, delay, backoff, retryOn, shouldRetry, maxDelay } = {
+    const {
+      retries,
+      delay,
+      backoff,
+      retryOn,
+      shouldRetry,
+      maxDelay,
+      resetTimeout,
+    } = {
       ...this.retry,
       ...(requestConfig?.retry || {}),
     };
@@ -470,6 +505,8 @@ export class RequestHandler {
 
     while (attempt <= retries) {
       try {
+        this.setupTimeout(_requestConfig, resetTimeout);
+
         // Local interceptors
         requestConfig = await interceptRequest(
           requestConfig,

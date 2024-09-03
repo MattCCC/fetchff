@@ -99,6 +99,12 @@ export interface RetryOptions {
   maxDelay?: number;
 
   /**
+   * Reset timeout when retrying requests
+   * @default true
+   */
+  resetTimeout?: boolean;
+
+  /**
    * Retry only on specific status codes.
    * @default [
    *   408, // Request Timeout
@@ -150,3 +156,10 @@ export type RequestConfig<CustomConfig = object> = ExtendedRequestConfig &
 
 export type RequestHandlerConfig<CustomConfig = object> =
   BaseRequestHandlerConfig & CustomConfig;
+
+export type RequestsQueue = WeakMap<RequestConfig, QueueItem>;
+
+export interface QueueItem {
+  controller: AbortController;
+  timeoutId?: NodeJS.Timeout;
+}
