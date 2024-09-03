@@ -45,7 +45,6 @@ export class RequestHandler {
   public defaultResponse: any = null;
   protected fetcher: FetcherInstance;
   protected logger: any;
-  protected onError: any;
   protected requestsQueue: RequestsQueue;
   protected retry: RetryOptions = {
     retries: 0,
@@ -68,7 +67,7 @@ export class RequestHandler {
 
     shouldRetry: async () => true,
   };
-  public config: RequestHandlerConfig;
+  public config: RequestHandlerConfig = {};
 
   public constructor({
     fetcher = null,
@@ -78,7 +77,6 @@ export class RequestHandler {
     flattenResponse = null,
     defaultResponse = {},
     logger = null,
-    onError = null,
     ...config
   }: RequestHandlerConfig) {
     this.fetcher = fetcher;
@@ -89,7 +87,6 @@ export class RequestHandler {
     this.flattenResponse = flattenResponse || this.flattenResponse;
     this.defaultResponse = defaultResponse;
     this.logger = logger || null;
-    this.onError = onError;
     this.requestsQueue = new WeakMap();
     this.baseURL = config.baseURL || config.apiUrl || '';
     this.method = config.method || this.method;
@@ -234,14 +231,10 @@ export class RequestHandler {
     }
 
     // Invoke per request "onError" interceptor
-    if (requestConfig.onError && typeof requestConfig.onError === 'function') {
-      requestConfig.onError(error);
-    }
+    requestConfig?.onError(error);
 
     // Invoke global "onError" interceptor
-    if (this.onError && typeof this.onError === 'function') {
-      this.onError(error);
-    }
+    this.config?.onError(error);
   }
 
   /**
@@ -451,13 +444,13 @@ export class RequestHandler {
         // Local interceptors
         requestConfig = await interceptRequest(
           requestConfig,
-          requestConfig.onRequest,
+          requestConfig?.onRequest,
         );
 
         // Global interceptors
         requestConfig = await interceptRequest(
           requestConfig,
-          this.config.onRequest,
+          this.config?.onRequest,
         );
 
         if (this.isCustomFetcher()) {
@@ -485,10 +478,10 @@ export class RequestHandler {
         }
 
         // Local interceptors
-        response = await interceptResponse(response, requestConfig.onResponse);
+        response = await interceptResponse(response, requestConfig?.onResponse);
 
         // Global interceptors
-        response = await interceptResponse(response, this.config.onResponse);
+        response = await interceptResponse(response, this.config?.onResponse);
 
         return this.outputResponse(response, requestConfig) as ResponseData &
           FetchResponse<ResponseData>;

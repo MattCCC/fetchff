@@ -236,11 +236,9 @@ interface BaseRequestHandlerConfig extends RequestConfig {
   logger?: unknown;
 }
 
-export type RequestConfig<CustomConfig = object> = ExtendedRequestConfig &
-  CustomConfig;
+export type RequestConfig = ExtendedRequestConfig;
 
-export type RequestHandlerConfig<CustomConfig = object> =
-  BaseRequestHandlerConfig & CustomConfig;
+export type RequestHandlerConfig = BaseRequestHandlerConfig;
 
 export type RequestsQueue = WeakMap<RequestConfig, QueueItem>;
 
