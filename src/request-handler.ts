@@ -337,9 +337,7 @@ export class RequestHandler {
 
     const controller = new AbortController();
 
-    if (isCancellable) {
-      this.requestsQueue.set(requestConfig, { controller });
-    }
+    this.requestsQueue.set(requestConfig, { controller });
 
     return {
       signal: controller.signal,
@@ -388,10 +386,6 @@ export class RequestHandler {
         (error as any).code = 23; // DOMException.TIMEOUT_ERR
 
         _reqFromQueue?.controller?.abort(error);
-
-        this.requestsQueue.delete(requestConfig);
-
-        throw error;
       }, timeout);
 
       // Register timeout
