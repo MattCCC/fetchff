@@ -43,18 +43,6 @@ export interface HeadersObject {
   [key: string]: string;
 }
 
-export interface BaseRequestConfig<D = any> {
-  url?: string;
-  method?: Method | string;
-  baseURL?: string;
-  headers?: HeadersInit;
-  params?: QueryParams;
-  data?: BodyPayload<D>;
-  timeout?: number;
-  withCredentials?: boolean;
-  signal?: AbortSignal;
-}
-
 export interface ExtendedResponse<T = any> extends Omit<Response, 'headers'> {
   data: T;
   error: ResponseError<T>;
@@ -128,20 +116,117 @@ export interface RetryOptions {
   ) => Promise<boolean>;
 }
 
-interface ExtendedRequestConfig
-  extends BaseRequestConfig,
-    Omit<RequestInit, 'body'> {
+/**
+ * ExtendedRequestConfig<D = any>
+ *
+ * This interface extends the standard `RequestInit` from the Fetch API, providing additional options
+ * for handling requests, including custom error handling strategies, request interception, and more.
+ */
+interface ExtendedRequestConfig<D = any> extends Omit<RequestInit, 'body'> {
+  /**
+   * Custom error handling strategy for the request.
+   * - `'reject'`: Rejects the promise with an error.
+   * - `'silent'`: Silently handles errors without rejecting.
+   * - `'defaultResponse'`: Returns a default response in case of an error.
+   * - `'softFail'`: Returns a partial response with error details.
+   */
   strategy?: ErrorHandlingStrategy;
+
+  /**
+   * A default response to return if the request fails and the strategy is set to `'defaultResponse'`.
+   */
   defaultResponse?: unknown;
+
+  /**
+   * If `true`, flattens the response object, extracting the data directly instead of keeping it nested.
+   */
   flattenResponse?: boolean;
+
+  /**
+   * If `true`, allows the request to be cancellable using an `AbortController`.
+   */
   cancellable?: boolean;
+
+  /**
+   * If `true`, rejects the request promise when the request is cancelled.
+   */
   rejectCancelled?: boolean;
-  headers?: HeadersInit;
+
+  /**
+   * An object representing dynamic URL path parameters.
+   * For example, `{ userId: 1 }` would replace `:userId` in the URL with `1`.
+   */
   urlPathParams?: UrlPathParams;
+
+  /**
+   * Configuration options for retrying failed requests.
+   */
   retry?: RetryOptions;
-  body?: BaseRequestConfig['data'];
+
+  /**
+   * The URL of the request. This can be a full URL or a relative path combined with `baseURL`.
+   */
+  url?: string;
+
+  /**
+   * The HTTP method to use for the request (e.g., 'GET', 'POST', etc.).
+   */
+  method?: Method | string;
+
+  /**
+   * The base URL to prepend to the `url` when making the request.
+   */
+  baseURL?: string;
+
+  /**
+   * An object representing the headers to include with the request.
+   */
+  headers?: HeadersInit;
+
+  /**
+   * Query parameters to include in the request URL.
+   */
+  params?: QueryParams;
+
+  /**
+   * The maximum time (in milliseconds) the request can take before automatically being aborted.
+   */
+  timeout?: number;
+
+  /**
+   * Indicates whether credentials (such as cookies) should be included with the request.
+   */
+  withCredentials?: boolean;
+
+  /**
+   * An `AbortSignal` object that can be used to cancel the request.
+   */
+  signal?: AbortSignal;
+
+  /**
+   * Data to be sent as the request body, extending the native Fetch API's `body` option.
+   * Supports `BodyInit`, objects, arrays, and strings, with automatic serialization.
+   */
+  body?: BodyPayload<D>;
+
+  /**
+   * Alias for "body"
+   */
+  data?: BodyPayload<D>;
+
+  /**
+   * A function or array of functions to intercept the request before it is sent.
+   */
   onRequest?: RequestInterceptor | RequestInterceptor[];
+
+  /**
+   * A function or array of functions to intercept the response before it is resolved.
+   */
   onResponse?: ResponseInterceptor | ResponseInterceptor[];
+
+  /**
+   * A function to handle errors that occur during the request or response processing.
+   */
   onError?: ErrorHandlerInterceptor;
 }
 

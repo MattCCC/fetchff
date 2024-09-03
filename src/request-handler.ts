@@ -35,69 +35,18 @@ const APPLICATION_JSON = 'application/json';
  * It handles errors depending on a chosen error handling strategy
  */
 export class RequestHandler {
-  /**
-   * @var requestInstance Provider's instance
-   */
   public requestInstance: FetcherInstance;
-
-  /**
-   * @var baseURL Base API url
-   */
   public baseURL: string = '';
-
-  /**
-   * @var timeout Request timeout
-   */
   public timeout: number = 30000;
-
-  /**
-   * @var rejectCancelled Whether to reject cancelled requests or not
-   */
   public rejectCancelled: boolean = false;
-
-  /**
-   * @var strategy Request timeout
-   */
   public strategy: ErrorHandlingStrategy = 'reject';
-
-  /**
-   * @var method Request method
-   */
   public method: Method | string = 'get';
-
-  /**
-   * @var flattenResponse Response flattening
-   */
   public flattenResponse: boolean = false;
-
-  /**
-   * @var defaultResponse Response flattening
-   */
   public defaultResponse: any = null;
-
-  /**
-   * @var fetcher Request Fetcher instance
-   */
   protected fetcher: FetcherInstance;
-
-  /**
-   * @var logger Logger
-   */
   protected logger: any;
-
-  /**
-   * @var onError HTTP error service
-   */
   protected onError: any;
-
-  /**
-   * @var requestsQueue Queue of requests
-   */
   protected requestsQueue: RequestsQueue;
-
-  /**
-   * Request Handler Config
-   */
   protected retry: RetryOptions = {
     retries: 0,
     delay: 1000,
@@ -119,17 +68,8 @@ export class RequestHandler {
 
     shouldRetry: async () => true,
   };
-
-  /**
-   * Request Handler Config
-   */
   public config: RequestHandlerConfig;
 
-  /**
-   * Creates an instance of RequestHandler.
-   *
-   * @param {Object} config - Configuration object for the request.
-   */
   public constructor({
     fetcher = null,
     timeout = null,
