@@ -287,9 +287,9 @@ const { data, error } = await api.getUserDetails();
 
 The `const api` methods and properties are described below:
 
-#### `api.myEndpoint(queryParams, urlPathParams, requestConfig)`
+#### `api.myEndpointName(queryParams, urlPathParams, requestConfig)`
 
-Where "myEndpoint" is the name of your endpoint from `endpoints` object passed to the `createApiFetcher()`.
+Where "myEndpointName" is the name of your endpoint from `endpoints` object passed to the `createApiFetcher()`.
 
 **`queryParams`** / **`bodyPayload`** (optional) - Query Parameters or Body Payload for POST requests.
 
