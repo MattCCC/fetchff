@@ -330,11 +330,12 @@ export class RequestHandler {
         ? requestConfig.cancellable
         : this.config.cancellable;
 
-    const previousRequest =
-      isCancellable && this.requestsQueue.get(requestConfig);
+    if (isCancellable) {
+      const previousRequest = this.requestsQueue.get(requestConfig);
 
-    if (previousRequest) {
-      previousRequest.controller.abort();
+      if (previousRequest) {
+        previousRequest.controller.abort();
+      }
     }
 
     const controller = new AbortController();
