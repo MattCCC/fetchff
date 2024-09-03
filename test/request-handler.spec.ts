@@ -37,6 +37,10 @@ describe('Request Handler', () => {
 
   console.warn = jest.fn();
 
+  beforeEach(() => {
+    jest.useFakeTimers();
+  });
+
   afterEach((done) => {
     done();
   });
@@ -853,46 +857,39 @@ describe('Request Handler', () => {
 
   describe('handleCancellation()', () => {
     beforeEach(() => {
-      jest.useFakeTimers();
       globalThis.fetch = jest.fn();
     });
 
-    afterEach(() => {
-      jest.useRealTimers();
-    });
-
-    it('should not set cancel token if cancellation is globally disabled', async () => {
+    it('should not add request to the queue if cancellation is globally disabled', async () => {
       const requestHandler = new RequestHandler({
         fetcher,
         strategy: 'reject',
         cancellable: false,
+        timeout: 0,
       });
 
       (requestHandler.requestInstance as any).request = jest
         .fn()
         .mockResolvedValue(responseMock);
-      const spy = jest.spyOn(requestHandler.requestInstance as any, 'request');
+      const spy = jest.spyOn((requestHandler as any).requestsQueue, 'get');
 
       await requestHandler.request(apiUrl);
 
-      expect(spy).toHaveBeenCalledWith(
-        expect.not.objectContaining({
-          signal: expect.any(Object),
-        }),
-      );
+      expect(spy).not.toHaveBeenCalled();
     });
 
-    it('should not set cancel token if cancellation is disabled per route', async () => {
+    it('should not add request to the queue if cancellation is disabled per route', async () => {
       const requestHandler = new RequestHandler({
         fetcher,
         strategy: 'reject',
         cancellable: true,
+        timeout: 0,
       });
 
       (requestHandler.requestInstance as any).request = jest
         .fn()
         .mockResolvedValue(responseMock);
-      const spy = jest.spyOn(requestHandler.requestInstance as any, 'request');
+      const spy = jest.spyOn((requestHandler as any).requestsQueue, 'get');
 
       await requestHandler.request(
         apiUrl,
@@ -902,14 +899,10 @@ describe('Request Handler', () => {
         },
       );
 
-      expect(spy).toHaveBeenCalledWith(
-        expect.not.objectContaining({
-          signal: expect.any(Object),
-        }),
-      );
+      expect(spy).not.toHaveBeenCalled();
     });
 
-    it('should set cancel token if cancellation is enabled per route', async () => {
+    it('should add request to the queue if cancellation is enabled per route', async () => {
       const requestHandler = new RequestHandler({
         fetcher,
         strategy: 'reject',
@@ -919,7 +912,7 @@ describe('Request Handler', () => {
       (requestHandler.requestInstance as any).request = jest
         .fn()
         .mockResolvedValue(responseMock);
-      const spy = jest.spyOn(requestHandler.requestInstance as any, 'request');
+      const spy = jest.spyOn((requestHandler as any).requestsQueue, 'get');
 
       await requestHandler.request(
         apiUrl,
@@ -929,10 +922,10 @@ describe('Request Handler', () => {
         },
       );
 
-      expect(spy).not.toHaveBeenCalledWith({});
+      expect(spy).toHaveBeenCalled();
     });
 
-    it('should set cancel token if cancellation is enabled per route but globally cancellation is disabled', async () => {
+    it('should add request to the queue if cancellation is enabled per route but globally cancellation is disabled', async () => {
       const requestHandler = new RequestHandler({
         fetcher,
         strategy: 'reject',
@@ -942,7 +935,7 @@ describe('Request Handler', () => {
       (requestHandler.requestInstance as any).request = jest
         .fn()
         .mockResolvedValue(responseMock);
-      const spy = jest.spyOn(requestHandler.requestInstance as any, 'request');
+      const spy = jest.spyOn((requestHandler as any).requestsQueue, 'get');
 
       await requestHandler.request(
         apiUrl,
@@ -952,10 +945,10 @@ describe('Request Handler', () => {
         },
       );
 
-      expect(spy).not.toHaveBeenCalledWith({});
+      expect(spy).toHaveBeenCalled();
     });
 
-    it('should set cancel token if cancellation is not enabled per route but globally only', async () => {
+    it('should add request to the queue if cancellation is not specified per route but globally only', async () => {
       const requestHandler = new RequestHandler({
         fetcher,
         strategy: 'reject',
@@ -965,11 +958,11 @@ describe('Request Handler', () => {
       (requestHandler.requestInstance as any).request = jest
         .fn()
         .mockResolvedValue(responseMock);
-      const spy = jest.spyOn(requestHandler.requestInstance as any, 'request');
+      const spy = jest.spyOn((requestHandler as any).requestsQueue, 'get');
 
       await requestHandler.request(apiUrl);
 
-      expect(spy).not.toHaveBeenCalledWith({});
+      expect(spy).toHaveBeenCalled();
     });
 
     it('should cancel previous request when successive request is made', async () => {

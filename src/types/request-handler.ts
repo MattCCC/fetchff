@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import type { QueryParams, UrlPathParams } from './api-handler';
+import type { BodyPayload, QueryParams, UrlPathParams } from './api-handler';
 import type {
   RequestInterceptor,
   ResponseInterceptor,
@@ -39,39 +39,8 @@ export type ErrorHandlingStrategy =
 
 type ErrorHandlerInterceptor = (error: ResponseError) => unknown;
 
-export interface BaseRequestConfig<D = any> {
-  url?: string;
-  method?: Method | string;
-  baseURL?: string;
-  transformRequest?: Transformer | Transformer[];
-  transformResponse?: Transformer | Transformer[];
-  headers?: HeadersInit;
-  params?: QueryParams;
-  paramsSerializer?: (params: any) => string;
-  data?: D;
-  timeout?: number;
-  timeoutErrorMessage?: string;
-  withCredentials?: boolean;
-  adapter?: Adapter;
-  auth?: BasicCredentials;
-  responseType?: ResponseType;
-  xsrfCookieName?: string;
-  xsrfHeaderName?: string;
-  onUploadProgress?: (progressEvent: any) => void;
-  onDownloadProgress?: (progressEvent: any) => void;
-  maxContentLength?: number;
-  validateStatus?: ((status: number) => boolean) | null;
-  maxBodyLength?: number;
-  maxRedirects?: number;
-  socketPath?: string | null;
-  httpAgent?: any;
-  httpsAgent?: any;
-  proxy?: ProxyConfig | false;
-  cancelToken?: CancelToken;
-  decompress?: boolean;
-  transitional?: TransitionalOptions;
-  signal?: AbortSignal;
-  insecureHTTPParser?: boolean;
+export interface HeadersObject {
+  [key: string]: string;
 }
 
 export interface ExtendedResponse<T = any> extends Omit<Response, 'headers'> {
@@ -84,10 +53,6 @@ export interface ExtendedResponse<T = any> extends Omit<Response, 'headers'> {
 
 export type FetchResponse<T = any> = ExtendedResponse<T>;
 
-export interface HeadersObject {
-  [key: string]: string;
-}
-
 export interface ResponseError<T = any> extends Error {
   code?: string;
   config: ExtendedRequestConfig;
@@ -96,59 +61,6 @@ export interface ResponseError<T = any> extends Error {
   toJSON?: () => object;
 }
 
-export interface Transformer {
-  (data: any, headers?: HeadersInit): any;
-}
-
-export interface Adapter {
-  (config: BaseRequestConfig): ReturnedPromise;
-}
-
-export interface BasicCredentials {
-  username: string;
-  password: string;
-}
-
-export type ResponseType =
-  | 'arraybuffer'
-  | 'blob'
-  | 'document'
-  | 'json'
-  | 'text'
-  | 'stream';
-
-export interface ProxyConfig {
-  host: string;
-  port: number;
-  protocol?: string;
-  auth?: {
-    username: string;
-    password: string;
-  };
-}
-
-export interface CancelToken {
-  promise: Promise<Cancel>;
-  reason?: Cancel;
-  throwIfRequested(): void;
-}
-
-export interface Cancel {
-  message: string;
-}
-
-export interface TransitionalOptions {
-  silentJSONParsing?: boolean;
-  forcedJSONParsing?: boolean;
-  clarifyTimeoutError?: boolean;
-}
-
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface ReturnedPromise<T = any> extends Promise<FetchResponse<T>> {}
-
-/**
- * Interface for configuring retry options.
- */
 export interface RetryOptions {
   /**
    * Maximum number of retry attempts.
@@ -175,6 +87,12 @@ export interface RetryOptions {
   maxDelay?: number;
 
   /**
+   * Reset timeout when retrying requests
+   * @default true
+   */
+  resetTimeout?: boolean;
+
+  /**
    * Retry only on specific status codes.
    * @default [
    *   408, // Request Timeout
@@ -198,20 +116,118 @@ export interface RetryOptions {
   ) => Promise<boolean>;
 }
 
-interface ExtendedRequestConfig extends BaseRequestConfig, RequestInit {
-  cancellable?: boolean;
-  rejectCancelled?: boolean;
-  defaultResponse?: unknown;
-  flattenResponse?: boolean;
-  retry?: RetryOptions;
+/**
+ * ExtendedRequestConfig<D = any>
+ *
+ * This interface extends the standard `RequestInit` from the Fetch API, providing additional options
+ * for handling requests, including custom error handling strategies, request interception, and more.
+ */
+interface ExtendedRequestConfig<D = any> extends Omit<RequestInit, 'body'> {
+  /**
+   * Custom error handling strategy for the request.
+   * - `'reject'`: Rejects the promise with an error.
+   * - `'silent'`: Silently handles errors without rejecting.
+   * - `'defaultResponse'`: Returns a default response in case of an error.
+   * - `'softFail'`: Returns a partial response with error details.
+   */
   strategy?: ErrorHandlingStrategy;
-  onRequest?: RequestInterceptor | RequestInterceptor[];
-  onResponse?: ResponseInterceptor | ResponseInterceptor[];
-  onError?: ErrorHandlerInterceptor;
-  headers?: HeadersInit;
-  signal?: AbortSignal;
+
+  /**
+   * A default response to return if the request fails and the strategy is set to `'defaultResponse'`.
+   */
+  defaultResponse?: unknown;
+
+  /**
+   * If `true`, flattens the response object, extracting the data directly instead of keeping it nested.
+   */
+  flattenResponse?: boolean;
+
+  /**
+   * If `true`, allows the request to be cancellable using an `AbortController`.
+   */
+  cancellable?: boolean;
+
+  /**
+   * If `true`, rejects the request promise when the request is cancelled.
+   */
+  rejectCancelled?: boolean;
+
+  /**
+   * An object representing dynamic URL path parameters.
+   * For example, `{ userId: 1 }` would replace `:userId` in the URL with `1`.
+   */
   urlPathParams?: UrlPathParams;
-  body?: (BodyInit | null) & (Record<string, any> | object);
+
+  /**
+   * Configuration options for retrying failed requests.
+   */
+  retry?: RetryOptions;
+
+  /**
+   * The URL of the request. This can be a full URL or a relative path combined with `baseURL`.
+   */
+  url?: string;
+
+  /**
+   * The HTTP method to use for the request (e.g., 'GET', 'POST', etc.).
+   */
+  method?: Method | string;
+
+  /**
+   * The base URL to prepend to the `url` when making the request.
+   */
+  baseURL?: string;
+
+  /**
+   * An object representing the headers to include with the request.
+   */
+  headers?: HeadersInit;
+
+  /**
+   * Query parameters to include in the request URL.
+   */
+  params?: QueryParams;
+
+  /**
+   * The maximum time (in milliseconds) the request can take before automatically being aborted.
+   */
+  timeout?: number;
+
+  /**
+   * Indicates whether credentials (such as cookies) should be included with the request.
+   */
+  withCredentials?: boolean;
+
+  /**
+   * An `AbortSignal` object that can be used to cancel the request.
+   */
+  signal?: AbortSignal;
+
+  /**
+   * Data to be sent as the request body, extending the native Fetch API's `body` option.
+   * Supports `BodyInit`, objects, arrays, and strings, with automatic serialization.
+   */
+  body?: BodyPayload<D>;
+
+  /**
+   * Alias for "body"
+   */
+  data?: BodyPayload<D>;
+
+  /**
+   * A function or array of functions to intercept the request before it is sent.
+   */
+  onRequest?: RequestInterceptor | RequestInterceptor[];
+
+  /**
+   * A function or array of functions to intercept the response before it is resolved.
+   */
+  onResponse?: ResponseInterceptor | ResponseInterceptor[];
+
+  /**
+   * A function to handle errors that occur during the request or response processing.
+   */
+  onError?: ErrorHandlerInterceptor;
 }
 
 interface BaseRequestHandlerConfig extends RequestConfig {
@@ -220,8 +236,13 @@ interface BaseRequestHandlerConfig extends RequestConfig {
   logger?: unknown;
 }
 
-export type RequestConfig<CustomConfig = object> = ExtendedRequestConfig &
-  CustomConfig;
+export type RequestConfig = ExtendedRequestConfig;
 
-export type RequestHandlerConfig<CustomConfig = object> =
-  BaseRequestHandlerConfig & CustomConfig;
+export type RequestHandlerConfig = BaseRequestHandlerConfig;
+
+export type RequestsQueue = WeakMap<RequestConfig, QueueItem>;
+
+export interface QueueItem {
+  controller: AbortController;
+  timeoutId?: NodeJS.Timeout;
+}

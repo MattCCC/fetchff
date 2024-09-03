@@ -9,8 +9,15 @@ import type {
   FetchResponse,
   ResponseError,
   HeadersObject,
+  RequestsQueue,
+  QueueItem,
 } from './types/request-handler';
-import type { APIResponse, QueryParamsOrBody } from './types/api-handler';
+import type {
+  APIResponse,
+  BodyPayload,
+  QueryParams,
+  QueryParamsOrBody,
+} from './types/api-handler';
 import { interceptRequest, interceptResponse } from './interceptor-manager';
 import { ResponseErr } from './response-error';
 import {
@@ -28,78 +35,22 @@ const APPLICATION_JSON = 'application/json';
  * It handles errors depending on a chosen error handling strategy
  */
 export class RequestHandler {
-  /**
-   * @var requestInstance Provider's instance
-   */
   public requestInstance: FetcherInstance;
-
-  /**
-   * @var baseURL Base API url
-   */
   public baseURL: string = '';
-
-  /**
-   * @var timeout Request timeout
-   */
   public timeout: number = 30000;
-
-  /**
-   * @var cancellable Response cancellation
-   */
-  public cancellable: boolean = false;
-
-  /**
-   * @var rejectCancelled Whether to reject cancelled requests or not
-   */
   public rejectCancelled: boolean = false;
-
-  /**
-   * @var strategy Request timeout
-   */
   public strategy: ErrorHandlingStrategy = 'reject';
-
-  /**
-   * @var method Request method
-   */
   public method: Method | string = 'get';
-
-  /**
-   * @var flattenResponse Response flattening
-   */
   public flattenResponse: boolean = false;
-
-  /**
-   * @var defaultResponse Response flattening
-   */
   public defaultResponse: any = null;
-
-  /**
-   * @var fetcher Request Fetcher instance
-   */
   protected fetcher: FetcherInstance;
-
-  /**
-   * @var logger Logger
-   */
   protected logger: any;
-
-  /**
-   * @var onError HTTP error service
-   */
-  protected onError: any;
-
-  /**
-   * @var requestsQueue    Queue of requests
-   */
-  protected requestsQueue: WeakMap<object, AbortController>;
-
-  /**
-   * Request Handler Config
-   */
+  protected requestsQueue: RequestsQueue;
   protected retry: RetryOptions = {
     retries: 0,
     delay: 1000,
     maxDelay: 30000,
+    resetTimeout: true,
     backoff: 1.5,
 
     // https://developer.mozilla.org/en-US/docs/Web/HTTP/Status
@@ -116,17 +67,8 @@ export class RequestHandler {
 
     shouldRetry: async () => true,
   };
+  public config: RequestHandlerConfig = {};
 
-  /**
-   * Request Handler Config
-   */
-  public config: RequestHandlerConfig;
-
-  /**
-   * Creates an instance of RequestHandler.
-   *
-   * @param {Object} config - Configuration object for the request.
-   */
   public constructor({
     fetcher = null,
     timeout = null,
@@ -135,19 +77,16 @@ export class RequestHandler {
     flattenResponse = null,
     defaultResponse = {},
     logger = null,
-    onError = null,
     ...config
   }: RequestHandlerConfig) {
     this.fetcher = fetcher;
     this.timeout =
       timeout !== null && timeout !== undefined ? timeout : this.timeout;
     this.strategy = strategy || this.strategy;
-    this.cancellable = config.cancellable || this.cancellable;
     this.rejectCancelled = rejectCancelled || this.rejectCancelled;
     this.flattenResponse = flattenResponse || this.flattenResponse;
     this.defaultResponse = defaultResponse;
-    this.logger = logger || (globalThis ? globalThis.console : null) || null;
-    this.onError = onError;
+    this.logger = logger || null;
     this.requestsQueue = new WeakMap();
     this.baseURL = config.baseURL || config.apiUrl || '';
     this.method = config.method || this.method;
@@ -188,7 +127,7 @@ export class RequestHandler {
     data: QueryParamsOrBody,
     config: RequestConfig,
   ): RequestConfig {
-    const method = (config.method || this.method).toUpperCase();
+    const method = (config.method || this.method).toUpperCase() as Method;
     const isGetAlikeMethod = method === 'GET' || method === 'HEAD';
 
     const dynamicUrl = replaceUrlPathParams(
@@ -214,7 +153,7 @@ export class RequestHandler {
 
     // Only applicable for request methods 'PUT', 'POST', 'DELETE', and 'PATCH'
     if (!isGetAlikeMethod) {
-      body = explicitBodyData || data;
+      body = explicitBodyData || (data as BodyPayload);
     }
 
     if (this.isCustomFetcher()) {
@@ -222,7 +161,9 @@ export class RequestHandler {
         ...config,
         method,
         url: dynamicUrl,
-        params: shouldTreatDataAsParams ? data : explicitParams,
+        params: shouldTreatDataAsParams
+          ? (data as QueryParams)
+          : explicitParams,
         data: body,
       };
     }
@@ -238,7 +179,7 @@ export class RequestHandler {
 
     const urlPath =
       explicitParams || shouldTreatDataAsParams
-        ? appendQueryParams(dynamicUrl, explicitParams || data)
+        ? appendQueryParams(dynamicUrl, explicitParams || (data as QueryParams))
         : dynamicUrl;
     const isFullUrl = urlPath.includes('://');
     const baseURL = isFullUrl ? '' : config.baseURL || this.baseURL;
@@ -290,13 +231,13 @@ export class RequestHandler {
     }
 
     // Invoke per request "onError" interceptor
-    if (requestConfig.onError && typeof requestConfig.onError === 'function') {
+    if (requestConfig.onError) {
       requestConfig.onError(error);
     }
 
     // Invoke global "onError" interceptor
-    if (this.onError && typeof this.onError === 'function') {
-      this.onError(error);
+    if (this.config.onError) {
+      this.config.onError(error);
     }
   }
 
@@ -372,58 +313,93 @@ export class RequestHandler {
    * @param {RequestConfig} requestConfig   Per endpoint request config
    * @returns {Object} Controller Signal to abort
    */
-  protected addCancellationToken(
+  protected addCancelToken(
     requestConfig: RequestConfig,
   ): Partial<Record<'signal', AbortSignal>> {
-    // Both disabled
-    if (!this.cancellable && !requestConfig.cancellable) {
-      return {};
-    }
-
-    // Explicitly disabled per request
-    if (
-      typeof requestConfig.cancellable !== 'undefined' &&
-      !requestConfig.cancellable
-    ) {
-      return {};
-    }
-
-    // Check if AbortController is available
     if (typeof AbortController === 'undefined') {
-      console.error('AbortController is unavailable.');
+      console.error('AbortController unavailable.');
 
       return {};
     }
 
-    // Generate unique key as a cancellation token
-    const previousRequest = this.requestsQueue.get(requestConfig);
+    const isCancellable =
+      typeof requestConfig.cancellable !== 'undefined'
+        ? requestConfig.cancellable
+        : this.config.cancellable;
 
-    if (previousRequest) {
-      previousRequest.abort();
+    if (isCancellable) {
+      const previousRequest = this.requestsQueue.get(requestConfig);
+
+      if (previousRequest) {
+        previousRequest.controller.abort();
+      }
     }
 
     const controller = new AbortController();
 
-    // Introduce timeout for native fetch
-    if (!this.isCustomFetcher() && this.timeout > 0) {
-      const abortTimeout = setTimeout(() => {
-        const error = new Error(
-          `[TimeoutError]: The ${requestConfig.url} request was aborted due to timeout`,
-        );
-
-        error.name = 'TimeoutError';
-        (error as any).code = 23; // DOMException.TIMEOUT_ERR
-        controller.abort(error);
-        clearTimeout(abortTimeout);
-        throw error;
-      }, requestConfig.timeout || this.timeout);
+    if (isCancellable) {
+      this.requestsQueue.set(requestConfig, { controller });
     }
-
-    this.requestsQueue.set(requestConfig, controller);
 
     return {
       signal: controller.signal,
     };
+  }
+
+  /**
+   * Sets up a timeout to automatically abort the request if it exceeds the specified time.
+   *
+   * @param {RequestConfig} requestConfig - The configuration object for the request.
+   * @param {boolean} resetTimeout - Whether to reset the timeout.
+   */
+  protected setupTimeout(
+    requestConfig: RequestConfig,
+    resetTimeout: boolean,
+  ): void {
+    const timeout =
+      typeof requestConfig.timeout !== 'undefined'
+        ? requestConfig.timeout
+        : this.timeout;
+
+    if (timeout > 0) {
+      const reqFromQueue =
+        this.requestsQueue.get(requestConfig) || ({} as QueueItem);
+
+      if (reqFromQueue?.timeoutId) {
+        // Timeout is already set and we don't want to reset it, so exit
+        if (!resetTimeout) {
+          return;
+        }
+
+        clearTimeout(reqFromQueue.timeoutId);
+      }
+
+      const timeoutId = setTimeout(() => {
+        const _reqFromQueue = this.requestsQueue.get(requestConfig);
+
+        if (!_reqFromQueue) {
+          return;
+        }
+
+        const error = new Error(`${requestConfig.url} aborted due to timeout`);
+
+        error.name = 'TimeoutError';
+
+        (error as any).code = 23; // DOMException.TIMEOUT_ERR
+
+        _reqFromQueue?.controller?.abort(error);
+
+        this.requestsQueue.delete(requestConfig);
+
+        throw error;
+      }, timeout);
+
+      // Register timeout
+      this.requestsQueue.set(requestConfig, {
+        ...reqFromQueue,
+        timeoutId,
+      });
+    }
   }
 
   /**
@@ -445,11 +421,19 @@ export class RequestHandler {
     const _requestConfig = this.buildConfig(url, data, _config);
 
     let requestConfig: RequestConfig = {
-      ...this.addCancellationToken(_requestConfig),
+      ...this.addCancelToken(_requestConfig),
       ..._requestConfig,
     };
 
-    const { retries, delay, backoff, retryOn, shouldRetry, maxDelay } = {
+    const {
+      retries,
+      delay,
+      backoff,
+      retryOn,
+      shouldRetry,
+      maxDelay,
+      resetTimeout,
+    } = {
       ...this.retry,
       ...(requestConfig?.retry || {}),
     };
@@ -459,16 +443,18 @@ export class RequestHandler {
 
     while (attempt <= retries) {
       try {
+        this.setupTimeout(_requestConfig, resetTimeout);
+
         // Local interceptors
         requestConfig = await interceptRequest(
           requestConfig,
-          requestConfig.onRequest,
+          requestConfig?.onRequest,
         );
 
         // Global interceptors
         requestConfig = await interceptRequest(
           requestConfig,
-          this.config.onRequest,
+          this.config?.onRequest,
         );
 
         if (this.isCustomFetcher()) {
@@ -478,7 +464,7 @@ export class RequestHandler {
         } else {
           response = (await globalThis.fetch(
             requestConfig.url,
-            requestConfig,
+            requestConfig as RequestInit,
           )) as FetchResponse<ResponseData>;
 
           // Add more information to response object
@@ -496,10 +482,10 @@ export class RequestHandler {
         }
 
         // Local interceptors
-        response = await interceptResponse(response, requestConfig.onResponse);
+        response = await interceptResponse(response, requestConfig?.onResponse);
 
         // Global interceptors
-        response = await interceptResponse(response, this.config.onResponse);
+        response = await interceptResponse(response, this.config?.onResponse);
 
         return this.outputResponse(response, requestConfig) as ResponseData &
           FetchResponse<ResponseData>;

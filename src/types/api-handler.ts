@@ -14,11 +14,21 @@ export declare type QueryParams<T = unknown> =
   | URLSearchParams
   | NameValuePair[]
   | null;
-export declare type BodyPayload<T = unknown> = Record<string, T> | null;
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export declare type BodyPayload<T = any> =
+  | BodyInit
+  | Record<string, T>
+  | T[]
+  | string
+  | null;
+
 export declare type QueryParamsOrBody<T = unknown> =
   | QueryParams<T>
   | BodyPayload<T>;
+
 export declare type UrlPathParams<T = unknown> = Record<string, T> | null;
+
 export declare type APIResponse = unknown;
 
 // Endpoint function type
