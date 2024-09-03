@@ -231,10 +231,14 @@ export class RequestHandler {
     }
 
     // Invoke per request "onError" interceptor
-    requestConfig?.onError(error);
+    if (requestConfig.onError) {
+      requestConfig.onError(error);
+    }
 
     // Invoke global "onError" interceptor
-    this.config?.onError(error);
+    if (this.config.onError) {
+      this.config.onError(error);
+    }
   }
 
   /**
