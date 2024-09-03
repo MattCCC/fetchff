@@ -148,7 +148,7 @@ export class RequestHandler {
     this.rejectCancelled = rejectCancelled || this.rejectCancelled;
     this.flattenResponse = flattenResponse || this.flattenResponse;
     this.defaultResponse = defaultResponse;
-    this.logger = logger || (globalThis ? globalThis.console : null) || null;
+    this.logger = logger || null;
     this.onError = onError;
     this.requestsQueue = new WeakMap();
     this.baseURL = config.baseURL || config.apiUrl || '';
