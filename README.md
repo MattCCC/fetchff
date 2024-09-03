@@ -291,17 +291,26 @@ The `const api` methods and properties are described below:
 
 Where "myEndpoint" is the name of your endpoint from `endpoints` object passed to the `createApiFetcher()`.
 
-1. **`queryParams`** / **`payload`** (optional) - Query Parameters or Body Payload for POST requests.
-   First argument of API functions is an object with query params for `GET` requests, or with a data payload for `POST` alike requests. Other request types are supported as well. For `POST` alike requests you may occasionally want to use both query params and payload. In such case, use this argument as query params and pass the payload as 3rd argument `requestConfig.body` or `requestConfig.data`
-   Query params accepts strings, numbers, and even arrays, so you pass { foo: [1, 2] } and it will become: foo[]=1&foo[]=2 automatically.
+**`queryParams`** / **`bodyPayload`** (optional) - Query Parameters or Body Payload for POST requests.
 
-2. **`urlPathParams`** (optional) - Dynamic URL Path Parameters
-   It gives possibility to modify URLs structure in a declarative way. In our example `/user-details/update/:userId` will become `/user-details/update/1` when API request will be made.
+The first argument of API functions is an object that can serve different purposes based on the type of request being made:
 
-3. **`requestConfig`** (optional) - Request Configuration to overwrite global config in case
-   To have more granular control over specific endpoints you can pass Request Config for particular endpoint. See the Settings below for more information.
+- For `GET` and `HEAD` Requests: This object will be treated as query parameters. You can pass key-value pairs where the values can be strings, numbers, or arrays. For example, if you pass { foo: [1, 2] }, it will be automatically serialized into foo[]=1&foo[]=2 in the URL.
 
-Returns: **`response`** or **`data`** object, depending on `flattenResponse` setting:
+- For `POST` (and similar) Requests: This object is used as the data payload. It will be sent in the body of the request. If your request also requires query parameters, you can still pass those in the first argument and then use the requestConfig.body or requestConfig.data for the payload.
+
+**Note:** If you need to use Query Params in the `POST` (and similar) requests, you can pass them in this argument and then use `body` or `data` in `requestConfig` (third argument).
+
+**`urlPathParams`** (optional) - Dynamic URL Path Parameters
+
+The urlPathParams option allows you to dynamically replace parts of your URL with specific values in a declarative and straightforward way. This feature is particularly useful when you need to construct URLs that include variables or identifiers within the path.
+
+For example, consider the following URL template: /user-details/update/:userId. By using urlPathParams, you can easily replace :userId with an actual value when the API request is made.
+
+**`requestConfig`** (optional) - Request Configuration to overwrite global config in case
+To have more granular control over specific endpoints you can pass Request Config for particular endpoint. See the Settings below for more information.
+
+Returns: **`response`** or **`data`** object, depending on `flattenResponse` setting.
 
 ##### Response Object without `flattenResponse` (default)
 
