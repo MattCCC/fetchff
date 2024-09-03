@@ -122,7 +122,9 @@ export interface RetryOptions {
   ) => Promise<boolean>;
 }
 
-interface ExtendedRequestConfig extends BaseRequestConfig, RequestInit {
+interface ExtendedRequestConfig
+  extends BaseRequestConfig,
+    Omit<RequestInit, 'body'> {
   strategy?: ErrorHandlingStrategy;
   defaultResponse?: unknown;
   flattenResponse?: boolean;

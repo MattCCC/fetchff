@@ -49,11 +49,6 @@ export class RequestHandler {
   public timeout: number = 30000;
 
   /**
-   * @var cancellable Response cancellation
-   */
-  public cancellable: boolean = false;
-
-  /**
    * @var rejectCancelled Whether to reject cancelled requests or not
    */
   public rejectCancelled: boolean = false;
@@ -147,7 +142,6 @@ export class RequestHandler {
     this.timeout =
       timeout !== null && timeout !== undefined ? timeout : this.timeout;
     this.strategy = strategy || this.strategy;
-    this.cancellable = config.cancellable || this.cancellable;
     this.rejectCancelled = rejectCancelled || this.rejectCancelled;
     this.flattenResponse = flattenResponse || this.flattenResponse;
     this.defaultResponse = defaultResponse;
@@ -193,7 +187,7 @@ export class RequestHandler {
     data: QueryParamsOrBody,
     config: RequestConfig,
   ): RequestConfig {
-    const method = (config.method || this.method).toUpperCase();
+    const method = (config.method || this.method).toUpperCase() as Method;
     const isGetAlikeMethod = method === 'GET' || method === 'HEAD';
 
     const dynamicUrl = replaceUrlPathParams(
@@ -379,31 +373,22 @@ export class RequestHandler {
    * @param {RequestConfig} requestConfig   Per endpoint request config
    * @returns {Object} Controller Signal to abort
    */
-  protected addCancellationToken(
+  protected addCancelToken(
     requestConfig: RequestConfig,
   ): Partial<Record<'signal', AbortSignal>> {
-    // Both disabled
-    if (!this.cancellable && !requestConfig.cancellable) {
-      return {};
-    }
-
-    // Explicitly disabled per request
-    if (
-      typeof requestConfig.cancellable !== 'undefined' &&
-      !requestConfig.cancellable
-    ) {
-      return {};
-    }
-
-    // Check if AbortController is available
     if (typeof AbortController === 'undefined') {
-      console.error('AbortController is unavailable.');
+      console.error('AbortController unavailable.');
 
       return {};
     }
 
-    // Generate unique key as a cancellation token
-    const previousRequest = this.requestsQueue.get(requestConfig);
+    const isCancellable =
+      typeof requestConfig.cancellable !== 'undefined'
+        ? requestConfig.cancellable
+        : this.config.cancellable;
+
+    const previousRequest =
+      isCancellable && this.requestsQueue.get(requestConfig);
 
     if (previousRequest) {
       previousRequest.abort();
@@ -411,24 +396,43 @@ export class RequestHandler {
 
     const controller = new AbortController();
 
-    // Introduce timeout for native fetch
-    if (!this.isCustomFetcher() && this.timeout > 0) {
-      const abortTimeout = setTimeout(() => {
-        const error = new Error(`${requestConfig.url} aborted due to timeout`);
-
-        error.name = 'TimeoutError';
-        (error as any).code = 23; // DOMException.TIMEOUT_ERR
-        controller.abort(error);
-        clearTimeout(abortTimeout);
-        throw error;
-      }, requestConfig.timeout || this.timeout);
+    if (isCancellable) {
+      this.requestsQueue.set(requestConfig, controller);
     }
-
-    this.requestsQueue.set(requestConfig, controller);
 
     return {
       signal: controller.signal,
     };
+  }
+
+  /**
+   * Sets up a timeout to automatically abort the request if it exceeds the specified time.
+   *
+   * @param {RequestConfig} requestConfig - The configuration object for the request.
+   */
+  protected setupTimeout(requestConfig: RequestConfig): void {
+    const timeout =
+      typeof requestConfig.timeout !== 'undefined'
+        ? requestConfig.timeout
+        : this.timeout;
+
+    if (timeout > 0) {
+      const timeoutId = setTimeout(() => {
+        const error = new Error(`${requestConfig.url} aborted due to timeout`);
+
+        error.name = 'TimeoutError';
+
+        (error as any).code = 23; // DOMException.TIMEOUT_ERR
+
+        this.requestsQueue.get(requestConfig).abort(error);
+
+        clearTimeout(timeoutId); // Clear the timeout
+
+        this.requestsQueue.delete(requestConfig);
+
+        throw error;
+      }, timeout);
+    }
   }
 
   /**
@@ -450,9 +454,11 @@ export class RequestHandler {
     const _requestConfig = this.buildConfig(url, data, _config);
 
     let requestConfig: RequestConfig = {
-      ...this.addCancellationToken(_requestConfig),
+      ...this.addCancelToken(_requestConfig),
       ..._requestConfig,
     };
+
+    this.setupTimeout(_requestConfig);
 
     const { retries, delay, backoff, retryOn, shouldRetry, maxDelay } = {
       ...this.retry,
@@ -483,7 +489,7 @@ export class RequestHandler {
         } else {
           response = (await globalThis.fetch(
             requestConfig.url,
-            requestConfig,
+            requestConfig as RequestInit,
           )) as FetchResponse<ResponseData>;
 
           // Add more information to response object

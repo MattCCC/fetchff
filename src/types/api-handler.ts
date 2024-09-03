@@ -16,8 +16,12 @@ export declare type QueryParams<T = unknown> =
   | null;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export declare type BodyPayload<T = any> = (BodyInit | null) &
-  (Record<string, T> | T[] | string);
+export declare type BodyPayload<T = any> =
+  | BodyInit
+  | Record<string, T>
+  | T[]
+  | string
+  | null;
 
 export declare type QueryParamsOrBody<T = unknown> =
   | QueryParams<T>
