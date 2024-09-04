@@ -608,11 +608,33 @@ export class RequestHandler {
   }
 
   /**
+   * Recursively flattens the data object if it meets specific criteria.
+   *
+   * The method checks if the provided `data` is an object with exactly one property named `data`.
+   * If so, it recursively flattens the `data` property. Otherwise, it returns the `data` as-is.
+   *
+   * @param {any} data - The data to be flattened. Can be of any type, including objects, arrays, or primitives.
+   * @returns {any} - The flattened data if the criteria are met; otherwise, the original `data`.
+   */
+  protected flattenData(data: any): any {
+    if (
+      data &&
+      typeof data === 'object' &&
+      typeof data.data !== 'undefined' &&
+      Object.keys(data).length === 1
+    ) {
+      return this.flattenData(data.data);
+    }
+
+    return data;
+  }
+
+  /**
    * Output response
    *
    * @param response - Response payload
    * @param {RequestConfig} requestConfig - Request config
-   * @param {*} error - whether the response is erroneous
+   * @param error - whether the response is erroneous
    * @returns {ResponseData | FetchResponse<ResponseData>} Response data
    */
   protected outputResponse<ResponseData = APIResponse>(
@@ -624,38 +646,28 @@ export class RequestHandler {
       typeof requestConfig.defaultResponse !== 'undefined'
         ? requestConfig.defaultResponse
         : this.defaultResponse;
+    const flattenResponse =
+      typeof requestConfig.flattenResponse !== 'undefined'
+        ? requestConfig.flattenResponse
+        : this.flattenResponse;
 
-    if (!response) {
-      return defaultResponse;
+    // Clean up the error object
+    if (error !== null) {
+      delete error?.response;
+      delete error?.request;
+      delete error?.config;
     }
 
-    if (
-      (requestConfig.flattenResponse || this.flattenResponse) &&
-      typeof response.data !== 'undefined'
-    ) {
-      // Special case of only data property within response data object
-      // This is in fact a proper response but we may want to flatten it
-      // To ease developers' lives when obtaining the response
-      if (
-        response.data !== null &&
-        typeof response.data === 'object' &&
-        typeof (response.data as any).data !== 'undefined' &&
-        Object.keys(response.data).length === 1
-      ) {
-        return (response.data as any).data;
-      }
+    let data = response?.data;
 
-      return response.data;
+    // Return flattened response immediately
+    if (flattenResponse) {
+      return this.flattenData(data);
     }
 
-    // If empty object is returned, ensure that the default response is used instead
-    if (
-      response !== null &&
-      typeof response === 'object' &&
-      response.constructor === Object &&
-      Object.keys(response).length === 0
-    ) {
-      return defaultResponse;
+    // Set the default response if the provided data is an empty object
+    if (data && typeof data === 'object' && Object.keys(data).length === 0) {
+      data = defaultResponse;
     }
 
     const isCustomFetcher = this.isCustomFetcher();
@@ -664,14 +676,8 @@ export class RequestHandler {
       return response;
     }
 
-    if (error !== null) {
-      delete error?.response;
-      delete error?.request;
-      delete error?.config;
-    }
-
-    // Native fetch()
     return {
+      // Native fetch()
       body: response.body,
       blob: response.blob,
       json: response.json,
@@ -689,7 +695,7 @@ export class RequestHandler {
 
       // Extend with extra information
       error,
-      data: response.data,
+      data,
       headers: this.processHeaders(response),
       config: requestConfig,
     };
