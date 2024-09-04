@@ -262,6 +262,10 @@ export class RequestHandler {
       typeof requestConfig.defaultResponse !== 'undefined'
         ? requestConfig.defaultResponse
         : this.defaultResponse;
+    const flattenResponse =
+      typeof requestConfig.flattenResponse !== 'undefined'
+        ? requestConfig.flattenResponse
+        : this.flattenResponse;
 
     // Output full response with the error object
     if (errorHandlingStrategy === 'softFail') {
@@ -269,23 +273,25 @@ export class RequestHandler {
     }
 
     // By default cancelled requests aren't rejected
-    if (isRequestCancelled && !rejectCancelled) {
-      return defaultResponse;
+    if (!(isRequestCancelled && !rejectCancelled)) {
+      // Hang the promise
+      if (errorHandlingStrategy === 'silent') {
+        await new Promise(() => null);
+      }
+      // Reject the promise
+      else if (errorHandlingStrategy === 'reject') {
+        return Promise.reject(error);
+      }
     }
 
-    // Hang the promise
-    if (errorHandlingStrategy === 'silent') {
-      await new Promise(() => null);
-
-      return defaultResponse;
-    }
-
-    // Reject the promise
-    if (errorHandlingStrategy === 'reject') {
-      return Promise.reject(error);
-    }
-
-    return defaultResponse;
+    return flattenResponse
+      ? defaultResponse
+      : {
+          error,
+          headers: null,
+          data: defaultResponse,
+          config: requestConfig,
+        };
   }
 
   /**
