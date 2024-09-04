@@ -654,14 +654,14 @@ export class RequestHandler {
 
     let data = response?.data;
 
-    // Return flattened response immediately
-    if (flattenResponse) {
-      return this.flattenData(data);
-    }
-
     // Set the default response if the provided data is an empty object
     if (data && typeof data === 'object' && Object.keys(data).length === 0) {
       data = defaultResponse;
+    }
+
+    // Return flattened response immediately
+    if (flattenResponse) {
+      return this.flattenData(data);
     }
 
     const isCustomFetcher = this.isCustomFetcher();

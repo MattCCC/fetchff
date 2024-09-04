@@ -1273,7 +1273,7 @@ describe('Request Handler', () => {
 
       (requestHandler.requestInstance as any).request = jest
         .fn()
-        .mockResolvedValue({});
+        .mockResolvedValue({ data: null });
 
       expect(
         await requestHandler.request(apiUrl, null, { method: 'head' }),
