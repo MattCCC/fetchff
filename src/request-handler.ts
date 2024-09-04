@@ -245,11 +245,13 @@ export class RequestHandler {
    * Output default response in case of an error, depending on chosen strategy
    *
    * @param {ResponseError} error      Error instance
+   * @param {FetchResponse} response      Response
    * @param {RequestConfig} requestConfig   Per endpoint request config
    * @returns {*} Error response
    */
   protected async outputErrorResponse(
     error: ResponseError,
+    response: FetchResponse,
     requestConfig: RequestConfig,
   ): Promise<any> {
     const isRequestCancelled = this.isRequestCancelled(error);
@@ -258,21 +260,8 @@ export class RequestHandler {
       typeof requestConfig.rejectCancelled !== 'undefined'
         ? requestConfig.rejectCancelled
         : this.rejectCancelled;
-    const defaultResponse =
-      typeof requestConfig.defaultResponse !== 'undefined'
-        ? requestConfig.defaultResponse
-        : this.defaultResponse;
-    const flattenResponse =
-      typeof requestConfig.flattenResponse !== 'undefined'
-        ? requestConfig.flattenResponse
-        : this.flattenResponse;
 
-    // Output full response with the error object
-    if (errorHandlingStrategy === 'softFail') {
-      return this.outputResponse(error.response, requestConfig, error);
-    }
-
-    // By default cancelled requests aren't rejected
+    // By default cancelled requests aren't rejected (softFail strategy)
     if (!(isRequestCancelled && !rejectCancelled)) {
       // Hang the promise
       if (errorHandlingStrategy === 'silent') {
@@ -284,14 +273,7 @@ export class RequestHandler {
       }
     }
 
-    return flattenResponse
-      ? defaultResponse
-      : {
-          error,
-          headers: null,
-          data: defaultResponse,
-          config: requestConfig,
-        };
+    return this.outputResponse(response, requestConfig, error);
   }
 
   /**
@@ -497,7 +479,7 @@ export class RequestHandler {
         ) {
           this.processError(error, requestConfig);
 
-          return this.outputErrorResponse(error, requestConfig);
+          return this.outputErrorResponse(error, response, requestConfig);
         }
 
         if (this.logger?.warn) {
@@ -528,7 +510,7 @@ export class RequestHandler {
     response: FetchResponse<ResponseData>,
   ): Promise<any> {
     // Bail early when body is empty
-    if (!response.body) {
+    if (!response?.body) {
       return null;
     }
 
@@ -645,6 +627,17 @@ export class RequestHandler {
         ? requestConfig.flattenResponse
         : this.flattenResponse;
 
+    if (!response) {
+      return flattenResponse
+        ? defaultResponse
+        : {
+            error,
+            headers: null,
+            data: defaultResponse,
+            config: requestConfig,
+          };
+    }
+
     // Clean up the error object
     if (error !== null) {
       delete error?.response;
@@ -655,7 +648,11 @@ export class RequestHandler {
     let data = response?.data;
 
     // Set the default response if the provided data is an empty object
-    if (data && typeof data === 'object' && Object.keys(data).length === 0) {
+    if (
+      data === undefined ||
+      data === null ||
+      (typeof data === 'object' && Object.keys(data).length === 0)
+    ) {
       data = defaultResponse;
     }
 
