@@ -228,6 +228,13 @@ interface ExtendedRequestConfig<D = any> extends Omit<RequestInit, 'body'> {
    * A function to handle errors that occur during the request or response processing.
    */
   onError?: ErrorHandlerInterceptor;
+
+  /**
+   * Time window, in miliseconds, during which identical requests are deduplicated (treated as single request).
+   *
+   * @default 1000 (1 second)
+   */
+  dedupeTime?: number;
 }
 
 interface BaseRequestHandlerConfig extends RequestConfig {
@@ -239,10 +246,3 @@ interface BaseRequestHandlerConfig extends RequestConfig {
 export type RequestConfig = ExtendedRequestConfig;
 
 export type RequestHandlerConfig = BaseRequestHandlerConfig;
-
-export type RequestsQueue = WeakMap<RequestConfig, QueueItem>;
-
-export interface QueueItem {
-  controller: AbortController;
-  timeoutId?: NodeJS.Timeout;
-}
