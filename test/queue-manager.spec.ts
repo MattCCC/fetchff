@@ -54,9 +54,9 @@ describe('Request Queue Manager', () => {
 
   it('should clear timeout and abort request on removal', async () => {
     const configWithTimeout = createConfig('https://example.com');
-    await addRequest(configWithTimeout, 10000);
+    await addRequest(configWithTimeout, 1000);
 
-    jest.advanceTimersByTime(15000);
+    jest.advanceTimersByTime(1500);
 
     const retrievedController = await getController(configWithTimeout);
 

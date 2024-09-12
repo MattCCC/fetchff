@@ -86,7 +86,7 @@ export class RequestHandler {
     this.method = config.method || this.method;
     this.config = {
       rejectCancelled: false,
-      dedupeTime: 1,
+      dedupeTime: 1000,
       ...config,
     };
     this.retry = {

@@ -230,9 +230,9 @@ interface ExtendedRequestConfig<D = any> extends Omit<RequestInit, 'body'> {
   onError?: ErrorHandlerInterceptor;
 
   /**
-   * Time window, in seconds, during which identical requests are deduplicated (treated as single request).
+   * Time window, in miliseconds, during which identical requests are deduplicated (treated as single request).
    *
-   * @default 1 (1 second)
+   * @default 1000 (1 second)
    */
   dedupeTime?: number;
 }
