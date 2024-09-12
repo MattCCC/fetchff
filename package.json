@@ -26,10 +26,10 @@
     "node": ">=18"
   },
   "scripts": {
-    "start": "tsup src/index.ts --watch",
-    "build": "node ./scripts/build.js",
-    "build:browser": "tsup src/index.ts --dts --format esm,iife --sourcemap --env.NODE_ENV production --minify --dts-resolve",
-    "build:node": "tsup src/index.ts --dts --format cjs --sourcemap --env.NODE_ENV production --minify",
+    "build": "npm run build:node && npm run build:browser && npm run build:cleanup",
+    "build:browser": "tsup --format esm,iife --out-dir dist/browser --env.NODE_ENV production",
+    "build:node": "tsup --format cjs --out-dir dist/node --env.NODE_ENV production",
+    "build:cleanup": "rm -f dist/browser/index.d.mts dist/node/index.d.ts && mv dist/browser/index.d.ts dist/index.d.ts",
     "types-check": "tsc --noEmit",
     "test": "jest --forceExit --coverage --detectOpenHandles",
     "lint": "eslint ./src/**/*.ts ./test/**/*.spec.ts",
