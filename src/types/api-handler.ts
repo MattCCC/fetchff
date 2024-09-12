@@ -68,9 +68,11 @@ type DefaultEndpoints<EndpointsCfg> = {
   [K in keyof EndpointsCfg]: EndpointDefaults;
 };
 
+type RequestConfigUrlRequired = Omit<RequestConfig, 'url'> & { url: string };
+
 export type EndpointsConfig<EndpointsMethods> = Record<
   keyof EndpointsMethods | string,
-  RequestConfig
+  RequestConfigUrlRequired
 >;
 
 type EndpointsConfigPart<EndpointsCfg, EndpointsMethods extends object> = [
