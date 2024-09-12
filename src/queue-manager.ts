@@ -2,10 +2,12 @@ import type { RequestConfig } from './types';
 import type { QueueItem, RequestsQueue } from './types/queue-manager';
 
 /**
- * Queue Manager is responsible for:
- * - request deduplication
- * - handling request timeouts
- * - cancellation of previous requests
+ * Queue Manager is responsible for managing and controlling the flow of concurrent or sequential requests. It handles:
+ * - Request Queueing and Deduplication
+ * - Request Timeout Handling
+ * - Abort Controller Management and Request Cancellation
+ * - Concurrency Control and Locking
+ * - Request Lifecycle Management
  */
 const queue: RequestsQueue = new WeakMap<RequestConfig, QueueItem>();
 const locks = new WeakMap<object, Promise<void>>();

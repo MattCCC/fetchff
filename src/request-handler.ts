@@ -24,7 +24,7 @@ import {
   replaceUrlPathParams,
   delayInvocation,
 } from './utils';
-import { addRequest } from './queue-manager';
+import { addRequest, removeRequest } from './queue-manager';
 
 const APPLICATION_JSON = 'application/json';
 
@@ -408,6 +408,8 @@ export class RequestHandler {
           !retryOn?.includes(error?.response?.status || error?.status)
         ) {
           this.processError(error, _requestConfig);
+
+          removeRequest(_requestConfig);
 
           return this.outputErrorResponse(error, response, _requestConfig);
         }
