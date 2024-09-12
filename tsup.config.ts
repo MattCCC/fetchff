@@ -4,7 +4,7 @@ export default defineConfig({
   name: 'fetchff',
   globalName: 'fetchff',
   entry: ['src/index.ts'],
-  target: 'esnext',
+  target: 'es2017',
   dts: true,
   clean: true,
   sourcemap: true,
