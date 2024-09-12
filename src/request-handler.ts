@@ -9,8 +9,6 @@ import type {
   FetchResponse,
   ResponseError,
   HeadersObject,
-  RequestsQueue,
-  QueueItem,
 } from './types/request-handler';
 import type {
   APIResponse,
@@ -26,6 +24,7 @@ import {
   replaceUrlPathParams,
   delayInvocation,
 } from './utils';
+import { addRequest } from './queue-manager';
 
 const APPLICATION_JSON = 'application/json';
 
@@ -38,14 +37,12 @@ export class RequestHandler {
   public requestInstance: FetcherInstance;
   public baseURL: string = '';
   public timeout: number = 30000;
-  public rejectCancelled: boolean = false;
   public strategy: ErrorHandlingStrategy = 'reject';
   public method: Method | string = 'get';
   public flattenResponse: boolean = false;
   public defaultResponse: any = null;
   protected fetcher: FetcherInstance;
   protected logger: any;
-  protected requestsQueue: RequestsQueue;
   protected retry: RetryOptions = {
     retries: 0,
     delay: 1000,
@@ -72,7 +69,6 @@ export class RequestHandler {
   public constructor({
     fetcher = null,
     timeout = null,
-    rejectCancelled = false,
     strategy = null,
     flattenResponse = null,
     defaultResponse = {},
@@ -83,14 +79,16 @@ export class RequestHandler {
     this.timeout =
       timeout !== null && timeout !== undefined ? timeout : this.timeout;
     this.strategy = strategy || this.strategy;
-    this.rejectCancelled = rejectCancelled || this.rejectCancelled;
     this.flattenResponse = flattenResponse || this.flattenResponse;
     this.defaultResponse = defaultResponse;
     this.logger = logger || null;
-    this.requestsQueue = new WeakMap();
     this.baseURL = config.baseURL || config.apiUrl || '';
     this.method = config.method || this.method;
-    this.config = config;
+    this.config = {
+      rejectCancelled: false,
+      dedupeTime: 1,
+      ...config,
+    };
     this.retry = {
       ...this.retry,
       ...(config.retry || {}),
@@ -259,7 +257,7 @@ export class RequestHandler {
     const rejectCancelled =
       typeof requestConfig.rejectCancelled !== 'undefined'
         ? requestConfig.rejectCancelled
-        : this.rejectCancelled;
+        : this.config.rejectCancelled;
 
     // By default cancelled requests aren't rejected (softFail strategy)
     if (!(isRequestCancelled && !rejectCancelled)) {
@@ -296,95 +294,6 @@ export class RequestHandler {
   }
 
   /**
-   * Automatically Cancel Previous Requests using AbortController when "cancellable" is defined
-   *
-   * @param {RequestConfig} requestConfig   Per endpoint request config
-   * @returns {Object} Controller Signal to abort
-   */
-  protected addCancelToken(
-    requestConfig: RequestConfig,
-  ): Partial<Record<'signal', AbortSignal>> {
-    if (typeof AbortController === 'undefined') {
-      console.error('AbortController unavailable.');
-
-      return {};
-    }
-
-    const isCancellable =
-      typeof requestConfig.cancellable !== 'undefined'
-        ? requestConfig.cancellable
-        : this.config.cancellable;
-
-    if (isCancellable) {
-      const previousRequest = this.requestsQueue.get(requestConfig);
-
-      if (previousRequest) {
-        previousRequest.controller.abort();
-      }
-    }
-
-    const controller = new AbortController();
-
-    this.requestsQueue.set(requestConfig, { controller });
-
-    return {
-      signal: controller.signal,
-    };
-  }
-
-  /**
-   * Sets up a timeout to automatically abort the request if it exceeds the specified time.
-   *
-   * @param {RequestConfig} requestConfig - The configuration object for the request.
-   * @param {boolean} resetTimeout - Whether to reset the timeout.
-   */
-  protected setupTimeout(
-    requestConfig: RequestConfig,
-    resetTimeout: boolean,
-  ): void {
-    const timeout =
-      typeof requestConfig.timeout !== 'undefined'
-        ? requestConfig.timeout
-        : this.timeout;
-
-    if (timeout > 0) {
-      const reqFromQueue =
-        this.requestsQueue.get(requestConfig) || ({} as QueueItem);
-
-      if (reqFromQueue?.timeoutId) {
-        // Timeout is already set and we don't want to reset it, so exit
-        if (!resetTimeout) {
-          return;
-        }
-
-        clearTimeout(reqFromQueue.timeoutId);
-      }
-
-      const timeoutId = setTimeout(() => {
-        const _reqFromQueue = this.requestsQueue.get(requestConfig);
-
-        if (!_reqFromQueue) {
-          return;
-        }
-
-        const error = new Error(`${requestConfig.url} aborted due to timeout`);
-
-        error.name = 'TimeoutError';
-
-        (error as any).code = 23; // DOMException.TIMEOUT_ERR
-
-        _reqFromQueue?.controller?.abort(error);
-      }, timeout);
-
-      // Register timeout
-      this.requestsQueue.set(requestConfig, {
-        ...reqFromQueue,
-        timeoutId,
-      });
-    }
-  }
-
-  /**
    * Handle Request depending on used strategy
    *
    * @param {string} url - Request url
@@ -402,10 +311,18 @@ export class RequestHandler {
     const _config = config || {};
     const _requestConfig = this.buildConfig(url, data, _config);
 
-    let requestConfig: RequestConfig = {
-      ...this.addCancelToken(_requestConfig),
-      ..._requestConfig,
-    };
+    const timeout =
+      typeof _requestConfig.timeout !== 'undefined'
+        ? _requestConfig.timeout
+        : this.timeout;
+    const isCancellable =
+      typeof _requestConfig.cancellable !== 'undefined'
+        ? _requestConfig.cancellable
+        : this.config.cancellable;
+    const dedupeTime =
+      typeof _requestConfig.dedupeTime !== 'undefined'
+        ? _requestConfig.dedupeTime
+        : this.config.dedupeTime;
 
     const {
       retries,
@@ -417,7 +334,7 @@ export class RequestHandler {
       resetTimeout,
     } = {
       ...this.retry,
-      ...(requestConfig?.retry || {}),
+      ...(_requestConfig?.retry || {}),
     };
 
     let attempt = 0;
@@ -425,7 +342,20 @@ export class RequestHandler {
 
     while (attempt <= retries) {
       try {
-        this.setupTimeout(_requestConfig, resetTimeout);
+        // Add the request to the queue. Make sure to handle deduplication, cancellation, timeouts in accordance to retry settings
+        const controller = await addRequest(
+          _requestConfig,
+          timeout,
+          dedupeTime,
+          isCancellable,
+          resetTimeout,
+        );
+        const signal = controller.signal;
+
+        let requestConfig: RequestConfig = {
+          signal,
+          ..._requestConfig,
+        };
 
         // Local interceptors
         requestConfig = await interceptRequest(
@@ -477,9 +407,9 @@ export class RequestHandler {
           !(await shouldRetry(error, attempt)) ||
           !retryOn?.includes(error?.response?.status || error?.status)
         ) {
-          this.processError(error, requestConfig);
+          this.processError(error, _requestConfig);
 
-          return this.outputErrorResponse(error, response, requestConfig);
+          return this.outputErrorResponse(error, response, _requestConfig);
         }
 
         if (this.logger?.warn) {
@@ -496,7 +426,7 @@ export class RequestHandler {
       }
     }
 
-    return this.outputResponse(response, requestConfig) as ResponseData &
+    return this.outputResponse(response, _requestConfig) as ResponseData &
       FetchResponse<ResponseData>;
   }
 
