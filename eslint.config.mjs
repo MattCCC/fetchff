@@ -1,6 +1,7 @@
 import js from '@eslint/js';
 import eslintPluginPrettierRecommended from 'eslint-plugin-prettier/recommended';
 import tseslint from 'typescript-eslint';
+import globals from 'globals';
 
 export default [
   js.configs.recommended,
@@ -10,8 +11,8 @@ export default [
     ignores: ['dist/**/*'],
     languageOptions: {
       globals: {
-        browser: true,
-        node: true,
+        ...globals.browser,
+        ...globals.node,
       },
     },
   },
