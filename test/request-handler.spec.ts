@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { RequestHandler } from '../src/request-handler';
 import fetchMock from 'fetch-mock';
-import { fetchf, FetchResponse } from '../src';
+import { fetchf } from '../src';
 import {
   interceptRequest,
   interceptResponse,
@@ -915,6 +915,7 @@ describe('Request Handler', () => {
         cancellable: true,
         rejectCancelled: false,
         flattenResponse: true,
+        defaultResponse: {},
       });
       const secondRequest = fetchf('https://example.com/second', {
         flattenResponse: true,
@@ -924,187 +925,6 @@ describe('Request Handler', () => {
         username: 'response from second request',
       });
       expect(firstRequest).resolves.toEqual({});
-    });
-  });
-
-  describe('parseData()', () => {
-    let mockResponse: FetchResponse;
-    const requestHandler = new RequestHandler({ fetcher });
-
-    beforeEach(() => {
-      mockResponse = {
-        headers: {
-          get: jest.fn(),
-        },
-        clone: jest.fn(),
-        json: jest.fn(),
-        formData: jest.fn(),
-        blob: jest.fn(),
-        text: jest.fn(),
-        body: 'something',
-      } as unknown as FetchResponse;
-    });
-
-    it('should parse JSON response when Content-Type is application/json', async () => {
-      (mockResponse.headers.get as jest.Mock).mockReturnValue(
-        'application/json',
-      );
-      const expectedData = { key: 'value' };
-      (mockResponse.json as jest.Mock).mockResolvedValue(expectedData);
-
-      const data = await requestHandler.parseData(mockResponse);
-      expect(data).toEqual(expectedData);
-    });
-
-    it('should parse JSON response when Content-Type is application/vnd.api+json', async () => {
-      (mockResponse.headers.get as jest.Mock).mockReturnValue(
-        'application/vnd.api+json',
-      );
-      const expectedData = { key: 'value' };
-      (mockResponse.json as jest.Mock).mockResolvedValue(expectedData);
-
-      const data = await requestHandler.parseData(mockResponse);
-      expect(data).toEqual(expectedData);
-    });
-
-    it('should parse FormData when Content-Type is multipart/form-data', async () => {
-      (mockResponse.headers.get as jest.Mock).mockReturnValue(
-        'multipart/form-data',
-      );
-      const expectedData = new FormData();
-      (mockResponse.formData as jest.Mock).mockResolvedValue(expectedData);
-
-      const data = await requestHandler.parseData(mockResponse);
-      expect(data).toEqual(expectedData);
-    });
-
-    it('should parse Blob when Content-Type is application/octet-stream', async () => {
-      (mockResponse.headers.get as jest.Mock).mockReturnValue(
-        'application/octet-stream',
-      );
-      const expectedData = new Blob(['test']);
-      (mockResponse.blob as jest.Mock).mockResolvedValue(expectedData);
-
-      const data = await requestHandler.parseData(mockResponse);
-      expect(data).toEqual(expectedData);
-    });
-
-    it('should parse FormData when Content-Type is application/x-www-form-urlencoded', async () => {
-      (mockResponse.headers.get as jest.Mock).mockReturnValue(
-        'application/x-www-form-urlencoded',
-      );
-      const expectedData = new FormData();
-      (mockResponse.formData as jest.Mock).mockResolvedValue(expectedData);
-
-      const data = await requestHandler.parseData(mockResponse);
-      expect(data).toEqual(expectedData);
-    });
-
-    it('should parse text when Content-Type is text/plain', async () => {
-      (mockResponse.headers.get as jest.Mock).mockReturnValue('text/plain');
-      const expectedData = 'Some plain text';
-      (mockResponse.text as jest.Mock).mockResolvedValue(expectedData);
-
-      const data = await requestHandler.parseData(mockResponse);
-      expect(data).toEqual(expectedData);
-    });
-
-    it('should return plain text when Content-Type is missing and JSON parsing fails', async () => {
-      (mockResponse.headers.get as jest.Mock).mockReturnValue('');
-      const responseClone = {
-        json: jest.fn().mockRejectedValue(new Error('JSON parsing error')),
-      };
-      (mockResponse.clone as jest.Mock).mockReturnValue(responseClone);
-
-      const expectedData = 'Some plain text';
-      (mockResponse.text as jest.Mock).mockResolvedValue(expectedData);
-
-      const data = await requestHandler.parseData(mockResponse);
-
-      expect(data).toBe('Some plain text');
-    });
-
-    it('should return null when content type is not recognized and response parsing fails', async () => {
-      (mockResponse.headers.get as jest.Mock).mockReturnValue(
-        'application/unknown-type',
-      );
-      (mockResponse.text as jest.Mock).mockRejectedValue(
-        new Error('Text parsing error'),
-      );
-
-      const data = await requestHandler.parseData(mockResponse);
-      expect(data).toBeNull();
-    });
-
-    it('should handle streams and return body or data when Content-Type is not recognized', async () => {
-      (mockResponse.headers.get as jest.Mock).mockReturnValue(
-        'application/unknown-type',
-      );
-
-      // Mock the `text` method to simulate stream content
-      const streamContent = 'stream content';
-      (mockResponse.text as jest.Mock).mockResolvedValue(streamContent);
-
-      const data = await requestHandler.parseData(mockResponse);
-      expect(data).toEqual(streamContent);
-    });
-  });
-
-  describe('processHeaders()', () => {
-    const requestHandler = new RequestHandler({ fetcher });
-
-    // Test when headers is null or undefined
-    it('should return an empty object if headers are null or undefined', () => {
-      const response = { headers: null } as unknown as FetchResponse;
-      const result = requestHandler.processHeaders(response);
-      expect(result).toEqual({});
-
-      const responseUndefined = {
-        headers: undefined,
-      } as unknown as FetchResponse;
-      const resultUndefined = requestHandler.processHeaders(responseUndefined);
-      expect(resultUndefined).toEqual({});
-    });
-
-    // Test when headers is an instance of Headers
-    it('should convert Headers object to a plain object', () => {
-      const headers = new Headers();
-      headers.append('Content-Type', 'application/json');
-      headers.append('Authorization', 'Bearer token');
-
-      const response = { headers } as FetchResponse;
-      const result = requestHandler.processHeaders(response);
-
-      expect(result).toEqual({
-        'content-type': 'application/json',
-        authorization: 'Bearer token',
-      });
-    });
-
-    // Test when headers is a plain object
-    it('should handle plain object headers', () => {
-      const response = {
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: 'Bearer token',
-        },
-      } as unknown as FetchResponse;
-
-      const result = requestHandler.processHeaders(response);
-
-      expect(result).toEqual({
-        'content-type': 'application/json',
-        authorization: 'Bearer token',
-      });
-    });
-
-    // Test when headers is an empty Headers object
-    it('should handle an empty Headers object', () => {
-      const headers = new Headers(); // Empty Headers
-      const response = { headers } as FetchResponse;
-      const result = requestHandler.processHeaders(response);
-
-      expect(result).toEqual({});
     });
   });
 

@@ -105,7 +105,7 @@ export interface RetryOptions {
    *   504, // Gateway Timeout
    * ]
    */
-  retryOn: (number | null)[];
+  retryOn?: number[];
 
   /**
    * A function to determine whether to retry based on the error and attempt number.
@@ -135,7 +135,7 @@ interface ExtendedRequestConfig<D = any> extends Omit<RequestInit, 'body'> {
   /**
    * A default response to return if the request fails and the strategy is set to `'defaultResponse'`.
    */
-  defaultResponse?: unknown;
+  defaultResponse?: any;
 
   /**
    * If `true`, flattens the response object, extracting the data directly instead of keeping it nested.
@@ -240,7 +240,7 @@ interface ExtendedRequestConfig<D = any> extends Omit<RequestInit, 'body'> {
 interface BaseRequestHandlerConfig extends RequestConfig {
   fetcher?: FetcherInstance;
   apiUrl?: string;
-  logger?: unknown;
+  logger?: any;
 }
 
 export type RequestConfig = ExtendedRequestConfig;

@@ -110,13 +110,12 @@ function createApiFetcher<
   ): Promise<Response & FetchResponse<Response>> {
     // Use global per-endpoint settings
     const endpointConfig = endpoints[endpointName as string];
-    const endpointSettings = { ...endpointConfig };
 
     const responseData = await requestHandler.request<Response>(
-      endpointSettings.url,
+      endpointConfig.url,
       data,
       {
-        ...endpointSettings,
+        ...(endpointConfig || {}),
         ...requestConfig,
         urlPathParams,
       },

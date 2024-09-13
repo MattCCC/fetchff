@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type {
-  ErrorHandlingStrategy,
   RequestHandlerConfig,
   RequestConfig,
   FetcherInstance,
@@ -8,7 +7,6 @@ import type {
   RetryOptions,
   FetchResponse,
   ResponseError,
-  HeadersObject,
 } from './types/request-handler';
 import type {
   APIResponse,
@@ -23,10 +21,13 @@ import {
   isJSONSerializable,
   replaceUrlPathParams,
   delayInvocation,
+  flattenData,
+  processHeaders,
+  deleteProperty,
 } from './utils';
 import { addRequest, removeRequest } from './queue-manager';
-
-const APPLICATION_JSON = 'application/json';
+import { APPLICATION_JSON, CONTENT_TYPE } from './const';
+import { parseResponseData } from './response-parser';
 
 /**
  * Generic Request Handler
@@ -35,70 +36,50 @@ const APPLICATION_JSON = 'application/json';
  */
 export class RequestHandler {
   public requestInstance: FetcherInstance;
-  public baseURL: string = '';
-  public timeout: number = 30000;
-  public strategy: ErrorHandlingStrategy = 'reject';
-  public method: Method | string = 'get';
-  public flattenResponse: boolean = false;
-  public defaultResponse: any = null;
-  protected fetcher: FetcherInstance;
-  protected logger: any;
-  protected retry: RetryOptions = {
-    retries: 0,
-    delay: 1000,
-    maxDelay: 30000,
-    resetTimeout: true,
-    backoff: 1.5,
-
-    // https://developer.mozilla.org/en-US/docs/Web/HTTP/Status
-    retryOn: [
-      408, // Request Timeout
-      409, // Conflict
-      425, // Too Early
-      429, // Too Many Requests
-      500, // Internal Server Error
-      502, // Bad Gateway
-      503, // Service Unavailable
-      504, // Gateway Timeout
-    ],
-
-    shouldRetry: async () => true,
-  };
   public config: RequestHandlerConfig = {};
 
-  public constructor({
-    fetcher = null,
-    defaultResponse = {},
-    logger = null,
-    strategy,
-    flattenResponse,
-    timeout,
-    ...config
-  }: RequestHandlerConfig) {
-    this.fetcher = fetcher;
-    this.timeout =
-      timeout !== null && timeout !== undefined ? timeout : this.timeout;
-    this.strategy = strategy || this.strategy;
-    this.flattenResponse = flattenResponse || this.flattenResponse;
-    this.defaultResponse = defaultResponse;
-    this.logger = logger || null;
-    this.baseURL = config.baseURL || config.apiUrl || '';
-    this.method = config.method || this.method;
+  public constructor(config: RequestHandlerConfig) {
     this.config = {
+      method: 'GET',
+      strategy: 'reject',
+      timeout: 30000,
       rejectCancelled: false,
       dedupeTime: 1000,
+      withCredentials: false,
+      flattenResponse: false,
+      defaultResponse: null,
+      logger: null,
+      fetcher: null,
+      baseURL: config.apiUrl || '',
+      retry: {
+        retries: 0,
+        delay: 1000,
+        maxDelay: 30000,
+        resetTimeout: true,
+        backoff: 1.5,
+
+        // https://developer.mozilla.org/en-US/docs/Web/HTTP/Status
+        retryOn: [
+          408, // Request Timeout
+          409, // Conflict
+          425, // Too Early
+          429, // Too Many Requests
+          500, // Internal Server Error
+          502, // Bad Gateway
+          503, // Service Unavailable
+          504, // Gateway Timeout
+        ],
+
+        shouldRetry: async () => true,
+      },
       ...config,
-    };
-    this.retry = {
-      ...this.retry,
-      ...(config.retry || {}),
     };
 
     this.requestInstance = this.isCustomFetcher()
-      ? (fetcher as any).create({
+      ? (this.config.fetcher as any).create({
           ...config,
-          baseURL: this.baseURL,
-          timeout: this.timeout,
+          baseURL: this.config.baseURL,
+          timeout: this.config.timeout,
         })
       : null;
   }
@@ -125,7 +106,9 @@ export class RequestHandler {
     data: QueryParamsOrBody,
     config: RequestConfig,
   ): RequestConfig {
-    const method = (config.method || this.method).toUpperCase() as Method;
+    const method = (
+      config.method || (this.config.method as string)
+    ).toUpperCase() as Method;
     const isGetAlikeMethod = method === 'GET' || method === 'HEAD';
 
     const dynamicUrl = replaceUrlPathParams(
@@ -167,20 +150,24 @@ export class RequestHandler {
     }
 
     // Native fetch
-    const credentials =
-      config.withCredentials || this.config.withCredentials
-        ? 'include'
-        : config.credentials;
+    const isWithCredentials =
+      typeof config.withCredentials !== 'undefined'
+        ? config.withCredentials
+        : this.config.withCredentials;
 
-    delete config.data;
-    delete config.withCredentials;
+    const credentials = isWithCredentials
+      ? 'include'
+      : config.credentials || undefined;
+
+    deleteProperty(config, 'data');
+    deleteProperty(config, 'withCredentials');
 
     const urlPath =
       explicitParams || shouldTreatDataAsParams
         ? appendQueryParams(dynamicUrl, explicitParams || (data as QueryParams))
         : dynamicUrl;
     const isFullUrl = urlPath.includes('://');
-    const baseURL = isFullUrl ? '' : config.baseURL || this.baseURL;
+    const baseURL = isFullUrl ? '' : config.baseURL || this.config.baseURL;
 
     // Automatically stringify request body, if possible and when not dealing with strings
     if (
@@ -203,8 +190,9 @@ export class RequestHandler {
       // Add sensible defaults
       headers: {
         Accept: APPLICATION_JSON + ', text/plain, */*',
-        'Content-Type': APPLICATION_JSON + ';charset=utf-8',
-        ...(config.headers || this.config.headers || {}),
+        [CONTENT_TYPE]: APPLICATION_JSON + ';charset=utf-8',
+        ...(this.config.headers || {}),
+        ...(config.headers || {}),
       },
     };
   }
@@ -224,8 +212,8 @@ export class RequestHandler {
       return;
     }
 
-    if (this.logger?.warn) {
-      this.logger.warn('API ERROR', error);
+    if (this.config.logger?.warn) {
+      this.config.logger.warn('API ERROR', error);
     }
 
     // Invoke per request "onError" interceptor
@@ -253,7 +241,8 @@ export class RequestHandler {
     requestConfig: RequestConfig,
   ): Promise<any> {
     const isRequestCancelled = this.isRequestCancelled(error);
-    const errorHandlingStrategy = requestConfig.strategy || this.strategy;
+    const errorHandlingStrategy =
+      requestConfig.strategy || this.config.strategy;
     const rejectCancelled =
       typeof requestConfig.rejectCancelled !== 'undefined'
         ? requestConfig.rejectCancelled
@@ -290,7 +279,7 @@ export class RequestHandler {
    * @returns {boolean}                        True if it's a custom fetcher
    */
   protected isCustomFetcher(): boolean {
-    return this.fetcher !== null;
+    return this.config.fetcher !== null;
   }
 
   /**
@@ -314,7 +303,7 @@ export class RequestHandler {
     const timeout =
       typeof _requestConfig.timeout !== 'undefined'
         ? _requestConfig.timeout
-        : this.timeout;
+        : (this.config.timeout as number);
     const isCancellable =
       typeof _requestConfig.cancellable !== 'undefined'
         ? _requestConfig.cancellable
@@ -333,7 +322,7 @@ export class RequestHandler {
       maxDelay,
       resetTimeout,
     } = {
-      ...this.retry,
+      ...this.config.retry,
       ...(_requestConfig?.retry || {}),
     } as Required<RetryOptions>;
 
@@ -374,14 +363,14 @@ export class RequestHandler {
             requestConfig,
           )) as FetchResponse<ResponseData>;
         } else {
-          response = (await globalThis.fetch(
+          response = (await fetch(
             requestConfig.url as string,
             requestConfig as RequestInit,
           )) as FetchResponse<ResponseData>;
 
           // Add more information to response object
           response.config = requestConfig;
-          response.data = await this.parseData(response);
+          response.data = await parseResponseData(response);
 
           // Check if the response status is not outside the range 200-299 and if so, output error
           if (!response.ok) {
@@ -403,11 +392,12 @@ export class RequestHandler {
           FetchResponse<ResponseData>;
       } catch (err) {
         const error = err as ResponseError;
+        const status = error?.response?.status || (error as any)?.status || 0;
 
         if (
           attempt === retries ||
           !(await shouldRetry(error, attempt)) ||
-          !retryOn?.includes(error?.response?.status || null)
+          !retryOn?.includes(status)
         ) {
           this.processError(error, _requestConfig);
 
@@ -416,8 +406,8 @@ export class RequestHandler {
           return this.outputErrorResponse(error, response, _requestConfig);
         }
 
-        if (this.logger?.warn) {
-          this.logger.warn(
+        if (this.config.logger?.warn) {
+          this.config.logger.warn(
             `Attempt ${attempt + 1} failed. Retrying in ${waitTime}ms...`,
           );
         }
@@ -432,111 +422,6 @@ export class RequestHandler {
 
     return this.outputResponse(response, _requestConfig) as ResponseData &
       FetchResponse<ResponseData>;
-  }
-
-  /**
-   * Parses the response data based on the Content-Type header.
-   *
-   * @param response - The Response object to parse.
-   * @returns A Promise that resolves to the parsed data.
-   */
-  public async parseData<ResponseData = APIResponse>(
-    response: FetchResponse<ResponseData>,
-  ): Promise<any> {
-    // Bail early when body is empty
-    if (!response?.body) {
-      return null;
-    }
-
-    const contentType = String(
-      (response as Response).headers?.get('Content-Type') || '',
-    ).split(';')[0]; // Correctly handle charset
-
-    let data;
-
-    try {
-      if (
-        contentType.includes(APPLICATION_JSON) ||
-        contentType.includes('+json')
-      ) {
-        data = await response.json(); // Parse JSON response
-      } else if (contentType.includes('multipart/form-data')) {
-        data = await response.formData(); // Parse as FormData
-      } else if (contentType.includes('application/octet-stream')) {
-        data = await response.blob(); // Parse as blob
-      } else if (contentType.includes('application/x-www-form-urlencoded')) {
-        data = await response.formData(); // Handle URL-encoded forms
-      } else if (contentType.includes('text/')) {
-        data = await response.text(); // Parse as text
-      } else {
-        try {
-          const responseClone = response.clone();
-
-          // Handle edge case of no content type being provided... We assume JSON here.
-          data = await responseClone.json();
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        } catch (_e) {
-          // Handle streams
-          data = await response.text();
-        }
-      }
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch (_error) {
-      // Parsing failed, fallback to null
-      data = null;
-    }
-
-    return data;
-  }
-
-  public processHeaders<ResponseData>(
-    response: FetchResponse<ResponseData>,
-  ): HeadersObject {
-    const headers = response.headers;
-
-    if (!headers) {
-      return {};
-    }
-
-    const headersObject: HeadersObject = {};
-
-    // Handle Headers object with entries() method
-    if (headers instanceof Headers) {
-      headers.forEach((value, key) => {
-        headersObject[key] = value;
-      });
-    } else if (typeof headers === 'object' && headers !== null) {
-      // Handle plain object
-      for (const [key, value] of Object.entries(headers)) {
-        // Normalize keys to lowercase as per RFC 2616 4.2
-        // https://datatracker.ietf.org/doc/html/rfc2616#section-4.2
-        headersObject[key.toLowerCase()] = value;
-      }
-    }
-
-    return headersObject;
-  }
-
-  /**
-   * Recursively flattens the data object if it meets specific criteria.
-   *
-   * The method checks if the provided `data` is an object with exactly one property named `data`.
-   * If so, it recursively flattens the `data` property. Otherwise, it returns the `data` as-is.
-   *
-   * @param {any} data - The data to be flattened. Can be of any type, including objects, arrays, or primitives.
-   * @returns {any} - The flattened data if the criteria are met; otherwise, the original `data`.
-   */
-  protected flattenData(data: any): any {
-    if (
-      data &&
-      typeof data === 'object' &&
-      typeof data.data !== 'undefined' &&
-      Object.keys(data).length === 1
-    ) {
-      return this.flattenData(data.data);
-    }
-
-    return data;
   }
 
   /**
@@ -555,11 +440,11 @@ export class RequestHandler {
     const defaultResponse =
       typeof requestConfig.defaultResponse !== 'undefined'
         ? requestConfig.defaultResponse
-        : this.defaultResponse;
+        : this.config.defaultResponse;
     const flattenResponse =
       typeof requestConfig.flattenResponse !== 'undefined'
         ? requestConfig.flattenResponse
-        : this.flattenResponse;
+        : this.config.flattenResponse;
 
     if (!response) {
       return flattenResponse
@@ -573,17 +458,9 @@ export class RequestHandler {
     }
 
     // Clean up the error object
-    if (error?.response) {
-      delete error.response;
-    }
-
-    if (error?.request) {
-      delete error.request;
-    }
-
-    if (error?.config) {
-      delete (error as any).config;
-    }
+    deleteProperty(error, 'response');
+    deleteProperty(error, 'request');
+    deleteProperty(error, 'config');
 
     let data = response?.data;
 
@@ -598,7 +475,7 @@ export class RequestHandler {
 
     // Return flattened response immediately
     if (flattenResponse) {
-      return this.flattenData(data);
+      return flattenData(data);
     }
 
     const isCustomFetcher = this.isCustomFetcher();
@@ -627,7 +504,7 @@ export class RequestHandler {
       // Extend with extra information
       error,
       data,
-      headers: this.processHeaders(response),
+      headers: processHeaders(response.headers),
       config: requestConfig,
     };
   }
