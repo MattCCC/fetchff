@@ -1,9 +1,9 @@
-import type { RequestHandler } from '../request-handler';
 import type {
   RequestConfig,
   FetcherInstance,
   RequestHandlerConfig,
   FetchResponse,
+  RequestHandlerReturnType,
 } from './request-handler';
 
 // Common type definitions
@@ -91,7 +91,7 @@ export type ApiHandlerReturnType<
 export type ApiHandlerMethods<EndpointsMethods> = {
   config: ApiHandlerConfig<EndpointsMethods>;
   endpoints: EndpointsConfig<EndpointsMethods>;
-  requestHandler: RequestHandler;
+  requestHandler: RequestHandlerReturnType;
   getInstance: () => FetcherInstance;
   request: <ResponseData = APIResponse>(
     endpointName: keyof EndpointsMethods | string,

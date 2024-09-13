@@ -1,12 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { RequestHandler } from '../src/request-handler';
+import { createRequestHandler } from '../src/request-handler';
 import fetchMock from 'fetch-mock';
-import { fetchf } from '../src';
 import {
   interceptRequest,
   interceptResponse,
 } from '../src/interceptor-manager';
 import { delayInvocation } from '../src/utils';
+import type { RequestHandlerReturnType } from '../src/types/request-handler';
+import { fetchf } from '../src';
 
 jest.mock('../src/interceptor-manager', () => ({
   interceptRequest: jest.fn().mockImplementation(async (config) => config),
@@ -45,7 +46,7 @@ describe('Request Handler', () => {
   });
 
   it('should get request instance', () => {
-    const requestHandler = new RequestHandler({ fetcher });
+    const requestHandler = createRequestHandler({ fetcher });
 
     const response = requestHandler.getInstance();
 
@@ -53,10 +54,10 @@ describe('Request Handler', () => {
   });
 
   describe('buildConfig() with native fetch()', () => {
-    let requestHandler: RequestHandler | null = null;
+    let requestHandler: RequestHandlerReturnType | null = null;
 
     beforeAll(() => {
-      requestHandler = new RequestHandler({});
+      requestHandler = createRequestHandler({});
     });
 
     const buildConfig = (method: string, url: string, data: any, config: any) =>
@@ -319,12 +320,12 @@ describe('Request Handler', () => {
     });
 
     it('should properly hang promise when using Silent strategy', async () => {
-      const requestHandler = new RequestHandler({
+      const requestHandler = createRequestHandler({
         fetcher,
         strategy: 'silent',
       });
 
-      (requestHandler.requestInstance as any).request = jest
+      (requestHandler.getInstance() as any).request = jest
         .fn()
         .mockRejectedValue(new Error('Request Failed'));
 
@@ -348,12 +349,12 @@ describe('Request Handler', () => {
     });
 
     it('should reject promise when using rejection strategy', async () => {
-      const requestHandler = new RequestHandler({
+      const requestHandler = createRequestHandler({
         fetcher,
         strategy: 'reject',
       });
 
-      (requestHandler.requestInstance as any).request = jest
+      (requestHandler.getInstance() as any).request = jest
         .fn()
         .mockRejectedValue(new Error('Request Failed'));
 
@@ -366,12 +367,12 @@ describe('Request Handler', () => {
     });
 
     it('should reject promise when using reject strategy per endpoint', async () => {
-      const requestHandler = new RequestHandler({
+      const requestHandler = createRequestHandler({
         fetcher,
         strategy: 'silent',
       });
 
-      (requestHandler.requestInstance as any).request = jest
+      (requestHandler.getInstance() as any).request = jest
         .fn()
         .mockRejectedValue(new Error('Request Failed'));
 
@@ -411,7 +412,7 @@ describe('Request Handler', () => {
       };
 
       // Initialize RequestHandler with mock configuration
-      const requestHandler = new RequestHandler({
+      const requestHandler = createRequestHandler({
         baseURL,
         retry: retryConfig,
         logger: mockLogger,
@@ -476,7 +477,7 @@ describe('Request Handler', () => {
         retryOn: [500], // Retry on server errors
         shouldRetry: jest.fn(() => Promise.resolve(true)),
       };
-      const requestHandler = new RequestHandler({
+      const requestHandler = createRequestHandler({
         baseURL,
         retry: retryConfig,
         logger: mockLogger,
@@ -526,7 +527,7 @@ describe('Request Handler', () => {
         retryOn: [500],
         shouldRetry: jest.fn(() => Promise.resolve(true)),
       };
-      const requestHandler = new RequestHandler({
+      const requestHandler = createRequestHandler({
         baseURL,
         retry: retryConfig,
         logger: mockLogger,
@@ -555,7 +556,7 @@ describe('Request Handler', () => {
         retryOn: [500],
         shouldRetry: jest.fn(() => Promise.resolve(true)),
       };
-      const requestHandler = new RequestHandler({
+      const requestHandler = createRequestHandler({
         baseURL,
         retry: retryConfig,
         logger: mockLogger,
@@ -598,7 +599,7 @@ describe('Request Handler', () => {
         retryOn: [500],
         shouldRetry: jest.fn(() => Promise.resolve(false)),
       };
-      const requestHandler = new RequestHandler({
+      const requestHandler = createRequestHandler({
         baseURL,
         retry: retryConfig,
         logger: mockLogger,
@@ -620,10 +621,10 @@ describe('Request Handler', () => {
   });
 
   describe('request() with interceptors', () => {
-    let requestHandler: RequestHandler;
+    let requestHandler: RequestHandlerReturnType;
 
     beforeEach(() => {
-      requestHandler = new RequestHandler({
+      requestHandler = createRequestHandler({
         baseURL: 'https://api.example.com',
         timeout: 5000,
         cancellable: true,
@@ -791,7 +792,7 @@ describe('Request Handler', () => {
     });
 
     it('should properly hang promise when using Silent strategy', async () => {
-      const requestHandler = new RequestHandler({
+      const requestHandler = createRequestHandler({
         strategy: 'silent',
       });
 
@@ -819,7 +820,7 @@ describe('Request Handler', () => {
     });
 
     it('should reject promise when using rejection strategy', async () => {
-      const requestHandler = new RequestHandler({
+      const requestHandler = createRequestHandler({
         strategy: 'reject',
       });
 
@@ -836,7 +837,7 @@ describe('Request Handler', () => {
     });
 
     it('should reject promise when using reject strategy per endpoint', async () => {
-      const requestHandler = new RequestHandler({
+      const requestHandler = createRequestHandler({
         strategy: 'silent',
       });
 
@@ -862,7 +863,7 @@ describe('Request Handler', () => {
     it('should cancel previous request when successive request is made', async () => {
       fetchMock.reset();
 
-      const requestHandler = new RequestHandler({
+      const requestHandler = createRequestHandler({
         cancellable: true,
         rejectCancelled: true,
         flattenResponse: true,
@@ -930,12 +931,12 @@ describe('Request Handler', () => {
 
   describe('outputResponse()', () => {
     it('should show nested data object if flattening is off', async () => {
-      const requestHandler = new RequestHandler({
+      const requestHandler = createRequestHandler({
         fetcher,
         flattenResponse: false,
       });
 
-      (requestHandler.requestInstance as any).request = jest
+      (requestHandler.getInstance() as any).request = jest
         .fn()
         .mockResolvedValue(responseMock);
 
@@ -947,12 +948,12 @@ describe('Request Handler', () => {
     });
 
     it('should handle nested data if data flattening is on', async () => {
-      const requestHandler = new RequestHandler({
+      const requestHandler = createRequestHandler({
         fetcher,
         flattenResponse: true,
       });
 
-      (requestHandler.requestInstance as any).request = jest
+      (requestHandler.getInstance() as any).request = jest
         .fn()
         .mockResolvedValue(responseMock);
 
@@ -964,12 +965,12 @@ describe('Request Handler', () => {
     });
 
     it('should handle deeply nested data if data flattening is on', async () => {
-      const requestHandler = new RequestHandler({
+      const requestHandler = createRequestHandler({
         fetcher,
         flattenResponse: true,
       });
 
-      (requestHandler.requestInstance as any).request = jest
+      (requestHandler.getInstance() as any).request = jest
         .fn()
         .mockResolvedValue({ data: responseMock });
 
@@ -981,13 +982,13 @@ describe('Request Handler', () => {
     });
 
     it('should return null if there is no data', async () => {
-      const requestHandler = new RequestHandler({
+      const requestHandler = createRequestHandler({
         fetcher,
         flattenResponse: true,
         defaultResponse: null,
       });
 
-      (requestHandler.requestInstance as any).request = jest
+      (requestHandler.getInstance() as any).request = jest
         .fn()
         .mockResolvedValue({ data: null });
 

@@ -1,4 +1,3 @@
-import { RequestHandler } from './request-handler';
 import type {
   FetcherInstance,
   RequestConfig,
@@ -12,6 +11,7 @@ import type {
   QueryParamsOrBody,
   UrlPathParams,
 } from './types/api-handler';
+import { createRequestHandler } from './request-handler';
 
 /**
  * Creates an instance of API Handler.
@@ -69,7 +69,7 @@ function createApiFetcher<
   EndpointsCfg = never,
 >(config: ApiHandlerConfig<EndpointsMethods>) {
   const endpoints = config.endpoints;
-  const requestHandler = new RequestHandler(config);
+  const requestHandler = createRequestHandler(config);
 
   /**
    * Get Fetcher Provider Instance

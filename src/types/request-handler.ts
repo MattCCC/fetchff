@@ -1,5 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import type { BodyPayload, QueryParams, UrlPathParams } from './api-handler';
+import type {
+  BodyPayload,
+  QueryParams,
+  QueryParamsOrBody,
+  UrlPathParams,
+} from './api-handler';
 import type {
   RequestInterceptor,
   ResponseInterceptor,
@@ -246,3 +251,18 @@ interface BaseRequestHandlerConfig extends RequestConfig {
 export type RequestConfig = ExtendedRequestConfig;
 
 export type RequestHandlerConfig = BaseRequestHandlerConfig;
+
+export interface RequestHandlerReturnType {
+  config: RequestHandlerConfig;
+  getInstance: () => FetcherInstance;
+  buildConfig: (
+    url: string,
+    data: QueryParamsOrBody,
+    config: RequestConfig,
+  ) => RequestConfig;
+  request: <ResponseData = unknown>(
+    url: string,
+    data?: QueryParamsOrBody,
+    config?: RequestConfig | null,
+  ) => Promise<ResponseData & FetchResponse<ResponseData>>;
+}
