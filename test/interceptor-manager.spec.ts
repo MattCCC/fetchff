@@ -1,12 +1,23 @@
 import { ExtendedResponse } from '../src';
+import type {
+  FetchResponse,
+  RequestHandlerConfig,
+} from '../src/types/request-handler';
 import {
   interceptRequest,
   interceptResponse,
 } from '../src/interceptor-manager';
+import type {
+  RequestInterceptor,
+  ResponseInterceptor,
+} from '../src/types/interceptor-manager';
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type ResponseData = any;
 
 describe('Interceptor Functions', () => {
-  let requestInterceptors = [];
-  let responseInterceptors = [];
+  let requestInterceptors: RequestInterceptor[] = [];
+  let responseInterceptors: ResponseInterceptor[] = [];
 
   beforeEach(() => {
     requestInterceptors = [];
@@ -15,12 +26,12 @@ describe('Interceptor Functions', () => {
 
   it('should apply request interceptors in order', async () => {
     // Define request interceptors
-    const requestInterceptor1 = async (config: RequestInit) => {
+    const requestInterceptor1 = async (config: RequestHandlerConfig) => {
       config.headers = { ...config.headers, Authorization: 'Bearer token' };
       return config;
     };
 
-    const requestInterceptor2 = async (config: RequestInit) => {
+    const requestInterceptor2 = async (config: RequestHandlerConfig) => {
       config.headers = { ...config.headers, 'Custom-Header': 'HeaderValue' };
       return config;
     };
@@ -48,18 +59,22 @@ describe('Interceptor Functions', () => {
 
   it('should apply response interceptors in order', async () => {
     // Define response interceptors
-    const responseInterceptor1 = async (response: Response) => {
+    const responseInterceptor1 = async (
+      response: FetchResponse<ResponseData>,
+    ) => {
       const data = await response.json();
       return new Response(JSON.stringify({ ...data, modified: true }), {
         status: response.status,
-      });
+      }) as FetchResponse<ResponseData>;
     };
 
-    const responseInterceptor2 = async (response: Response) => {
+    const responseInterceptor2 = async (
+      response: FetchResponse<ResponseData>,
+    ) => {
       const data = await response.json();
       return new Response(JSON.stringify({ ...data, furtherModified: true }), {
         status: response.status,
-      });
+      }) as FetchResponse<ResponseData>;
     };
 
     // Register response interceptors directly
@@ -103,7 +118,9 @@ describe('Interceptor Functions', () => {
 
   it('should handle response errors', async () => {
     // Define a response interceptor that throws an error on non-OK response
-    const responseInterceptor = async (response: Response) => {
+    const responseInterceptor = async (
+      response: FetchResponse<ResponseData>,
+    ) => {
       if (!response.ok) {
         throw new Error('Response Error');
       }

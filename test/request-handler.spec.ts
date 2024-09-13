@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import PromiseAny from 'promise-any';
 import { RequestHandler } from '../src/request-handler';
 import fetchMock from 'fetch-mock';
 import { fetchf, FetchResponse } from '../src';
@@ -54,13 +53,13 @@ describe('Request Handler', () => {
   });
 
   describe('buildConfig() with native fetch()', () => {
-    let requestHandler: RequestHandler = null;
+    let requestHandler: RequestHandler | null = null;
 
     beforeAll(() => {
       requestHandler = new RequestHandler({});
     });
 
-    const buildConfig = (method, url, data, config) =>
+    const buildConfig = (method: string, url: string, data: any, config: any) =>
       (requestHandler as any).buildConfig(url, data, {
         ...config,
         method,
@@ -343,7 +342,7 @@ describe('Request Handler', () => {
 
       expect(typeof request.then).toBe('function');
 
-      const response = await PromiseAny([request, timeout]);
+      const response = await Promise.any([request, timeout]);
 
       expect(response).toBe('timeout');
     });
@@ -493,7 +492,7 @@ describe('Request Handler', () => {
         typeof delayInvocation
       >;
 
-      mockDelayInvocation.mockResolvedValue(undefined);
+      mockDelayInvocation.mockResolvedValue(false);
 
       try {
         await requestHandler.request('/endpoint');
@@ -572,7 +571,7 @@ describe('Request Handler', () => {
         typeof delayInvocation
       >;
 
-      mockDelayInvocation.mockResolvedValue(undefined);
+      mockDelayInvocation.mockResolvedValue(false);
 
       try {
         await requestHandler.request('/endpoint');
@@ -814,7 +813,7 @@ describe('Request Handler', () => {
 
       expect(typeof request.then).toBe('function');
 
-      const response = await PromiseAny([request, timeout]);
+      const response = await Promise.any([request, timeout]);
 
       expect(response).toBe('timeout');
     });
@@ -1056,11 +1055,13 @@ describe('Request Handler', () => {
 
     // Test when headers is null or undefined
     it('should return an empty object if headers are null or undefined', () => {
-      const response = { headers: null } as FetchResponse;
+      const response = { headers: null } as unknown as FetchResponse;
       const result = requestHandler.processHeaders(response);
       expect(result).toEqual({});
 
-      const responseUndefined = { headers: undefined } as FetchResponse;
+      const responseUndefined = {
+        headers: undefined,
+      } as unknown as FetchResponse;
       const resultUndefined = requestHandler.processHeaders(responseUndefined);
       expect(resultUndefined).toEqual({});
     });

@@ -331,7 +331,7 @@ describe('Utils', () => {
 
     it('should return the same url if empty array is propagated', () => {
       const url = 'https://api.example.com/resource';
-      const params = [];
+      const params: [] = [];
       const result = appendQueryParams(url, params);
 
       expect(result).toBe(url);

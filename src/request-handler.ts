@@ -68,11 +68,11 @@ export class RequestHandler {
 
   public constructor({
     fetcher = null,
-    timeout = null,
-    strategy = null,
-    flattenResponse = null,
     defaultResponse = {},
     logger = null,
+    strategy,
+    flattenResponse,
+    timeout,
     ...config
   }: RequestHandlerConfig) {
     this.fetcher = fetcher;
@@ -130,7 +130,7 @@ export class RequestHandler {
 
     const dynamicUrl = replaceUrlPathParams(
       url,
-      config.urlPathParams || this.config.urlPathParams,
+      config.urlPathParams || this.config.urlPathParams || null,
     );
 
     // The explicitly passed "params"
@@ -249,7 +249,7 @@ export class RequestHandler {
    */
   protected async outputErrorResponse(
     error: ResponseError,
-    response: FetchResponse,
+    response: FetchResponse | null,
     requestConfig: RequestConfig,
   ): Promise<any> {
     const isRequestCancelled = this.isRequestCancelled(error);
@@ -305,9 +305,9 @@ export class RequestHandler {
   public async request<ResponseData = APIResponse>(
     url: string,
     data: QueryParamsOrBody = null,
-    config: RequestConfig = null,
+    config: RequestConfig | null = null,
   ): Promise<ResponseData & FetchResponse<ResponseData>> {
-    let response: FetchResponse<ResponseData> = null;
+    let response: FetchResponse<ResponseData> | null = null;
     const _config = config || {};
     const _requestConfig = this.buildConfig(url, data, _config);
 
@@ -335,10 +335,10 @@ export class RequestHandler {
     } = {
       ...this.retry,
       ...(_requestConfig?.retry || {}),
-    };
+    } as Required<RetryOptions>;
 
     let attempt = 0;
-    let waitTime = delay;
+    let waitTime: number = delay;
 
     while (attempt <= retries) {
       try {
@@ -375,7 +375,7 @@ export class RequestHandler {
           )) as FetchResponse<ResponseData>;
         } else {
           response = (await globalThis.fetch(
-            requestConfig.url,
+            requestConfig.url as string,
             requestConfig as RequestInit,
           )) as FetchResponse<ResponseData>;
 
@@ -401,11 +401,13 @@ export class RequestHandler {
 
         return this.outputResponse(response, requestConfig) as ResponseData &
           FetchResponse<ResponseData>;
-      } catch (error) {
+      } catch (err) {
+        const error = err as ResponseError;
+
         if (
           attempt === retries ||
           !(await shouldRetry(error, attempt)) ||
-          !retryOn?.includes(error?.response?.status || error?.status)
+          !retryOn?.includes(error?.response?.status || null)
         ) {
           this.processError(error, _requestConfig);
 
@@ -546,9 +548,9 @@ export class RequestHandler {
    * @returns {ResponseData | FetchResponse<ResponseData>} Response data
    */
   protected outputResponse<ResponseData = APIResponse>(
-    response: FetchResponse<ResponseData>,
+    response: FetchResponse<ResponseData> | null,
     requestConfig: RequestConfig,
-    error = null,
+    error: ResponseError<ResponseData> | null = null,
   ): ResponseData | FetchResponse<ResponseData> {
     const defaultResponse =
       typeof requestConfig.defaultResponse !== 'undefined'
@@ -571,10 +573,16 @@ export class RequestHandler {
     }
 
     // Clean up the error object
-    if (error !== null) {
-      delete error?.response;
-      delete error?.request;
-      delete error?.config;
+    if (error?.response) {
+      delete error.response;
+    }
+
+    if (error?.request) {
+      delete error.request;
+    }
+
+    if (error?.config) {
+      delete (error as any).config;
     }
 
     let data = response?.data;

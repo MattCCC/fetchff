@@ -25,7 +25,7 @@ export function appendQueryParams(url: string, params: QueryParams): string {
   }
 
   // This is exact copy of what JQ used to do. It works much better than URLSearchParams
-  const s = [];
+  const s: string[] = [];
   const add = function (k: string, v: any) {
     v = typeof v === 'function' ? v() : v;
     v = v === null ? '' : v === undefined ? '' : v;

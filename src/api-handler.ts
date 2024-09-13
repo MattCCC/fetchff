@@ -130,13 +130,15 @@ function createApiFetcher<
    *
    * @param {*} prop          Caller
    */
-  function get(prop: string | symbol) {
+  function get(prop: string) {
     if (prop in apiHandler) {
-      return apiHandler[prop];
+      return apiHandler[
+        prop as unknown as keyof ApiHandlerMethods<EndpointsMethods>
+      ];
     }
 
     // Prevent handler from triggering non-existent endpoints
-    if (!endpoints[prop as string]) {
+    if (!endpoints[prop]) {
       return handleNonImplemented.bind(null, prop);
     }
 
@@ -152,7 +154,7 @@ function createApiFetcher<
   };
 
   return new Proxy(apiHandler, {
-    get: (_target, prop) => get(prop),
+    get: (_target, prop: string) => get(prop),
   }) as ApiHandlerReturnType<EndpointsMethods, EndpointsCfg>;
 }
 

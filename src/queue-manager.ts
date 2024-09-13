@@ -22,7 +22,7 @@ export async function withLock<T>(
   key: object,
   fn: () => Promise<T>,
 ): Promise<T> {
-  let release: () => void;
+  let release: () => void = () => {};
   const lock = new Promise<void>((resolve) => (release = resolve));
 
   // Wait for existing locks to be released

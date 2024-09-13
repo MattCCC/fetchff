@@ -45,7 +45,7 @@ export interface HeadersObject {
 
 export interface ExtendedResponse<T = any> extends Omit<Response, 'headers'> {
   data: T;
-  error: ResponseError<T>;
+  error: ResponseError<T> | null;
   headers: HeadersObject & HeadersInit;
   config: ExtendedRequestConfig;
   request?: ExtendedRequestConfig;
@@ -105,7 +105,7 @@ export interface RetryOptions {
    *   504, // Gateway Timeout
    * ]
    */
-  retryOn: number[];
+  retryOn: (number | null)[];
 
   /**
    * A function to determine whether to retry based on the error and attempt number.

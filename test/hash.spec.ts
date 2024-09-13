@@ -80,8 +80,8 @@ describe('hashFromConfig function', () => {
 });
 
 describe('hashFromConfig with cache', () => {
-  let hashCacheGetSpy;
-  let hashCacheSetSpy;
+  let hashCacheGetSpy: unknown;
+  let hashCacheSetSpy: unknown;
 
   beforeEach(() => {
     // Reset spies before each test
