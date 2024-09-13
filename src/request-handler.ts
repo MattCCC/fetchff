@@ -173,7 +173,7 @@ function createRequestHandler(
 
     const credentials = isWithCredentials
       ? 'include'
-      : reqConfig.credentials || undefined;
+      : reqConfig.credentials || handlerConfig.credentials || undefined;
 
     deleteProperty(reqConfig, 'data');
     deleteProperty(reqConfig, 'withCredentials');
@@ -305,19 +305,19 @@ function createRequestHandler(
   ): Promise<ResponseData & FetchResponse<ResponseData>> => {
     let response: FetchResponse<ResponseData> | null = null;
     const _reqConfig = reqConfig || {};
-    const _requestConfig = buildConfig(url, data, _reqConfig);
+    const fetcherConfig = buildConfig(url, data, _reqConfig);
 
     const timeout =
-      typeof _requestConfig.timeout !== 'undefined'
-        ? _requestConfig.timeout
+      typeof fetcherConfig.timeout !== 'undefined'
+        ? fetcherConfig.timeout
         : (handlerConfig.timeout as number);
     const isCancellable =
-      typeof _requestConfig.cancellable !== 'undefined'
-        ? _requestConfig.cancellable
+      typeof fetcherConfig.cancellable !== 'undefined'
+        ? fetcherConfig.cancellable
         : handlerConfig.cancellable;
     const dedupeTime =
-      typeof _requestConfig.dedupeTime !== 'undefined'
-        ? _requestConfig.dedupeTime
+      typeof fetcherConfig.dedupeTime !== 'undefined'
+        ? fetcherConfig.dedupeTime
         : handlerConfig.dedupeTime;
 
     const {
@@ -330,7 +330,7 @@ function createRequestHandler(
       resetTimeout,
     } = {
       ...handlerConfig.retry,
-      ...(_requestConfig?.retry || {}),
+      ...(fetcherConfig?.retry || {}),
     } as Required<RetryOptions>;
 
     let attempt = 0;
@@ -340,7 +340,7 @@ function createRequestHandler(
       try {
         // Add the request to the queue. Make sure to handle deduplication, cancellation, timeouts in accordance to retry settings
         const controller = await addRequest(
-          _requestConfig,
+          fetcherConfig,
           timeout,
           dedupeTime,
           isCancellable,
@@ -350,7 +350,7 @@ function createRequestHandler(
 
         let requestConfig: RequestConfig = {
           signal,
-          ..._requestConfig,
+          ...fetcherConfig,
         };
 
         // Local interceptors
@@ -406,11 +406,11 @@ function createRequestHandler(
           !(await shouldRetry(error, attempt)) ||
           !retryOn?.includes(status)
         ) {
-          processError(error, _requestConfig);
+          processError(error, fetcherConfig);
 
-          removeRequest(_requestConfig);
+          removeRequest(fetcherConfig);
 
-          return outputErrorResponse(error, response, _requestConfig);
+          return outputErrorResponse(error, response, fetcherConfig);
         }
 
         if (handlerConfig.logger?.warn) {
@@ -427,7 +427,7 @@ function createRequestHandler(
       }
     }
 
-    return outputResponse(response, _requestConfig) as ResponseData &
+    return outputResponse(response, fetcherConfig) as ResponseData &
       FetchResponse<ResponseData>;
   };
 
