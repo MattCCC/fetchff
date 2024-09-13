@@ -5,7 +5,7 @@
 [npm-url]: https://npmjs.org/package/fetchff
 [npm-image]: http://img.shields.io/npm/v/fetchff.svg
 
-[![NPM version][npm-image]][npm-url] [![Blazing Fast](https://badgen.now.sh/badge/speed/blazing%20%F0%9F%94%A5/green)](https://github.com/MattCCC/fetchff) [![Code Coverage](https://badgen.now.sh/badge/coverage/92.53/blue)](https://github.com/MattCCC/fetchff) [![npm downloads](https://img.shields.io/npm/dm/fetchff.svg?style=flat-square)](http://npm-stat.com/charts.html?package=fetchff) [![gzip size](https://img.shields.io/bundlephobia/minzip/fetchff)](https://bundlephobia.com/result?p=fetchff)
+[![NPM version][npm-image]][npm-url] [![Blazing Fast](https://badgen.now.sh/badge/speed/blazing%20%F0%9F%94%A5/green)](https://github.com/MattCCC/fetchff) [![Code Coverage](https://badgen.now.sh/badge/coverage/97.68%/blue)](https://github.com/MattCCC/fetchff) [![npm downloads](https://img.shields.io/npm/dm/fetchff.svg?style=flat-square)](http://npm-stat.com/charts.html?package=fetchff) [![gzip size](https://img.shields.io/bundlephobia/minzip/fetchff)](https://bundlephobia.com/result?p=fetchff)
 
 ## Why?
 
@@ -24,6 +24,7 @@ Managing multiple API endpoints can be complex and time-consuming. `fetchff` sim
 - **100% Performance-Oriented**: Optimized for speed and efficiency, ensuring fast and reliable API interactions.
 - **Fully TypeScript Compatible**: Enjoy full TypeScript support for better development experience and type safety.
 - **Smart Error Retry**: Features exponential backoff for intelligent error handling and retry mechanisms.
+- **Automatic Request Deduplication**: Set the time during which requests are deduplicated (treated as same request).
 - **Dynamic URLs Support**: Easily manage routes with dynamic parameters, such as `/user/:userId`.
 - **Native `fetch()` Support**: Uses the modern `fetch()` API by default, eliminating the need for libraries like Axios.
 - **Global and Per Request Error Handling**: Flexible error management at both global and individual request levels.
@@ -503,8 +504,10 @@ Check Examples section below for more information.
 | Feature                                 | fetchff      | ofetch       | wretch       | axios        | native fetch() |
 | --------------------------------------- | ------------ | ------------ | ------------ | ------------ | -------------- |
 | **Unified API Client**                  | ✅           | --           | --           | --           | --             |
+| **Automatic Request Deduplication**     | ✅           | --           | --           | --           | --             |
 | **Customizable Error Handling**         | ✅           | --           | ✅           | ✅           | --             |
 | **Retries with exponential backoff**    | ✅           | --           | --           | --           | --             |
+| **Custokm Retry logic**                 | ✅           | ✅           | ✅           | --           | --             |
 | **Easy Timeouts**                       | ✅           | ✅           | ✅           | ✅           | --             |
 | **Easy Cancellation**                   | ✅           | --           | --           | --           | --             |
 | **Default Responses**                   | ✅           | --           | --           | --           | --             |
@@ -530,9 +533,7 @@ fetchf includes all necessary [TypeScript](http://typescriptlang.org) definition
 ### Example of interfaces
 
 ```typescript
-import type { DefaultEndpoints } from 'fetchff';
-import { createApiFetcher } from 'fetchff';
-
+// books.d.ts
 interface Book {
   id: number;
   title: string;
@@ -551,6 +552,12 @@ interface BookQueryParams {
 interface BookPathParams {
   bookId?: number;
 }
+```
+
+```typescript
+// api.ts
+import type { DefaultEndpoints } from 'fetchff';
+import { createApiFetcher } from 'fetchff';
 
 const endpoints = {
   fetchBooks: {
@@ -561,7 +568,7 @@ const endpoints = {
   },
 };
 
-// Note how you don't need to specify all endpoints for typings here. The "fetchBooks" is inferred
+// No need to specify all endpoints types. For example, the "fetchBooks" is inferred automatically.
 interface EndpointsList {
   fetchBook: Endpoint<Book, BookQueryParams, BookPathParams>;
 }
@@ -570,8 +577,9 @@ const api = createApiFetcher<EndpointsList, typeof endpoints>({
   apiUrl: 'https://example.com/api/',
   endpoints,
 });
+```
 
-// Fetch book
+```typescript
 const book = await api.fetchBook({ newBook: true }, { bookId: 1 });
 
 // Will return an error since "rating" does not exist in "BookQueryParams"
