@@ -20,7 +20,7 @@ jobs:
           node-version: ${{ matrix.node }}
 
       - name: Install deps
-        run: npm i
+        run: npm ci
 
       - name: Lint
         run: npm run lint
