@@ -344,7 +344,8 @@ function createRequestHandler(
           timeout,
           dedupeTime,
           isCancellable,
-          resetTimeout,
+          // Reset timeouts by default or when retries are ON
+          timeout > 0 && (!retries || resetTimeout),
         );
         const signal = controller.signal;
 
@@ -394,6 +395,8 @@ function createRequestHandler(
 
         // Global interceptors
         response = await interceptResponse(response, handlerConfig?.onResponse);
+
+        removeRequest(fetcherConfig);
 
         return outputResponse(response, requestConfig) as ResponseData &
           FetchResponse<ResponseData>;

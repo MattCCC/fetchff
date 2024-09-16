@@ -21,7 +21,7 @@ import { createRequestHandler } from './request-handler';
  * @param {string} config.apiUrl - The base URL for the API.
  * @param {Object} config.endpoints - An object containing endpoint definitions.
  * @param {number} config.timeout - You can set the timeout for particular request in milliseconds.
- * @param {number} config.cancellable - If true, the previous requests will be automatically cancelled.
+ * @param {number} config.cancellable - If true, the ongoing previous requests will be automatically cancelled.
  * @param {number} config.rejectCancelled - If true and request is set to cancellable, a cancelled request promise will be rejected. By default, instead of rejecting the promise, defaultResponse is returned.
  * @param {number} config.timeout - Request timeout
  * @param {string} config.strategy - Error Handling Strategy

@@ -148,12 +148,14 @@ interface ExtendedRequestConfig<D = any> extends Omit<RequestInit, 'body'> {
   flattenResponse?: boolean;
 
   /**
-   * If `true`, allows the request to be cancellable using an `AbortController`.
+   * If true, the ongoing previous requests will be automatically cancelled.
+   * @default false
    */
   cancellable?: boolean;
 
   /**
    * If `true`, rejects the request promise when the request is cancelled.
+   * @default false
    */
   rejectCancelled?: boolean;
 
@@ -175,6 +177,7 @@ interface ExtendedRequestConfig<D = any> extends Omit<RequestInit, 'body'> {
 
   /**
    * The HTTP method to use for the request (e.g., 'GET', 'POST', etc.).
+   * @default GET
    */
   method?: Method | string;
 
@@ -236,7 +239,6 @@ interface ExtendedRequestConfig<D = any> extends Omit<RequestInit, 'body'> {
 
   /**
    * Time window, in miliseconds, during which identical requests are deduplicated (treated as single request).
-   *
    * @default 1000 (1 second)
    */
   dedupeTime?: number;

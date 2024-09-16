@@ -6,4 +6,5 @@ export interface QueueItem {
   controller: AbortController;
   timeoutId?: NodeJS.Timeout | null;
   timestamp: number;
+  isCancellable: boolean;
 }
