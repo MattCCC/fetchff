@@ -97,6 +97,7 @@ describe('Request Handler', () => {
         method: 'GET',
         headers: {
           Accept: 'application/json, text/plain, */*',
+          'Accept-Encoding': 'gzip, deflate, br',
           'Content-Type': 'application/json;charset=utf-8',
         },
       });
@@ -115,6 +116,7 @@ describe('Request Handler', () => {
         method: 'POST',
         headers: {
           Accept: 'application/json, text/plain, */*',
+          'Accept-Encoding': 'gzip, deflate, br',
           'Content-Type': 'application/json;charset=utf-8',
         },
         body: JSON.stringify({ foo: 'bar' }),
@@ -134,6 +136,7 @@ describe('Request Handler', () => {
         method: 'PUT',
         headers: {
           Accept: 'application/json, text/plain, */*',
+          'Accept-Encoding': 'gzip, deflate, br',
           'Content-Type': 'application/json;charset=utf-8',
         },
         body: JSON.stringify({ foo: 'bar' }),
@@ -153,6 +156,7 @@ describe('Request Handler', () => {
         method: 'DELETE',
         headers: {
           Accept: 'application/json, text/plain, */*',
+          'Accept-Encoding': 'gzip, deflate, br',
           'Content-Type': 'application/json;charset=utf-8',
         },
         body: JSON.stringify({ foo: 'bar' }),
@@ -175,6 +179,7 @@ describe('Request Handler', () => {
         method: 'POST',
         headers: {
           Accept: 'application/json, text/plain, */*',
+          'Accept-Encoding': 'gzip, deflate, br',
           'Content-Type': 'application/json;charset=utf-8',
           Authorization: 'Bearer token',
         },
@@ -190,6 +195,7 @@ describe('Request Handler', () => {
         method: 'POST',
         headers: {
           Accept: 'application/json, text/plain, */*',
+          'Accept-Encoding': 'gzip, deflate, br',
           'Content-Type': 'application/json;charset=utf-8',
         },
         body: null,
@@ -209,6 +215,7 @@ describe('Request Handler', () => {
         method: 'POST',
         headers: {
           Accept: 'application/json, text/plain, */*',
+          'Accept-Encoding': 'gzip, deflate, br',
           'Content-Type': 'application/json;charset=utf-8',
         },
         body: 'rawData',
@@ -228,6 +235,7 @@ describe('Request Handler', () => {
         method: 'HEAD',
         headers: {
           Accept: 'application/json, text/plain, */*',
+          'Accept-Encoding': 'gzip, deflate, br',
           'Content-Type': 'application/json;charset=utf-8',
         },
       });
@@ -246,6 +254,7 @@ describe('Request Handler', () => {
         method: 'POST',
         headers: {
           Accept: 'application/json, text/plain, */*',
+          'Accept-Encoding': 'gzip, deflate, br',
           'Content-Type': 'application/json;charset=utf-8',
         },
         body: JSON.stringify({ additional: 'info' }),
@@ -262,6 +271,7 @@ describe('Request Handler', () => {
         method: 'POST',
         headers: {
           Accept: 'application/json, text/plain, */*',
+          'Accept-Encoding': 'gzip, deflate, br',
           'Content-Type': 'application/json;charset=utf-8',
         },
         credentials: 'include',
@@ -284,6 +294,7 @@ describe('Request Handler', () => {
         method: 'POST',
         headers: {
           Accept: 'application/json, text/plain, */*',
+          'Accept-Encoding': 'gzip, deflate, br',
           'Content-Type': 'application/json;charset=utf-8',
         },
         body: JSON.stringify({ foo: 'bar' }),
@@ -303,6 +314,7 @@ describe('Request Handler', () => {
         method: 'GET',
         headers: {
           Accept: 'application/json, text/plain, */*',
+          'Accept-Encoding': 'gzip, deflate, br',
           'Content-Type': 'application/json;charset=utf-8',
         },
       });
