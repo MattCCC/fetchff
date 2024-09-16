@@ -5,7 +5,7 @@ coverage
 test
 node_modules
 package
-scripts
+docs
 
 CODE_OF_CONDUCT.md
 SECURITY.md
@@ -17,6 +17,7 @@ SECURITY.md
 tsconfig.json
 eslint.config.mjs
 jest.config.js
+.prettierignore
 
 .DS_Store
 src

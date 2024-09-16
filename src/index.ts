@@ -1,4 +1,4 @@
-import { RequestHandler } from './request-handler';
+import { createRequestHandler } from './request-handler';
 import type { APIResponse, FetchResponse, RequestHandlerConfig } from './types';
 
 /**
@@ -13,7 +13,7 @@ export async function fetchf<ResponseData = APIResponse>(
   url: string,
   config: RequestHandlerConfig = {},
 ): Promise<ResponseData & FetchResponse<ResponseData>> {
-  return new RequestHandler(config).request<ResponseData>(url, null, config);
+  return createRequestHandler(config).request<ResponseData>(url, null, config);
 }
 
 export * from './types';

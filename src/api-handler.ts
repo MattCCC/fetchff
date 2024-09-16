@@ -1,4 +1,3 @@
-import { RequestHandler } from './request-handler';
 import type {
   FetcherInstance,
   RequestConfig,
@@ -12,6 +11,7 @@ import type {
   QueryParamsOrBody,
   UrlPathParams,
 } from './types/api-handler';
+import { createRequestHandler } from './request-handler';
 
 /**
  * Creates an instance of API Handler.
@@ -21,7 +21,7 @@ import type {
  * @param {string} config.apiUrl - The base URL for the API.
  * @param {Object} config.endpoints - An object containing endpoint definitions.
  * @param {number} config.timeout - You can set the timeout for particular request in milliseconds.
- * @param {number} config.cancellable - If true, the previous requests will be automatically cancelled.
+ * @param {number} config.cancellable - If true, the ongoing previous requests will be automatically cancelled.
  * @param {number} config.rejectCancelled - If true and request is set to cancellable, a cancelled request promise will be rejected. By default, instead of rejecting the promise, defaultResponse is returned.
  * @param {number} config.timeout - Request timeout
  * @param {string} config.strategy - Error Handling Strategy
@@ -69,7 +69,7 @@ function createApiFetcher<
   EndpointsCfg = never,
 >(config: ApiHandlerConfig<EndpointsMethods>) {
   const endpoints = config.endpoints;
-  const requestHandler = new RequestHandler(config);
+  const requestHandler = createRequestHandler(config);
 
   /**
    * Get Fetcher Provider Instance
@@ -110,13 +110,12 @@ function createApiFetcher<
   ): Promise<Response & FetchResponse<Response>> {
     // Use global per-endpoint settings
     const endpointConfig = endpoints[endpointName as string];
-    const endpointSettings = { ...endpointConfig };
 
     const responseData = await requestHandler.request<Response>(
-      endpointSettings.url,
+      endpointConfig.url,
       data,
       {
-        ...endpointSettings,
+        ...(endpointConfig || {}),
         ...requestConfig,
         urlPathParams,
       },
@@ -130,13 +129,15 @@ function createApiFetcher<
    *
    * @param {*} prop          Caller
    */
-  function get(prop: string | symbol) {
+  function get(prop: string) {
     if (prop in apiHandler) {
-      return apiHandler[prop];
+      return apiHandler[
+        prop as unknown as keyof ApiHandlerMethods<EndpointsMethods>
+      ];
     }
 
     // Prevent handler from triggering non-existent endpoints
-    if (!endpoints[prop as string]) {
+    if (!endpoints[prop]) {
       return handleNonImplemented.bind(null, prop);
     }
 
@@ -152,7 +153,7 @@ function createApiFetcher<
   };
 
   return new Proxy(apiHandler, {
-    get: (_target, prop) => get(prop),
+    get: (_target, prop: string) => get(prop),
   }) as ApiHandlerReturnType<EndpointsMethods, EndpointsCfg>;
 }
 

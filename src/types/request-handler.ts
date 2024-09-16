@@ -1,5 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import type { BodyPayload, QueryParams, UrlPathParams } from './api-handler';
+import type {
+  BodyPayload,
+  QueryParams,
+  QueryParamsOrBody,
+  UrlPathParams,
+} from './api-handler';
 import type {
   RequestInterceptor,
   ResponseInterceptor,
@@ -45,7 +50,7 @@ export interface HeadersObject {
 
 export interface ExtendedResponse<T = any> extends Omit<Response, 'headers'> {
   data: T;
-  error: ResponseError<T>;
+  error: ResponseError<T> | null;
   headers: HeadersObject & HeadersInit;
   config: ExtendedRequestConfig;
   request?: ExtendedRequestConfig;
@@ -105,7 +110,7 @@ export interface RetryOptions {
    *   504, // Gateway Timeout
    * ]
    */
-  retryOn: number[];
+  retryOn?: number[];
 
   /**
    * A function to determine whether to retry based on the error and attempt number.
@@ -135,7 +140,7 @@ interface ExtendedRequestConfig<D = any> extends Omit<RequestInit, 'body'> {
   /**
    * A default response to return if the request fails and the strategy is set to `'defaultResponse'`.
    */
-  defaultResponse?: unknown;
+  defaultResponse?: any;
 
   /**
    * If `true`, flattens the response object, extracting the data directly instead of keeping it nested.
@@ -143,12 +148,14 @@ interface ExtendedRequestConfig<D = any> extends Omit<RequestInit, 'body'> {
   flattenResponse?: boolean;
 
   /**
-   * If `true`, allows the request to be cancellable using an `AbortController`.
+   * If true, the ongoing previous requests will be automatically cancelled.
+   * @default false
    */
   cancellable?: boolean;
 
   /**
    * If `true`, rejects the request promise when the request is cancelled.
+   * @default false
    */
   rejectCancelled?: boolean;
 
@@ -170,6 +177,7 @@ interface ExtendedRequestConfig<D = any> extends Omit<RequestInit, 'body'> {
 
   /**
    * The HTTP method to use for the request (e.g., 'GET', 'POST', etc.).
+   * @default GET
    */
   method?: Method | string;
 
@@ -231,7 +239,6 @@ interface ExtendedRequestConfig<D = any> extends Omit<RequestInit, 'body'> {
 
   /**
    * Time window, in miliseconds, during which identical requests are deduplicated (treated as single request).
-   *
    * @default 1000 (1 second)
    */
   dedupeTime?: number;
@@ -240,9 +247,24 @@ interface ExtendedRequestConfig<D = any> extends Omit<RequestInit, 'body'> {
 interface BaseRequestHandlerConfig extends RequestConfig {
   fetcher?: FetcherInstance;
   apiUrl?: string;
-  logger?: unknown;
+  logger?: any;
 }
 
 export type RequestConfig = ExtendedRequestConfig;
 
 export type RequestHandlerConfig = BaseRequestHandlerConfig;
+
+export interface RequestHandlerReturnType {
+  config: RequestHandlerConfig;
+  getInstance: () => FetcherInstance;
+  buildConfig: (
+    url: string,
+    data: QueryParamsOrBody,
+    config: RequestConfig,
+  ) => RequestConfig;
+  request: <ResponseData = unknown>(
+    url: string,
+    data?: QueryParamsOrBody,
+    config?: RequestConfig | null,
+  ) => Promise<ResponseData & FetchResponse<ResponseData>>;
+}

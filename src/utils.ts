@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import type { QueryParams, UrlPathParams } from './types';
+import type { HeadersObject, QueryParams, UrlPathParams } from './types';
 
 /**
  * Appends query parameters to a given URL.
@@ -25,7 +25,7 @@ export function appendQueryParams(url: string, params: QueryParams): string {
   }
 
   // This is exact copy of what JQ used to do. It works much better than URLSearchParams
-  const s = [];
+  const s: string[] = [];
   const add = function (k: string, v: any) {
     v = typeof v === 'function' ? v() : v;
     v = v === null ? '' : v === undefined ? '' : v;
@@ -160,4 +160,77 @@ export async function delayInvocation(ms: number): Promise<boolean> {
       return resolve(true);
     }, ms),
   );
+}
+
+/**
+ * Recursively flattens the data object if it meets specific criteria.
+ *
+ * The method checks if the provided `data` is an object with exactly one property named `data`.
+ * If so, it recursively flattens the `data` property. Otherwise, it returns the `data` as-is.
+ *
+ * @param {any} data - The data to be flattened. Can be of any type, including objects, arrays, or primitives.
+ * @returns {any} - The flattened data if the criteria are met; otherwise, the original `data`.
+ */
+export function flattenData(data: any): any {
+  if (
+    data &&
+    typeof data === 'object' &&
+    typeof data.data !== 'undefined' &&
+    Object.keys(data).length === 1
+  ) {
+    return flattenData(data.data);
+  }
+
+  return data;
+}
+
+/**
+ * Processes headers and returns them as a normalized object.
+ *
+ * Handles both `Headers` instances and plain objects. Normalizes header keys to lowercase
+ * as per RFC 2616 section 4.2.
+ *
+ * @param headers - The headers to process. Can be an instance of `Headers`, a plain object,
+ *                   or `null`. If `null`, an empty object is returned.
+ * @returns {HeadersObject} - A normalized headers object with lowercase keys.
+ */
+export function processHeaders(
+  headers?: (HeadersObject & HeadersInit) | null | Headers,
+): HeadersObject {
+  if (!headers) {
+    return {};
+  }
+
+  const headersObject: HeadersObject = {};
+
+  // Handle Headers object with entries() method
+  if (headers instanceof Headers) {
+    headers.forEach((value, key) => {
+      headersObject[key] = value;
+    });
+  } else if (typeof headers === 'object' && headers !== null) {
+    // Handle plain object
+    for (const [key, value] of Object.entries(headers)) {
+      // Normalize keys to lowercase as per RFC 2616 4.2
+      // https://datatracker.ietf.org/doc/html/rfc2616#section-4.2
+      headersObject[key.toLowerCase()] = value;
+    }
+  }
+
+  return headersObject;
+}
+
+/**
+ * Deletes a property from an object if it exists.
+ *
+ * @param obj - The object from which to delete the property.
+ * @param property - The property to delete from the object.
+ */
+export function deleteProperty<T extends Record<string, any>>(
+  obj: T | null,
+  property: keyof T,
+): void {
+  if (obj && property in obj) {
+    delete obj[property];
+  }
 }
