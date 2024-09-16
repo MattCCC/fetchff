@@ -12,7 +12,7 @@ import type {
  */
 export async function interceptRequest(
   config: RequestHandlerConfig,
-  interceptors: RequestInterceptor | RequestInterceptor[],
+  interceptors?: RequestInterceptor | RequestInterceptor[],
 ): Promise<RequestHandlerConfig> {
   if (!interceptors) {
     return config;
@@ -39,7 +39,7 @@ export async function interceptRequest(
  */
 export async function interceptResponse<ResponseData = unknown>(
   response: FetchResponse<ResponseData>,
-  interceptors: ResponseInterceptor | ResponseInterceptor[],
+  interceptors?: ResponseInterceptor | ResponseInterceptor[],
 ): Promise<FetchResponse<ResponseData>> {
   if (!interceptors) {
     return response;

@@ -9,36 +9,7 @@ import type { QueueItem, RequestsQueue } from './types/queue-manager';
  * - Concurrency Control and Locking
  * - Request Lifecycle Management
  */
-const queue: RequestsQueue = new WeakMap<RequestConfig, QueueItem>();
-const locks = new WeakMap<object, Promise<void>>();
-
-/**
- * Ensures that the operation on the queue is performed atomically.
- *
- * @param fn - The function to be executed with lock.
- * @returns {Promise<void>} - A promise that resolves when the operation is complete.
- */
-export async function withLock<T>(
-  key: object,
-  fn: () => Promise<T>,
-): Promise<T> {
-  let release: () => void;
-  const lock = new Promise<void>((resolve) => (release = resolve));
-
-  // Wait for existing locks to be released
-  if (locks.has(key)) {
-    await locks.get(key);
-  }
-
-  locks.set(key, lock);
-
-  try {
-    return await fn();
-  } finally {
-    release();
-    locks.delete(key);
-  }
-}
+const queue: RequestsQueue = new Map<RequestConfig, QueueItem>();
 
 /**
  * Adds a request to the queue if it's not already being processed within the dedupeTime interval.
@@ -47,7 +18,7 @@ export async function withLock<T>(
  * @param {number} timeout - Timeout in milliseconds for the request.
  * @param {number} dedupeTime - Deduplication time in milliseconds.
  * @param {boolean} isCancellable - If true, then the previous request with same configuration should be aborted.
- * @param {boolean} resetTimeout - Whether to reset the timeout.
+ * @param {boolean} isTimeoutEnabled - Whether timeout is enabled.
  * @returns {Promise<AbortController>} - A promise that resolves to an AbortController.
  */
 export async function addRequest(
@@ -55,66 +26,74 @@ export async function addRequest(
   timeout: number,
   dedupeTime: number = 0,
   isCancellable: boolean = false,
-  resetTimeout: boolean = false,
+  isTimeoutEnabled: boolean = true,
 ): Promise<AbortController> {
-  return withLock(config, async () => {
-    const now = Date.now();
-    const existingItem = queue.get(config);
+  const now = Date.now();
+  const item = queue.get(config);
 
-    if (existingItem) {
-      // If the request is already in the queue and within the dedupeTime, reuse the existing controller
-      if (now - existingItem.timestamp < dedupeTime) {
-        return existingItem.controller;
-      }
-
-      // Abort previous request, if applicable, and continue as usual
-      if (isCancellable) {
-        existingItem.controller.abort();
-      }
-
-      // If the request is too old, remove it and proceed to add a new one
-      removeRequest(config);
+  if (item) {
+    // If the request is already in the queue and within the dedupeTime, reuse the existing controller
+    if (!item.isCancellable && now - item.timestamp < dedupeTime) {
+      return item.controller;
     }
 
-    // Create a new AbortController and add the request to the queue
-    const controller = new AbortController();
+    // If the request is too old, remove it and proceed to add a new one
+    // Abort previous request, if applicable, and continue as usual
+    if (item.isCancellable) {
+      item.controller.abort(
+        new DOMException('Aborted due to new request', 'AbortError'),
+      );
+    }
 
-    // Set up a timeout to automatically abort the request if it exceeds the specified time.
-    const timeoutId =
-      // Timeout might be already set and we may not want to reset it, so do not create it when "resetTimeout" is set to "true"
-      timeout > 0 && !resetTimeout
-        ? setTimeout(() => {
-            const error = new Error(`${config.url} aborted due to timeout`);
-            error.name = 'TimeoutError';
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (error as any).code = 23; // DOMException.TIMEOUT_ERR
+    if (item.timeoutId !== null) {
+      clearTimeout(item.timeoutId);
+    }
 
-            controller.abort(error);
-            removeRequest(config);
-          }, timeout)
-        : null;
+    queue.delete(config);
+  }
 
-    queue.set(config, { controller, timeoutId, timestamp: now });
-    return controller;
-  });
+  const controller = new AbortController();
+
+  const timeoutId = isTimeoutEnabled
+    ? setTimeout(() => {
+        const error = new DOMException(
+          `${config.url} aborted due to timeout`,
+          'TimeoutError',
+        );
+
+        removeRequest(config, error);
+      }, timeout)
+    : null;
+
+  queue.set(config, { controller, timeoutId, timestamp: now, isCancellable });
+
+  return controller;
 }
 
 /**
  * Removes a request from the queue and clears its timeout.
  *
  * @param config - The request configuration.
+ * @param {boolean} error - Error payload so to force the request to abort.
  */
-export async function removeRequest(config: RequestConfig): Promise<void> {
-  await withLock(config, async () => {
-    const item = queue.get(config);
+export async function removeRequest(
+  config: RequestConfig,
+  error: DOMException | null | string = null,
+): Promise<void> {
+  const item = queue.get(config);
 
-    if (item) {
-      if (item.timeoutId !== null) {
-        clearTimeout(item.timeoutId);
-      }
-      queue.delete(config);
+  if (item) {
+    // If the request is not yet aborted, abort it with the provided error
+    if (error && !item.controller.signal.aborted) {
+      item.controller.abort(error);
     }
-  });
+
+    if (item.timeoutId !== null) {
+      clearTimeout(item.timeoutId);
+    }
+
+    queue.delete(config);
+  }
 }
 
 /**
@@ -126,12 +105,7 @@ export async function removeRequest(config: RequestConfig): Promise<void> {
 export async function getController(
   config: RequestConfig,
 ): Promise<AbortController | undefined> {
-  let controller: AbortController | undefined;
+  const item = queue.get(config);
 
-  await withLock(config, async () => {
-    const item = queue.get(config);
-    controller = item?.controller;
-  });
-
-  return controller;
+  return item?.controller;
 }

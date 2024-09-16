@@ -4,6 +4,7 @@ export type RequestsQueue = WeakMap<RequestConfig, QueueItem>;
 
 export interface QueueItem {
   controller: AbortController;
-  timeoutId?: NodeJS.Timeout;
+  timeoutId?: NodeJS.Timeout | null;
   timestamp: number;
+  isCancellable: boolean;
 }

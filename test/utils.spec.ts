@@ -3,6 +3,7 @@ import {
   replaceUrlPathParams,
   appendQueryParams,
   delayInvocation,
+  processHeaders,
 } from '../src/utils';
 
 jest.mock('../src/interceptor-manager', () => ({
@@ -331,7 +332,7 @@ describe('Utils', () => {
 
     it('should return the same url if empty array is propagated', () => {
       const url = 'https://api.example.com/resource';
-      const params = [];
+      const params: [] = [];
       const result = appendQueryParams(url, params);
 
       expect(result).toBe(url);
@@ -391,6 +392,48 @@ describe('Utils', () => {
       // Await the promise and check the result
       const result = await promise;
       expect(result).toBe(true);
+    });
+  });
+
+  describe('processHeaders()', () => {
+    it('should return an empty object if headers are null or undefined', () => {
+      const result = processHeaders(null);
+      expect(result).toEqual({});
+
+      const resultUndefined = processHeaders(undefined);
+      expect(resultUndefined).toEqual({});
+    });
+
+    it('should convert Headers object to a plain object', () => {
+      const headers = new Headers();
+      headers.append('Content-Type', 'application/json');
+      headers.append('Authorization', 'Bearer token');
+
+      const result = processHeaders(headers);
+
+      expect(result).toEqual({
+        'content-type': 'application/json',
+        authorization: 'Bearer token',
+      });
+    });
+
+    it('should handle plain object headers', () => {
+      const result = processHeaders({
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer token',
+      });
+
+      expect(result).toEqual({
+        'content-type': 'application/json',
+        authorization: 'Bearer token',
+      });
+    });
+
+    it('should handle an empty Headers object', () => {
+      const headers = new Headers(); // Empty Headers
+      const result = processHeaders(headers);
+
+      expect(result).toEqual({});
     });
   });
 });
