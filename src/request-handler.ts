@@ -206,6 +206,7 @@ function createRequestHandler(
       // Add sensible defaults
       headers: {
         Accept: APPLICATION_JSON + ', text/plain, */*',
+        'Accept-Encoding': 'gzip, deflate, br',
         [CONTENT_TYPE]: APPLICATION_JSON + ';charset=utf-8',
         ...(handlerConfig.headers || {}),
         ...(reqConfig.headers || {}),
