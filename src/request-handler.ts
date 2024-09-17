@@ -89,16 +89,10 @@ function createRequestHandler(
     ...config,
   };
 
-  const customFetcher = handlerConfig.fetcher;
-
   /**
-   * Detects if a custom fetcher is utilized
-   *
-   * @returns {boolean}                        True if it's a custom fetcher
+   * Immediately create instance of custom fetcher if it is defined
    */
-  const isCustomFetcher = (): boolean => {
-    return customFetcher !== null;
-  };
+  const customFetcher = handlerConfig.fetcher;
 
   const requestInstance =
     customFetcher?.create({
@@ -116,6 +110,13 @@ function createRequestHandler(
     return requestInstance;
   };
 
+  /**
+   * Gets a configuration value from `reqConfig`, defaulting to `handlerConfig` if not present.
+   *
+   * @param {RequestConfig} reqConfig - Request configuration object.
+   * @param {keyof RequestConfig} name - Key of the configuration value.
+   * @returns {T} - The configuration value.
+   */
   const getConfig = <T = unknown>(
     reqConfig: RequestConfig,
     name: keyof RequestConfig,
@@ -125,6 +126,11 @@ function createRequestHandler(
       : handlerConfig[name];
   };
 
+  /**
+   * Logs messages or errors using the configured logger's `warn` method.
+   *
+   * @param {...(string | ResponseError<any>)} args - Messages or errors to log.
+   */
   const logger = (...args: (string | ResponseError<any>)[]): void => {
     if (handlerConfig.logger?.warn) {
       handlerConfig.logger.warn(...args);
@@ -176,19 +182,7 @@ function createRequestHandler(
       body = explicitBodyData || (data as BodyPayload);
     }
 
-    if (isCustomFetcher()) {
-      return {
-        ...reqConfig,
-        method,
-        url: dynamicUrl,
-        params: shouldTreatDataAsParams
-          ? (data as QueryParams)
-          : explicitParams,
-        data: body,
-      };
-    }
-
-    // Native fetch
+    // Native fetch compatible settings
     const isWithCredentials = getConfig<boolean>(reqConfig, 'withCredentials');
 
     const credentials = isWithCredentials
@@ -377,7 +371,7 @@ function createRequestHandler(
           handlerConfig?.onRequest,
         );
 
-        if (isCustomFetcher() && requestInstance !== null) {
+        if (customFetcher !== null && requestInstance !== null) {
           response = await requestInstance.request(requestConfig);
         } else {
           response = (await fetch(
