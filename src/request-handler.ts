@@ -488,19 +488,15 @@ function createRequestHandler(
       return flattenData(data);
     }
 
-    if (isCustomFetcher()) {
+    // If it's a custom fetcher, and it does not return any Response instance, it may have its own internal handler
+    if (isCustomFetcher() && !(response instanceof Response)) {
       return response;
     }
 
+    // Native fetch Response extended by extra information
     return {
-      // Native fetch()
       body: response.body,
-      blob: response.blob,
-      json: response.json,
-      text: response.text,
-      clone: response.clone,
       bodyUsed: response.bodyUsed,
-      arrayBuffer: response.arrayBuffer,
       formData: response.formData,
       ok: response.ok,
       redirected: response.redirected,
@@ -508,6 +504,12 @@ function createRequestHandler(
       url: response.url,
       status: response.status,
       statusText: response.statusText,
+
+      blob: response.blob.bind(response),
+      json: response.json.bind(response),
+      text: response.text.bind(response),
+      clone: response.clone.bind(response),
+      arrayBuffer: response.arrayBuffer.bind(response),
 
       // Extend with extra information
       error,
