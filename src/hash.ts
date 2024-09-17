@@ -1,3 +1,4 @@
+import { UNDEFINED } from './const';
 import { RequestConfig } from './types';
 
 // Garbage collected hash cache table
@@ -56,7 +57,7 @@ export function hash(input: string): string {
 export function hashFromConfig(requestConfig: RequestConfig): string {
   let key = hashCache.get(requestConfig);
 
-  if (typeof key === 'undefined') {
+  if (typeof key === UNDEFINED) {
     const keyString = JSON.stringify(requestConfig);
 
     key = hash(keyString);

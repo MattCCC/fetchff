@@ -25,13 +25,22 @@ import {
   flattenData,
   processHeaders,
   deleteProperty,
+  isSearchParams,
 } from './utils';
 import { addRequest, removeRequest } from './queue-manager';
-import { APPLICATION_JSON, CONTENT_TYPE } from './const';
+import {
+  ABORT_ERROR,
+  APPLICATION_JSON,
+  CANCELLED_ERROR,
+  CONTENT_TYPE,
+  GET,
+  HEAD,
+  UNDEFINED,
+} from './const';
 import { parseResponseData } from './response-parser';
 
 const defaultConfig: RequestHandlerConfig = {
-  method: 'GET',
+  method: GET,
   strategy: 'reject',
   timeout: 30000,
   rejectCancelled: false,
@@ -106,6 +115,21 @@ function createRequestHandler(
     return requestInstance;
   };
 
+  const getConfig = <T = unknown>(
+    reqConfig: RequestConfig,
+    name: keyof RequestConfig,
+  ): T => {
+    return typeof reqConfig[name] !== UNDEFINED
+      ? reqConfig[name]
+      : handlerConfig[name];
+  };
+
+  const logger = (...args: (string | ResponseError<any>)[]): void => {
+    if (handlerConfig.logger?.warn) {
+      handlerConfig.logger.warn(...args);
+    }
+  };
+
   /**
    * Build request configuration
    *
@@ -119,25 +143,23 @@ function createRequestHandler(
     data: QueryParamsOrBody,
     reqConfig: RequestConfig,
   ): RequestConfig => {
-    const method = (
-      reqConfig.method || (handlerConfig.method as string)
+    const method = getConfig<string>(
+      reqConfig,
+      'method',
     ).toUpperCase() as Method;
-    const isGetAlikeMethod = method === 'GET' || method === 'HEAD';
+    const isGetAlikeMethod = method === GET || method === HEAD;
 
     const dynamicUrl = replaceUrlPathParams(
       url,
-      reqConfig.urlPathParams || handlerConfig.urlPathParams || null,
+      getConfig(reqConfig, 'urlPathParams'),
     );
 
     // The explicitly passed "params"
-    const explicitParams = reqConfig.params || handlerConfig.params;
+    const explicitParams = getConfig<QueryParams>(reqConfig, 'params');
 
     // The explicitly passed "body" or "data"
-    const explicitBodyData =
-      reqConfig.body ||
-      reqConfig.data ||
-      handlerConfig.body ||
-      handlerConfig.data;
+    const explicitBodyData: BodyPayload =
+      getConfig(reqConfig, 'body') || getConfig(reqConfig, 'data');
 
     // For convenience, in POST requests the body payload is the "data"
     // In edge cases we want to use Query Params in the POST requests
@@ -166,14 +188,11 @@ function createRequestHandler(
     }
 
     // Native fetch
-    const isWithCredentials =
-      typeof reqConfig.withCredentials !== 'undefined'
-        ? reqConfig.withCredentials
-        : handlerConfig.withCredentials;
+    const isWithCredentials = getConfig<boolean>(reqConfig, 'withCredentials');
 
     const credentials = isWithCredentials
       ? 'include'
-      : reqConfig.credentials || handlerConfig.credentials || undefined;
+      : getConfig<RequestCredentials>(reqConfig, 'credentials');
 
     deleteProperty(reqConfig, 'data');
     deleteProperty(reqConfig, 'withCredentials');
@@ -183,13 +202,13 @@ function createRequestHandler(
         ? appendQueryParams(dynamicUrl, explicitParams || (data as QueryParams))
         : dynamicUrl;
     const isFullUrl = urlPath.includes('://');
-    const baseURL = isFullUrl ? '' : reqConfig.baseURL || handlerConfig.baseURL;
+    const baseURL = isFullUrl ? '' : getConfig<string>(reqConfig, 'baseURL');
 
     // Automatically stringify request body, if possible and when not dealing with strings
     if (
       body &&
       typeof body !== 'string' &&
-      !(body instanceof URLSearchParams) &&
+      !isSearchParams(body) &&
       isJSONSerializable(body)
     ) {
       body = JSON.stringify(body);
@@ -229,9 +248,7 @@ function createRequestHandler(
       return;
     }
 
-    if (handlerConfig.logger?.warn) {
-      handlerConfig.logger.warn('API ERROR', error);
-    }
+    logger('API ERROR', error);
 
     // Invoke per request "onError" interceptor
     if (requestConfig.onError) {
@@ -258,12 +275,11 @@ function createRequestHandler(
     requestConfig: RequestConfig,
   ): Promise<any> => {
     const _isRequestCancelled = isRequestCancelled(error);
-    const errorHandlingStrategy =
-      requestConfig.strategy || handlerConfig.strategy;
-    const rejectCancelled =
-      typeof requestConfig.rejectCancelled !== 'undefined'
-        ? requestConfig.rejectCancelled
-        : handlerConfig.rejectCancelled;
+    const errorHandlingStrategy = getConfig<string>(requestConfig, 'strategy');
+    const rejectCancelled = getConfig<boolean>(
+      requestConfig,
+      'rejectCancelled',
+    );
 
     // By default cancelled requests aren't rejected (softFail strategy)
     if (!(_isRequestCancelled && !rejectCancelled)) {
@@ -287,7 +303,7 @@ function createRequestHandler(
    * @returns {boolean}                        True if request is aborted
    */
   const isRequestCancelled = (error: ResponseError): boolean => {
-    return error.name === 'AbortError' || error.name === 'CanceledError';
+    return error.name === ABORT_ERROR || error.name === CANCELLED_ERROR;
   };
 
   /**
@@ -308,18 +324,9 @@ function createRequestHandler(
     const _reqConfig = reqConfig || {};
     const fetcherConfig = buildConfig(url, data, _reqConfig);
 
-    const timeout =
-      typeof fetcherConfig.timeout !== 'undefined'
-        ? fetcherConfig.timeout
-        : (handlerConfig.timeout as number);
-    const isCancellable =
-      typeof fetcherConfig.cancellable !== 'undefined'
-        ? fetcherConfig.cancellable
-        : handlerConfig.cancellable;
-    const dedupeTime =
-      typeof fetcherConfig.dedupeTime !== 'undefined'
-        ? fetcherConfig.dedupeTime
-        : handlerConfig.dedupeTime;
+    const timeout = getConfig<number>(fetcherConfig, 'timeout');
+    const isCancellable = getConfig<boolean>(fetcherConfig, 'cancellable');
+    const dedupeTime = getConfig<number>(fetcherConfig, 'dedupeTime');
 
     const {
       retries,
@@ -417,11 +424,7 @@ function createRequestHandler(
           return outputErrorResponse(error, response, fetcherConfig);
         }
 
-        if (handlerConfig.logger?.warn) {
-          handlerConfig.logger.warn(
-            `Attempt ${attempt + 1} failed. Retrying in ${waitTime}ms...`,
-          );
-        }
+        logger(`Attempt ${attempt + 1} failed. Retrying in ${waitTime}ms...`);
 
         await delayInvocation(waitTime);
 
@@ -448,14 +451,11 @@ function createRequestHandler(
     requestConfig: RequestConfig,
     error: ResponseError<ResponseData> | null = null,
   ): ResponseData | FetchResponse<ResponseData> => {
-    const defaultResponse =
-      typeof requestConfig.defaultResponse !== 'undefined'
-        ? requestConfig.defaultResponse
-        : handlerConfig.defaultResponse;
-    const flattenResponse =
-      typeof requestConfig.flattenResponse !== 'undefined'
-        ? requestConfig.flattenResponse
-        : handlerConfig.flattenResponse;
+    const defaultResponse = getConfig<any>(requestConfig, 'defaultResponse');
+    const flattenResponse = getConfig<boolean>(
+      requestConfig,
+      'flattenResponse',
+    );
 
     if (!response) {
       return flattenResponse
