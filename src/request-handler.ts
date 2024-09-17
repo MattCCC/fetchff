@@ -408,8 +408,8 @@ function createRequestHandler(
         return outputResponse(response, requestConfig) as ResponseData &
           FetchResponse<ResponseData>;
       } catch (err) {
-        const error = err as ResponseError;
-        const status = error?.response?.status || (error as any)?.status || 0;
+        const error = err as ResponseErr;
+        const status = error?.response?.status || error?.status || 0;
 
         if (
           attempt === retries ||
