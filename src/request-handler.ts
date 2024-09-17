@@ -89,23 +89,23 @@ function createRequestHandler(
     ...config,
   };
 
+  const customFetcher = handlerConfig.fetcher;
+
   /**
    * Detects if a custom fetcher is utilized
    *
    * @returns {boolean}                        True if it's a custom fetcher
    */
   const isCustomFetcher = (): boolean => {
-    return handlerConfig.fetcher !== null;
+    return customFetcher !== null;
   };
 
   const requestInstance =
-    handlerConfig.fetcher && typeof handlerConfig.fetcher.create !== UNDEFINED
-      ? handlerConfig.fetcher.create({
-          ...config,
-          baseURL: handlerConfig.baseURL,
-          timeout: handlerConfig.timeout,
-        })
-      : null;
+    customFetcher?.create({
+      ...config,
+      baseURL: handlerConfig.baseURL,
+      timeout: handlerConfig.timeout,
+    }) || null;
 
   /**
    * Get Provider Instance
@@ -489,7 +489,7 @@ function createRequestHandler(
     }
 
     // If it's a custom fetcher, and it does not return any Response instance, it may have its own internal handler
-    if (isCustomFetcher() && !(response instanceof Response)) {
+    if (!(response instanceof Response)) {
       return response;
     }
 
