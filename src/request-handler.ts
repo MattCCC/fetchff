@@ -245,11 +245,9 @@ function createRequestHandler(
     error: ResponseError,
     requestConfig: RequestConfig,
   ): void => {
-    if (isRequestCancelled(error)) {
-      return;
+    if (!isRequestCancelled(error)) {
+      logger('API ERROR', error);
     }
-
-    logger('API ERROR', error);
 
     // Invoke per request "onError" interceptor
     if (requestConfig.onError) {
