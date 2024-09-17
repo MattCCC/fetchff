@@ -386,8 +386,10 @@ function createRequestHandler(
             requestConfig.url as string,
             requestConfig as RequestInit,
           )) as FetchResponse<ResponseData>;
+        }
 
-          // Add more information to response object
+        // Add more information to response object
+        if (response instanceof Response) {
           response.config = requestConfig;
           response.data = await parseResponseData(response);
 
