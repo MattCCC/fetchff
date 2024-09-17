@@ -360,10 +360,10 @@ function createRequestHandler(
           // Reset timeouts by default or when retries are ON
           timeout > 0 && (!retries || resetTimeout),
         );
-        const signal = controller.signal;
 
+        // Shallow copy to ensure basic idempotency
         let requestConfig: RequestConfig = {
-          signal,
+          signal: controller.signal,
           ...fetcherConfig,
         };
 
