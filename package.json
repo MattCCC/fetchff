@@ -30,7 +30,7 @@
     "build:browser": "tsup --format esm,iife --out-dir dist/browser --env.NODE_ENV production",
     "build:node": "tsup --format cjs --out-dir dist/node --env.NODE_ENV production",
     "build:cleanup": "rm -f dist/browser/index.d.mts dist/node/index.d.ts && mv dist/browser/index.d.ts dist/index.d.ts",
-    "types-check": "tsc --noEmit",
+    "type-check": "tsc --noEmit",
     "test": "jest --forceExit --coverage --detectOpenHandles",
     "lint": "eslint ./src/**/*.ts ./test/**/*.spec.ts",
     "release": "npm version patch && git push --tags",
