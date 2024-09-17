@@ -337,10 +337,14 @@ function createRequestHandler(
       shouldRetry,
       maxDelay,
       resetTimeout,
-    } = {
-      ...handlerConfig.retry,
-      ...(fetcherConfig?.retry || {}),
-    } as Required<RetryOptions>;
+    } = (
+      fetcherConfig.retry
+        ? {
+            ...handlerConfig.retry,
+            ...fetcherConfig.retry,
+          }
+        : handlerConfig.retry
+    ) as Required<RetryOptions>;
 
     let attempt = 0;
     let waitTime: number = delay;
