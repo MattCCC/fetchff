@@ -34,7 +34,17 @@ export type Method =
 
 export type NativeFetch = typeof fetch;
 
-export type FetcherInstance = unknown | null;
+export interface FetcherInstance {
+  create: <RequestInstance = CreatedCustomFetcherInstance>(
+    config?: BaseRequestHandlerConfig,
+  ) => RequestInstance;
+}
+
+export interface CreatedCustomFetcherInstance {
+  request<ResponseData = any>(
+    requestConfig: RequestConfig,
+  ): FetchResponse<ResponseData> | PromiseLike<FetchResponse<ResponseData>>;
+}
 
 export type ErrorHandlingStrategy =
   | 'reject'
@@ -245,7 +255,7 @@ interface ExtendedRequestConfig<D = any> extends Omit<RequestInit, 'body'> {
 }
 
 interface BaseRequestHandlerConfig extends RequestConfig {
-  fetcher?: FetcherInstance;
+  fetcher?: FetcherInstance | null;
   apiUrl?: string;
   logger?: any;
 }
@@ -256,7 +266,7 @@ export type RequestHandlerConfig = BaseRequestHandlerConfig;
 
 export interface RequestHandlerReturnType {
   config: RequestHandlerConfig;
-  getInstance: () => FetcherInstance;
+  getInstance: () => CreatedCustomFetcherInstance | null;
   buildConfig: (
     url: string,
     data: QueryParamsOrBody,

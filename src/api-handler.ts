@@ -1,7 +1,7 @@
 import type {
-  FetcherInstance,
   RequestConfig,
   FetchResponse,
+  CreatedCustomFetcherInstance,
 } from './types/request-handler';
 import type {
   ApiHandlerConfig,
@@ -74,11 +74,11 @@ function createApiFetcher<
   const requestHandler = createRequestHandler(config);
 
   /**
-   * Get Fetcher Provider Instance
+   * Get Custom Fetcher Provider Instance
    *
-   * @returns {FetcherInstance} Request Handler's Fetcher instance
+   * @returns {CreatedCustomFetcherInstance | null} Request Handler's Custom Fetcher Instance
    */
-  function getInstance(): FetcherInstance {
+  function getInstance(): CreatedCustomFetcherInstance | null {
     return requestHandler.getInstance();
   }
 

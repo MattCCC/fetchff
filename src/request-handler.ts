@@ -2,12 +2,12 @@
 import type {
   RequestHandlerConfig,
   RequestConfig,
-  FetcherInstance,
   Method,
   RetryOptions,
   FetchResponse,
   ResponseError,
   RequestHandlerReturnType,
+  CreatedCustomFetcherInstance,
 } from './types/request-handler';
 import type {
   APIResponse,
@@ -98,20 +98,21 @@ function createRequestHandler(
     return handlerConfig.fetcher !== null;
   };
 
-  const requestInstance = isCustomFetcher()
-    ? (handlerConfig.fetcher as any).create({
-        ...config,
-        baseURL: handlerConfig.baseURL,
-        timeout: handlerConfig.timeout,
-      })
-    : null;
+  const requestInstance =
+    handlerConfig.fetcher && typeof handlerConfig.fetcher.create !== UNDEFINED
+      ? handlerConfig.fetcher.create({
+          ...config,
+          baseURL: handlerConfig.baseURL,
+          timeout: handlerConfig.timeout,
+        })
+      : null;
 
   /**
    * Get Provider Instance
    *
-   * @returns {FetcherInstance} Provider's instance
+   * @returns {CreatedCustomFetcherInstance | null} Provider's instance
    */
-  const getInstance = (): FetcherInstance => {
+  const getInstance = (): CreatedCustomFetcherInstance | null => {
     return requestInstance;
   };
 
@@ -374,10 +375,8 @@ function createRequestHandler(
           handlerConfig?.onRequest,
         );
 
-        if (isCustomFetcher()) {
-          response = (await (requestInstance as any).request(
-            requestConfig,
-          )) as FetchResponse<ResponseData>;
+        if (isCustomFetcher() && requestInstance !== null) {
+          response = await requestInstance.request(requestConfig);
         } else {
           response = (await fetch(
             requestConfig.url as string,
