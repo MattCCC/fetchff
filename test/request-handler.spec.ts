@@ -8,6 +8,7 @@ import {
 import { delayInvocation } from '../src/utils';
 import type { RequestHandlerReturnType } from '../src/types/request-handler';
 import { fetchf } from '../src';
+import { ABORT_ERROR } from '../src/const';
 
 jest.mock('../src/interceptor-manager', () => ({
   interceptRequest: jest.fn().mockImplementation(async (config) => config),
@@ -884,7 +885,7 @@ describe('Request Handler', () => {
       fetchMock.mock(
         'https://example.com/first',
         new Promise((_resolve, reject) => {
-          reject(new DOMException('The operation was aborted.', 'AbortError'));
+          reject(new DOMException('The operation was aborted.', ABORT_ERROR));
         }),
       );
 
@@ -909,7 +910,7 @@ describe('Request Handler', () => {
 
       const abortedError = new DOMException(
         'The operation was aborted.',
-        'AbortError',
+        ABORT_ERROR,
       );
 
       fetchMock.mock(

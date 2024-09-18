@@ -2,12 +2,12 @@
 import type {
   RequestHandlerConfig,
   RequestConfig,
-  FetcherInstance,
   Method,
   RetryOptions,
   FetchResponse,
   ResponseError,
   RequestHandlerReturnType,
+  CreatedCustomFetcherInstance,
 } from './types/request-handler';
 import type {
   APIResponse,
@@ -25,13 +25,22 @@ import {
   flattenData,
   processHeaders,
   deleteProperty,
+  isSearchParams,
 } from './utils';
 import { addRequest, removeRequest } from './queue-manager';
-import { APPLICATION_JSON, CONTENT_TYPE } from './const';
+import {
+  ABORT_ERROR,
+  APPLICATION_JSON,
+  CANCELLED_ERROR,
+  CONTENT_TYPE,
+  GET,
+  HEAD,
+  UNDEFINED,
+} from './const';
 import { parseResponseData } from './response-parser';
 
 const defaultConfig: RequestHandlerConfig = {
-  method: 'GET',
+  method: GET,
   strategy: 'reject',
   timeout: 30000,
   rejectCancelled: false,
@@ -81,29 +90,51 @@ function createRequestHandler(
   };
 
   /**
-   * Detects if a custom fetcher is utilized
-   *
-   * @returns {boolean}                        True if it's a custom fetcher
+   * Immediately create instance of custom fetcher if it is defined
    */
-  const isCustomFetcher = (): boolean => {
-    return handlerConfig.fetcher !== null;
-  };
+  const customFetcher = handlerConfig.fetcher;
 
-  const requestInstance = isCustomFetcher()
-    ? (handlerConfig.fetcher as any).create({
-        ...config,
-        baseURL: handlerConfig.baseURL,
-        timeout: handlerConfig.timeout,
-      })
-    : null;
+  const requestInstance =
+    customFetcher?.create({
+      ...config,
+      baseURL: handlerConfig.baseURL,
+      timeout: handlerConfig.timeout,
+    }) || null;
 
   /**
    * Get Provider Instance
    *
-   * @returns {FetcherInstance} Provider's instance
+   * @returns {CreatedCustomFetcherInstance | null} Provider's instance
    */
-  const getInstance = (): FetcherInstance => {
+  const getInstance = (): CreatedCustomFetcherInstance | null => {
     return requestInstance;
+  };
+
+  /**
+   * Gets a configuration value from `reqConfig`, defaulting to `handlerConfig` if not present.
+   *
+   * @param {RequestConfig} reqConfig - Request configuration object.
+   * @param {keyof RequestConfig} name - Key of the configuration value.
+   * @returns {T} - The configuration value.
+   */
+  const getConfig = <T = unknown>(
+    reqConfig: RequestConfig,
+    name: keyof RequestConfig,
+  ): T => {
+    return typeof reqConfig[name] !== UNDEFINED
+      ? reqConfig[name]
+      : handlerConfig[name];
+  };
+
+  /**
+   * Logs messages or errors using the configured logger's `warn` method.
+   *
+   * @param {...(string | ResponseError<any>)} args - Messages or errors to log.
+   */
+  const logger = (...args: (string | ResponseError<any>)[]): void => {
+    if (handlerConfig.logger?.warn) {
+      handlerConfig.logger.warn(...args);
+    }
   };
 
   /**
@@ -119,25 +150,23 @@ function createRequestHandler(
     data: QueryParamsOrBody,
     reqConfig: RequestConfig,
   ): RequestConfig => {
-    const method = (
-      reqConfig.method || (handlerConfig.method as string)
+    const method = getConfig<string>(
+      reqConfig,
+      'method',
     ).toUpperCase() as Method;
-    const isGetAlikeMethod = method === 'GET' || method === 'HEAD';
+    const isGetAlikeMethod = method === GET || method === HEAD;
 
     const dynamicUrl = replaceUrlPathParams(
       url,
-      reqConfig.urlPathParams || handlerConfig.urlPathParams || null,
+      getConfig(reqConfig, 'urlPathParams'),
     );
 
     // The explicitly passed "params"
-    const explicitParams = reqConfig.params || handlerConfig.params;
+    const explicitParams = getConfig<QueryParams>(reqConfig, 'params');
 
     // The explicitly passed "body" or "data"
-    const explicitBodyData =
-      reqConfig.body ||
-      reqConfig.data ||
-      handlerConfig.body ||
-      handlerConfig.data;
+    const explicitBodyData: BodyPayload =
+      getConfig(reqConfig, 'body') || getConfig(reqConfig, 'data');
 
     // For convenience, in POST requests the body payload is the "data"
     // In edge cases we want to use Query Params in the POST requests
@@ -153,27 +182,12 @@ function createRequestHandler(
       body = explicitBodyData || (data as BodyPayload);
     }
 
-    if (isCustomFetcher()) {
-      return {
-        ...reqConfig,
-        method,
-        url: dynamicUrl,
-        params: shouldTreatDataAsParams
-          ? (data as QueryParams)
-          : explicitParams,
-        data: body,
-      };
-    }
-
-    // Native fetch
-    const isWithCredentials =
-      typeof reqConfig.withCredentials !== 'undefined'
-        ? reqConfig.withCredentials
-        : handlerConfig.withCredentials;
+    // Native fetch compatible settings
+    const isWithCredentials = getConfig<boolean>(reqConfig, 'withCredentials');
 
     const credentials = isWithCredentials
       ? 'include'
-      : reqConfig.credentials || handlerConfig.credentials || undefined;
+      : getConfig<RequestCredentials>(reqConfig, 'credentials');
 
     deleteProperty(reqConfig, 'data');
     deleteProperty(reqConfig, 'withCredentials');
@@ -183,13 +197,13 @@ function createRequestHandler(
         ? appendQueryParams(dynamicUrl, explicitParams || (data as QueryParams))
         : dynamicUrl;
     const isFullUrl = urlPath.includes('://');
-    const baseURL = isFullUrl ? '' : reqConfig.baseURL || handlerConfig.baseURL;
+    const baseURL = isFullUrl ? '' : getConfig<string>(reqConfig, 'baseURL');
 
     // Automatically stringify request body, if possible and when not dealing with strings
     if (
       body &&
       typeof body !== 'string' &&
-      !(body instanceof URLSearchParams) &&
+      !isSearchParams(body) &&
       isJSONSerializable(body)
     ) {
       body = JSON.stringify(body);
@@ -225,12 +239,8 @@ function createRequestHandler(
     error: ResponseError,
     requestConfig: RequestConfig,
   ): void => {
-    if (isRequestCancelled(error)) {
-      return;
-    }
-
-    if (handlerConfig.logger?.warn) {
-      handlerConfig.logger.warn('API ERROR', error);
+    if (!isRequestCancelled(error)) {
+      logger('API ERROR', error);
     }
 
     // Invoke per request "onError" interceptor
@@ -258,12 +268,11 @@ function createRequestHandler(
     requestConfig: RequestConfig,
   ): Promise<any> => {
     const _isRequestCancelled = isRequestCancelled(error);
-    const errorHandlingStrategy =
-      requestConfig.strategy || handlerConfig.strategy;
-    const rejectCancelled =
-      typeof requestConfig.rejectCancelled !== 'undefined'
-        ? requestConfig.rejectCancelled
-        : handlerConfig.rejectCancelled;
+    const errorHandlingStrategy = getConfig<string>(requestConfig, 'strategy');
+    const rejectCancelled = getConfig<boolean>(
+      requestConfig,
+      'rejectCancelled',
+    );
 
     // By default cancelled requests aren't rejected (softFail strategy)
     if (!(_isRequestCancelled && !rejectCancelled)) {
@@ -287,7 +296,7 @@ function createRequestHandler(
    * @returns {boolean}                        True if request is aborted
    */
   const isRequestCancelled = (error: ResponseError): boolean => {
-    return error.name === 'AbortError' || error.name === 'CanceledError';
+    return error.name === ABORT_ERROR || error.name === CANCELLED_ERROR;
   };
 
   /**
@@ -308,18 +317,9 @@ function createRequestHandler(
     const _reqConfig = reqConfig || {};
     const fetcherConfig = buildConfig(url, data, _reqConfig);
 
-    const timeout =
-      typeof fetcherConfig.timeout !== 'undefined'
-        ? fetcherConfig.timeout
-        : (handlerConfig.timeout as number);
-    const isCancellable =
-      typeof fetcherConfig.cancellable !== 'undefined'
-        ? fetcherConfig.cancellable
-        : handlerConfig.cancellable;
-    const dedupeTime =
-      typeof fetcherConfig.dedupeTime !== 'undefined'
-        ? fetcherConfig.dedupeTime
-        : handlerConfig.dedupeTime;
+    const timeout = getConfig<number>(fetcherConfig, 'timeout');
+    const isCancellable = getConfig<boolean>(fetcherConfig, 'cancellable');
+    const dedupeTime = getConfig<number>(fetcherConfig, 'dedupeTime');
 
     const {
       retries,
@@ -329,10 +329,14 @@ function createRequestHandler(
       shouldRetry,
       maxDelay,
       resetTimeout,
-    } = {
-      ...handlerConfig.retry,
-      ...(fetcherConfig?.retry || {}),
-    } as Required<RetryOptions>;
+    } = (
+      fetcherConfig.retry
+        ? {
+            ...handlerConfig.retry,
+            ...fetcherConfig.retry,
+          }
+        : handlerConfig.retry
+    ) as Required<RetryOptions>;
 
     let attempt = 0;
     let waitTime: number = delay;
@@ -348,10 +352,10 @@ function createRequestHandler(
           // Reset timeouts by default or when retries are ON
           timeout > 0 && (!retries || resetTimeout),
         );
-        const signal = controller.signal;
 
+        // Shallow copy to ensure basic idempotency
         let requestConfig: RequestConfig = {
-          signal,
+          signal: controller.signal,
           ...fetcherConfig,
         };
 
@@ -367,17 +371,17 @@ function createRequestHandler(
           handlerConfig?.onRequest,
         );
 
-        if (isCustomFetcher()) {
-          response = (await (requestInstance as any).request(
-            requestConfig,
-          )) as FetchResponse<ResponseData>;
+        if (customFetcher !== null && requestInstance !== null) {
+          response = await requestInstance.request(requestConfig);
         } else {
           response = (await fetch(
             requestConfig.url as string,
             requestConfig as RequestInit,
           )) as FetchResponse<ResponseData>;
+        }
 
-          // Add more information to response object
+        // Add more information to response object
+        if (response instanceof Response) {
           response.config = requestConfig;
           response.data = await parseResponseData(response);
 
@@ -402,8 +406,8 @@ function createRequestHandler(
         return outputResponse(response, requestConfig) as ResponseData &
           FetchResponse<ResponseData>;
       } catch (err) {
-        const error = err as ResponseError;
-        const status = error?.response?.status || (error as any)?.status || 0;
+        const error = err as ResponseErr;
+        const status = error?.response?.status || error?.status || 0;
 
         if (
           attempt === retries ||
@@ -417,11 +421,7 @@ function createRequestHandler(
           return outputErrorResponse(error, response, fetcherConfig);
         }
 
-        if (handlerConfig.logger?.warn) {
-          handlerConfig.logger.warn(
-            `Attempt ${attempt + 1} failed. Retrying in ${waitTime}ms...`,
-          );
-        }
+        logger(`Attempt ${attempt + 1} failed. Retrying in ${waitTime}ms...`);
 
         await delayInvocation(waitTime);
 
@@ -448,14 +448,11 @@ function createRequestHandler(
     requestConfig: RequestConfig,
     error: ResponseError<ResponseData> | null = null,
   ): ResponseData | FetchResponse<ResponseData> => {
-    const defaultResponse =
-      typeof requestConfig.defaultResponse !== 'undefined'
-        ? requestConfig.defaultResponse
-        : handlerConfig.defaultResponse;
-    const flattenResponse =
-      typeof requestConfig.flattenResponse !== 'undefined'
-        ? requestConfig.flattenResponse
-        : handlerConfig.flattenResponse;
+    const defaultResponse = getConfig<any>(requestConfig, 'defaultResponse');
+    const flattenResponse = getConfig<boolean>(
+      requestConfig,
+      'flattenResponse',
+    );
 
     if (!response) {
       return flattenResponse
@@ -489,19 +486,15 @@ function createRequestHandler(
       return flattenData(data);
     }
 
-    if (isCustomFetcher()) {
+    // If it's a custom fetcher, and it does not return any Response instance, it may have its own internal handler
+    if (!(response instanceof Response)) {
       return response;
     }
 
+    // Native fetch Response extended by extra information
     return {
-      // Native fetch()
       body: response.body,
-      blob: response.blob,
-      json: response.json,
-      text: response.text,
-      clone: response.clone,
       bodyUsed: response.bodyUsed,
-      arrayBuffer: response.arrayBuffer,
       formData: response.formData,
       ok: response.ok,
       redirected: response.redirected,
@@ -509,6 +502,12 @@ function createRequestHandler(
       url: response.url,
       status: response.status,
       statusText: response.statusText,
+
+      blob: response.blob.bind(response),
+      json: response.json.bind(response),
+      text: response.text.bind(response),
+      clone: response.clone.bind(response),
+      arrayBuffer: response.arrayBuffer.bind(response),
 
       // Extend with extra information
       error,

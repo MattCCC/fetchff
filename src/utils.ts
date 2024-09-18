@@ -1,5 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { UNDEFINED } from './const';
 import type { HeadersObject, QueryParams, UrlPathParams } from './types';
+
+export function isSearchParams(data: unknown): boolean {
+  return data instanceof URLSearchParams;
+}
 
 /**
  * Appends query parameters to a given URL.
@@ -14,7 +19,7 @@ export function appendQueryParams(url: string, params: QueryParams): string {
   }
 
   // Check if `params` is an instance of URLSearchParams and bail early if it is
-  if (params instanceof URLSearchParams) {
+  if (isSearchParams(params)) {
     const encodedQueryString = params.toString();
 
     return url.includes('?')
@@ -26,10 +31,11 @@ export function appendQueryParams(url: string, params: QueryParams): string {
 
   // This is exact copy of what JQ used to do. It works much better than URLSearchParams
   const s: string[] = [];
+  const encode = encodeURIComponent;
   const add = function (k: string, v: any) {
     v = typeof v === 'function' ? v() : v;
     v = v === null ? '' : v === undefined ? '' : v;
-    s[s.length] = encodeURIComponent(k) + '=' + encodeURIComponent(v);
+    s[s.length] = encode(k) + '=' + encode(v);
   };
 
   const buildParams = (prefix: string, obj: any) => {
@@ -114,17 +120,14 @@ export function replaceUrlPathParams(
  * @returns {boolean} - Returns `true` if the value is JSON serializable, otherwise `false`.
  */
 export function isJSONSerializable(value: any): boolean {
-  if (value === undefined || value === null) {
+  const t = typeof value;
+
+  if (t === UNDEFINED || value === null) {
     return false;
   }
 
-  const t = typeof value;
   if (t === 'string' || t === 'number' || t === 'boolean') {
     return true;
-  }
-
-  if (t !== 'object') {
-    return false; // bigint, function, symbol, undefined
   }
 
   if (Array.isArray(value)) {
@@ -139,16 +142,18 @@ export function isJSONSerializable(value: any): boolean {
     return false;
   }
 
-  const proto = Object.getPrototypeOf(value);
+  if (t === 'object') {
+    const proto = Object.getPrototypeOf(value);
 
-  // Check if the prototype is `Object.prototype` or `null` (plain object)
-  if (proto === Object.prototype || proto === null) {
-    return true;
-  }
+    // Check if the prototype is `Object.prototype` or `null` (plain object)
+    if (proto === Object.prototype || proto === null) {
+      return true;
+    }
 
-  // Check if the object has a toJSON method
-  if (typeof value.toJSON === 'function') {
-    return true;
+    // Check if the object has a toJSON method
+    if (typeof value.toJSON === 'function') {
+      return true;
+    }
   }
 
   return false;
@@ -175,7 +180,7 @@ export function flattenData(data: any): any {
   if (
     data &&
     typeof data === 'object' &&
-    typeof data.data !== 'undefined' &&
+    typeof data.data !== UNDEFINED &&
     Object.keys(data).length === 1
   ) {
     return flattenData(data.data);

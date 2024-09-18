@@ -1,7 +1,7 @@
 import type {
-  FetcherInstance,
   RequestConfig,
   FetchResponse,
+  CreatedCustomFetcherInstance,
 } from './types/request-handler';
 import type {
   ApiHandlerConfig,
@@ -16,6 +16,7 @@ import { createRequestHandler } from './request-handler';
 /**
  * Creates an instance of API Handler.
  * It creates an API fetcher function using native fetch() or a custom fetcher if it is passed as "fetcher".
+ * @url https://github.com/MattCCC/fetchff
  *
  * @param {Object} config - Configuration object for the API fetcher.
  * @param {string} config.apiUrl - The base URL for the API.
@@ -24,6 +25,7 @@ import { createRequestHandler } from './request-handler';
  * @param {number} config.cancellable - If true, the ongoing previous requests will be automatically cancelled.
  * @param {number} config.rejectCancelled - If true and request is set to cancellable, a cancelled request promise will be rejected. By default, instead of rejecting the promise, defaultResponse is returned.
  * @param {number} config.timeout - Request timeout
+ * @param {number} config.dedupeTime - Time window, in milliseconds, during which identical requests are deduplicated (treated as single request).
  * @param {string} config.strategy - Error Handling Strategy
  * @param {string} config.flattenResponse - Whether to flatten response "data" object within "data" one
  * @param {*} config.defaultResponse - Default response when there is no data or when endpoint fails depending on the chosen strategy. It's "null" by default
@@ -72,11 +74,11 @@ function createApiFetcher<
   const requestHandler = createRequestHandler(config);
 
   /**
-   * Get Fetcher Provider Instance
+   * Get Custom Fetcher Provider Instance
    *
-   * @returns {FetcherInstance} Request Handler's Fetcher instance
+   * @returns {CreatedCustomFetcherInstance | null} Request Handler's Custom Fetcher Instance
    */
-  function getInstance(): FetcherInstance {
+  function getInstance(): CreatedCustomFetcherInstance | null {
     return requestHandler.getInstance();
   }
 
@@ -87,7 +89,7 @@ function createApiFetcher<
    * @returns {Promise}
    */
   function handleNonImplemented(endpointName: string): Promise<null> {
-    console.error(`${endpointName} endpoint must be added to 'endpoints'.`);
+    console.error(`Add ${endpointName} to 'endpoints'.`);
 
     return Promise.resolve(null);
   }

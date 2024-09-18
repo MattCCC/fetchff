@@ -1,3 +1,4 @@
+import { ABORT_ERROR, TIMEOUT_ERROR } from './const';
 import type { RequestConfig } from './types';
 import type { QueueItem, RequestsQueue } from './types/queue-manager';
 
@@ -32,21 +33,25 @@ export async function addRequest(
   const item = queue.get(config);
 
   if (item) {
+    const isCancellable = item[3];
+    const previousController = item[0];
+    const timeoutId = item[1];
+
     // If the request is already in the queue and within the dedupeTime, reuse the existing controller
-    if (!item.isCancellable && now - item.timestamp < dedupeTime) {
-      return item.controller;
+    if (!isCancellable && now - item[2] < dedupeTime) {
+      return previousController;
     }
 
     // If the request is too old, remove it and proceed to add a new one
     // Abort previous request, if applicable, and continue as usual
-    if (item.isCancellable) {
-      item.controller.abort(
-        new DOMException('Aborted due to new request', 'AbortError'),
+    if (isCancellable) {
+      previousController.abort(
+        new DOMException('Aborted due to new request', ABORT_ERROR),
       );
     }
 
-    if (item.timeoutId !== null) {
-      clearTimeout(item.timeoutId);
+    if (timeoutId !== null) {
+      clearTimeout(timeoutId);
     }
 
     queue.delete(config);
@@ -58,14 +63,14 @@ export async function addRequest(
     ? setTimeout(() => {
         const error = new DOMException(
           `${config.url} aborted due to timeout`,
-          'TimeoutError',
+          TIMEOUT_ERROR,
         );
 
         removeRequest(config, error);
       }, timeout)
     : null;
 
-  queue.set(config, { controller, timeoutId, timestamp: now, isCancellable });
+  queue.set(config, [controller, timeoutId, now, isCancellable]);
 
   return controller;
 }
@@ -83,13 +88,16 @@ export async function removeRequest(
   const item = queue.get(config);
 
   if (item) {
+    const controller = item[0];
+    const timeoutId = item[1];
+
     // If the request is not yet aborted, abort it with the provided error
-    if (error && !item.controller.signal.aborted) {
-      item.controller.abort(error);
+    if (error && !controller.signal.aborted) {
+      controller.abort(error);
     }
 
-    if (item.timeoutId !== null) {
-      clearTimeout(item.timeoutId);
+    if (timeoutId !== null) {
+      clearTimeout(timeoutId);
     }
 
     queue.delete(config);
@@ -107,5 +115,5 @@ export async function getController(
 ): Promise<AbortController | undefined> {
   const item = queue.get(config);
 
-  return item?.controller;
+  return item?.[0];
 }
