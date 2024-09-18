@@ -67,7 +67,14 @@ yarn add fetchff
 ```typescript
 import { fetchf } from 'fetchff';
 
-const { data, error, status } = await fetchf('/api/user-details');
+const { data, error, status } = await fetchf(
+  'https://example.com/api/v1/getBooks',
+  { bookId: 1 },
+  {
+    timeout: 2000,
+    // Specify some other settings here...
+  },
+);
 ```
 
 ### Multiple API Endpoints
@@ -534,9 +541,7 @@ Please mind that this table is for informational purposes only. All of these sol
 
 ## ✔️ Full TypeScript support
 
-fetchf includes all necessary [TypeScript](http://typescriptlang.org) definitions bringing full TypeScript support to your API Handler. The package ships interfaces with responsible defaults making it easier to add new endpoints.
-
-### Example of interfaces
+The library includes all necessary [TypeScript](http://typescriptlang.org) definitions bringing full TypeScript support to your API Handler. The package ships interfaces with responsible defaults making it easier to add new endpoints.
 
 ```typescript
 // books.d.ts
@@ -589,7 +594,7 @@ const api = createApiFetcher<EndpointsList, typeof endpoints>({
 const book = await api.fetchBook({ newBook: true }, { bookId: 1 });
 
 // Will return an error since "rating" does not exist in "BookQueryParams"
-const _book = await api.fetchBook({ rating: 5 });
+const anotherBook = await api.fetchBook({ rating: 5 });
 
 // You can also pass generic type directly to the request
 const books = await api.fetchBooks<Books>();
@@ -610,6 +615,9 @@ const api = createApiFetcher({
   endpoints: {
     getBooks: {
       url: 'books/all',
+      method: 'get',
+      cancellable: true,
+      // All the global settings can be specified on per-endpoint basis as well
     },
   },
   strategy: 'reject', // Error handling strategy.
@@ -617,8 +625,12 @@ const api = createApiFetcher({
   rejectCancelled: false, // Reject promise for cancelled requests.
   flattenResponse: false, // If true, flatten nested response data.
   defaultResponse: null, // Default response when there is no data or endpoint fails.
+  withCredentials: true, // Pass cookies to all requests.
   timeout: 30000, // Request timeout in milliseconds.
+  dedupeTime: 1000, // Time window, in milliseconds, during which identical requests are deduplicated (treated as single request).
   method: 'get', // Default request method.
+  params: {}, // Default params added to all requests.
+  data: {}, // Alias for 'body'. Default data passed to POST, PUT, DELETE and PATCH requests.
   onError(error) {
     // Interceptor on error
     console.error('Request failed', error);
@@ -670,13 +682,29 @@ try {
 }
 ```
 
-### Multiple APIs from different API sources
+### Call without initializing Multiple APIs Handler
+
+```typescript
+import { fetchf } from 'fetchff';
+
+const books = await fetchf(
+  'https://example.com/api/v1/getBooks',
+  { bookId: 1 },
+  {
+    timeout: 2000,
+    // Specify some other settings here...
+  },
+);
+```
+
+### Multiple APIs Handler from different API sources
 
 ```typescript
 import { createApiFetcher } from 'fetchff';
 
+// Create fetcher instance
 const api = createApiFetcher({
-  apiUrl: 'https://example.com/api/v1',
+  baseURL: 'https://example.com/api/v1',
   endpoints: {
     sendMessage: {
       method: 'post',
@@ -690,12 +718,14 @@ const api = createApiFetcher({
   },
 });
 
+// Make a wrapper function and call your API
 async function sendAndGetMessage() {
   await api.sendMessage({ message: 'Text' }, { postId: 1 });
 
   const { data } = await api.getMessage({ postId: 1 });
 }
 
+// Invoke your wrapper function
 sendAndGetMessage();
 ```
 
