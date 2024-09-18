@@ -132,6 +132,12 @@ export interface RetryOptions {
   ) => Promise<boolean>;
 }
 
+export type PollingFunction = <ResponseData = unknown>(
+  response: FetchResponse<ResponseData>,
+  attempt: number,
+  error?: ResponseError,
+) => boolean;
+
 /**
  * ExtendedRequestConfig<D = any>
  *
@@ -253,6 +259,20 @@ interface ExtendedRequestConfig<D = any> extends Omit<RequestInit, 'body'> {
    * @default 1000 (1 second)
    */
   dedupeTime?: number;
+
+  /**
+   * Interval in milliseconds between polling attempts.
+   * Set to < 1 to disable polling.
+   * @default 0 (disabled)
+   */
+  pollingInterval?: number;
+
+  /**
+   * Function to determine if polling should stop based on the response.
+   * @param response - The response data.
+   * @returns `true` to stop polling, `false` to continue.
+   */
+  shouldStopPolling?: PollingFunction;
 }
 
 interface BaseRequestHandlerConfig extends RequestConfig {

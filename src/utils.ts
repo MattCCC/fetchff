@@ -1,9 +1,17 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { UNDEFINED } from './const';
+import { OBJECT, UNDEFINED } from './const';
 import type { HeadersObject, QueryParams, UrlPathParams } from './types';
 
 export function isSearchParams(data: unknown): boolean {
   return data instanceof URLSearchParams;
+}
+
+function makeUrl(url: string, encodedQueryString: string) {
+  return url.includes('?')
+    ? `${url}&${encodedQueryString}`
+    : encodedQueryString
+      ? `${url}?${encodedQueryString}`
+      : url;
 }
 
 /**
@@ -22,11 +30,7 @@ export function appendQueryParams(url: string, params: QueryParams): string {
   if (isSearchParams(params)) {
     const encodedQueryString = params.toString();
 
-    return url.includes('?')
-      ? `${url}&${encodedQueryString}`
-      : encodedQueryString
-        ? `${url}?${encodedQueryString}`
-        : url;
+    return makeUrl(url, encodedQueryString);
   }
 
   // This is exact copy of what JQ used to do. It works much better than URLSearchParams
@@ -45,14 +49,11 @@ export function appendQueryParams(url: string, params: QueryParams): string {
       if (Array.isArray(obj)) {
         for (i = 0, len = obj.length; i < len; i++) {
           buildParams(
-            prefix +
-              '[' +
-              (typeof obj[i] === 'object' && obj[i] ? i : '') +
-              ']',
+            prefix + '[' + (typeof obj[i] === OBJECT && obj[i] ? i : '') + ']',
             obj[i],
           );
         }
-      } else if (typeof obj === 'object' && obj !== null) {
+      } else if (typeof obj === OBJECT && obj !== null) {
         for (key in obj) {
           buildParams(prefix + '[' + key + ']', obj[key]);
         }
@@ -76,11 +77,7 @@ export function appendQueryParams(url: string, params: QueryParams): string {
   // Encode special characters as per RFC 3986, https://datatracker.ietf.org/doc/html/rfc3986
   const encodedQueryString = queryStringParts.replace(/%5B%5D/g, '[]'); // Keep '[]' for arrays
 
-  return url.includes('?')
-    ? `${url}&${encodedQueryString}`
-    : encodedQueryString
-      ? `${url}?${encodedQueryString}`
-      : url;
+  return makeUrl(url, encodedQueryString);
 }
 
 /**
@@ -142,7 +139,7 @@ export function isJSONSerializable(value: any): boolean {
     return false;
   }
 
-  if (t === 'object') {
+  if (t === OBJECT) {
     const proto = Object.getPrototypeOf(value);
 
     // Check if the prototype is `Object.prototype` or `null` (plain object)
@@ -179,7 +176,7 @@ export async function delayInvocation(ms: number): Promise<boolean> {
 export function flattenData(data: any): any {
   if (
     data &&
-    typeof data === 'object' &&
+    typeof data === OBJECT &&
     typeof data.data !== UNDEFINED &&
     Object.keys(data).length === 1
   ) {
@@ -213,7 +210,7 @@ export function processHeaders(
     headers.forEach((value, key) => {
       headersObject[key] = value;
     });
-  } else if (typeof headers === 'object' && headers !== null) {
+  } else if (typeof headers === OBJECT && headers !== null) {
     // Handle plain object
     for (const [key, value] of Object.entries(headers)) {
       // Normalize keys to lowercase as per RFC 2616 4.2

@@ -514,28 +514,32 @@ Check Examples section below for more information.
 
 ## Comparison with another libraries
 
-| Feature                                 | fetchff     | ofetch       | wretch       | axios        | native fetch() |
-| --------------------------------------- | ----------- | ------------ | ------------ | ------------ | -------------- |
-| **Unified API Client**                  | ✅          | --           | --           | --           | --             |
-| **Automatic Request Deduplication**     | ✅          | --           | --           | --           | --             |
-| **Customizable Error Handling**         | ✅          | --           | ✅           | ✅           | --             |
-| **Retries with exponential backoff**    | ✅          | --           | --           | --           | --             |
-| **Custom Retry logic**                  | ✅          | ✅           | ✅           | --           | --             |
-| **Easy Timeouts**                       | ✅          | ✅           | ✅           | ✅           | --             |
-| **Easy Cancellation**                   | ✅          | --           | --           | --           | --             |
-| **Default Responses**                   | ✅          | --           | --           | --           | --             |
-| **Global Configuration**                | ✅          | --           | ✅           | ✅           | --             |
-| **TypeScript Support**                  | ✅          | ✅           | ✅           | ✅           | ✅             |
-| **Built-in AbortController Support**    | ✅          | --           | --           | --           | --             |
-| **Interceptors**                        | ✅          | ✅           | ✅           | ✅           | --             |
-| **Request and Response Transformation** | ✅          | ✅           | ✅           | ✅           | --             |
-| **Integration with Libraries**          | ✅          | ✅           | ✅           | ✅           | --             |
-| **Request Queuing**                     | ✅          | --           | --           | --           | --             |
-| **Multiple Fetching Strategies**        | ✅          | --           | --           | --           | --             |
-| **Dynamic URLs**                        | ✅          | --           | ✅           | --           | --             |
-| **Automatic Retry on Failure**          | ✅          | ✅           | --           | ✅           | --             |
-| **Server-Side Rendering (SSR) Support** | ✅          | ✅           | --           | --           | --             |
-| **Minimal Installation Size**           | 🟢 (2.9 KB) | 🟡 (6.41 KB) | 🟢 (2.21 KB) | 🔴 (13.7 KB) | 🟢 (0 KB)      |
+| Feature                                            | fetchff     | ofetch       | wretch       | axios        | native fetch() |
+| -------------------------------------------------- | ----------- | ------------ | ------------ | ------------ | -------------- |
+| **Unified API Client**                             | ✅          | --           | --           | --           | --             |
+| **Automatic Request Deduplication**                | ✅          | --           | --           | --           | --             |
+| **Built-in Error Handling**                        | ✅          | --           | ✅           | --           | --             |
+| **Customizable Error Handling**                    | ✅          | --           | ✅           | ✅           | --             |
+| **Retries with exponential backoff**               | ✅          | --           | --           | --           | --             |
+| **Advanced Query Params handling**                 | ✅          | --           | --           | --           | --             |
+| **Custom Retry logic**                             | ✅          | ✅           | ✅           | --           | --             |
+| **Easy Timeouts**                                  | ✅          | ✅           | ✅           | ✅           | --             |
+| **Polling Functionality**                          | ✅          | --           | --           | --           | --             |
+| **Easy Cancellation of stale (previous) requests** | ✅          | --           | --           | --           | --             |
+| **Default Responses**                              | ✅          | --           | --           | --           | --             |
+| **Custom adapters (fetchers)**                     | ✅          | --           | --           | ✅           | --             |
+| **Global Configuration**                           | ✅          | --           | ✅           | ✅           | --             |
+| **TypeScript Support**                             | ✅          | ✅           | ✅           | ✅           | ✅             |
+| **Built-in AbortController Support**               | ✅          | --           | --           | --           | --             |
+| **Request Interceptors**                           | ✅          | ✅           | ✅           | ✅           | --             |
+| **Request and Response Transformation**            | ✅          | ✅           | ✅           | ✅           | --             |
+| **Integration with Libraries**                     | ✅          | ✅           | ✅           | ✅           | --             |
+| **Request Queuing**                                | ✅          | --           | --           | --           | --             |
+| **Multiple Fetching Strategies**                   | ✅          | --           | --           | --           | --             |
+| **Dynamic URLs**                                   | ✅          | --           | ✅           | --           | --             |
+| **Automatic Retry on Failure**                     | ✅          | ✅           | --           | ✅           | --             |
+| **Server-Side Rendering (SSR) Support**            | ✅          | ✅           | --           | --           | --             |
+| **Minimal Installation Size**                      | 🟢 (2.9 KB) | 🟡 (6.41 KB) | 🟢 (2.21 KB) | 🔴 (13.7 KB) | 🟢 (0 KB)      |
 
 Please mind that this table is for informational purposes only. All of these solutions differ. For example `swr` and `react-query` are more focused on React, re-rendering, query caching and keeping data in sync, while fetch wrappers like `fetchff` or `ofetch` aim to extend functionalities of native `fetch` so to reduce complexity of having to maintain various wrappers.
 
@@ -763,6 +767,46 @@ const api = createApiFetcher({
 try {
   const { data } = await api.getBooks();
   console.log('Request succeeded:', data);
+} catch (error) {
+  console.error('Request ultimately failed:', error);
+}
+```
+
+### Polling Mechanism
+
+Standard polling - re-fetch every n seconds.
+
+```typescript
+fetchff('https://api.example.com/books/all', null, {
+  pollingInterval: 5000, // Re-fetch the data every 5 seconds
+  shouldStopPolling(response, error, attempt) {
+    // Add some custom conditions
+    return attempt < 3; // Retry up to 3 times
+  },
+  onResponse(response) {
+    console.log('New response:', response);
+
+    return response;
+  },
+  onError(error) {
+    console.error('Request ultimately failed:', error);
+  },
+});
+```
+
+Status Polling - until you get a certain data from an API. Let's say you have an API that returns the progress of a process, and you want to call that API until the process is finished.
+
+```typescript
+try {
+  const { data } = fetchff('https://api.example.com/books/all', null, {
+    pollingInterval: 5000, // Poll every 5 seconds
+    shouldStopPolling(response, error, attempt) {
+      // Add some custom conditions
+      return attempt < 3; // Retry up to 3 times
+    },
+  });
+
+  console.log('Request finally succeeded:', data);
 } catch (error) {
   console.error('Request ultimately failed:', error);
 }

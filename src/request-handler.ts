@@ -8,6 +8,7 @@ import type {
   ResponseError,
   RequestHandlerReturnType,
   CreatedCustomFetcherInstance,
+  PollingFunction,
 } from './types/request-handler';
 import type {
   APIResponse,
@@ -43,8 +44,8 @@ const defaultConfig: RequestHandlerConfig = {
   method: GET,
   strategy: 'reject',
   timeout: 30000,
-  rejectCancelled: false,
   dedupeTime: 1000,
+  rejectCancelled: false,
   withCredentials: false,
   flattenResponse: false,
   defaultResponse: null,
@@ -320,6 +321,11 @@ function createRequestHandler(
     const timeout = getConfig<number>(fetcherConfig, 'timeout');
     const isCancellable = getConfig<boolean>(fetcherConfig, 'cancellable');
     const dedupeTime = getConfig<number>(fetcherConfig, 'dedupeTime');
+    const pollingInterval = getConfig<number>(fetcherConfig, 'pollingInterval');
+    const shouldStopPolling = getConfig<PollingFunction>(
+      fetcherConfig,
+      'shouldStopPolling',
+    );
 
     const {
       retries,
@@ -339,6 +345,7 @@ function createRequestHandler(
     ) as Required<RetryOptions>;
 
     let attempt = 0;
+    let pollingAttempt = 0;
     let waitTime: number = delay;
 
     while (attempt <= retries) {
@@ -403,6 +410,22 @@ function createRequestHandler(
 
         removeRequest(fetcherConfig);
 
+        // Polling logic
+        if (
+          pollingInterval &&
+          (!shouldStopPolling || !shouldStopPolling(response, pollingAttempt))
+        ) {
+          // Restart the main retry loop
+          pollingAttempt++;
+
+          logger(`Polling attempt ${pollingAttempt}...`);
+
+          await delayInvocation(pollingInterval);
+
+          continue;
+        }
+
+        // If polling is not required, or polling attempts are exhausted
         return outputResponse(response, requestConfig) as ResponseData &
           FetchResponse<ResponseData>;
       } catch (err) {
@@ -421,7 +444,7 @@ function createRequestHandler(
           return outputErrorResponse(error, response, fetcherConfig);
         }
 
-        logger(`Attempt ${attempt + 1} failed. Retrying in ${waitTime}ms...`);
+        logger(`Attempt ${attempt + 1} failed. Retry in ${waitTime}ms.`);
 
         await delayInvocation(waitTime);
 
