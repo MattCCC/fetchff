@@ -69,11 +69,12 @@ export interface ExtendedResponse<T = any> extends Omit<Response, 'headers'> {
 export type FetchResponse<T = any> = ExtendedResponse<T>;
 
 export interface ResponseError<T = any> extends Error {
-  code?: string;
   config: ExtendedRequestConfig;
+  code?: string;
+  status?: number;
+  statusText?: string;
   request?: ExtendedRequestConfig;
   response?: FetchResponse<T>;
-  toJSON?: () => object;
 }
 
 export interface RetryOptions {
