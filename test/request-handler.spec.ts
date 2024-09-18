@@ -399,6 +399,210 @@ describe('Request Handler', () => {
     });
   });
 
+  describe('request() Polling Mechanism', () => {
+    const baseURL = 'https://api.example.com';
+    const mockLogger = { warn: jest.fn() };
+
+    beforeEach(() => {
+      jest.useFakeTimers();
+      jest.clearAllMocks();
+      globalThis.fetch = jest.fn();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('should poll the specified number of times until shouldStopPolling returns true', async () => {
+      // Setup polling configuration
+      const pollingConfig = {
+        pollingInterval: 100,
+        shouldStopPolling: jest.fn((_response, pollingAttempt) => {
+          // Stop polling after 3 attempts
+          return pollingAttempt >= 3;
+        }),
+      };
+
+      // Initialize RequestHandler with polling configuration
+      const requestHandler = createRequestHandler({
+        baseURL,
+        retry: {
+          retries: 0, // No retries for this test
+        },
+        ...pollingConfig,
+        logger: mockLogger,
+      });
+
+      // Mock fetch to return a successful response every time
+      (globalThis.fetch as any).mockResolvedValue({
+        ok: true,
+        clone: jest.fn().mockReturnValue({}),
+        json: jest.fn().mockResolvedValue({}),
+      });
+
+      const mockDelayInvocation = delayInvocation as jest.MockedFunction<
+        typeof delayInvocation
+      >;
+
+      mockDelayInvocation.mockResolvedValue(true);
+
+      // Make the request
+      await requestHandler.request('/endpoint');
+
+      // Advance timers to cover the polling interval
+      jest.advanceTimersByTime(300); // pollingInterval * 3
+
+      // Ensure polling stopped after 3 attempts
+      expect(pollingConfig.shouldStopPolling).toHaveBeenCalledTimes(4);
+      expect(globalThis.fetch).toHaveBeenCalledTimes(4); // 1 initial + 3 polls
+
+      // Ensure delay function was called for each polling attempt
+      expect(mockDelayInvocation).toHaveBeenCalledTimes(3);
+      expect(mockDelayInvocation).toHaveBeenCalledWith(
+        pollingConfig.pollingInterval,
+      );
+    });
+
+    it('should not poll if pollingInterval is not provided', async () => {
+      // Setup without polling configuration
+      const requestHandler = createRequestHandler({
+        baseURL,
+        retry: {
+          retries: 0, // No retries for this test
+        },
+        pollingInterval: 0, // No polling
+        logger: mockLogger,
+      });
+
+      // Mock fetch to return a successful response
+      (globalThis.fetch as any).mockResolvedValue({
+        ok: true,
+        clone: jest.fn().mockReturnValue({}),
+        json: jest.fn().mockResolvedValue({}),
+      });
+
+      await requestHandler.request('/endpoint');
+
+      // Ensure fetch was only called once
+      expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+
+      // Ensure polling was not attempted
+      expect(mockLogger.warn).not.toHaveBeenCalled();
+    });
+
+    it('should stop polling on error and not proceed with polling attempts', async () => {
+      // Setup polling configuration
+      const pollingConfig = {
+        pollingInterval: 100,
+        shouldStopPolling: jest.fn(() => false), // Always continue polling if no errors
+      };
+
+      const requestHandler = createRequestHandler({
+        baseURL,
+        retry: {
+          retries: 0, // No retries for this test
+        },
+        ...pollingConfig,
+        logger: mockLogger,
+      });
+
+      // Mock fetch to fail
+      (globalThis.fetch as any).mockRejectedValue({
+        status: 500,
+        json: jest.fn().mockResolvedValue({}),
+      });
+
+      const mockDelayInvocation = delayInvocation as jest.MockedFunction<
+        typeof delayInvocation
+      >;
+
+      mockDelayInvocation.mockResolvedValue(true);
+
+      await expect(requestHandler.request('/endpoint')).rejects.toEqual({
+        status: 500,
+        json: expect.any(Function),
+      });
+
+      // Ensure fetch was called once (no polling due to error)
+      expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+
+      // Ensure polling was not attempted after failure
+      expect(mockDelayInvocation).toHaveBeenCalledTimes(0);
+
+      // Ensure we process the error
+      expect(mockLogger.warn).toHaveBeenCalled();
+    });
+
+    it('should log polling attempts and delays', async () => {
+      // Setup polling configuration
+      const pollingConfig = {
+        pollingInterval: 100,
+        shouldStopPolling: jest.fn((_response, pollingAttempt) => {
+          // Stop polling after 3 attempts
+          return pollingAttempt >= 3;
+        }),
+      };
+
+      const requestHandler = createRequestHandler({
+        baseURL,
+        retry: {
+          retries: 0, // No retries for this test
+        },
+        ...pollingConfig,
+        logger: mockLogger,
+      });
+
+      // Mock fetch to return a successful response
+      (globalThis.fetch as any).mockResolvedValue({
+        ok: true,
+        clone: jest.fn().mockReturnValue({}),
+        json: jest.fn().mockResolvedValue({}),
+      });
+
+      await requestHandler.request('/endpoint');
+
+      // Advance timers to cover polling interval
+      jest.advanceTimersByTime(300); // pollingInterval * 3
+
+      // Check if polling was logged properly
+      expect(mockLogger.warn).toHaveBeenCalledWith('Polling attempt 1...');
+      expect(mockLogger.warn).toHaveBeenCalledWith('Polling attempt 2...');
+      expect(mockLogger.warn).toHaveBeenCalledWith('Polling attempt 3...');
+    });
+
+    it('should not poll if shouldStopPolling returns true immediately', async () => {
+      // Setup polling configuration
+      const pollingConfig = {
+        pollingInterval: 100,
+        shouldStopPolling: jest.fn(() => true), // Stop immediately
+      };
+
+      const requestHandler = createRequestHandler({
+        baseURL,
+        retry: {
+          retries: 0, // No retries for this test
+        },
+        ...pollingConfig,
+        logger: mockLogger,
+      });
+
+      // Mock fetch to return a successful response
+      (globalThis.fetch as any).mockResolvedValue({
+        ok: true,
+        clone: jest.fn().mockReturnValue({}),
+        json: jest.fn().mockResolvedValue({}),
+      });
+
+      await requestHandler.request('/endpoint');
+
+      // Ensure fetch was only called once
+      expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+
+      // Ensure polling was skipped
+      expect(pollingConfig.shouldStopPolling).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe('request() Retry Mechanism', () => {
     const baseURL = 'https://api.example.com';
     const mockLogger = { warn: jest.fn() };
@@ -521,13 +725,13 @@ describe('Request Handler', () => {
 
       // Check delay between retries
       expect(mockLogger.warn).toHaveBeenCalledWith(
-        'Attempt 1 failed. Retrying in 100ms...',
+        'Attempt 1 failed. Retry in 100ms.',
       );
       expect(mockLogger.warn).toHaveBeenCalledWith(
-        'Attempt 2 failed. Retrying in 150ms...',
+        'Attempt 2 failed. Retry in 150ms.',
       );
       expect(mockLogger.warn).toHaveBeenCalledWith(
-        'Attempt 3 failed. Retrying in 225ms...',
+        'Attempt 3 failed. Retry in 225ms.',
       );
     });
 
