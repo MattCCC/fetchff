@@ -214,11 +214,6 @@ interface ExtendedRequestConfig<D = any> extends Omit<RequestInit, 'body'> {
   params?: QueryParams;
 
   /**
-   * The maximum time (in milliseconds) the request can take before automatically being aborted.
-   */
-  timeout?: number;
-
-  /**
    * Indicates whether credentials (such as cookies) should be included with the request.
    */
   withCredentials?: boolean;
@@ -253,6 +248,11 @@ interface ExtendedRequestConfig<D = any> extends Omit<RequestInit, 'body'> {
    * A function to handle errors that occur during the request or response processing.
    */
   onError?: ErrorHandlerInterceptor;
+
+  /**
+   * The maximum time (in milliseconds) the request can take before automatically being aborted.
+   */
+  timeout?: number;
 
   /**
    * Time window, in miliseconds, during which identical requests are deduplicated (treated as single request).

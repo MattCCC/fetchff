@@ -52,6 +52,11 @@ const defaultConfig: RequestHandlerConfig = {
   logger: null,
   fetcher: null,
   baseURL: '',
+  headers: {
+    Accept: APPLICATION_JSON + ', text/plain, */*',
+    'Accept-Encoding': 'gzip, deflate, br',
+    [CONTENT_TYPE]: APPLICATION_JSON + ';charset=utf-8',
+  },
   retry: {
     retries: 0,
     delay: 1000,
@@ -219,13 +224,12 @@ function createRequestHandler(
       url: baseURL + urlPath,
 
       // Add sensible defaults
-      headers: {
-        Accept: APPLICATION_JSON + ', text/plain, */*',
-        'Accept-Encoding': 'gzip, deflate, br',
-        [CONTENT_TYPE]: APPLICATION_JSON + ';charset=utf-8',
-        ...(handlerConfig.headers || {}),
-        ...(reqConfig.headers || {}),
-      },
+      headers: reqConfig.headers
+        ? {
+            ...handlerConfig.headers,
+            ...reqConfig.headers,
+          }
+        : handlerConfig.headers,
     };
   };
 
