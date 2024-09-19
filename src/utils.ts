@@ -115,7 +115,7 @@ export function appendQueryParams(url: string, params: QueryParams): string {
   // This is exact copy of what JQ used to do. It works much better than URLSearchParams
   const s: string[] = [];
   const encode = encodeURIComponent;
-  const add = function (k: string, v: any) {
+  const add = (k: string, v: any) => {
     v = typeof v === 'function' ? v() : v;
     v = v === null ? '' : v === undefined ? '' : v;
     s[s.length] = encode(k) + '=' + encode(v);
@@ -176,7 +176,7 @@ export function replaceUrlPathParams(
     return url;
   }
 
-  return url.replace(/:[a-zA-Z]+/gi, (str): string => {
+  return url.replace(/:\w+/g, (str): string => {
     const word = str.substring(1);
 
     return String(urlPathParams[word] ? urlPathParams[word] : str);
