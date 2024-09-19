@@ -123,17 +123,17 @@ function isCacheExpired(timestamp: number, maxStaleTime: number): boolean {
  * Retrieves a cache entry if it exists and is not expired.
  *
  * @param {string} key Cache key to utilize
- * @param {RequestConfig} config - The request configuration object.
+ * @param {RequestConfig} cacheTime - Maximum time to cache entry.
  * @returns {CacheEntry<T> | null} - The cache entry if it exists and is not expired, null otherwise.
  */
 export function getCache<T>(
   key: string,
-  config: RequestConfig,
+  cacheTime: number,
 ): CacheEntry<T> | null {
   const entry = cache.get(key);
 
   if (entry) {
-    if (!isCacheExpired(entry.timestamp, config.cacheTime)) {
+    if (!isCacheExpired(entry.timestamp, cacheTime)) {
       return entry;
     }
 
