@@ -1,18 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { createRequestHandler } from '../src/request-handler';
 import fetchMock from 'fetch-mock';
-import {
-  interceptRequest,
-  interceptResponse,
-} from '../src/interceptor-manager';
+import { applyInterceptor } from '../src/interceptor-manager';
 import { delayInvocation } from '../src/utils';
 import type { RequestHandlerReturnType } from '../src/types/request-handler';
 import { fetchf } from '../src';
 import { ABORT_ERROR } from '../src/const';
 
 jest.mock('../src/interceptor-manager', () => ({
-  interceptRequest: jest.fn().mockImplementation(async (config) => config),
-  interceptResponse: jest.fn().mockImplementation(async (response) => response),
+  applyInterceptor: jest.fn().mockImplementation(async (response) => response),
 }));
 
 jest.mock('../src/utils', () => {
@@ -800,6 +796,10 @@ describe('Request Handler', () => {
     let requestHandler: RequestHandlerReturnType;
 
     beforeEach(() => {
+      (applyInterceptor as jest.Mock).mockReset();
+      (applyInterceptor as jest.Mock).mockImplementation(
+        async (response) => response,
+      );
       requestHandler = createRequestHandler({
         baseURL: 'https://api.example.com',
         timeout: 5000,
@@ -817,22 +817,11 @@ describe('Request Handler', () => {
 
     afterEach(() => {
       jest.useRealTimers();
-      (interceptRequest as jest.Mock).mockReset();
-      (interceptResponse as jest.Mock).mockReset();
-      (interceptRequest as jest.Mock).mockImplementation(
-        async (config) => config,
-      );
-      (interceptResponse as jest.Mock).mockImplementation(
-        async (response) => response,
-      );
     });
 
     it('should apply interceptors correctly', async () => {
       // Set up mock implementations if needed
-      (interceptRequest as jest.Mock).mockImplementation(
-        async (config) => config,
-      );
-      (interceptResponse as jest.Mock).mockImplementation(
+      (applyInterceptor as jest.Mock).mockImplementation(
         async (response) => response,
       );
 
@@ -848,19 +837,15 @@ describe('Request Handler', () => {
       // Call the request method
       await requestHandler.request(url, data, config);
 
-      // Verify that interceptRequest and interceptResponse were called
-      expect(interceptRequest).toHaveBeenCalled();
-      expect(interceptResponse).toHaveBeenCalled();
+      // Verify that interceptRequest and applyInterceptor were called
+      expect(applyInterceptor).toHaveBeenCalledTimes(4);
     });
 
     it('should handle modified config in interceptRequest', async () => {
-      (interceptRequest as jest.Mock).mockImplementation(async (config) => ({
+      (applyInterceptor as jest.Mock).mockImplementation(async (config) => ({
         ...config,
         headers: { 'Modified-Header': 'ModifiedValue' },
       }));
-      (interceptResponse as jest.Mock).mockImplementation(
-        async (response) => response,
-      );
 
       fetchMock.mock('https://api.example.com/test-endpoint?key=value', {
         status: 200,
@@ -873,19 +858,15 @@ describe('Request Handler', () => {
 
       await requestHandler.request(url, data, config);
 
-      expect(interceptRequest).toHaveBeenCalled();
-      expect(interceptResponse).toHaveBeenCalled();
+      expect(applyInterceptor).toHaveBeenCalledTimes(4);
       // Verify that fetch was called with modified headers
       expect(fetchMock.lastOptions()).toMatchObject({
         headers: { 'Modified-Header': 'ModifiedValue' },
       });
     });
 
-    it('should handle modified response in interceptResponse', async () => {
-      (interceptRequest as jest.Mock).mockImplementation(
-        async (config) => config,
-      );
-      (interceptResponse as jest.Mock).mockImplementation(async (response) => ({
+    it('should handle modified response in applyInterceptor', async () => {
+      (applyInterceptor as jest.Mock).mockImplementation(async (response) => ({
         ...response,
         data: { username: 'modified response' },
       }));
@@ -901,16 +882,12 @@ describe('Request Handler', () => {
 
       const response = await requestHandler.request(url, data, config);
 
-      expect(interceptRequest).toHaveBeenCalled();
-      expect(interceptResponse).toHaveBeenCalled();
+      expect(applyInterceptor).toHaveBeenCalledTimes(4);
       expect(response).toMatchObject({ username: 'modified response' });
     });
 
     it('should handle request failure with interceptors', async () => {
-      (interceptRequest as jest.Mock).mockImplementation(
-        async (config) => config,
-      );
-      (interceptResponse as jest.Mock).mockImplementation(
+      (applyInterceptor as jest.Mock).mockImplementation(
         async (response) => response,
       );
 
@@ -927,15 +904,12 @@ describe('Request Handler', () => {
         'https://api.example.com/test-endpoint?key=value failed! Status: 500',
       );
 
-      expect(interceptRequest).toHaveBeenCalled();
-      expect(interceptResponse).not.toHaveBeenCalled();
+      // Only request interceptors are called (2 because 1 local and 1 global)
+      expect(applyInterceptor).toHaveBeenCalledTimes(2);
     });
 
     it('should handle request with different response status', async () => {
-      (interceptRequest as jest.Mock).mockImplementation(
-        async (config) => config,
-      );
-      (interceptResponse as jest.Mock).mockImplementation(
+      (applyInterceptor as jest.Mock).mockImplementation(
         async (response) => response,
       );
 
@@ -952,8 +926,8 @@ describe('Request Handler', () => {
         'https://api.example.com/test-endpoint?key=value failed! Status: 404',
       );
 
-      expect(interceptRequest).toHaveBeenCalled();
-      expect(interceptResponse).not.toHaveBeenCalled();
+      // Only request interceptors are called (2 because 1 local and 1 global)
+      expect(applyInterceptor).toHaveBeenCalledTimes(2);
     });
   });
 

@@ -16,7 +16,7 @@ import type {
   QueryParams,
   QueryParamsOrBody,
 } from './types/api-handler';
-import { interceptRequest, interceptResponse } from './interceptor-manager';
+import { applyInterceptor } from './interceptor-manager';
 import { ResponseErr } from './response-error';
 import {
   appendQueryParams,
@@ -310,9 +310,10 @@ function createRequestHandler(
     data: QueryParamsOrBody = null,
     reqConfig: RequestConfig | null = null,
   ): Promise<ResponseData & FetchResponse<ResponseData>> => {
+    const _reqConfig = reqConfig || {};
     const mergedConfig = {
       ...handlerConfig,
-      ...(reqConfig || {}),
+      ..._reqConfig,
     } as RequestConfig;
 
     let response: FetchResponse<ResponseData> | null = null;
@@ -385,13 +386,13 @@ function createRequestHandler(
         };
 
         // Local interceptors
-        requestConfig = await interceptRequest(
+        requestConfig = await applyInterceptor(
           requestConfig,
-          requestConfig?.onRequest,
+          _reqConfig?.onRequest,
         );
 
         // Global interceptors
-        requestConfig = await interceptRequest(
+        requestConfig = await applyInterceptor(
           requestConfig,
           handlerConfig?.onRequest,
         );
@@ -421,10 +422,10 @@ function createRequestHandler(
         }
 
         // Local interceptors
-        response = await interceptResponse(response, requestConfig?.onResponse);
+        response = await applyInterceptor(response, _reqConfig?.onResponse);
 
         // Global interceptors
-        response = await interceptResponse(response, handlerConfig?.onResponse);
+        response = await applyInterceptor(response, handlerConfig?.onResponse);
 
         removeRequest(fetcherConfig);
 
