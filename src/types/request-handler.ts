@@ -110,6 +110,7 @@ export interface RetryOptions {
 
   /**
    * Retry only on specific status codes.
+   * @url https://developer.mozilla.org/en-US/docs/Web/HTTP/Status
    * @default [
    *   408, // Request Timeout
    *   409, // Conflict
@@ -138,13 +139,63 @@ export type PollingFunction = <ResponseData = unknown>(
   error?: ResponseError,
 ) => boolean;
 
+export type CacheKeyFunction = (config: FetcherConfig) => string;
+
+export type CacheBusterFunction = (config: FetcherConfig) => boolean;
+
+export type CacheSkipFunction = <ResponseData = any>(
+  data: ResponseData,
+  config: RequestConfig,
+) => boolean;
+
+/**
+ * Configuration object for cache related options
+ */
+export interface CacheOptions {
+  /**
+   * Maximum time, in seconds, a cache entry is considered fresh (valid).
+   * After this time, the entry may be considered stale (expired).
+   *
+   * @default 0 (no cache)
+   */
+  cacheTime?: number;
+
+  /**
+   * Cache key
+   * It provides a way to customize caching behavior dynamically according to different criteria.
+   * @param config - Request configuration.
+   * @default null By default it generates a unique cache key for HTTP requests based on:
+   * URL with Query Params, headers, body, mode, credentials, cache mode, redirection, referrer, integrity
+   */
+  cacheKey?: CacheKeyFunction;
+
+  /**
+   * Cache Buster Function
+   * It is called when a cache entry exists and you want to invalidate or refresh the cache under certain conditions
+   * @param config - Request configuration.
+   * @default (config)=>false Busting cache is disabled by default. Return true to change that
+   */
+  cacheBuster?: CacheBusterFunction;
+
+  /**
+   * Skip Cache Function
+   * Determines whether to set or skip setting caching for a request based on the response.
+   * @param response - Parsed Response.
+   * @param config - Request configuration.
+   * @default (response,config)=>false Bypassing cache is disabled by default. Return true to skip cache
+   */
+  skipCache?: CacheSkipFunction;
+}
+
 /**
  * ExtendedRequestConfig<D = any>
  *
  * This interface extends the standard `RequestInit` from the Fetch API, providing additional options
  * for handling requests, including custom error handling strategies, request interception, and more.
  */
-interface ExtendedRequestConfig<D = any> extends Omit<RequestInit, 'body'> {
+interface ExtendedRequestConfig<D = any>
+  extends Omit<RequestInit, 'body'>,
+    CacheOptions {
   /**
    * Custom error handling strategy for the request.
    * - `'reject'`: Rejects the promise with an error.
@@ -282,6 +333,10 @@ interface BaseRequestHandlerConfig extends RequestConfig {
 }
 
 export type RequestConfig = ExtendedRequestConfig;
+
+export type FetcherConfig = Omit<ExtendedRequestConfig, 'url'> & {
+  url: string;
+};
 
 export type RequestHandlerConfig = BaseRequestHandlerConfig;
 

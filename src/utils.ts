@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { OBJECT, UNDEFINED } from './const';
+import { OBJECT, STRING, UNDEFINED } from './const';
 import type { HeadersObject, QueryParams, UrlPathParams } from './types';
 
 export function isSearchParams(data: unknown): boolean {
@@ -63,7 +63,7 @@ export function shallowSerialize(obj: Record<string, any>): string {
  * @returns {Object} - A new object with keys sorted in ascending order.
  */
 export function sortObject(obj: Record<string, any>): object {
-  const sortedObj = {};
+  const sortedObj = {} as Record<string, string>;
   const keys = Object.keys(obj);
 
   keys.sort();
@@ -202,7 +202,7 @@ export function isJSONSerializable(value: any): boolean {
     return false;
   }
 
-  if (t === 'string' || t === 'number' || t === 'boolean') {
+  if (t === STRING || t === 'number' || t === 'boolean') {
     return true;
   }
 

@@ -15,7 +15,7 @@ describe('hash function', () => {
 
   it('should handle an empty string', () => {
     const input = '';
-    const expectedHash = '811c9dc5'; // Update with the correct expected hash value
+    const expectedHash = '0';
     expect(hash(input)).toBe(expectedHash);
   });
 

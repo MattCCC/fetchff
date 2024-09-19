@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { hash } from './hash';
 import { fetchf } from './index';
-import type { RequestConfig } from './types/request-handler';
+import type { FetcherConfig } from './types/request-handler';
 import type { CacheEntry } from './types/cache-manager';
-import { OBJECT } from './const';
+import { GET, OBJECT } from './const';
 import { formDataToString, shallowSerialize, sortObject } from './utils';
 
 const cache = new Map<string, CacheEntry<any>>();
@@ -17,13 +17,13 @@ const cache = new Map<string, CacheEntry<any>>();
  *   @property {string} [method="GET"] - The HTTP method (GET, POST, etc.).
  *   @property {HeadersInit} [headers={}] - The request headers.
  *   @property {BodyInit | null} [body=""] - The body of the request (only for methods like POST, PUT).
- *   @property {RequestMode} [mode="cors"] - The mode for the request (e.g., cors, no-cors, same-origin).
- *   @property {RequestCredentials} [credentials="same-origin"] - Whether to include credentials like cookies.
+ *   @property {RequestMode} [mode="cors"] - The mode for the request (e.g., cors, no-cors, include).
+ *   @property {RequestCredentials} [credentials="include"] - Whether to include credentials like cookies.
  *   @property {RequestCache} [cache="default"] - The cache mode (e.g., default, no-store, reload).
  *   @property {RequestRedirect} [redirect="follow"] - How to handle redirects (e.g., follow, error, manual).
  *   @property {string} [referrer=""] - The referrer URL to send with the request.
  *   @property {string} [integrity=""] - Subresource integrity value (a cryptographic hash for resource validation).
- * @returns {string|null} - A unique cache key based on the URL and request options. Null if cache is to be burst.
+ * @returns {string} - A unique cache key based on the URL and request options. Empty if cache is to be burst.
  *
  * @example
  * const cacheKey = generateCacheKey({
@@ -36,14 +36,14 @@ const cache = new Map<string, CacheEntry<any>>();
  * });
  * console.log(cacheKey);
  */
-export function generateCacheKey(options: RequestConfig = {}): string | null {
+export function generateCacheKey(options: FetcherConfig): string {
   const {
     url = '',
-    method = 'GET',
+    method = GET,
     headers = {},
     body = '',
     mode = 'cors',
-    credentials = 'same-origin',
+    credentials = 'include',
     cache = 'default',
     redirect = 'follow',
     referrer = '',
@@ -52,7 +52,7 @@ export function generateCacheKey(options: RequestConfig = {}): string | null {
 
   // Bail early if cache should be burst
   if (cache === 'reload') {
-    return null;
+    return '';
   }
 
   // Sort headers and body + convert sorted to strings for hashing purposes
@@ -72,9 +72,9 @@ export function generateCacheKey(options: RequestConfig = {}): string | null {
         bodyString = JSON.stringify(sortObject(body));
       }
     } else if (body instanceof Blob || body instanceof File) {
-      bodyString = `Blob/File:${body.size}:${body.type}`;
+      bodyString = `BF${body.size}${body.type}`;
     } else if (body instanceof ArrayBuffer || ArrayBuffer.isView(body)) {
-      bodyString = `ArrBuffer:${body.byteLength}`;
+      bodyString = `AB${body.byteLength}`;
     }
 
     // Hash it for smaller output
@@ -87,24 +87,15 @@ export function generateCacheKey(options: RequestConfig = {}): string | null {
   // Template literals are apparently slower
   return (
     method +
-    ':' +
     url +
-    ':' +
-    headersString +
-    ':' +
-    bodyString +
-    ':' +
     mode +
-    ':' +
     credentials +
-    ':' +
     cache +
-    ':' +
     redirect +
-    ':' +
     referrer +
-    ':' +
-    integrity
+    integrity +
+    headersString +
+    bodyString
   );
 }
 
@@ -116,14 +107,18 @@ export function generateCacheKey(options: RequestConfig = {}): string | null {
  * @returns {boolean} - Returns true if the cache entry is expired, false otherwise.
  */
 function isCacheExpired(timestamp: number, maxStaleTime: number): boolean {
-  return maxStaleTime && Date.now() - timestamp > maxStaleTime * 1000;
+  if (!maxStaleTime) {
+    return false;
+  }
+
+  return Date.now() - timestamp > maxStaleTime * 1000;
 }
 
 /**
  * Retrieves a cache entry if it exists and is not expired.
  *
  * @param {string} key Cache key to utilize
- * @param {RequestConfig} cacheTime - Maximum time to cache entry.
+ * @param {FetcherConfig} cacheTime - Maximum time to cache entry.
  * @returns {CacheEntry<T> | null} - The cache entry if it exists and is not expired, null otherwise.
  */
 export function getCache<T>(
@@ -166,12 +161,12 @@ export function setCache<T = unknown>(
  * Revalidates a cache entry by fetching fresh data and updating the cache.
  *
  * @param {string} key Cache key to utilize
- * @param {RequestConfig} config - The request configuration object.
+ * @param {FetcherConfig} config - The request configuration object.
  * @returns {Promise<void>} - A promise that resolves when the revalidation is complete.
  */
 export async function revalidate(
   key: string,
-  config: RequestConfig = null,
+  config: FetcherConfig,
 ): Promise<void> {
   try {
     // Fetch fresh data
@@ -199,13 +194,13 @@ export function deleteCache(key: string): void {
  * Mutates a cache entry with new data and optionally revalidates it.
  *
  * @param {string} key Cache key to utilize
- * @param {RequestConfig} config - The request configuration object.
+ * @param {FetcherConfig} config - The request configuration object.
  * @param {T} newData - The new data to be cached.
  * @param {boolean} revalidateAfter - If true, triggers revalidation after mutation.
  */
 export function mutate<T>(
   key: string,
-  config: RequestConfig = null,
+  config: FetcherConfig,
   newData: T,
   revalidateAfter: boolean = false,
 ): void {

@@ -8,7 +8,9 @@ import type {
   ResponseError,
   RequestHandlerReturnType,
   CreatedCustomFetcherInstance,
-  PollingFunction,
+  FetcherConfig,
+  CacheBusterFunction,
+  CacheSkipFunction,
 } from './types/request-handler';
 import type {
   APIResponse,
@@ -36,9 +38,12 @@ import {
   CONTENT_TYPE,
   GET,
   HEAD,
+  OBJECT,
+  STRING,
   UNDEFINED,
 } from './const';
 import { parseResponseData } from './response-parser';
+import { generateCacheKey, getCache, setCache } from './cache-manager';
 
 const defaultConfig: RequestHandlerConfig = {
   method: GET,
@@ -78,6 +83,8 @@ const defaultConfig: RequestHandlerConfig = {
 
     shouldRetry: async () => true,
   },
+  cacheBuster: () => false,
+  skipCache: () => false,
 };
 
 /**
@@ -155,7 +162,7 @@ function createRequestHandler(
     url: string,
     data: QueryParamsOrBody,
     reqConfig: RequestConfig,
-  ): RequestConfig => {
+  ): FetcherConfig => {
     const method = getConfig<string>(
       reqConfig,
       'method',
@@ -208,7 +215,7 @@ function createRequestHandler(
     // Automatically stringify request body, if possible and when not dealing with strings
     if (
       body &&
-      typeof body !== 'string' &&
+      typeof body !== STRING &&
       !isSearchParams(body) &&
       isJSONSerializable(body)
     ) {
@@ -222,14 +229,6 @@ function createRequestHandler(
       method,
 
       url: baseURL + urlPath,
-
-      // Add sensible defaults
-      headers: reqConfig.headers
-        ? {
-            ...handlerConfig.headers,
-            ...reqConfig.headers,
-          }
-        : handlerConfig.headers,
     };
   };
 
@@ -318,18 +317,47 @@ function createRequestHandler(
     data: QueryParamsOrBody = null,
     reqConfig: RequestConfig | null = null,
   ): Promise<ResponseData & FetchResponse<ResponseData>> => {
-    let response: FetchResponse<ResponseData> | null = null;
-    const _reqConfig = reqConfig || {};
-    const fetcherConfig = buildConfig(url, data, _reqConfig);
+    const mergedConfig = {
+      ...handlerConfig,
+      ...(reqConfig || {}),
+    } as RequestConfig;
 
-    const timeout = getConfig<number>(fetcherConfig, 'timeout');
-    const isCancellable = getConfig<boolean>(fetcherConfig, 'cancellable');
-    const dedupeTime = getConfig<number>(fetcherConfig, 'dedupeTime');
-    const pollingInterval = getConfig<number>(fetcherConfig, 'pollingInterval');
-    const shouldStopPolling = getConfig<PollingFunction>(
-      fetcherConfig,
-      'shouldStopPolling',
-    );
+    let response: FetchResponse<ResponseData> | null = null;
+    const fetcherConfig = buildConfig(url, data, mergedConfig);
+
+    const {
+      timeout,
+      cancellable,
+      dedupeTime,
+      pollingInterval,
+      shouldStopPolling,
+      cacheTime,
+      cacheKey,
+    } = mergedConfig;
+
+    // Prevent performance overhead of cache access
+    let _cacheKey: string;
+
+    if (cacheKey) {
+      _cacheKey = cacheKey(fetcherConfig);
+    } else {
+      _cacheKey = generateCacheKey(fetcherConfig);
+    }
+
+    if (cacheTime && _cacheKey) {
+      const cacheBuster = mergedConfig.cacheBuster as CacheBusterFunction;
+
+      if (!cacheBuster(fetcherConfig)) {
+        const cachedEntry = getCache<
+          ResponseData & FetchResponse<ResponseData>
+        >(_cacheKey, cacheTime);
+
+        if (cachedEntry) {
+          // Serve stale data from cache
+          return cachedEntry.data;
+        }
+      }
+    }
 
     const {
       retries,
@@ -339,14 +367,7 @@ function createRequestHandler(
       shouldRetry,
       maxDelay,
       resetTimeout,
-    } = (
-      fetcherConfig.retry
-        ? {
-            ...handlerConfig.retry,
-            ...fetcherConfig.retry,
-          }
-        : handlerConfig.retry
-    ) as Required<RetryOptions>;
+    } = mergedConfig.retry as Required<RetryOptions>;
 
     let attempt = 0;
     let pollingAttempt = 0;
@@ -359,9 +380,9 @@ function createRequestHandler(
           fetcherConfig,
           timeout,
           dedupeTime,
-          isCancellable,
+          cancellable,
           // Reset timeouts by default or when retries are ON
-          timeout > 0 && (!retries || resetTimeout),
+          !!(timeout && (!retries || resetTimeout)),
         );
 
         // Shallow copy to ensure basic idempotency
@@ -430,8 +451,18 @@ function createRequestHandler(
         }
 
         // If polling is not required, or polling attempts are exhausted
-        return outputResponse(response, requestConfig) as ResponseData &
+        const output = outputResponse(response, requestConfig) as ResponseData &
           FetchResponse<ResponseData>;
+
+        if (cacheTime && _cacheKey) {
+          const skipCache = mergedConfig.skipCache as CacheSkipFunction;
+
+          if (!skipCache(output, requestConfig)) {
+            setCache(_cacheKey, output);
+          }
+        }
+
+        return output;
       } catch (err) {
         const error = err as ResponseErr;
         const status = error?.response?.status || error?.status || 0;
@@ -503,7 +534,7 @@ function createRequestHandler(
     if (
       data === undefined ||
       data === null ||
-      (typeof data === 'object' && Object.keys(data).length === 0)
+      (typeof data === OBJECT && Object.keys(data).length === 0)
     ) {
       data = defaultResponse;
     }

@@ -24,7 +24,7 @@ const queue: RequestsQueue = new Map<RequestConfig, QueueItem>();
  */
 export async function addRequest(
   config: RequestConfig,
-  timeout: number,
+  timeout: number | undefined,
   dedupeTime: number = 0,
   isCancellable: boolean = false,
   isTimeoutEnabled: boolean = true,
