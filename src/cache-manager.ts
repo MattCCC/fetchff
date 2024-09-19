@@ -64,22 +64,16 @@ export function generateCacheKey(options: FetcherConfig): string {
   // In majority of cases we do not cache body
   if (body !== null) {
     if (typeof body === 'string') {
-      bodyString = body;
-    } else if (typeof body === OBJECT) {
-      if (body instanceof FormData) {
-        bodyString = formDataToString(body);
-      } else {
-        bodyString = JSON.stringify(sortObject(body));
-      }
+      bodyString = hash(body);
+    } else if (body instanceof FormData) {
+      bodyString = hash(formDataToString(body));
     } else if (body instanceof Blob || body instanceof File) {
-      bodyString = `BF${body.size}${body.type}`;
+      bodyString = 'BF' + body.size + body.type;
     } else if (body instanceof ArrayBuffer || ArrayBuffer.isView(body)) {
-      bodyString = `AB${body.byteLength}`;
-    }
-
-    // Hash it for smaller output
-    if (bodyString) {
-      bodyString = hash(bodyString);
+      bodyString = 'AB' + body.byteLength;
+    } else {
+      const o = typeof body === OBJECT ? sortObject(body) : String(body);
+      bodyString = hash(JSON.stringify(o));
     }
   }
 
@@ -178,6 +172,9 @@ export async function revalidate(
     setCache(key, newData);
   } catch (error) {
     console.error(`Error revalidating ${config.url}:`, error);
+
+    // Rethrow the error to forward it
+    throw error;
   }
 }
 
