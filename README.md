@@ -5,7 +5,7 @@
 [npm-url]: https://npmjs.org/package/fetchff
 [npm-image]: http://img.shields.io/npm/v/fetchff.svg
 
-[![NPM version][npm-image]][npm-url] [![Blazing Fast](https://badgen.now.sh/badge/speed/blazing%20%F0%9F%94%A5/green)](https://github.com/MattCCC/fetchff) [![Code Coverage](https://badgen.now.sh/badge/coverage/97.68%/blue)](https://github.com/MattCCC/fetchff) [![npm downloads](https://img.shields.io/npm/dm/fetchff.svg?style=flat-square)](http://npm-stat.com/charts.html?package=fetchff) [![gzip size](https://img.shields.io/bundlephobia/minzip/fetchff)](https://bundlephobia.com/result?p=fetchff)
+[![NPM version][npm-image]][npm-url] [![Blazing Fast](https://badgen.now.sh/badge/speed/blazing%20%F0%9F%94%A5/green)](https://github.com/MattCCC/fetchff) [![Code Coverage](https://img.shields.io/badge/coverage-97.39-green)](https://github.com/MattCCC/fetchff) [![npm downloads](https://img.shields.io/npm/dm/fetchff.svg?color=lightblue)](http://npm-stat.com/charts.html?package=fetchff) [![gzip size](https://img.shields.io/bundlephobia/minzip/fetchff)](https://bundlephobia.com/result?p=fetchff)
 
 ## Why?
 
@@ -68,8 +68,7 @@ yarn add fetchff
 import { fetchf } from 'fetchff';
 
 const { data, error, status } = await fetchf(
-  'https://example.com/api/v1/getBooks',
-  { bookId: 1 },
+  'https://example.com/api/v1/books',
   {
     timeout: 2000,
     // Specify some other settings here...
@@ -691,14 +690,10 @@ try {
 ```typescript
 import { fetchf } from 'fetchff';
 
-const books = await fetchf(
-  'https://example.com/api/v1/getBooks',
-  { bookId: 1 },
-  {
-    timeout: 2000,
-    // Specify some other settings here...
-  },
-);
+const books = await fetchf('https://example.com/api/v1/books', {
+  timeout: 2000,
+  // Specify some other settings here...
+});
 ```
 
 ### Multiple APIs Handler from different API sources
