@@ -9,8 +9,6 @@ import type {
   RequestHandlerReturnType,
   CreatedCustomFetcherInstance,
   FetcherConfig,
-  CacheBusterFunction,
-  CacheSkipFunction,
 } from './types/request-handler';
 import type {
   APIResponse,
@@ -54,9 +52,6 @@ const defaultConfig: RequestHandlerConfig = {
   withCredentials: false,
   flattenResponse: false,
   defaultResponse: null,
-  logger: null,
-  fetcher: null,
-  baseURL: '',
   headers: {
     Accept: APPLICATION_JSON + ', text/plain, */*',
     'Accept-Encoding': 'gzip, deflate, br',
@@ -80,11 +75,7 @@ const defaultConfig: RequestHandlerConfig = {
       503, // Service Unavailable
       504, // Gateway Timeout
     ],
-
-    shouldRetry: async () => true,
   },
-  cacheBuster: () => false,
-  skipCache: () => false,
 };
 
 /**
@@ -98,7 +89,6 @@ function createRequestHandler(
 ): RequestHandlerReturnType {
   const handlerConfig: RequestHandlerConfig = {
     ...defaultConfig,
-    baseURL: config.apiUrl || '',
     ...config,
   };
 
@@ -110,7 +100,7 @@ function createRequestHandler(
   const requestInstance =
     customFetcher?.create({
       ...config,
-      baseURL: handlerConfig.baseURL,
+      baseURL: handlerConfig.baseURL || handlerConfig.apiUrl,
       timeout: handlerConfig.timeout,
     }) || null;
 
@@ -210,7 +200,10 @@ function createRequestHandler(
         ? appendQueryParams(dynamicUrl, explicitParams || (data as QueryParams))
         : dynamicUrl;
     const isFullUrl = urlPath.includes('://');
-    const baseURL = isFullUrl ? '' : getConfig<string>(reqConfig, 'baseURL');
+    const baseURL = isFullUrl
+      ? ''
+      : getConfig<string>(reqConfig, 'baseURL') ||
+        getConfig<string>(reqConfig, 'apiUrl');
 
     // Automatically stringify request body, if possible and when not dealing with strings
     if (
@@ -345,9 +338,9 @@ function createRequestHandler(
     }
 
     if (cacheTime && _cacheKey) {
-      const cacheBuster = mergedConfig.cacheBuster as CacheBusterFunction;
+      const cacheBuster = mergedConfig.cacheBuster;
 
-      if (!cacheBuster(fetcherConfig)) {
+      if (!cacheBuster || !cacheBuster(fetcherConfig)) {
         const cachedEntry = getCache<
           ResponseData & FetchResponse<ResponseData>
         >(_cacheKey, cacheTime);
@@ -455,9 +448,9 @@ function createRequestHandler(
           FetchResponse<ResponseData>;
 
         if (cacheTime && _cacheKey) {
-          const skipCache = mergedConfig.skipCache as CacheSkipFunction;
+          const skipCache = requestConfig.skipCache;
 
-          if (!skipCache(output, requestConfig)) {
+          if (!skipCache || !skipCache(output, requestConfig)) {
             setCache(_cacheKey, output);
           }
         }
@@ -469,7 +462,7 @@ function createRequestHandler(
 
         if (
           attempt === retries ||
-          !(await shouldRetry(error, attempt)) ||
+          !(!shouldRetry || (await shouldRetry(error, attempt))) ||
           !retryOn?.includes(status)
         ) {
           processError(error, fetcherConfig);

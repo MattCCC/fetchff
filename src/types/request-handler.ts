@@ -255,6 +255,11 @@ interface ExtendedRequestConfig<D = any>
   baseURL?: string;
 
   /**
+   * Alias for base URL.
+   */
+  apiUrl?: string;
+
+  /**
    * An object representing the headers to include with the request.
    */
   headers?: HeadersInit;
@@ -328,7 +333,6 @@ interface ExtendedRequestConfig<D = any>
 
 interface BaseRequestHandlerConfig extends RequestConfig {
   fetcher?: FetcherInstance | null;
-  apiUrl?: string;
   logger?: any;
 }
 

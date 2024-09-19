@@ -56,6 +56,11 @@ describe('Request Handler', () => {
 
   describe('buildConfig() with native fetch()', () => {
     let requestHandler: RequestHandlerReturnType | null = null;
+    const headers = {
+      Accept: 'application/json, text/plain, */*',
+      'Accept-Encoding': 'gzip, deflate, br',
+      'Content-Type': 'application/json;charset=utf-8',
+    };
 
     beforeAll(() => {
       requestHandler = createRequestHandler({});
@@ -90,17 +95,15 @@ describe('Request Handler', () => {
         'GET',
         'https://example.com/api',
         { foo: 'bar' },
-        {},
+        {
+          headers,
+        },
       );
 
       expect(result).toEqual({
         url: 'https://example.com/api?foo=bar',
         method: 'GET',
-        headers: {
-          Accept: 'application/json, text/plain, */*',
-          'Accept-Encoding': 'gzip, deflate, br',
-          'Content-Type': 'application/json;charset=utf-8',
-        },
+        headers,
       });
     });
 
@@ -109,17 +112,15 @@ describe('Request Handler', () => {
         'POST',
         'https://example.com/api',
         { foo: 'bar' },
-        {},
+        {
+          headers,
+        },
       );
 
       expect(result).toEqual({
         url: 'https://example.com/api',
         method: 'POST',
-        headers: {
-          Accept: 'application/json, text/plain, */*',
-          'Accept-Encoding': 'gzip, deflate, br',
-          'Content-Type': 'application/json;charset=utf-8',
-        },
+        headers,
         body: JSON.stringify({ foo: 'bar' }),
       });
     });
@@ -129,17 +130,15 @@ describe('Request Handler', () => {
         'PUT',
         'https://example.com/api',
         { foo: 'bar' },
-        {},
+        {
+          headers,
+        },
       );
 
       expect(result).toEqual({
         url: 'https://example.com/api',
         method: 'PUT',
-        headers: {
-          Accept: 'application/json, text/plain, */*',
-          'Accept-Encoding': 'gzip, deflate, br',
-          'Content-Type': 'application/json;charset=utf-8',
-        },
+        headers,
         body: JSON.stringify({ foo: 'bar' }),
       });
     });
@@ -149,17 +148,15 @@ describe('Request Handler', () => {
         'DELETE',
         'https://example.com/api',
         { foo: 'bar' },
-        {},
+        {
+          headers,
+        },
       );
 
       expect(result).toEqual({
         url: 'https://example.com/api',
         method: 'DELETE',
-        headers: {
-          Accept: 'application/json, text/plain, */*',
-          'Accept-Encoding': 'gzip, deflate, br',
-          'Content-Type': 'application/json;charset=utf-8',
-        },
+        headers,
         body: JSON.stringify({ foo: 'bar' }),
       });
     });
@@ -170,7 +167,7 @@ describe('Request Handler', () => {
         'https://example.com/api',
         { foo: 'bar' },
         {
-          headers: { Authorization: 'Bearer token' },
+          headers: { 'X-CustomHeader': 'Some token' },
           data: { additional: 'info' },
         },
       );
@@ -179,10 +176,7 @@ describe('Request Handler', () => {
         url: 'https://example.com/api?foo=bar',
         method: 'POST',
         headers: {
-          Accept: 'application/json, text/plain, */*',
-          'Accept-Encoding': 'gzip, deflate, br',
-          'Content-Type': 'application/json;charset=utf-8',
-          Authorization: 'Bearer token',
+          'X-CustomHeader': 'Some token',
         },
         body: JSON.stringify({ additional: 'info' }),
       });
@@ -194,11 +188,6 @@ describe('Request Handler', () => {
       expect(result).toEqual({
         url: 'https://example.com/api',
         method: 'POST',
-        headers: {
-          Accept: 'application/json, text/plain, */*',
-          'Accept-Encoding': 'gzip, deflate, br',
-          'Content-Type': 'application/json;charset=utf-8',
-        },
         body: null,
       });
     });
@@ -214,11 +203,6 @@ describe('Request Handler', () => {
       expect(result).toEqual({
         url: 'https://example.com/api',
         method: 'POST',
-        headers: {
-          Accept: 'application/json, text/plain, */*',
-          'Accept-Encoding': 'gzip, deflate, br',
-          'Content-Type': 'application/json;charset=utf-8',
-        },
         body: 'rawData',
       });
     });
@@ -234,11 +218,6 @@ describe('Request Handler', () => {
       expect(result).toEqual({
         url: 'https://example.com/api?foo[]=1&foo[]=2',
         method: 'HEAD',
-        headers: {
-          Accept: 'application/json, text/plain, */*',
-          'Accept-Encoding': 'gzip, deflate, br',
-          'Content-Type': 'application/json;charset=utf-8',
-        },
       });
     });
 
@@ -253,11 +232,6 @@ describe('Request Handler', () => {
       expect(result).toEqual({
         url: 'https://example.com/api?foo=bar',
         method: 'POST',
-        headers: {
-          Accept: 'application/json, text/plain, */*',
-          'Accept-Encoding': 'gzip, deflate, br',
-          'Content-Type': 'application/json;charset=utf-8',
-        },
         body: JSON.stringify({ additional: 'info' }),
       });
     });
@@ -270,11 +244,6 @@ describe('Request Handler', () => {
       expect(result).toEqual({
         url: 'https://example.com/api',
         method: 'POST',
-        headers: {
-          Accept: 'application/json, text/plain, */*',
-          'Accept-Encoding': 'gzip, deflate, br',
-          'Content-Type': 'application/json;charset=utf-8',
-        },
         credentials: 'include',
         body: null,
       });
@@ -293,11 +262,6 @@ describe('Request Handler', () => {
       expect(result).toEqual({
         url: 'https://example.com/api',
         method: 'POST',
-        headers: {
-          Accept: 'application/json, text/plain, */*',
-          'Accept-Encoding': 'gzip, deflate, br',
-          'Content-Type': 'application/json;charset=utf-8',
-        },
         body: JSON.stringify({ foo: 'bar' }),
       });
     });
@@ -313,11 +277,6 @@ describe('Request Handler', () => {
       expect(result).toEqual({
         url: 'https://example.com/api?foo=bar',
         method: 'GET',
-        headers: {
-          Accept: 'application/json, text/plain, */*',
-          'Accept-Encoding': 'gzip, deflate, br',
-          'Content-Type': 'application/json;charset=utf-8',
-        },
       });
     });
   });
