@@ -348,28 +348,7 @@ You can also use all native `fetch()` settings.
   <br>
   Interceptor functions can be provided to customize the behavior of requests and responses. These functions are invoked at different stages of the request lifecycle and allow for flexible handling of requests, responses, and errors.
 
-### Configuration
-
-The following options are available for configuring interceptors in the `RequestHandler`:
-
-- **`onRequest`**:  
-  Type: `RequestInterceptor | RequestInterceptor[]`  
-  A function or an array of functions that are invoked before sending a request. Each function receives the request configuration object as its argument, allowing you to modify request parameters, headers, or other settings.  
-  _Default:_ `(config) => config` (no modification).
-
-- **`onResponse`**:  
-  Type: `ResponseInterceptor | ResponseInterceptor[]`  
-  A function or an array of functions that are invoked when a response is received. Each function receives the full response object, enabling you to process the response, handle status codes, or parse data as needed.  
-  _Default:_ `(response) => response` (no modification).
-
-- **`onError`**:  
-  Type: `ErrorInterceptor | ErrorInterceptor[]`  
-  A function or an array of functions that handle errors when a request fails. Each function receives the error and request configuration as arguments, allowing you to implement custom error handling logic or logging.  
-  _Default:_ `(error) => error` (no modification).
-
 ### Example
-
-Here's an example of how to use interceptors with `fetchf`:
 
 ```typescript
 const { data } = await fetchf('https://api.example.com/', {
@@ -389,6 +368,24 @@ const { data } = await fetchf('https://api.example.com/', {
 });
 ```
 
+### Configuration
+
+The following options are available for configuring interceptors in the `RequestHandler`:
+
+- **`onRequest`**:  
+  Type: `RequestInterceptor | RequestInterceptor[]`  
+  A function or an array of functions that are invoked before sending a request. Each function receives the request configuration object as its argument, allowing you to modify request parameters, headers, or other settings.  
+  _Default:_ `(config) => config` (no modification).
+
+- **`onResponse`**:  
+  Type: `ResponseInterceptor | ResponseInterceptor[]`  
+  A function or an array of functions that are invoked when a response is received. Each function receives the full response object, enabling you to process the response, handle status codes, or parse data as needed.  
+  _Default:_ `(response) => response` (no modification).
+
+- **`onError`**:  
+ Type: `ErrorInterceptor | ErrorInterceptor[]`  
+ A function or an array of functions that handle errors when a request fails. Each function receives the error and request configuration as arguments, allowing you to implement custom error handling logic or logging.  
+ _Default:_ `(error) => error` (no modification).
 </details>
 
 ## 🗄️ Smart Cache Management
