@@ -17,24 +17,6 @@ export function isObject(value: any): value is Record<string, any> {
 }
 
 /**
- * Converts a FormData object to a string representation.
- *
- * @param {FormData} formData - The FormData object to convert.
- * @returns {string} - A string representation of the FormData object.
- */
-export function formDataToString(formData: FormData): string {
-  let result = '';
-
-  formData.forEach((value, key) => {
-    // Append key=value and '&' directly to the result
-    result += key + '=' + value + '&';
-  });
-
-  // Remove trailing '&' if there are any key-value pairs
-  return result ? result.slice(0, -1) : result;
-}
-
-/**
  * Shallowly serializes an object by converting its key-value pairs into a string representation.
  * This function does not recursively serialize nested objects.
  *

@@ -80,7 +80,6 @@ describe('Cache Manager', () => {
     });
 
     it('should convert FormData body to string', () => {
-      const formDataToString = jest.spyOn(utils, 'formDataToString');
       const formData = new FormData();
       formData.set('something', '1');
 
@@ -89,8 +88,7 @@ describe('Cache Manager', () => {
         method: 'POST',
         body: formData,
       });
-      expect(formDataToString).toHaveBeenCalledWith(formData);
-      expect(key).toContain('1688970866');
+      expect(key).toContain('-818489256');
     });
 
     it('should handle Blob body', () => {
