@@ -41,7 +41,7 @@ Managing multiple API endpoints can be complex and time-consuming. `fetchff` sim
 
 Please open an issue for future requests.
 
-## ✔️ Quick Start
+## ✔️ Install
 
 [![NPM](https://nodei.co/npm/fetchff.png)](https://npmjs.org/package/fetchff)
 
@@ -63,13 +63,13 @@ Using Yarn:
 yarn add fetchff
 ```
 
-###
-
 ## ✔️ API
 
 ### Standalone usage
 
-`fetchf()` is a functional wrapper for `fetch()`. It seamlessly enhances it with additional settings like the retry mechanism and error handling improvements. The `fetchf()` can be used directly as a function, simplifying the usage and making it easier to integrate with functional programming styles. The `fetchf()` makes requests independently of `createApiFetcher()` settings.
+#### `fetchf()`
+
+It is a functional wrapper for `fetch()`. It seamlessly enhances it with additional settings like the retry mechanism and error handling improvements. The `fetchf()` can be used directly as a function, simplifying the usage and making it easier to integrate with functional programming styles. The `fetchf()` makes requests independently of `createApiFetcher()` settings.
 
 #### Example
 
@@ -116,7 +116,9 @@ To address these challenges, the `fetchf()` provides several enhancements:
 
 ### Multiple API Endpoints
 
-`createApiFetcher()` is a powerful factory function for creating API fetchers with advanced features. It provides a convenient way to configure and manage multiple API endpoints using a declarative approach. This function offers integration with retry mechanisms, error handling improvements, and all the other settings. Unlike traditional methods, `createApiFetcher()` allows you to set up and use API endpoints efficiently with minimal boilerplate code.
+#### `createApiFetcher()`
+
+It is a powerful factory function for creating API fetchers with advanced features. It provides a convenient way to configure and manage multiple API endpoints using a declarative approach. This function offers integration with retry mechanisms, error handling improvements, and all the other settings. Unlike traditional methods, `createApiFetcher()` allows you to set up and use API endpoints efficiently with minimal boilerplate code.
 
 #### Example
 
@@ -154,7 +156,13 @@ const { data, error } = await api.getUser({
 });
 ```
 
-The `const api` methods and properties are described below:
+#### How It Works
+
+The `const api` automatically creates API methods based on the endpoints provided. It also exposes some extra methods and properties.
+
+<details>
+  <summary><span style="cursor:pointer">Click to expand</span></summary>
+  <br>
 
 #### `api.myEndpointName(queryParamsOrBodyPayload, urlPathParams, requestConfig)`
 
@@ -285,6 +293,8 @@ const { data, error } = await api.request('https://example.com/api/user', {
   name: 'John Smith', // Query Params
 });
 ```
+
+</details>
 
 ## ✔️ Settings (Request Config)
 
