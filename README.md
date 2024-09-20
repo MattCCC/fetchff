@@ -156,6 +156,21 @@ const { data, error } = await api.getUser({
 });
 ```
 
+#### API Fetcher Settings
+
+<details>
+  <summary><span style="cursor:pointer">Click to expand</span></summary>
+  <br>
+
+There are only 2 extra settings for `createApiFetcher()`:
+
+| Name      | Type              | Default | Description                                                                                                                                                                                                                                                                |
+| --------- | ----------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| endpoints | `object`          |         | List of your endpoints. Each endpoint accepts all the settings below. They can be set globally, per-endpoint or per-request.                                                                                                                                               |
+| fetcher   | `FetcherInstance` |         | A custom adapter (an instance / object) that exposes `create()` function so to create instance of API Fetcher. The `create()` should return `request()` function that would be used when making the requests. The native `fetch()` is used if the fetcher is not provided. |
+
+</details>
+
 #### How It Works
 
 The `const api` automatically creates API methods based on the endpoints provided. It also exposes some extra methods and properties.
@@ -306,12 +321,8 @@ You can pass the settings:
 
 You can also use all native `fetch()` settings.
 
-Settings that are global only are marked with star `*`.
-
 |                            | Type                                                                                                   | Default                               | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | -------------------------- | ------------------------------------------------------------------------------------------------------ | ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| endpoints \*               | `object`                                                                                               |                                       | List of your endpoints. Each endpoint accepts all the settings below. They can be set globally, per-endpoint or per-request.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| fetcher \*                 | `FetcherInstance`                                                                                      |                                       | A custom adapter (an instance / object) that exposes `create()` function so to create instance of API Fetcher. The `create()` should return `request()` function that would be used when making the requests. The native `fetch()` is used if the fetcher is not provided.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | baseURL<br>(alias: apiUrl) | `string`                                                                                               |                                       | Your API base url.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | url                        | `string`                                                                                               |                                       | URL path e.g. /user-details/get                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | method                     | `string`                                                                                               | `GET`                                 | Default request method e.g. GET, POST, DELETE, PUT etc. All methods are supported.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
@@ -328,16 +339,63 @@ Settings that are global only are marked with star `*`.
 | dedupeTime                 | `number`                                                                                               | `1000`                                | Time window, in milliseconds, during which identical requests are deduplicated (treated as single request).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | pollingInterval            | `number`                                                                                               | `0`                                   | Interval in milliseconds between polling attempts. Setting `0` disables polling.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | shouldStopPolling          | `PollingFunction`                                                                                      | `(response, error, attempt) => false` | Function to determine if polling should stop based on the response. Returns `true` to stop polling, `false` to continue.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| onRequest                  | `RequestInterceptor`<br>`RequestInterceptor[]`                                                         | `(config) => config`                  | A function or an array of functions that are invoked before sending a request. Each function receives the request configuration object as its argument, allowing you to modify request parameters, headers, or other settings.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| onResponse                 | `ResponseInterceptor`<br>`ResponseInterceptor[]`                                                       | `(response) => response`              | A function or an array of functions that are invoked when a response is received. Each function receives the full response object, enabling you to process the response, handle status codes, or parse data as needed.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| onError                    | `ErrorInterceptor`<br>`ErrorInterceptor[]`                                                             | `(error) => error`                    | A function or an array of functions that handle errors when a request fails. Each function receives the error and request configuration as arguments, allowing you to implement custom error handling logic or logging.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | logger                     | `object`                                                                                               | `null`                                | You can additionally specify logger object with your custom logger to automatically log the errors to the console. It should contain at least `error` and `warn` functions.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 
-## 🗄️ Smart Cache Management
+## ✔️ Interceptors
 
 <details>
   <summary><span style="cursor:pointer">Click to expand</span></summary>
   <br>
+  Interceptor functions can be provided to customize the behavior of requests and responses. These functions are invoked at different stages of the request lifecycle and allow for flexible handling of requests, responses, and errors.
+
+### Configuration
+
+The following options are available for configuring interceptors in the `RequestHandler`:
+
+- **`onRequest`**:  
+  Type: `RequestInterceptor | RequestInterceptor[]`  
+  A function or an array of functions that are invoked before sending a request. Each function receives the request configuration object as its argument, allowing you to modify request parameters, headers, or other settings.  
+  _Default:_ `(config) => config` (no modification).
+
+- **`onResponse`**:  
+  Type: `ResponseInterceptor | ResponseInterceptor[]`  
+  A function or an array of functions that are invoked when a response is received. Each function receives the full response object, enabling you to process the response, handle status codes, or parse data as needed.  
+  _Default:_ `(response) => response` (no modification).
+
+- **`onError`**:  
+  Type: `ErrorInterceptor | ErrorInterceptor[]`  
+  A function or an array of functions that handle errors when a request fails. Each function receives the error and request configuration as arguments, allowing you to implement custom error handling logic or logging.  
+  _Default:_ `(error) => error` (no modification).
+
+### Example
+
+Here's an example of how to use interceptors with `fetchf`:
+
+```typescript
+const { data } = await fetchf('https://api.example.com/', {
+  onRequest(config) {
+    // Add a custom header before sending the request
+    config.headers['Authorization'] = 'Bearer your-token';
+  },
+  onResponse(response) {
+    // Log the response status
+    console.log(`Response Status: ${response.status}`);
+  },
+  onError(error, config) {
+    // Handle errors and log the request config
+    console.error('Request failed:', error);
+    console.error('Request config:', config);
+  },
+});
+```
+
+</details>
+
+## 🗄️ Smart Cache Management
+
+<details>
+<summary><span style="cursor:pointer">Click to expand</span></summary>
+<br>
 The caching mechanism in <b>fetchf()</b> and <b>createApiFetcher()</b> enhances performance by reducing redundant network requests and reusing previously fetched data when appropriate. This system ensures that cached responses are managed efficiently and only used when considered "fresh." Below is a breakdown of the key parameters that control caching behavior and their default values.
 
 ### Example
@@ -509,9 +567,13 @@ The retry mechanism is configured via the `retry` option when instantiating the 
 
 Please mind that this table is for informational purposes only. All of these solutions differ. For example `swr` and `react-query` are more focused on React, re-rendering, query caching and keeping data in sync, while fetch wrappers like `fetchff` or `ofetch` aim to extend functionalities of native `fetch` so to reduce complexity of having to maintain various wrappers.
 
-## ✔️ Full TypeScript support
+## ✔️ Using with Full TypeScript Support
 
 The library includes all necessary [TypeScript](http://typescriptlang.org) definitions bringing full TypeScript support to your API Handler. The package ships interfaces with responsible defaults making it easier to add new endpoints.
+
+<details>
+  <summary><span style="cursor:pointer">Click to expand</span></summary>
+  <br>
 
 ```typescript
 // books.d.ts
@@ -570,11 +632,17 @@ const anotherBook = await api.fetchBook({ rating: 5 });
 const books = await api.fetchBooks<Books>();
 ```
 
-### ✔️ Easy Integration with React and Other Libraries
+</details>
 
-`fetchff` is designed to seamlessly integrate with any popular libraries like React, Vue, React Query and SWR. It is written in pure JS so you can effortlessly manage API requests with minimal setup, and without any dependencies.
+### ✔️ Easy Integration with Frameworks and Libraries
 
-#### 🌊 Using with Pure React
+`fetchff` is designed to seamlessly integrate with any popular frameworks like Next.js, libraries like React, Vue, React Query and SWR. It is written in pure JS so you can effortlessly manage API requests with minimal setup, and without any dependencies.
+
+#### 🌊 Using with React
+
+<details>
+  <summary><span style="cursor:pointer">Click to expand</span></summary>
+  <br>
 
 You can implement a `useApi()` hook to handle the data fetching. Since this package has everything included, you don't really need anything more than a simple hook to utilize.
 
@@ -628,7 +696,13 @@ const ProfileComponent = ({ id }) => {
 
 ```
 
+</details>
+
 #### Using with React Query
+
+<details>
+  <summary><span style="cursor:pointer">Click to expand</span></summary>
+  <br>
 
 Integrate `fetchff` with React Query to streamline your data fetching:
 
@@ -649,7 +723,13 @@ export const useProfile = ({ id }) => {
 };
 ```
 
+</details>
+
 #### Using with SWR
+
+<details>
+  <summary><span style="cursor:pointer">Click to expand</span></summary>
+  <br>
 
 Combine `fetchff` with SWR for efficient data fetching and caching.
 
@@ -698,6 +778,83 @@ export const useProfile = ({ id }) => {
 };
 ```
 
+</details>
+
+#### 🌊 Using with Vue
+
+<details>
+  <summary><span style="cursor:pointer">Click to expand</span></summary>
+  <br>
+
+```typescript
+// src/api.ts
+import { createApiFetcher } from 'fetchff';
+
+const api = createApiFetcher({
+  apiUrl: 'https://example.com/api',
+  strategy: 'softFail',
+  endpoints: {
+    getProfile: { url: '/profile/:id' },
+  },
+});
+
+export default api;
+```
+
+```typescript
+// src/composables/useProfile.ts
+import { ref, onMounted } from 'vue';
+import api from '../api';
+
+export function useProfile(id: number) {
+  const profile = ref(null);
+  const isLoading = ref(true);
+  const isError = ref(null);
+
+  const fetchProfile = async () => {
+    const { data, error } = await api.getProfile({ id });
+
+    if (error) isError.value = error;
+    else if (data) profile.value = data;
+
+    isLoading.value = false;
+  };
+
+  onMounted(fetchProfile);
+
+  return { profile, isLoading, isError };
+}
+```
+
+```html
+<!-- src/components/Profile.vue -->
+<template>
+  <div>
+    <h1>Profile</h1>
+    <div v-if="isLoading">Loading...</div>
+    <div v-if="isError">Error: {{ isError.message }}</div>
+    <div v-if="profile">
+      <p>Name: {{ profile.name }}</p>
+      <p>Email: {{ profile.email }}</p>
+    </div>
+  </div>
+</template>
+
+<script lang="ts">
+  import { defineComponent } from 'vue';
+  import { useProfile } from '../composables/useProfile';
+
+  export default defineComponent({
+    props: { id: Number },
+    setup(props) {
+      return useProfile(props.id);
+    },
+  });
+</script>
+```
+
+</details>
+
 ## ✔️ Examples
 
 Check [examples.ts file](./docs/examples/examples.ts) for more examples of usage.
@@ -736,14 +893,10 @@ const api = createApiFetcher({
   async onRequest(config) {
     // Interceptor on each request
     console.error('Fired on each request', config);
-
-    return config;
   },
   async onResponse(response) {
     // Interceptor on each response
     console.error('Fired on each response', response);
-
-    return response;
   },
   logger: {
     // Custom logger for logging errors.
@@ -836,8 +989,6 @@ fetchff('https://api.example.com/books/all', null, {
   },
   onResponse(response) {
     console.log('New response:', response);
-
-    return response;
   },
   onError(error) {
     console.error('Request ultimately failed:', error);
@@ -1108,75 +1259,6 @@ import { fetchf } from 'fetchff';
 const { data } = await fetchf('/api/user-details', {
   retry: { retries: 3, delay: 2000 },
 });
-```
-
-### Integration with Vue
-
-```typescript
-// src/api.ts
-import { createApiFetcher } from 'fetchff';
-
-const api = createApiFetcher({
-  apiUrl: 'https://example.com/api',
-  strategy: 'softFail',
-  endpoints: {
-    getProfile: { url: '/profile/:id' },
-  },
-});
-
-export default api;
-```
-
-```typescript
-// src/composables/useProfile.ts
-import { ref, onMounted } from 'vue';
-import api from '../api';
-
-export function useProfile(id: number) {
-  const profile = ref(null);
-  const isLoading = ref(true);
-  const isError = ref(null);
-
-  const fetchProfile = async () => {
-    const { data, error } = await api.getProfile({ id });
-
-    if (error) isError.value = error;
-    else if (data) profile.value = data;
-
-    isLoading.value = false;
-  };
-
-  onMounted(fetchProfile);
-
-  return { profile, isLoading, isError };
-}
-```
-
-```html
-<!-- src/components/Profile.vue -->
-<template>
-  <div>
-    <h1>Profile</h1>
-    <div v-if="isLoading">Loading...</div>
-    <div v-if="isError">Error: {{ isError.message }}</div>
-    <div v-if="profile">
-      <p>Name: {{ profile.name }}</p>
-      <p>Email: {{ profile.email }}</p>
-    </div>
-  </div>
-</template>
-
-<script lang="ts">
-  import { defineComponent } from 'vue';
-  import { useProfile } from '../composables/useProfile';
-
-  export default defineComponent({
-    props: { id: Number },
-    setup(props) {
-      return useProfile(props.id);
-    },
-  });
-</script>
 ```
 
 ## ✔️ Support and collaboration
