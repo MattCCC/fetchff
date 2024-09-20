@@ -207,8 +207,19 @@ async function example6() {
     'https://example.com/api/custom-endpoint',
   );
 
-  console.log('Example 5', books);
-  console.log('Example 5', data1, data2);
+  console.log('Example 6', books);
+  console.log('Example 6', data1, data2);
+}
+
+// fetchf() - direct fetchf() request with interceptor
+async function example7() {
+  const response = await fetchf('https://example.com/api/custom-endpoint', {
+    onResponse(response) {
+      response.data = { username: 'modified response' };
+    },
+  });
+
+  console.log('Example 7', response);
 }
 
 example1();
@@ -217,3 +228,4 @@ example3();
 example4();
 example5();
 example6();
+example7();

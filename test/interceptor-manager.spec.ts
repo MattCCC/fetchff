@@ -41,13 +41,10 @@ describe('Interceptor Functions', () => {
 
     // Prepare a request configuration
     const initialConfig = { method: 'GET' };
-    const interceptedConfig = await interceptRequest(
-      initialConfig,
-      requestInterceptors,
-    );
+    await interceptRequest(initialConfig, requestInterceptors);
 
     // Validate the intercepted configuration
-    expect(interceptedConfig).toEqual({
+    expect(initialConfig).toEqual({
       method: 'GET',
       headers: {
         Authorization: 'Bearer token',
@@ -86,11 +83,8 @@ describe('Interceptor Functions', () => {
     }) as ExtendedResponse;
 
     // Apply response interceptors
-    const finalResponse = await interceptResponse(
-      mockResponse,
-      responseInterceptors,
-    );
-    const data = await finalResponse.json();
+    await interceptResponse(mockResponse, responseInterceptors);
+    const data = await mockResponse.json();
 
     // Validate the final response data
     expect(data).toEqual({

@@ -6,6 +6,7 @@ import type {
   UrlPathParams,
 } from './api-handler';
 import type {
+  ErrorInterceptor,
   RequestInterceptor,
   ResponseInterceptor,
 } from './interceptor-manager';
@@ -52,29 +53,26 @@ export type ErrorHandlingStrategy =
   | 'defaultResponse'
   | 'softFail';
 
-type ErrorInterceptor = (error: ResponseError) => unknown;
-
 export interface HeadersObject {
   [key: string]: string;
 }
 
-export interface ExtendedResponse<T = any> extends Omit<Response, 'headers'> {
-  data: T;
-  error: ResponseError<T> | null;
+export interface ExtendedResponse<D = any> extends Omit<Response, 'headers'> {
+  data: D extends unknown ? any : D;
+  error: ResponseError<D> | null;
   headers: HeadersObject & HeadersInit;
-  config: ExtendedRequestConfig;
-  request?: ExtendedRequestConfig;
+  config: ExtendedRequestConfig<D>;
 }
 
 export type FetchResponse<T = any> = ExtendedResponse<T>;
 
-export interface ResponseError<T = any> extends Error {
-  config: ExtendedRequestConfig;
+export interface ResponseError<D = any> extends Error {
+  config: ExtendedRequestConfig<D>;
   code?: string;
   status?: number;
   statusText?: string;
-  request?: ExtendedRequestConfig;
-  response?: FetchResponse<T>;
+  request?: ExtendedRequestConfig<D>;
+  response?: FetchResponse<D>;
 }
 
 export type RetryFunction = <T = any>(
@@ -82,7 +80,7 @@ export type RetryFunction = <T = any>(
   attempts: number,
 ) => Promise<boolean>;
 
-export type PollingFunction = <ResponseData = unknown>(
+export type PollingFunction = <ResponseData = any>(
   response: FetchResponse<ResponseData>,
   attempts: number,
   error?: ResponseError,
@@ -295,17 +293,17 @@ interface ExtendedRequestConfig<D = any>
   /**
    * A function or array of functions to intercept the request before it is sent.
    */
-  onRequest?: RequestInterceptor | RequestInterceptor[];
+  onRequest?: RequestInterceptor<D> | RequestInterceptor<D>[];
 
   /**
    * A function or array of functions to intercept the response before it is resolved.
    */
-  onResponse?: ResponseInterceptor | ResponseInterceptor[];
+  onResponse?: ResponseInterceptor<D> | ResponseInterceptor<D>[];
 
   /**
    * A function to handle errors that occur during the request or response processing.
    */
-  onError?: ErrorInterceptor;
+  onError?: ErrorInterceptor | ErrorInterceptor[];
 
   /**
    * The maximum time (in milliseconds) the request can take before automatically being aborted.
@@ -333,18 +331,21 @@ interface ExtendedRequestConfig<D = any>
   shouldStopPolling?: PollingFunction;
 }
 
-interface BaseRequestHandlerConfig extends RequestConfig {
+interface BaseRequestHandlerConfig<RequestData = any>
+  extends RequestConfig<RequestData> {
   fetcher?: FetcherInstance | null;
   logger?: any;
 }
 
-export type RequestConfig = ExtendedRequestConfig;
+export type RequestConfig<RequestData = any> =
+  ExtendedRequestConfig<RequestData>;
 
 export type FetcherConfig = Omit<ExtendedRequestConfig, 'url'> & {
   url: string;
 };
 
-export type RequestHandlerConfig = BaseRequestHandlerConfig;
+export type RequestHandlerConfig<RequestData = any> =
+  BaseRequestHandlerConfig<RequestData>;
 
 export interface RequestHandlerReturnType {
   config: RequestHandlerConfig;

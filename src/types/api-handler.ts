@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import type {
   RequestConfig,
   RequestHandlerConfig,
@@ -9,16 +10,19 @@ import type {
 // Common type definitions
 type NameValuePair = { name: string; value: string };
 
+declare const emptyObjectSymbol: unique symbol;
+
+export type EmptyObject = { [emptyObjectSymbol]?: never };
+
 export declare type QueryParams<T = unknown> =
-  | Record<string, T>
+  | (Record<string, T> & EmptyObject)
   | URLSearchParams
   | NameValuePair[]
   | null;
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export declare type BodyPayload<T = any> =
   | BodyInit
-  | Record<string, T>
+  | (Record<string, T> & EmptyObject)
   | T[]
   | string
   | null;
@@ -27,7 +31,9 @@ export declare type QueryParamsOrBody<T = unknown> =
   | QueryParams<T>
   | BodyPayload<T>;
 
-export declare type UrlPathParams<T = unknown> = Record<string, T> | null;
+export declare type UrlPathParams<T = unknown> =
+  | (Record<string, T> & EmptyObject)
+  | null;
 
 export declare type APIResponse = unknown;
 

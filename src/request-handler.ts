@@ -220,25 +220,21 @@ export function createRequestHandler(
    *
    * @param {ResponseError} error      Error instance
    * @param {RequestConfig} requestConfig   Per endpoint request config
-   * @returns {void}
+   * @returns {Promise<void>}
    */
-  const processError = (
+  const processError = async (
     error: ResponseError,
     requestConfig: RequestConfig,
-  ): void => {
+  ): Promise<void> => {
     if (!isRequestCancelled(error)) {
       logger('API ERROR', error);
     }
 
-    // Invoke per request "onError" interceptor
-    if (requestConfig.onError) {
-      requestConfig.onError(error);
-    }
+    // Local interceptors
+    await applyInterceptor(error, requestConfig?.onError);
 
-    // Invoke global "onError" interceptor
-    if (handlerConfig.onError) {
-      handlerConfig.onError(error);
-    }
+    // Global interceptors
+    await applyInterceptor(error, handlerConfig?.onError);
   };
 
   /**
@@ -370,22 +366,16 @@ export function createRequestHandler(
         );
 
         // Shallow copy to ensure basic idempotency
-        let requestConfig: RequestConfig = {
+        const requestConfig: RequestConfig = {
           signal: controller.signal,
           ...fetcherConfig,
         };
 
         // Local interceptors
-        requestConfig = await applyInterceptor(
-          requestConfig,
-          _reqConfig?.onRequest,
-        );
+        await applyInterceptor(requestConfig, _reqConfig?.onRequest);
 
         // Global interceptors
-        requestConfig = await applyInterceptor(
-          requestConfig,
-          handlerConfig?.onRequest,
-        );
+        await applyInterceptor(requestConfig, handlerConfig?.onRequest);
 
         if (customFetcher !== null && requestInstance !== null) {
           response = await requestInstance.request(requestConfig);
@@ -412,10 +402,10 @@ export function createRequestHandler(
         }
 
         // Local interceptors
-        response = await applyInterceptor(response, _reqConfig?.onResponse);
+        await applyInterceptor(response, _reqConfig?.onResponse);
 
         // Global interceptors
-        response = await applyInterceptor(response, handlerConfig?.onResponse);
+        await applyInterceptor(response, handlerConfig?.onResponse);
 
         removeRequest(fetcherConfig);
 
@@ -456,7 +446,7 @@ export function createRequestHandler(
           !(!shouldRetry || (await shouldRetry(error, attempt))) ||
           !retryOn?.includes(status)
         ) {
-          processError(error, fetcherConfig);
+          await processError(error, fetcherConfig);
 
           removeRequest(fetcherConfig);
 
