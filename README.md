@@ -63,53 +63,15 @@ Using Yarn:
 yarn add fetchff
 ```
 
-### Standalone usage
-
-```typescript
-import { fetchf } from 'fetchff';
-
-const { data, error, status } = await fetchf(
-  'https://example.com/api/v1/books',
-  {
-    timeout: 2000,
-    // Specify some other settings here...
-  },
-);
-```
-
-### Multiple API Endpoints
-
-```typescript
-import { createApiFetcher } from 'fetchff';
-
-const api = createApiFetcher({
-  apiUrl: 'https://example.com/api',
-  strategy: 'softFail', // no try/catch required
-  // Other global settings...
-  endpoints: {
-    getUser: {
-      method: 'get',
-      url: '/user-details',
-      // All global settings can be added per endpoint...
-    },
-  },
-});
-
-// GET request to http://example.com/api/user-details?userId=1
-const { data } = await api.getUser({ userId: 1 });
-
-// GET request to http://example.com/api/user-details?userId=2&ratings[]=1&ratings[]=2
-const { data, error, status } = await api.getUser({
-  userId: 2,
-  ratings: [1, 2],
-});
-```
+###
 
 ## ✔️ API
 
-### `fetchf()`
+### Standalone usage
 
-`fetchf()` is a functional wrapper for `fetch()`. It integrates seamlessly with the retry mechanism and error handling improvements. Unlike the traditional class-based approach, `fetchf()` can be used directly as a function, simplifying the usage and making it easier to integrate with functional programming styles.
+`fetchf()` is a functional wrapper for `fetch()`. It seamlessly enhances it with additional settings like the retry mechanism and error handling improvements. The `fetchf()` can be used directly as a function, simplifying the usage and making it easier to integrate with functional programming styles. The `fetchf()` makes requests independently of `createApiFetcher()` settings.
+
+#### Example
 
 ```typescript
 import { fetchf } from 'fetchff';
@@ -118,13 +80,15 @@ const { data, error } = await fetchf('/api/user-details', {
   timeout: 5000,
   cancellable: true,
   retry: { retries: 3, delay: 2000 },
-  // All other fetch() settings work as well...
+  // Specify some other settings here... The fetch() settings work as well...
 });
 ```
 
-> The fetchf() makes requests independently from createApiFetcher()
+<details>
+  <summary><span style="cursor:pointer">Click to expand</span></summary>
+  <br>
 
-**Challenges with Native Fetch:**
+**Some of challenges with Native Fetch:**
 
 - **Error Status Handling:** Fetch does not throw errors for HTTP error statuses, making it difficult to distinguish between successful and failed requests based on status codes alone.
 - **Error Visibility:** Error responses with status codes like 404 or 500 are not automatically propagated as exceptions, which can lead to inconsistent error handling.
@@ -148,43 +112,51 @@ To address these challenges, the `fetchf()` provides several enhancements:
 
 4. **Extended settings:**
    - Check Settings table for more information about all settings.
+   </details>
 
-### `createApiFetcher()`
+### Multiple API Endpoints
 
-`createApiFetcher()` is a powerful factory function for creating API fetchers with advanced features. It provides a convenient way to configure and manage multiple API endpoints using a declarative approach. This function offers integration with retry mechanisms, error handling improvements, and other advanced configurations. Unlike traditional methods, `createApiFetcher()` allows you to set up and use API endpoints efficiently with minimal boilerplate code.
+`createApiFetcher()` is a powerful factory function for creating API fetchers with advanced features. It provides a convenient way to configure and manage multiple API endpoints using a declarative approach. This function offers integration with retry mechanisms, error handling improvements, and all the other settings. Unlike traditional methods, `createApiFetcher()` allows you to set up and use API endpoints efficiently with minimal boilerplate code.
 
-#### Usage Example
+#### Example
 
 ```typescript
 import { createApiFetcher } from 'fetchff';
 
+// Create some endpoints declaratively
 const api = createApiFetcher({
-  apiUrl: 'https://example.com/api',
+  baseURL: 'https://example.com/api',
   endpoints: {
-    getUserDetails: {
+    getUser: {
       url: '/user-details',
       method: 'GET',
+      // Each endpoints accepts all settings declaratively
       retry: { retries: 3, delay: 2000 },
       timeout: 5000,
       cancellable: true,
-      strategy: 'softFail',
     },
     updateUser: {
       url: '/update-user',
       method: 'POST',
       retry: { retries: 2, delay: 1000 },
+      strategy: 'reject', // Reject when requests fail - try/catch
     },
     // Define more endpoints as needed
   },
+  // You can set some settings globally. They will
+  strategy: 'softFail', // no try/catch required
 });
 
-// Example usage
-const { data, error } = await api.getUserDetails();
+// Make a GET request to http://example.com/api/user-details?userId=2&ratings[]=1&ratings[]=2
+const { data, error } = await api.getUser({
+  userId: 2,
+  ratings: [1, 2], // Passed arrays will be parsed with ease
+});
 ```
 
 The `const api` methods and properties are described below:
 
-#### `api.myEndpointName(queryParams, urlPathParams, requestConfig)`
+#### `api.myEndpointName(queryParamsOrBodyPayload, urlPathParams, requestConfig)`
 
 Where "myEndpointName" is the name of your endpoint from `endpoints` object passed to the `createApiFetcher()`.
 
@@ -196,7 +168,7 @@ The first argument of API functions is an object that can serve different purpos
 
 - For `POST` (and similar) Requests: This object is used as the data payload. It will be sent in the body of the request. If your request also requires query parameters, you can still pass those in the first argument and then use the requestConfig.body or requestConfig.data for the payload.
 
-**Note:** If you need to use Query Params in the `POST` (and similar) requests, you can pass them in this argument and then use `body` or `data` in `requestConfig` (third argument).
+**Note:** If you need to use Query Params in the `POST` (and similar) requests, you can pass them in this argument and then use `body` in `requestConfig` (third argument).
 
 **`urlPathParams`** (optional) - Dynamic URL Path Parameters
 
@@ -320,7 +292,7 @@ You can pass the settings:
 
 - globally for all requests when calling `createApiFetcher()`
 - per-endpoint basis defined under `endpoints` in global config when calling `createApiFetcher()`
-- per-request basis as a 3rd argument when calling `fetchff()` or the `api.yourEndpoint()`
+- per-request basis as a 3rd argument when calling `fetchf()` or the `api.yourEndpoint()`
 
 You can also use all native `fetch()` settings.
 
@@ -356,7 +328,7 @@ Settings that are global only are marked with star `*`.
 <details>
   <summary><span style="cursor:pointer">Click to expand</span></summary>
   <br>
-The caching mechanism in <b>fetchff()</b> and <b>createApiFetcher()</b> enhances performance by reducing redundant network requests and reusing previously fetched data when appropriate. This system ensures that cached responses are managed efficiently and only used when considered "fresh." Below is a breakdown of the key parameters that control caching behavior and their default values.
+The caching mechanism in <b>fetchf()</b> and <b>createApiFetcher()</b> enhances performance by reducing redundant network requests and reusing previously fetched data when appropriate. This system ensures that cached responses are managed efficiently and only used when considered "fresh." Below is a breakdown of the key parameters that control caching behavior and their default values.
 
 ### Example
 
