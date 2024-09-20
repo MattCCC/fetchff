@@ -3,10 +3,7 @@ import type {
   FetchResponse,
   RequestHandlerConfig,
 } from '../src/types/request-handler';
-import {
-  interceptRequest,
-  interceptResponse,
-} from '../src/interceptor-manager';
+import { applyInterceptor } from '../src/interceptor-manager';
 import type {
   RequestInterceptor,
   ResponseInterceptor,
@@ -16,6 +13,8 @@ import type {
 type ResponseData = any;
 
 describe('Interceptor Functions', () => {
+  const interceptResponse = applyInterceptor;
+  const interceptRequest = applyInterceptor;
   let requestInterceptors: RequestInterceptor[] = [];
   let responseInterceptors: ResponseInterceptor[] = [];
 
@@ -135,7 +134,6 @@ describe('Interceptor Functions', () => {
       status: 500,
     }) as ExtendedResponse;
 
-    // Test interceptResponse handling of errors
     await expect(
       interceptResponse(errorResponse, responseInterceptors),
     ).rejects.toThrow('Response Error');

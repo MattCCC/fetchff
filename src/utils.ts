@@ -1,17 +1,78 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { OBJECT, UNDEFINED } from './const';
+import { OBJECT, STRING, UNDEFINED } from './const';
 import type { HeadersObject, QueryParams, UrlPathParams } from './types';
 
 export function isSearchParams(data: unknown): boolean {
   return data instanceof URLSearchParams;
 }
 
-function makeUrl(url: string, encodedQueryString: string) {
-  return url.includes('?')
-    ? `${url}&${encodedQueryString}`
-    : encodedQueryString
-      ? `${url}?${encodedQueryString}`
-      : url;
+/**
+ * Determines if a value is a non-null object.
+ *
+ * @param {any} value - The value to check.
+ * @returns {boolean} - True if the value is a non-null object.
+ */
+export function isObject(value: any): value is Record<string, any> {
+  return value !== null && typeof value === OBJECT;
+}
+
+/**
+ * Shallowly serializes an object by converting its key-value pairs into a string representation.
+ * This function does not recursively serialize nested objects.
+ *
+ * @param obj - The object to serialize.
+ * @returns A string representation of the object's top-level properties.
+ */
+export function shallowSerialize(obj: Record<string, any>): string {
+  let result = '';
+
+  for (const key in obj) {
+    if (Object.prototype.hasOwnProperty.call(obj, key)) {
+      result += key + ':' + obj[key];
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Sorts the keys of an object and returns a new object with sorted keys.
+ *
+ * This function is optimized for performance by minimizing the number of object operations
+ * and using a single pass to create the sorted object.
+ *
+ * @param {Object} obj - The object to be sorted by keys.
+ * @returns {Object} - A new object with keys sorted in ascending order.
+ */
+export function sortObject(obj: Record<string, any>): object {
+  const sortedObj = {} as Record<string, string>;
+  const keys = Object.keys(obj);
+
+  keys.sort();
+
+  for (let i = 0, len = keys.length; i < len; i++) {
+    const key = keys[i];
+    sortedObj[key] = obj[key];
+  }
+
+  return sortedObj;
+}
+
+/**
+ * Appends a query string to a URL, ensuring proper handling of existing query parameters.
+ *
+ * @param baseUrl - The base URL to which the query string will be appended.
+ * @param queryString - The encoded query string to append.
+ * @returns The URL with the appended query string, or the original URL if no query string is provided.
+ */
+function appendQueryStringToUrl(baseUrl: string, queryString: string): string {
+  if (!queryString) {
+    return baseUrl;
+  }
+
+  return baseUrl.includes('?')
+    ? `${baseUrl}&${queryString}`
+    : `${baseUrl}?${queryString}`;
 }
 
 /**
@@ -30,13 +91,13 @@ export function appendQueryParams(url: string, params: QueryParams): string {
   if (isSearchParams(params)) {
     const encodedQueryString = params.toString();
 
-    return makeUrl(url, encodedQueryString);
+    return appendQueryStringToUrl(url, encodedQueryString);
   }
 
   // This is exact copy of what JQ used to do. It works much better than URLSearchParams
   const s: string[] = [];
   const encode = encodeURIComponent;
-  const add = function (k: string, v: any) {
+  const add = (k: string, v: any) => {
     v = typeof v === 'function' ? v() : v;
     v = v === null ? '' : v === undefined ? '' : v;
     s[s.length] = encode(k) + '=' + encode(v);
@@ -77,7 +138,7 @@ export function appendQueryParams(url: string, params: QueryParams): string {
   // Encode special characters as per RFC 3986, https://datatracker.ietf.org/doc/html/rfc3986
   const encodedQueryString = queryStringParts.replace(/%5B%5D/g, '[]'); // Keep '[]' for arrays
 
-  return makeUrl(url, encodedQueryString);
+  return appendQueryStringToUrl(url, encodedQueryString);
 }
 
 /**
@@ -97,7 +158,7 @@ export function replaceUrlPathParams(
     return url;
   }
 
-  return url.replace(/:[a-zA-Z]+/gi, (str): string => {
+  return url.replace(/:\w+/g, (str): string => {
     const word = str.substring(1);
 
     return String(urlPathParams[word] ? urlPathParams[word] : str);
@@ -123,7 +184,7 @@ export function isJSONSerializable(value: any): boolean {
     return false;
   }
 
-  if (t === 'string' || t === 'number' || t === 'boolean') {
+  if (t === STRING || t === 'number' || t === 'boolean') {
     return true;
   }
 

@@ -8,7 +8,7 @@ import type {
   ResponseError,
   RequestHandlerReturnType,
   CreatedCustomFetcherInstance,
-  PollingFunction,
+  FetcherConfig,
 } from './types/request-handler';
 import type {
   APIResponse,
@@ -16,7 +16,7 @@ import type {
   QueryParams,
   QueryParamsOrBody,
 } from './types/api-handler';
-import { interceptRequest, interceptResponse } from './interceptor-manager';
+import { applyInterceptor } from './interceptor-manager';
 import { ResponseErr } from './response-error';
 import {
   appendQueryParams,
@@ -36,24 +36,25 @@ import {
   CONTENT_TYPE,
   GET,
   HEAD,
+  OBJECT,
+  STRING,
   UNDEFINED,
 } from './const';
 import { parseResponseData } from './response-parser';
+import { generateCacheKey, getCache, setCache } from './cache-manager';
 
 const defaultConfig: RequestHandlerConfig = {
   method: GET,
   strategy: 'reject',
   timeout: 30000,
   dedupeTime: 1000,
-  rejectCancelled: false,
-  withCredentials: false,
-  flattenResponse: false,
   defaultResponse: null,
-  logger: null,
-  fetcher: null,
-  baseURL: '',
+  headers: {
+    Accept: APPLICATION_JSON + ', text/plain, */*',
+    'Accept-Encoding': 'gzip, deflate, br',
+    [CONTENT_TYPE]: APPLICATION_JSON + ';charset=utf-8',
+  },
   retry: {
-    retries: 0,
     delay: 1000,
     maxDelay: 30000,
     resetTimeout: true,
@@ -70,23 +71,20 @@ const defaultConfig: RequestHandlerConfig = {
       503, // Service Unavailable
       504, // Gateway Timeout
     ],
-
-    shouldRetry: async () => true,
   },
 };
 
 /**
- * Create a Request Handler
+ * Create Request Handler
  *
  * @param {RequestHandlerConfig} config - Configuration object for the request handler
  * @returns {Object} An object with methods for handling requests
  */
-function createRequestHandler(
+export function createRequestHandler(
   config: RequestHandlerConfig,
 ): RequestHandlerReturnType {
   const handlerConfig: RequestHandlerConfig = {
     ...defaultConfig,
-    baseURL: config.apiUrl || '',
     ...config,
   };
 
@@ -94,13 +92,7 @@ function createRequestHandler(
    * Immediately create instance of custom fetcher if it is defined
    */
   const customFetcher = handlerConfig.fetcher;
-
-  const requestInstance =
-    customFetcher?.create({
-      ...config,
-      baseURL: handlerConfig.baseURL,
-      timeout: handlerConfig.timeout,
-    }) || null;
+  const requestInstance = customFetcher?.create(handlerConfig) || null;
 
   /**
    * Get Provider Instance
@@ -150,7 +142,7 @@ function createRequestHandler(
     url: string,
     data: QueryParamsOrBody,
     reqConfig: RequestConfig,
-  ): RequestConfig => {
+  ): FetcherConfig => {
     const method = getConfig<string>(
       reqConfig,
       'method',
@@ -198,12 +190,15 @@ function createRequestHandler(
         ? appendQueryParams(dynamicUrl, explicitParams || (data as QueryParams))
         : dynamicUrl;
     const isFullUrl = urlPath.includes('://');
-    const baseURL = isFullUrl ? '' : getConfig<string>(reqConfig, 'baseURL');
+    const baseURL = isFullUrl
+      ? ''
+      : getConfig<string>(reqConfig, 'baseURL') ||
+        getConfig<string>(reqConfig, 'apiUrl');
 
     // Automatically stringify request body, if possible and when not dealing with strings
     if (
       body &&
-      typeof body !== 'string' &&
+      typeof body !== STRING &&
       !isSearchParams(body) &&
       isJSONSerializable(body)
     ) {
@@ -217,15 +212,6 @@ function createRequestHandler(
       method,
 
       url: baseURL + urlPath,
-
-      // Add sensible defaults
-      headers: {
-        Accept: APPLICATION_JSON + ', text/plain, */*',
-        'Accept-Encoding': 'gzip, deflate, br',
-        [CONTENT_TYPE]: APPLICATION_JSON + ';charset=utf-8',
-        ...(handlerConfig.headers || {}),
-        ...(reqConfig.headers || {}),
-      },
     };
   };
 
@@ -314,35 +300,58 @@ function createRequestHandler(
     data: QueryParamsOrBody = null,
     reqConfig: RequestConfig | null = null,
   ): Promise<ResponseData & FetchResponse<ResponseData>> => {
-    let response: FetchResponse<ResponseData> | null = null;
     const _reqConfig = reqConfig || {};
-    const fetcherConfig = buildConfig(url, data, _reqConfig);
+    const mergedConfig = {
+      ...handlerConfig,
+      ..._reqConfig,
+    } as RequestConfig;
 
-    const timeout = getConfig<number>(fetcherConfig, 'timeout');
-    const isCancellable = getConfig<boolean>(fetcherConfig, 'cancellable');
-    const dedupeTime = getConfig<number>(fetcherConfig, 'dedupeTime');
-    const pollingInterval = getConfig<number>(fetcherConfig, 'pollingInterval');
-    const shouldStopPolling = getConfig<PollingFunction>(
-      fetcherConfig,
-      'shouldStopPolling',
-    );
+    let response: FetchResponse<ResponseData> | null = null;
+    const fetcherConfig = buildConfig(url, data, mergedConfig);
 
     const {
-      retries,
+      timeout,
+      cancellable,
+      dedupeTime,
+      pollingInterval,
+      shouldStopPolling,
+      cacheTime,
+      cacheKey,
+    } = mergedConfig;
+
+    // Prevent performance overhead of cache access
+    let _cacheKey: string;
+
+    if (cacheKey) {
+      _cacheKey = cacheKey(fetcherConfig);
+    } else {
+      _cacheKey = generateCacheKey(fetcherConfig);
+    }
+
+    if (cacheTime && _cacheKey) {
+      const cacheBuster = mergedConfig.cacheBuster;
+
+      if (!cacheBuster || !cacheBuster(fetcherConfig)) {
+        const cachedEntry = getCache<
+          ResponseData & FetchResponse<ResponseData>
+        >(_cacheKey, cacheTime);
+
+        if (cachedEntry) {
+          // Serve stale data from cache
+          return cachedEntry.data;
+        }
+      }
+    }
+
+    const {
+      retries = 0,
       delay,
       backoff,
       retryOn,
       shouldRetry,
       maxDelay,
       resetTimeout,
-    } = (
-      fetcherConfig.retry
-        ? {
-            ...handlerConfig.retry,
-            ...fetcherConfig.retry,
-          }
-        : handlerConfig.retry
-    ) as Required<RetryOptions>;
+    } = mergedConfig.retry as Required<RetryOptions>;
 
     let attempt = 0;
     let pollingAttempt = 0;
@@ -355,9 +364,9 @@ function createRequestHandler(
           fetcherConfig,
           timeout,
           dedupeTime,
-          isCancellable,
+          cancellable,
           // Reset timeouts by default or when retries are ON
-          timeout > 0 && (!retries || resetTimeout),
+          !!(timeout && (!retries || resetTimeout)),
         );
 
         // Shallow copy to ensure basic idempotency
@@ -367,13 +376,13 @@ function createRequestHandler(
         };
 
         // Local interceptors
-        requestConfig = await interceptRequest(
+        requestConfig = await applyInterceptor(
           requestConfig,
-          requestConfig?.onRequest,
+          _reqConfig?.onRequest,
         );
 
         // Global interceptors
-        requestConfig = await interceptRequest(
+        requestConfig = await applyInterceptor(
           requestConfig,
           handlerConfig?.onRequest,
         );
@@ -403,10 +412,10 @@ function createRequestHandler(
         }
 
         // Local interceptors
-        response = await interceptResponse(response, requestConfig?.onResponse);
+        response = await applyInterceptor(response, _reqConfig?.onResponse);
 
         // Global interceptors
-        response = await interceptResponse(response, handlerConfig?.onResponse);
+        response = await applyInterceptor(response, handlerConfig?.onResponse);
 
         removeRequest(fetcherConfig);
 
@@ -426,15 +435,25 @@ function createRequestHandler(
         }
 
         // If polling is not required, or polling attempts are exhausted
-        return outputResponse(response, requestConfig) as ResponseData &
+        const output = outputResponse(response, requestConfig) as ResponseData &
           FetchResponse<ResponseData>;
+
+        if (cacheTime && _cacheKey) {
+          const skipCache = requestConfig.skipCache;
+
+          if (!skipCache || !skipCache(output, requestConfig)) {
+            setCache(_cacheKey, output);
+          }
+        }
+
+        return output;
       } catch (err) {
         const error = err as ResponseErr;
         const status = error?.response?.status || error?.status || 0;
 
         if (
           attempt === retries ||
-          !(await shouldRetry(error, attempt)) ||
+          !(!shouldRetry || (await shouldRetry(error, attempt))) ||
           !retryOn?.includes(status)
         ) {
           processError(error, fetcherConfig);
@@ -499,7 +518,7 @@ function createRequestHandler(
     if (
       data === undefined ||
       data === null ||
-      (typeof data === 'object' && Object.keys(data).length === 0)
+      (typeof data === OBJECT && Object.keys(data).length === 0)
     ) {
       data = defaultResponse;
     }
@@ -547,5 +566,3 @@ function createRequestHandler(
     request,
   };
 }
-
-export { createRequestHandler };

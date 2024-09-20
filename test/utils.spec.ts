@@ -6,11 +6,6 @@ import {
   processHeaders,
 } from '../src/utils';
 
-jest.mock('../src/interceptor-manager', () => ({
-  interceptRequest: jest.fn().mockImplementation(async (config) => config),
-  interceptResponse: jest.fn().mockImplementation(async (response) => response),
-}));
-
 describe('Utils', () => {
   console.warn = jest.fn();
 

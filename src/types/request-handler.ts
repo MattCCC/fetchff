@@ -52,7 +52,7 @@ export type ErrorHandlingStrategy =
   | 'defaultResponse'
   | 'softFail';
 
-type ErrorHandlerInterceptor = (error: ResponseError) => unknown;
+type ErrorInterceptor = (error: ResponseError) => unknown;
 
 export interface HeadersObject {
   [key: string]: string;
@@ -76,6 +76,26 @@ export interface ResponseError<T = any> extends Error {
   request?: ExtendedRequestConfig;
   response?: FetchResponse<T>;
 }
+
+export type RetryFunction = <T = any>(
+  error: ResponseError<T>,
+  attempts: number,
+) => Promise<boolean>;
+
+export type PollingFunction = <ResponseData = unknown>(
+  response: FetchResponse<ResponseData>,
+  attempts: number,
+  error?: ResponseError,
+) => boolean;
+
+export type CacheKeyFunction = (config: FetcherConfig) => string;
+
+export type CacheBusterFunction = (config: FetcherConfig) => boolean;
+
+export type CacheSkipFunction = <ResponseData = any>(
+  data: ResponseData,
+  config: RequestConfig,
+) => boolean;
 
 export interface RetryOptions {
   /**
@@ -110,6 +130,7 @@ export interface RetryOptions {
 
   /**
    * Retry only on specific status codes.
+   * @url https://developer.mozilla.org/en-US/docs/Web/HTTP/Status
    * @default [
    *   408, // Request Timeout
    *   409, // Conflict
@@ -126,17 +147,47 @@ export interface RetryOptions {
   /**
    * A function to determine whether to retry based on the error and attempt number.
    */
-  shouldRetry?: <T = any>(
-    error: ResponseError<T>,
-    attempt: number,
-  ) => Promise<boolean>;
+  shouldRetry?: RetryFunction;
 }
 
-export type PollingFunction = <ResponseData = unknown>(
-  response: FetchResponse<ResponseData>,
-  attempt: number,
-  error?: ResponseError,
-) => boolean;
+/**
+ * Configuration object for cache related options
+ */
+export interface CacheOptions {
+  /**
+   * Maximum time, in seconds, a cache entry is considered fresh (valid).
+   * After this time, the entry may be considered stale (expired).
+   *
+   * @default 0 (no cache)
+   */
+  cacheTime?: number;
+
+  /**
+   * Cache key
+   * It provides a way to customize caching behavior dynamically according to different criteria.
+   * @param config - Request configuration.
+   * @default null By default it generates a unique cache key for HTTP requests based on:
+   * Method, URL, Query Params, Dynamic Path Params, mode, credentials, cache, redirect, referrer, integrity, headers and body
+   */
+  cacheKey?: CacheKeyFunction;
+
+  /**
+   * Cache Buster Function
+   * It is called when a cache entry exists and you want to invalidate or refresh the cache under certain conditions
+   * @param config - Request configuration.
+   * @default (config)=>false Busting cache is disabled by default. Return true to change that
+   */
+  cacheBuster?: CacheBusterFunction;
+
+  /**
+   * Skip Cache Function
+   * Determines whether to set or skip setting caching for a request based on the response.
+   * @param response - Parsed Response.
+   * @param config - Request configuration.
+   * @default (response,config)=>false Bypassing cache is disabled by default. Return true to skip cache
+   */
+  skipCache?: CacheSkipFunction;
+}
 
 /**
  * ExtendedRequestConfig<D = any>
@@ -144,7 +195,9 @@ export type PollingFunction = <ResponseData = unknown>(
  * This interface extends the standard `RequestInit` from the Fetch API, providing additional options
  * for handling requests, including custom error handling strategies, request interception, and more.
  */
-interface ExtendedRequestConfig<D = any> extends Omit<RequestInit, 'body'> {
+interface ExtendedRequestConfig<D = any>
+  extends Omit<RequestInit, 'body'>,
+    CacheOptions {
   /**
    * Custom error handling strategy for the request.
    * - `'reject'`: Rejects the promise with an error.
@@ -204,6 +257,11 @@ interface ExtendedRequestConfig<D = any> extends Omit<RequestInit, 'body'> {
   baseURL?: string;
 
   /**
+   * Alias for base URL.
+   */
+  apiUrl?: string;
+
+  /**
    * An object representing the headers to include with the request.
    */
   headers?: HeadersInit;
@@ -212,11 +270,6 @@ interface ExtendedRequestConfig<D = any> extends Omit<RequestInit, 'body'> {
    * Query parameters to include in the request URL.
    */
   params?: QueryParams;
-
-  /**
-   * The maximum time (in milliseconds) the request can take before automatically being aborted.
-   */
-  timeout?: number;
 
   /**
    * Indicates whether credentials (such as cookies) should be included with the request.
@@ -252,7 +305,12 @@ interface ExtendedRequestConfig<D = any> extends Omit<RequestInit, 'body'> {
   /**
    * A function to handle errors that occur during the request or response processing.
    */
-  onError?: ErrorHandlerInterceptor;
+  onError?: ErrorInterceptor;
+
+  /**
+   * The maximum time (in milliseconds) the request can take before automatically being aborted.
+   */
+  timeout?: number;
 
   /**
    * Time window, in miliseconds, during which identical requests are deduplicated (treated as single request).
@@ -277,11 +335,14 @@ interface ExtendedRequestConfig<D = any> extends Omit<RequestInit, 'body'> {
 
 interface BaseRequestHandlerConfig extends RequestConfig {
   fetcher?: FetcherInstance | null;
-  apiUrl?: string;
   logger?: any;
 }
 
 export type RequestConfig = ExtendedRequestConfig;
+
+export type FetcherConfig = Omit<ExtendedRequestConfig, 'url'> & {
+  url: string;
+};
 
 export type RequestHandlerConfig = BaseRequestHandlerConfig;
 
