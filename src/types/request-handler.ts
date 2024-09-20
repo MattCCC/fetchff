@@ -52,7 +52,7 @@ export type ErrorHandlingStrategy =
   | 'defaultResponse'
   | 'softFail';
 
-type ErrorHandlerInterceptor = (error: ResponseError) => unknown;
+type ErrorInterceptor = (error: ResponseError) => unknown;
 
 export interface HeadersObject {
   [key: string]: string;
@@ -76,6 +76,26 @@ export interface ResponseError<T = any> extends Error {
   request?: ExtendedRequestConfig;
   response?: FetchResponse<T>;
 }
+
+export type RetryFunction = <T = any>(
+  error: ResponseError<T>,
+  attempts: number,
+) => Promise<boolean>;
+
+export type PollingFunction = <ResponseData = unknown>(
+  response: FetchResponse<ResponseData>,
+  attempts: number,
+  error?: ResponseError,
+) => boolean;
+
+export type CacheKeyFunction = (config: FetcherConfig) => string;
+
+export type CacheBusterFunction = (config: FetcherConfig) => boolean;
+
+export type CacheSkipFunction = <ResponseData = any>(
+  data: ResponseData,
+  config: RequestConfig,
+) => boolean;
 
 export interface RetryOptions {
   /**
@@ -127,26 +147,8 @@ export interface RetryOptions {
   /**
    * A function to determine whether to retry based on the error and attempt number.
    */
-  shouldRetry?: <T = any>(
-    error: ResponseError<T>,
-    attempt: number,
-  ) => Promise<boolean>;
+  shouldRetry?: RetryFunction;
 }
-
-export type PollingFunction = <ResponseData = unknown>(
-  response: FetchResponse<ResponseData>,
-  attempt: number,
-  error?: ResponseError,
-) => boolean;
-
-export type CacheKeyFunction = (config: FetcherConfig) => string;
-
-export type CacheBusterFunction = (config: FetcherConfig) => boolean;
-
-export type CacheSkipFunction = <ResponseData = any>(
-  data: ResponseData,
-  config: RequestConfig,
-) => boolean;
 
 /**
  * Configuration object for cache related options
@@ -165,7 +167,7 @@ export interface CacheOptions {
    * It provides a way to customize caching behavior dynamically according to different criteria.
    * @param config - Request configuration.
    * @default null By default it generates a unique cache key for HTTP requests based on:
-   * URL with Query Params, headers, body, mode, credentials, cache mode, redirection, referrer, integrity
+   * Method, URL, Query Params, Dynamic Path Params, mode, credentials, cache, redirect, referrer, integrity, headers and body
    */
   cacheKey?: CacheKeyFunction;
 
@@ -303,7 +305,7 @@ interface ExtendedRequestConfig<D = any>
   /**
    * A function to handle errors that occur during the request or response processing.
    */
-  onError?: ErrorHandlerInterceptor;
+  onError?: ErrorInterceptor;
 
   /**
    * The maximum time (in milliseconds) the request can take before automatically being aborted.

@@ -1,9 +1,9 @@
 const PRIME_MULTIPLIER = 31;
 
 /**
- * Computes a hash value for a given string using the djb2 hash function.
- * It's non-crypto and very fast
- * @author Daniel J. Bernstein
+ * Computes a hash value for a given string using the variant of djb2 hash function.
+ * This hash function is non-cryptographic and designed for speed.
+ * @author Daniel J. Bernstein (of djb2)
  *
  * @param str Input string to hash
  * @returns {string} Hash
