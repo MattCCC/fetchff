@@ -1,15 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { createRequestHandler } from '../src/request-handler';
 import fetchMock from 'fetch-mock';
-import { applyInterceptor } from '../src/interceptor-manager';
+import * as interceptorManager from '../src/interceptor-manager';
 import { delayInvocation } from '../src/utils';
-import type { RequestHandlerReturnType } from '../src/types/request-handler';
+import type {
+  RequestConfig,
+  RequestHandlerReturnType,
+} from '../src/types/request-handler';
 import { fetchf } from '../src';
 import { ABORT_ERROR } from '../src/const';
-
-jest.mock('../src/interceptor-manager', () => ({
-  applyInterceptor: jest.fn().mockImplementation(async (response) => response),
-}));
 
 jest.mock('../src/utils', () => {
   const originalModule = jest.requireActual('../src/utils');
@@ -794,12 +793,9 @@ describe('Request Handler', () => {
 
   describe('request() with interceptors', () => {
     let requestHandler: RequestHandlerReturnType;
+    const spy = jest.spyOn(interceptorManager, 'applyInterceptor');
 
     beforeEach(() => {
-      (applyInterceptor as jest.Mock).mockReset();
-      (applyInterceptor as jest.Mock).mockImplementation(
-        async (response) => response,
-      );
       requestHandler = createRequestHandler({
         baseURL: 'https://api.example.com',
         timeout: 5000,
@@ -813,6 +809,7 @@ describe('Request Handler', () => {
 
       jest.useFakeTimers();
       fetchMock.reset();
+      spy.mockClear();
     });
 
     afterEach(() => {
@@ -820,11 +817,6 @@ describe('Request Handler', () => {
     });
 
     it('should apply interceptors correctly', async () => {
-      // Set up mock implementations if needed
-      (applyInterceptor as jest.Mock).mockImplementation(
-        async (response) => response,
-      );
-
       fetchMock.mock('https://api.example.com/test-endpoint?key=value', {
         status: 200,
         body: { data: 'response from second request' },
@@ -834,19 +826,12 @@ describe('Request Handler', () => {
       const data = { key: 'value' };
       const config = {};
 
-      // Call the request method
       await requestHandler.request(url, data, config);
 
-      // Verify that interceptRequest and applyInterceptor were called
-      expect(applyInterceptor).toHaveBeenCalledTimes(4);
+      expect(spy).toHaveBeenCalledTimes(4);
     });
 
     it('should handle modified config in interceptRequest', async () => {
-      (applyInterceptor as jest.Mock).mockImplementation(async (config) => ({
-        ...config,
-        headers: { 'Modified-Header': 'ModifiedValue' },
-      }));
-
       fetchMock.mock('https://api.example.com/test-endpoint?key=value', {
         status: 200,
         body: { data: 'response with modified config' },
@@ -854,43 +839,43 @@ describe('Request Handler', () => {
 
       const url = '/test-endpoint';
       const data = { key: 'value' };
-      const config = {};
+      const config = {
+        onRequest(config) {
+          config.headers = { 'Modified-Header': 'ModifiedValue' };
+        },
+      } as RequestConfig;
 
       await requestHandler.request(url, data, config);
 
-      expect(applyInterceptor).toHaveBeenCalledTimes(4);
-      // Verify that fetch was called with modified headers
+      expect(spy).toHaveBeenCalledTimes(4);
       expect(fetchMock.lastOptions()).toMatchObject({
         headers: { 'Modified-Header': 'ModifiedValue' },
       });
     });
 
     it('should handle modified response in applyInterceptor', async () => {
-      (applyInterceptor as jest.Mock).mockImplementation(async (response) => ({
-        ...response,
-        data: { username: 'modified response' },
-      }));
-
-      fetchMock.mock('https://api.example.com/test-endpoint?key=value', {
-        status: 200,
-        data: { username: 'original response' },
-      });
+      fetchMock.mock(
+        'https://api.example.com/test-endpoint?key=value',
+        new Response(JSON.stringify({ username: 'original response' }), {
+          status: 200,
+        }),
+      );
 
       const url = '/test-endpoint';
       const data = { key: 'value' };
-      const config = {};
+      const config: RequestConfig = {
+        async onResponse(response) {
+          response.data = { username: 'modified response' };
+        },
+      };
 
       const response = await requestHandler.request(url, data, config);
 
-      expect(applyInterceptor).toHaveBeenCalledTimes(4);
+      expect(spy).toHaveBeenCalledTimes(4);
       expect(response).toMatchObject({ username: 'modified response' });
     });
 
     it('should handle request failure with interceptors', async () => {
-      (applyInterceptor as jest.Mock).mockImplementation(
-        async (response) => response,
-      );
-
       fetchMock.mock('https://api.example.com/test-endpoint?key=value', {
         status: 500,
         body: { error: 'Server error' },
@@ -904,15 +889,11 @@ describe('Request Handler', () => {
         'https://api.example.com/test-endpoint?key=value failed! Status: 500',
       );
 
-      // Only request interceptors are called (2 because 1 local and 1 global)
-      expect(applyInterceptor).toHaveBeenCalledTimes(2);
+      // Only request and error interceptors are called (4 because 2 for request and 2 for errors)
+      expect(spy).toHaveBeenCalledTimes(4);
     });
 
     it('should handle request with different response status', async () => {
-      (applyInterceptor as jest.Mock).mockImplementation(
-        async (response) => response,
-      );
-
       fetchMock.mock('https://api.example.com/test-endpoint?key=value', {
         status: 404,
         body: { error: 'Not found' },
@@ -926,8 +907,8 @@ describe('Request Handler', () => {
         'https://api.example.com/test-endpoint?key=value failed! Status: 404',
       );
 
-      // Only request interceptors are called (2 because 1 local and 1 global)
-      expect(applyInterceptor).toHaveBeenCalledTimes(2);
+      // Only request and error interceptors are called (4 because 2 for request and 2 for errors)
+      expect(spy).toHaveBeenCalledTimes(4);
     });
   });
 

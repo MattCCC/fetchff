@@ -1,9 +1,20 @@
-import type { FetchResponse, RequestHandlerConfig } from './request-handler';
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import type {
+  FetchResponse,
+  RequestHandlerConfig,
+  ResponseError,
+} from './request-handler';
 
-export type RequestInterceptor = (
-  config: RequestHandlerConfig,
-) => RequestHandlerConfig | Promise<RequestHandlerConfig>;
+export type RequestInterceptor<D = any> = (
+  config: RequestHandlerConfig<D>,
+) =>
+  | RequestHandlerConfig<D>
+  | void
+  | Promise<RequestHandlerConfig<D>>
+  | Promise<void>;
 
-export type ResponseInterceptor = <ResponseData = unknown>(
-  response: FetchResponse<ResponseData>,
-) => Promise<FetchResponse<ResponseData>>;
+export type ResponseInterceptor<D = any> = (
+  response: FetchResponse<D>,
+) => FetchResponse<D> | void | Promise<FetchResponse<D>> | Promise<void>;
+
+export type ErrorInterceptor = (error: ResponseError) => unknown;

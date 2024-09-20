@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 type InterceptorFunction<T> = (object: T) => Promise<T>;
 
 /**
@@ -10,25 +9,29 @@ type InterceptorFunction<T> = (object: T) => Promise<T>;
  * @param {T} object - The object to process.
  * @param {InterceptorFunction<T> | InterceptorFunction<T>[]} [interceptors] - Interceptor function(s).
  *
- * @returns {Promise<T>} - The modified object.
+ * @returns {Promise<void>} - Nothing as the function is non-idempotent.
  */
 export async function applyInterceptor<
-  T = any,
+  T extends object,
   I = InterceptorFunction<T> | InterceptorFunction<T>[],
->(object: T, interceptors?: I): Promise<T> {
+>(object: T, interceptors?: I): Promise<void> {
   if (!interceptors) {
-    return object;
+    return;
   }
 
   if (typeof interceptors === 'function') {
-    return await interceptors(object);
-  }
+    const value = await interceptors(object);
 
-  if (Array.isArray(interceptors)) {
+    if (value) {
+      Object.assign(object, value);
+    }
+  } else if (Array.isArray(interceptors)) {
     for (const interceptor of interceptors) {
-      object = await interceptor(object);
+      const value = await interceptor(object);
+
+      if (value) {
+        Object.assign(object, value);
+      }
     }
   }
-
-  return object;
 }

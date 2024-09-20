@@ -6,6 +6,7 @@ import type {
   UrlPathParams,
 } from './api-handler';
 import type {
+  ErrorInterceptor,
   RequestInterceptor,
   ResponseInterceptor,
 } from './interceptor-manager';
@@ -51,8 +52,6 @@ export type ErrorHandlingStrategy =
   | 'silent'
   | 'defaultResponse'
   | 'softFail';
-
-type ErrorInterceptor = (error: ResponseError) => unknown;
 
 export interface HeadersObject {
   [key: string]: string;
@@ -304,7 +303,7 @@ interface ExtendedRequestConfig<D = any>
   /**
    * A function to handle errors that occur during the request or response processing.
    */
-  onError?: ErrorInterceptor;
+  onError?: ErrorInterceptor | ErrorInterceptor[];
 
   /**
    * The maximum time (in milliseconds) the request can take before automatically being aborted.
