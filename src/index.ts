@@ -11,7 +11,7 @@ import type { APIResponse, FetchResponse, RequestHandlerConfig } from './types';
  */
 export async function fetchf<ResponseData = APIResponse>(
   url: string,
-  config: RequestHandlerConfig = {},
+  config: RequestHandlerConfig<ResponseData> = {},
 ): Promise<ResponseData & FetchResponse<ResponseData>> {
   return createRequestHandler(config).request<ResponseData>(url, null, config);
 }
