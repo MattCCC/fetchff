@@ -48,9 +48,6 @@ const defaultConfig: RequestHandlerConfig = {
   strategy: 'reject',
   timeout: 30000,
   dedupeTime: 1000,
-  rejectCancelled: false,
-  withCredentials: false,
-  flattenResponse: false,
   defaultResponse: null,
   headers: {
     Accept: APPLICATION_JSON + ', text/plain, */*',
@@ -58,7 +55,6 @@ const defaultConfig: RequestHandlerConfig = {
     [CONTENT_TYPE]: APPLICATION_JSON + ';charset=utf-8',
   },
   retry: {
-    retries: 0,
     delay: 1000,
     maxDelay: 30000,
     resetTimeout: true,
@@ -79,12 +75,12 @@ const defaultConfig: RequestHandlerConfig = {
 };
 
 /**
- * Create a Request Handler
+ * Create Request Handler
  *
  * @param {RequestHandlerConfig} config - Configuration object for the request handler
  * @returns {Object} An object with methods for handling requests
  */
-function createRequestHandler(
+export function createRequestHandler(
   config: RequestHandlerConfig,
 ): RequestHandlerReturnType {
   const handlerConfig: RequestHandlerConfig = {
@@ -96,13 +92,7 @@ function createRequestHandler(
    * Immediately create instance of custom fetcher if it is defined
    */
   const customFetcher = handlerConfig.fetcher;
-
-  const requestInstance =
-    customFetcher?.create({
-      ...config,
-      baseURL: handlerConfig.baseURL || handlerConfig.apiUrl,
-      timeout: handlerConfig.timeout,
-    }) || null;
+  const requestInstance = customFetcher?.create(handlerConfig) || null;
 
   /**
    * Get Provider Instance
@@ -354,7 +344,7 @@ function createRequestHandler(
     }
 
     const {
-      retries,
+      retries = 0,
       delay,
       backoff,
       retryOn,
@@ -576,5 +566,3 @@ function createRequestHandler(
     request,
   };
 }
-
-export { createRequestHandler };
