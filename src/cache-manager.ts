@@ -3,7 +3,7 @@ import { hash } from './hash';
 import { fetchf } from './index';
 import type { FetcherConfig } from './types/request-handler';
 import type { CacheEntry } from './types/cache-manager';
-import { GET, OBJECT } from './const';
+import { GET, OBJECT, UNDEFINED } from './const';
 import { formDataToString, shallowSerialize, sortObject } from './utils';
 
 const cache = new Map<string, CacheEntry<any>>();
@@ -67,7 +67,10 @@ export function generateCacheKey(options: FetcherConfig): string {
       bodyString = hash(body);
     } else if (body instanceof FormData) {
       bodyString = hash(formDataToString(body));
-    } else if (body instanceof Blob || body instanceof File) {
+    } else if (
+      (typeof Blob !== UNDEFINED && body instanceof Blob) ||
+      (typeof File !== UNDEFINED && body instanceof File)
+    ) {
       bodyString = 'BF' + body.size + body.type;
     } else if (body instanceof ArrayBuffer || ArrayBuffer.isView(body)) {
       bodyString = 'AB' + body.byteLength;
