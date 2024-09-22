@@ -331,6 +331,74 @@ You can also use all native `fetch()` settings.
 | dedupeTime                 | `number`                                                                                               | `1000`  | Time window, in milliseconds, during which identical requests are deduplicated (treated as single request).                                                                                                                                                                                                                                                                                                                                                                |
 | logger                     | `object`                                                                                               | `null`  | You can additionally specify logger object with your custom logger to automatically log the errors to the console. It should contain at least `error` and `warn` functions.                                                                                                                                                                                                                                                                                                |
 
+## 🏷️ Headers
+
+<details>
+  <summary><span style="cursor:pointer">Click to expand</span></summary>
+  <br>
+
+`fetchff` provides robust support for handling HTTP headers in your requests. You can configure and manipulate headers at both global and per-request levels. Here’s a detailed overview of how to work with headers using `fetchff`.
+
+**Note:** Header keys are case-sensitive when specified in request objects. Ensure that the keys are provided in the correct case to avoid issues with header handling.
+
+### How to Set Per-Request Headers
+
+To set headers for a specific request, include the `headers` option in the request configuration. This option accepts an `object` where the keys are the header names and the values are the corresponding header values.
+
+### Default Headers
+
+The `fetchff` plugin automatically injects a set of default headers into every request. These default headers help ensure that requests are consistent and include necessary information for the server to process them correctly.
+
+#### Default Headers Injected:
+
+- **`Content-Type`**: `application/json;charset=utf-8`
+  Specifies that the request body contains JSON data and sets the character encoding to UTF-8.
+
+- **`Accept`**: `application/json, text/plain, */*`
+  Indicates the media types that the client is willing to receive from the server. This includes JSON, plain text, and any other types.
+
+- **`Accept-Encoding`**: `gzip, deflate, br`
+  Specifies the content encoding that the client can understand, including gzip, deflate, and Brotli compression.
+
+### Setting Headers Globally
+
+You can set default headers that will be included in all requests made with a specific `createApiFetcher` instance. This is useful for setting common headers like authentication tokens or content types.
+
+#### Example: Setting Headers Globally
+
+```typescript
+import { createApiFetcher } from 'fetchff';
+
+const api = createApiFetcher({
+  baseURL: 'https://api.example.com/',
+  headers: {
+    'Content-Type': 'application/json',
+    Authorization: 'Bearer YOUR_TOKEN',
+  },
+  // other configurations
+});
+```
+
+### Setting Per-Request Headers
+
+In addition to global default headers, you can also specify headers on a per-request basis. This allows you to override global headers or set specific headers for individual requests.
+
+#### Example: Setting Per-Request Headers
+
+```typescript
+import { fetchf } from 'fetchff';
+
+// Example of making a GET request with custom headers
+const { data } = await fetchf('https://api.example.com/endpoint', {
+  headers: {
+    Authorization: 'Bearer YOUR_ACCESS_TOKEN',
+    'Custom-Header': 'CustomValue',
+  },
+});
+```
+
+</details>
+
 ## 🌀 Interceptors
 
 <details>
