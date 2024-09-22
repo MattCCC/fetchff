@@ -1,7 +1,7 @@
 {
+  "name": "fetchff",
   "version": "2.9.0",
   "license": "UNLICENSED",
-  "name": "fetchff",
   "author": "Matt Czapliński <deindesign.pl@gmail.com>",
   "repository": {
     "type": "git",
@@ -15,16 +15,23 @@
     "fetch",
     "fetchff",
     "fetch-wrapper",
+    "fetch-client",
     "request",
     "cache",
+    "fetch-cache",
+    "fetch-retry",
     "api",
     "api-handler",
+    "http-request",
+    "http-client",
     "browser",
-    "node"
+    "node",
+    "nodejs"
   ],
   "engines": {
     "node": ">=18"
   },
+  "sideEffects": false,
   "scripts": {
     "build": "npm run build:node && npm run build:browser && npm run build:cleanup",
     "build:browser": "tsup --format esm,iife --out-dir dist/browser --env.NODE_ENV production",
