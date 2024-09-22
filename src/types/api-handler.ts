@@ -59,6 +59,14 @@ export declare type Endpoint<
   QueryParams = QueryParamsOrBody,
   PathParams = UrlPathParams,
 > =
+  /**
+   * Endpoint with default `ResponseData`, `QueryParams`, and `PathParams`.
+   *
+   * @param {QueryParams} [queryParams] - Optional query parameters for the request.
+   * @param {PathParams} [urlPathParams] - Optional URL path parameters for the request.
+   * @param {StructuredConfig<RequestConfig<ResponseData>>} [requestConfig] - Optional configuration for the request.
+   * @returns {Promise<FetchResponse<ResponseData>>} - A promise resolving to the fetch response.
+   */
   | {
       (
         queryParams?: QueryParams,
@@ -66,11 +74,22 @@ export declare type Endpoint<
         requestConfig?: RequestConfig<ResponseData>,
       ): Promise<ResponseData & FetchResponse<ResponseData>>;
     }
+  /**
+   * Endpoint with customizable return data type.
+   *
+   * @template ReturnedData - The type of data returned in the response.
+   * @template T - The type of query parameters.
+   * @template T2 - The type of URL path parameters.
+   * @param {T} [queryParams] - Optional query parameters for the request.
+   * @param {T2} [urlPathParams] - Optional URL path parameters for the request.
+   * @param {StructuredConfig<RequestConfig<ResponseData>>} [requestConfig] - Optional configuration for the request.
+   * @returns {Promise<FetchResponse<ReturnedData>>} - A promise resolving to the customized fetch response.
+   */
   | {
       <ReturnedData = ResponseData, T = QueryParams, T2 = PathParams>(
         queryParams?: T,
         urlPathParams?: T2,
-        requestConfig?: RequestConfig<ResponseData>,
+        requestConfig?: RequestConfig<ReturnedData>,
       ): Promise<ReturnedData & FetchResponse<ReturnedData>>;
     };
 
