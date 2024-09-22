@@ -26,13 +26,13 @@ Managing multiple API endpoints can be complex and time-consuming. `fetchff` sim
 - **Automatic Request Deduplication**: Set the time during which requests are deduplicated (treated as same request).
 - **Smart Cache Management**: Dynamically manage cache with configurable expiration, custom keys, and selective invalidation.
 - **Dynamic URLs Support**: Easily manage routes with dynamic parameters, such as `/user/:userId`.
-- **Native `fetch()` Support**: Uses the modern `fetch()` API by default, eliminating the need for libraries like Axios.
 - **Global and Per Request Error Handling**: Flexible error management at both global and individual request levels.
 - **Automatic Request Cancellation**: Utilizes `AbortController` to cancel previous requests automatically.
 - **Global and Per Request Timeouts**: Set timeouts globally or per request to prevent hanging operations.
 - **Multiple Fetching Strategies**: Handle failed requests with various strategies - promise rejection, silent hang, soft fail, or default response.
 - **Multiple Requests Chaining**: Easily chain multiple requests using promises for complex API interactions.
-- **Supports All Axios Options**: Fully compatible with all Axios configuration options for seamless integration.
+- **Native `fetch()` Support**: Utilizes the built-in `fetch()` API, providing a modern and native solution for making HTTP requests.
+- **Customizable**: Fully compatible with a wide range of HTTP request configuration options, allowing for flexible and detailed request customization.
 - **Lightweight**: Minimal footprint, only a few KBs when gzipped, ensuring quick load times.
 - **Framework Independent**: Pure JavaScript solution, compatible with any framework or library.
 - **Cross-Framework compatible**: Makes it easy to integration with Frameworks and Libraries, both Client Side and Server Side.
@@ -195,18 +195,16 @@ The first argument of API functions is an object that can serve different purpos
 
 **`urlPathParams`** (optional) - Dynamic URL Path Parameters, e.g. `/user-details/update/:userId`
 
-The urlPathParams option allows you to dynamically replace parts of your URL with specific values in a declarative and straightforward way. This feature is particularly useful when you need to construct URLs that include variables or identifiers within the path.
+The `urlPathParams` option allows you to dynamically replace parts of your URL with specific values in a declarative and straightforward way. This feature is particularly useful when you need to construct URLs that include variables or identifiers within the path.
 
-For example, consider the following URL template: `/user-details/update/:userId`. By using urlPathParams, you can replace `:userId` with an actual value when the API request is made.
+For example, consider the following URL template: `/user-details/update/:userId`. By using `urlPathParams`, you can replace `:userId` with an actual value when the API request is made.
 
 **`requestConfig`** (optional) - Request Configuration to overwrite global config in case
 To have more granular control over specific endpoints you can pass Request Config for particular endpoint. See the Settings below for more information.
 
-Returns: **`response`** or **`data`** object, depending on `flattenResponse` setting.
+Returns: **`response`** object.
 
-##### Response Object without `flattenResponse` (default)
-
-When `flattenResponse` is disabled, the response object includes a more detailed structure, encapsulating various aspects of the response:
+##### Response Object
 
 - **`data`**:
 
@@ -232,26 +230,8 @@ When `flattenResponse` is disabled, the response object includes a more detailed
   - An alias for `config`.
 
 - **`headers`**:
+
   - The response headers returned by the server, such as content type and caching information returned as simple key-value object.
-
-##### Response Object with `flattenResponse`
-
-When the `flattenResponse` option is enabled, the `data` from the API response is directly exposed as the top-level property of the response object. This simplifies access to the actual data, as it is not nested within additional response metadata.
-
-##### Key Points
-
-- **With `flattenResponse` Enabled**:
-
-  - **`data`**: Directly contains the API response data.
-
-- **With `flattenResponse` Disabled**:
-  - **`data`**: Contains the API response data nested within a broader response structure.
-  - **`error`**: Provides detailed information about any errors encountered.
-  - **`config`**: Shows the request configuration.
-  - **`request`**: Details the actual HTTP request sent.
-  - **`headers`**: Includes the response headers from the server.
-
-The `flattenResponse` option provides a more streamlined response object by placing the data directly at the top level, while disabling it gives a more comprehensive response structure with additional metadata.
 
 #### `api.config`
 
@@ -324,7 +304,7 @@ You can also use all native `fetch()` settings.
 | urlPathParams              | `object`                                                                                               | `{}`    | It lets you dynamically replace segments of your URL with specific values in a clear and declarative manner. This feature is especially handy for constructing URLs with variable components or identifiers.<br><br>For example, suppose you need to update user details and have a URL template like `/user-details/update/:userId`. With `urlPathParams`, you can replace `:userId` with a real user ID, such as `123`, resulting in the URL `/user-details/update/123`. |
 | cancellable                | `boolean`                                                                                              | `false` | If `true`, any ongoing previous requests to same API endpoint will be cancelled, if a subsequent request is made meanwhile. This helps you avoid unnecessary requests to the backend.                                                                                                                                                                                                                                                                                      |
 | rejectCancelled            | `boolean`                                                                                              | `false` | If `true` and request is set to `cancellable`, a cancelled requests' promise will be rejected. By default, instead of rejecting the promise, `defaultResponse` is returned.                                                                                                                                                                                                                                                                                                |
-| flattenResponse            | `boolean`                                                                                              | `false` | Flatten nested response data, so you can avoid writing `response.data.data` and obtain response directly. Response is flattened when there is a "data" within response "data", and no other object properties set.                                                                                                                                                                                                                                                         |
+| flattenResponse            | `boolean`                                                                                              | `false` | When set to `true`, this option flattens the nested response data. This means you can access the data directly without having to use `response.data.data`. It works only if the response structure includes a single `data` property.                                                                                                                                                                                                                                      |
 | defaultResponse            | `any`                                                                                                  | `null`  | Default response when there is no data or when endpoint fails depending on the chosen `strategy`                                                                                                                                                                                                                                                                                                                                                                           |
 | withCredentials            | `boolean`                                                                                              | `false` | Indicates whether credentials (such as cookies) should be included with the request.                                                                                                                                                                                                                                                                                                                                                                                       |
 | timeout                    | `number`                                                                                               | `30000` | You can set a request timeout for all requests or particular in milliseconds.                                                                                                                                                                                                                                                                                                                                                                                              |

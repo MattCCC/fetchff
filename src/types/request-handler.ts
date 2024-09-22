@@ -44,7 +44,7 @@ export interface FetcherInstance {
 export interface CreatedCustomFetcherInstance {
   request<ResponseData = any>(
     requestConfig: RequestConfig<ResponseData>,
-  ): FetchResponse<ResponseData> | PromiseLike<FetchResponse<ResponseData>>;
+  ): PromiseLike<FetchResponse<ResponseData>>;
 }
 
 export type ErrorHandlingStrategy =
@@ -364,5 +364,5 @@ export interface RequestHandlerReturnType {
     url: string,
     data?: QueryParamsOrBody,
     config?: RequestConfig<ResponseData> | null,
-  ) => Promise<ResponseData & FetchResponse<ResponseData>>;
+  ) => Promise<FetchResponse<ResponseData>>;
 }

@@ -72,7 +72,7 @@ export declare type Endpoint<
         queryParams?: QueryParams,
         urlPathParams?: PathParams,
         requestConfig?: RequestConfig<ResponseData>,
-      ): Promise<ResponseData & FetchResponse<ResponseData>>;
+      ): Promise<FetchResponse<ResponseData>>;
     }
   /**
    * Endpoint with customizable return data type.
@@ -90,7 +90,7 @@ export declare type Endpoint<
         queryParams?: T,
         urlPathParams?: T2,
         requestConfig?: RequestConfig<ReturnedData>,
-      ): Promise<ReturnedData & FetchResponse<ReturnedData>>;
+      ): Promise<FetchResponse<ReturnedData>>;
     };
 
 type EndpointDefaults = Endpoint<never>;
@@ -139,7 +139,7 @@ export type ApiHandlerDefaultMethods<EndpointsMethods> = {
     queryParams?: QueryParams,
     urlPathParams?: UrlPathParams,
     requestConfig?: RequestConfig<ResponseData>,
-  ) => Promise<ResponseData & FetchResponse<ResponseData>>;
+  ) => Promise<FetchResponse<ResponseData>>;
 };
 
 export interface ApiHandlerConfig<EndpointsMethods>

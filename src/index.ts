@@ -7,12 +7,12 @@ import type { APIResponse, FetchResponse, RequestHandlerConfig } from './types';
  *
  * @param {string | URL | globalThis.Request} url - Request URL.
  * @param {RequestHandlerConfig} config - Configuration object for the request handler.
- * @returns {Promise<ResponseData & FetchResponse<ResponseData>>} Response Data.
+ * @returns {Promise<FetchResponse<ResponseData>>} Response Data.
  */
 export async function fetchf<ResponseData = APIResponse>(
   url: string,
   config: RequestHandlerConfig<ResponseData> = {},
-): Promise<ResponseData & FetchResponse<ResponseData>> {
+): Promise<FetchResponse<ResponseData>> {
   return createRequestHandler(config).request<ResponseData>(url, null, config);
 }
 

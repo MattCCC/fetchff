@@ -100,10 +100,7 @@ async function example3() {
   const { data } = await api.ping();
 
   // Defined in EndpointsList with query param and url path param
-  const { data: book } = (await api.fetchBook(
-    { newBook: true },
-    { bookId: 1 },
-  )) satisfies Book;
+  const { data: book } = await api.fetchBook({ newBook: true }, { bookId: 1 });
 
   // Defined in "endpoints" but not in EndpointsList. You don't need to add "fetchMovies: Endpoint;" explicitly.
   const { data: movies1 } = await api.fetchMovies();
@@ -113,16 +110,16 @@ async function example3() {
   // @ts-expect-error This will result in an error as endpoint is not defined
   const { data: movies2 } = await api.nonExistentEndpoint();
 
-  const { data: book1 } = (await api.fetchBook<Book>(
+  const { data: book1 } = await api.fetchBook<Book>(
     { newBook: true },
     // @ts-expect-error should verify that bookId cannot be text
     { bookId: 'text' },
-  )) satisfies Book;
+  );
 
   // @ts-expect-error will result in an error since "someParams" is not defined
-  const { data: books } = (await api.fetchBooks({
+  const { data: books } = await api.fetchBooks({
     someParams: 1,
-  })) satisfies Books;
+  });
 
   const { data: book2 } = await api.fetchBook(
     { newBook: true },
@@ -138,7 +135,14 @@ async function example3() {
 
   console.log('Example 3', data, apiConfig, endpointsList);
   console.log('Example 3', movies, movies1, movies2, movies3);
-  console.log('Example 3', books, book, book1, book2, book3);
+  console.log(
+    'Example 3',
+    books satisfies Books,
+    book satisfies Book,
+    book1 satisfies Book,
+    book2 satisfies Book,
+    book3 satisfies Book,
+  );
 }
 
 // createApiFetcher() - direct API request() call to a custom endpoint with flattenResponse == true
@@ -153,15 +157,17 @@ async function example4() {
     flattenResponse: true,
   });
 
-  const books = await api.request<Books>('fetchBooks');
-  const data1 = await api.request('https://example.com/api/custom-endpoint');
-
-  // Specify generic
-  const data2 = await api.request<{ myData: true }>(
+  const { data: books } = await api.request<Books>('fetchBooks');
+  const { data: data1 } = await api.request(
     'https://example.com/api/custom-endpoint',
   );
 
-  const data3 = await fetchf<{ myData: true }>(
+  // Specify generic
+  const { data: data2 } = await api.request<{ myData: true }>(
+    'https://example.com/api/custom-endpoint',
+  );
+
+  const { data: data3 } = await fetchf<{ myData: true }>(
     'https://example.com/api/custom-endpoint',
   );
 

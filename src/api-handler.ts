@@ -27,7 +27,7 @@ import { createRequestHandler } from './request-handler';
  * @param {number} config.timeout - Request timeout
  * @param {number} config.dedupeTime - Time window, in milliseconds, during which identical requests are deduplicated (treated as single request).
  * @param {string} config.strategy - Error Handling Strategy
- * @param {string} config.flattenResponse - Whether to flatten response "data" object within "data" one
+ * @param {string} config.flattenResponse - Whether to flatten response "data" object within "data". It works only if the response structure includes a single data property.
  * @param {*} config.defaultResponse - Default response when there is no data or when endpoint fails depending on the chosen strategy. It's "null" by default
  * @param {Object} [config.retry] - Options for retrying requests.
  * @param {number} [config.retry.retries=0] - Number of retry attempts. No retries by default.
@@ -102,18 +102,18 @@ function createApiFetcher<
    * @param {QueryParamsOrBody} [data={}] - Query parameters to include in the request.
    * @param {UrlPathParams} [urlPathParams={}] - URI parameters to include in the request.
    * @param {EndpointConfig} [requestConfig={}] - Additional configuration for the request.
-   * @returns {Promise<Response & FetchResponse>} - A promise that resolves with the response from the API provider.
+   * @returns {Promise<FetchResponse<ResponseData>>} - A promise that resolves with the response from the API provider.
    */
-  async function request<Response = APIResponse>(
+  async function request<ResponseData = APIResponse>(
     endpointName: keyof EndpointsMethods | string,
     data: QueryParamsOrBody = {},
     urlPathParams: UrlPathParams = {},
     requestConfig: RequestConfig = {},
-  ): Promise<Response & FetchResponse<Response>> {
+  ): Promise<FetchResponse<ResponseData>> {
     // Use global per-endpoint settings
     const endpointConfig = endpoints[endpointName as string];
 
-    const responseData = await requestHandler.request<Response>(
+    const responseData = await requestHandler.request<ResponseData>(
       endpointConfig.url,
       data,
       {
