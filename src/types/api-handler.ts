@@ -35,6 +35,8 @@ export declare type UrlPathParams<T = unknown> =
   | (Record<string, T> & EmptyObject)
   | null;
 
+export type APIResponse = unknown;
+
 /**
  * Represents an API endpoint handler with support for customizable query parameters, URL path parameters,
  * and request configuration. It supports handling both flattened and non-flattened responses.

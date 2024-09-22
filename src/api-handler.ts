@@ -5,8 +5,8 @@ import type {
 } from './types/request-handler';
 import type {
   ApiHandlerConfig,
+  ApiHandlerDefaultMethods,
   ApiHandlerMethods,
-  ApiHandlerReturnType,
   APIResponse,
   QueryParamsOrBody,
   UrlPathParams,
