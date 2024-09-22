@@ -240,15 +240,15 @@ export function createRequestHandler(
   /**
    * Output default response in case of an error, depending on chosen strategy
    *
-   * @param {ResponseError} error      Error instance
-   * @param {FetchResponse} response      Response
-   * @param {RequestConfig} requestConfig   Per endpoint request config
-   * @returns {*} Error response
+   * @param {ResponseError<ResponseData>} error - Error instance
+   * @param {FetchResponse<ResponseData>} response - Response
+   * @param {RequestConfig<ResponseData>} requestConfig - Per endpoint request config
+   * @returns {FetchResponse<ResponseData>} Response together with the error object
    */
-  const outputErrorResponse = async (
+  const outputErrorResponse = async <ResponseData = DefaultResponse>(
     error: ResponseError,
-    response: FetchResponse | null,
-    requestConfig: RequestConfig,
+    response: FetchResponse<ResponseData>,
+    requestConfig: RequestConfig<ResponseData>,
   ): Promise<any> => {
     const _isRequestCancelled = isRequestCancelled(error);
     const errorHandlingStrategy = getConfig<string>(requestConfig, 'strategy');
@@ -269,7 +269,7 @@ export function createRequestHandler(
       }
     }
 
-    return outputResponse(response, requestConfig, error);
+    return outputResponse<ResponseData>(response, requestConfig, error);
   };
 
   /**
@@ -302,7 +302,7 @@ export function createRequestHandler(
       ..._reqConfig,
     } as RequestConfig;
 
-    let response: FetchResponse<ResponseData> | null = null;
+    let response = null as unknown as FetchResponse<ResponseData>;
     const fetcherConfig = buildConfig(url, data, mergedConfig);
 
     const {
@@ -450,7 +450,11 @@ export function createRequestHandler(
 
           removeRequest(fetcherConfig);
 
-          return outputErrorResponse(error, response, fetcherConfig);
+          return outputErrorResponse<ResponseData>(
+            error,
+            response,
+            fetcherConfig,
+          );
         }
 
         logger(`Attempt ${attempt + 1} failed. Retry in ${waitTime}ms.`);
@@ -475,7 +479,7 @@ export function createRequestHandler(
    * @returns {FetchResponse<ResponseData>} Response data
    */
   const outputResponse = <ResponseData = DefaultResponse>(
-    response: FetchResponse<ResponseData> | null,
+    response: FetchResponse<ResponseData>,
     requestConfig: RequestConfig,
     error: ResponseError<ResponseData> | null = null,
   ): FetchResponse<ResponseData> => {
