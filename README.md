@@ -138,7 +138,7 @@ const api = createApiFetcher({
     getUser: {
       url: '/user-details/:id/',
       method: 'GET',
-      // Each endpoints accepts all settings declaratively
+      // Each endpoint accepts all settings declaratively
       retry: { retries: 3, delay: 2000 },
       timeout: 5000,
       cancellable: true,
