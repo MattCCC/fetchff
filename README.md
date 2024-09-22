@@ -136,18 +136,12 @@ const api = createApiFetcher({
   baseURL: 'https://example.com/api',
   endpoints: {
     getUser: {
-      url: '/user-details',
+      url: '/user-details/:id/',
       method: 'GET',
       // Each endpoints accepts all settings declaratively
       retry: { retries: 3, delay: 2000 },
       timeout: 5000,
       cancellable: true,
-    },
-    updateUser: {
-      url: '/update-user',
-      method: 'POST',
-      retry: { retries: 2, delay: 1000 },
-      strategy: 'reject', // Reject when requests fail - try/catch
     },
     // Define more endpoints as needed
   },
@@ -155,11 +149,11 @@ const api = createApiFetcher({
   strategy: 'softFail', // no try/catch required
 });
 
-// Make a GET request to http://example.com/api/user-details?userId=2&ratings[]=1&ratings[]=2
-const { data, error } = await api.getUser({
-  userId: 2,
-  ratings: [1, 2], // Passed arrays will be parsed with ease
-});
+// Make a GET request to http://example.com/api/user-details/2/?rating[]=1&rating[]=2
+const { data, error } = await api.getUser(
+  { rating: [1, 2] }, // Append some Query Params. Passed arrays, objects etc. will be parsed automatically
+  { id: 2 }, // URL Path Params, replaces :id in the URL with 2
+);
 ```
 
 #### Multiple API Specific Settings
