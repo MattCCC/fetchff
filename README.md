@@ -691,6 +691,32 @@ The retry mechanism is configured via the `retry` option when instantiating the 
 
 </details>
 
+## 🧩 Response Data Transformation
+
+<details>
+  <summary><span style="cursor:pointer">Click to expand</span></summary>
+  <br>
+
+The `fetchff` plugin automatically handles response data transformation for any instance of `Response` returned by the `fetch()` (or a custom `fetcher`) based on the `Content-Type` header, ensuring that data is parsed correctly according to its format.
+
+### **How It Works**
+
+- **JSON (`application/json`):** Parses the response as JSON.
+- **Form Data (`multipart/form-data`):** Parses the response as `FormData`.
+- **Binary Data (`application/octet-stream`):** Parses the response as a `Blob`.
+- **URL-encoded Form Data (`application/x-www-form-urlencoded`):** Parses the response as `FormData`.
+- **Text (`text/*`):** Parses the response as plain text.
+
+If the `Content-Type` header is missing or not recognized, the plugin defaults to attempting JSON parsing. If that fails, it will try to parse the response as text.
+
+This approach ensures that the `fetchff` plugin can handle a variety of response formats, providing a flexible and reliable method for processing data from API requests.
+
+### `onResponse` Interceptor
+
+You can use the `onResponse` interceptor to customize how the response is handled before it reaches your application. This interceptor gives you access to the raw `Response` object, allowing you to transform the data or modify the response behavior based on your needs.
+
+</details>
+
 ## Typings
 
 <details>
