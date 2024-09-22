@@ -1,13 +1,13 @@
 import type {
   RequestConfig,
   FetchResponse,
+  DefaultResponse,
   CreatedCustomFetcherInstance,
 } from './types/request-handler';
 import type {
   ApiHandlerConfig,
   ApiHandlerDefaultMethods,
   ApiHandlerMethods,
-  APIResponse,
   QueryParamsOrBody,
   UrlPathParams,
 } from './types/api-handler';
@@ -104,7 +104,7 @@ function createApiFetcher<
    * @param {EndpointConfig} [requestConfig={}] - Additional configuration for the request.
    * @returns {Promise<FetchResponse<ResponseData>>} - A promise that resolves with the response from the API provider.
    */
-  async function request<ResponseData = APIResponse>(
+  async function request<ResponseData = DefaultResponse>(
     endpointName: keyof EndpointsMethods | string,
     data: QueryParamsOrBody = {},
     urlPathParams: UrlPathParams = {},

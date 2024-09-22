@@ -5,6 +5,7 @@ import type {
   FetchResponse,
   RequestHandlerReturnType,
   CreatedCustomFetcherInstance,
+  DefaultResponse,
 } from './request-handler';
 
 // Common type definitions
@@ -35,11 +36,9 @@ export declare type UrlPathParams<T = unknown> =
   | (Record<string, T> & EmptyObject)
   | null;
 
-export type APIResponse = unknown;
-
 /**
  * Represents an API endpoint handler with support for customizable query parameters, URL path parameters,
- * and request configuration. It supports handling both flattened and non-flattened responses.
+ * and request configuration.
  *
  * The overloads allow customization of the returned data type (`ReturnedData`), query parameters (`T`),
  * and URL path parameters (`T2`).
@@ -55,7 +54,7 @@ export type APIResponse = unknown;
  *  }
  */
 export declare type Endpoint<
-  ResponseData = APIResponse,
+  ResponseData = DefaultResponse,
   QueryParams = QueryParamsOrBody,
   PathParams = UrlPathParams,
 > =
@@ -93,7 +92,7 @@ export declare type Endpoint<
       ): Promise<FetchResponse<ReturnedData>>;
     };
 
-type EndpointDefaults = Endpoint<never>;
+type EndpointDefaults = Endpoint<DefaultResponse>;
 
 type EndpointsRecord<EndpointsMethods> = {
   [K in keyof EndpointsMethods]: EndpointsMethods[K] extends Endpoint<
@@ -102,7 +101,7 @@ type EndpointsRecord<EndpointsMethods> = {
     infer UrlPathParams
   >
     ? Endpoint<ResponseData, QueryParams, UrlPathParams>
-    : Endpoint<never>;
+    : Endpoint<DefaultResponse>;
 };
 
 type DefaultEndpoints<EndpointsCfg> = {
@@ -134,7 +133,7 @@ export type ApiHandlerDefaultMethods<EndpointsMethods> = {
   endpoints: EndpointsConfig<EndpointsMethods>;
   requestHandler: RequestHandlerReturnType;
   getInstance: () => CreatedCustomFetcherInstance | null;
-  request: <ResponseData = APIResponse>(
+  request: <ResponseData = DefaultResponse>(
     endpointName: keyof EndpointsMethods | string,
     queryParams?: QueryParams,
     urlPathParams?: UrlPathParams,

@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { APPLICATION_JSON, CONTENT_TYPE } from './const';
-import type { APIResponse } from './types/api-handler';
-import type { FetchResponse } from './types/request-handler';
+import type { DefaultResponse, FetchResponse } from './types/request-handler';
 
 /**
  * Parses the response data based on the Content-Type header.
@@ -9,7 +8,7 @@ import type { FetchResponse } from './types/request-handler';
  * @param response - The Response object to parse.
  * @returns A Promise that resolves to the parsed data.
  */
-export async function parseResponseData<ResponseData = APIResponse>(
+export async function parseResponseData<ResponseData = DefaultResponse>(
   response: FetchResponse<ResponseData>,
 ): Promise<any> {
   // Bail early when body is empty

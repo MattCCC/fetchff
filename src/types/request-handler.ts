@@ -33,6 +33,8 @@ export type Method =
   | 'unlink'
   | 'UNLINK';
 
+export type DefaultResponse = any;
+
 export type NativeFetch = typeof fetch;
 
 export interface FetcherInstance {

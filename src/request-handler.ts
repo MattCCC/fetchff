@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type {
+  DefaultResponse,
   RequestHandlerConfig,
   RequestConfig,
   Method,
@@ -11,7 +12,6 @@ import type {
   FetcherConfig,
 } from './types/request-handler';
 import type {
-  APIResponse,
   BodyPayload,
   QueryParams,
   QueryParamsOrBody,
@@ -291,7 +291,7 @@ export function createRequestHandler(
    * @throws {ResponseError}
    * @returns {Promise<FetchResponse<ResponseData>>} Response Data
    */
-  const request = async <ResponseData = APIResponse>(
+  const request = async <ResponseData = DefaultResponse>(
     url: string,
     data: QueryParamsOrBody = null,
     reqConfig: RequestConfig | null = null,
@@ -474,7 +474,7 @@ export function createRequestHandler(
    * @param error - whether the response is erroneous
    * @returns {FetchResponse<ResponseData>} Response data
    */
-  const outputResponse = <ResponseData = APIResponse>(
+  const outputResponse = <ResponseData = DefaultResponse>(
     response: FetchResponse<ResponseData> | null,
     requestConfig: RequestConfig,
     error: ResponseError<ResponseData> | null = null,
