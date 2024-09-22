@@ -9,6 +9,7 @@ import type {
 } from '../src/types/request-handler';
 import { fetchf } from '../src';
 import { ABORT_ERROR } from '../src/const';
+import { ResponseErr } from '../src/response-error';
 
 jest.mock('../src/utils', () => {
   const originalModule = jest.requireActual('../src/utils');
@@ -1004,6 +1005,68 @@ describe('Request Handler', () => {
   describe('Request cancellation', () => {
     beforeEach(() => {
       globalThis.fetch = jest.fn();
+    });
+
+    it('should cancel previous request when fetchf() is used', async () => {
+      const url = 'https://example.com/api/post/send';
+
+      // Reset fetchMock before each test
+      fetchMock.reset();
+
+      let requestCounter = 0;
+
+      // Mock the endpoint with a conditional response
+      fetchMock.mock(
+        url,
+        () => {
+          // Increment the counter for each request
+          requestCounter++;
+
+          if (requestCounter === 1) {
+            // Simulate successful response for the first request
+            return {
+              status: 200,
+              body: { message: 'This response is mocked once' },
+            };
+          } else {
+            // Simulate aborted request for subsequent requests
+            return Promise.reject(
+              new DOMException('The operation was aborted.', 'AbortError'),
+            );
+          }
+        },
+        { overwriteRoutes: true },
+      );
+
+      // Create an API fetcher with cancellable requests enabled
+      const sendPost = () =>
+        fetchf(url, {
+          cancellable: true,
+          rejectCancelled: true,
+        });
+
+      async function sendData() {
+        const firstRequest = sendPost();
+        const secondRequest = sendPost();
+
+        try {
+          const secondResponse = await secondRequest;
+          expect(secondResponse).toMatchObject({
+            message: 'This response is mocked once',
+          });
+
+          await expect(firstRequest).rejects.toThrow(
+            'The operation was aborted.',
+          );
+        } catch (error) {
+          const err = error as ResponseErr;
+
+          expect(err.message).toBe('The operation was aborted.');
+        }
+      }
+
+      // Execute the sendData function and await its completion
+      await sendData();
     });
 
     it('should cancel previous request and pass a different successive request', async () => {
