@@ -80,10 +80,10 @@ export type RetryFunction = <T = any>(
   attempts: number,
 ) => Promise<boolean>;
 
-export type PollingFunction = <ResponseData = any>(
-  response: FetchResponse<ResponseData>,
+export type PollingFunction<D = any> = (
+  response: FetchResponse<D>,
   attempts: number,
-  error?: ResponseError,
+  error?: ResponseError<D>,
 ) => boolean;
 
 export type CacheKeyFunction = (config: FetcherConfig) => string;
@@ -328,7 +328,7 @@ interface ExtendedRequestConfig<D = any>
    * @param response - The response data.
    * @returns `true` to stop polling, `false` to continue.
    */
-  shouldStopPolling?: PollingFunction;
+  shouldStopPolling?: PollingFunction<D>;
 }
 
 interface BaseRequestHandlerConfig<RequestData = any>
