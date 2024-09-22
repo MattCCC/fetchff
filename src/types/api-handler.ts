@@ -35,9 +35,23 @@ export declare type UrlPathParams<T = unknown> =
   | (Record<string, T> & EmptyObject)
   | null;
 
-export declare type APIResponse = unknown;
-
-// Endpoint function type
+/**
+ * Represents an API endpoint handler with support for customizable query parameters, URL path parameters,
+ * and request configuration. It supports handling both flattened and non-flattened responses.
+ *
+ * The overloads allow customization of the returned data type (`ReturnedData`), query parameters (`T`),
+ * and URL path parameters (`T2`).
+ *
+ * @template ResponseData - The type of the response data (default: `APIResponse`).
+ * @template QueryParams - The type of the query parameters (default: `QueryParamsOrBody`).
+ * @template PathParams - The type of the URL path parameters (default: `UrlPathParams`).
+ *
+ * @example
+ *  interface EndpointsMethods {
+ *    getUser: Endpoint<UserResponse>;
+ *    getPosts: Endpoint<PostsResponse, PostsQueryParams, PostsUrlPathParams>;
+ *  }
+ */
 export declare type Endpoint<
   ResponseData = APIResponse,
   QueryParams = QueryParamsOrBody,
@@ -87,14 +101,14 @@ type EndpointsConfigPart<EndpointsCfg, EndpointsMethods extends object> = [
   ? unknown
   : DefaultEndpoints<Omit<EndpointsCfg, keyof EndpointsMethods>>;
 
-export type ApiHandlerReturnType<
+export type ApiHandlerMethods<
   EndpointsMethods extends object,
   EndpointsCfg,
 > = EndpointsRecord<EndpointsMethods> &
   EndpointsConfigPart<EndpointsCfg, EndpointsMethods> &
-  ApiHandlerMethods<EndpointsMethods>;
+  ApiHandlerDefaultMethods<EndpointsMethods>;
 
-export type ApiHandlerMethods<EndpointsMethods> = {
+export type ApiHandlerDefaultMethods<EndpointsMethods> = {
   config: ApiHandlerConfig<EndpointsMethods>;
   endpoints: EndpointsConfig<EndpointsMethods>;
   requestHandler: RequestHandlerReturnType;

@@ -98,7 +98,7 @@ function createApiFetcher<
    * Handle Single API Request
    * It considers settings in following order: per-request settings, global per-endpoint settings, global settings.
    *
-   * @param {string} endpointName - The name of the API endpoint to call.
+   * @param {keyof EndpointsMethods | string} endpointName - The name of the API endpoint to call.
    * @param {QueryParamsOrBody} [data={}] - Query parameters to include in the request.
    * @param {UrlPathParams} [urlPathParams={}] - URI parameters to include in the request.
    * @param {EndpointConfig} [requestConfig={}] - Additional configuration for the request.
@@ -117,7 +117,7 @@ function createApiFetcher<
       endpointConfig.url,
       data,
       {
-        ...(endpointConfig || {}),
+        ...endpointConfig,
         ...requestConfig,
         urlPathParams,
       },
@@ -126,6 +126,14 @@ function createApiFetcher<
     return responseData;
   }
 
+  const apiHandler: ApiHandlerDefaultMethods<EndpointsMethods> = {
+    config,
+    endpoints,
+    requestHandler,
+    getInstance,
+    request,
+  };
+
   /**
    * Maps all API requests using native Proxy
    *
@@ -133,9 +141,7 @@ function createApiFetcher<
    */
   function get(prop: string) {
     if (prop in apiHandler) {
-      return apiHandler[
-        prop as unknown as keyof ApiHandlerMethods<EndpointsMethods>
-      ];
+      return apiHandler[prop as unknown as keyof typeof apiHandler];
     }
 
     // Prevent handler from triggering non-existent endpoints
@@ -146,17 +152,9 @@ function createApiFetcher<
     return apiHandler.request.bind(null, prop);
   }
 
-  const apiHandler: ApiHandlerMethods<EndpointsMethods> = {
-    config,
-    endpoints,
-    requestHandler,
-    getInstance,
-    request,
-  };
-
   return new Proxy(apiHandler, {
     get: (_target, prop: string) => get(prop),
-  }) as ApiHandlerReturnType<EndpointsMethods, EndpointsCfg>;
+  }) as ApiHandlerMethods<EndpointsMethods, EndpointsCfg>;
 }
 
 export { createApiFetcher };

@@ -732,12 +732,13 @@ The `fetchff` package includes several generic types to handle various aspects o
 
 The `createApiFetcher()` function provides a robust set of types to define and manage API interactions. The key types available are:
 
-- **`Endpoint<ResponseData = APIResponse, QueryParams = QueryParamsOrBody, PathParams = UrlPathParams>`**: Represents an API endpoint, allowing functions to be defined with optional query parameters, URL path parameters, and request configurations.
+- **`Endpoint<ResponseData = APIResponse, QueryParams = QueryParamsOrBody, PathParams = UrlPathParams>`**: Represents an API endpoint function, allowing to be defined with optional query parameters, URL path parameters, and request configuration.
 - **`EndpointsMethods`**: Represents the list of API endpoints with their respective settings. It is your own interface that you can pass. It will be cross-checked against the `endpoints` property of the `createApiFetcher()` configuration. Each endpoint can be configured with its own specific settings such as query parameters, URL path parameters, and request configurations.
 - **`EndpointsCfg`**: Configuration for API endpoints, including query parameters, URL path parameters, and additional request configurations.
 - **`RequestInterceptor`**: Function to modify request configurations before they are sent.
 - **`ResponseInterceptor`**: Function to process responses before they are handled by the application.
 - **`ErrorInterceptor`**: Function to handle errors when a request fails.
+- **`CreatedCustomFetcherInstance`**: Represents the custom `fetcher` instance created by its `create()` function.
 
 For a full list of types and detailed definitions, refer to the [api-handler.ts](https://github.com/MattCCC/fetchff/blob/docs-update/src/types/api-handler.ts) file.
 
@@ -745,9 +746,8 @@ For a full list of types and detailed definitions, refer to the [api-handler.ts]
 
 The `fetchf()` function includes types that help configure and manage network requests effectively:
 
+- **`RequestHandlerConfig`**: Main configuration options for the `fetchf()` function, including request settings, interceptors, and retry configurations.
 - **`RetryConfig`**: Configuration options for retry mechanisms, including the number of retries, delay between retries, and backoff strategies.
-- **`FetchfConfig`**: Configuration options for the `fetchf()` function, including request settings, interceptors, and retry configurations.
-- **`RequestHandler`**: Represents the request handler instance created by `fetchf()`. This includes methods for making requests and managing configurations.
 - **`CacheConfig`**: Configuration options for caching, including cache time, custom cache keys, and cache invalidation rules.
 - **`PollingConfig`**: Configuration options for polling, including polling intervals and conditions to stop polling.
 - **`ErrorStrategy`**: Defines strategies for handling errors, such as rejection, soft fail, default response, and silent modes.

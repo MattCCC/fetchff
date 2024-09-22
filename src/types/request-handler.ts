@@ -37,7 +37,7 @@ export type NativeFetch = typeof fetch;
 
 export interface FetcherInstance {
   create: <RequestInstance = CreatedCustomFetcherInstance>(
-    config?: BaseRequestHandlerConfig,
+    config?: RequestHandlerConfig,
   ) => RequestInstance;
 }
 
@@ -58,13 +58,18 @@ export interface HeadersObject {
 }
 
 export interface ExtendedResponse<D = any> extends Omit<Response, 'headers'> {
-  data: D extends unknown ? any : D;
+  data: D extends [unknown] ? any : D;
   error: ResponseError<D> | null;
   headers: HeadersObject & HeadersInit;
   config: ExtendedRequestConfig<D>;
 }
 
-export type FetchResponse<T = any> = ExtendedResponse<T>;
+/**
+ * Represents the response from a `fetchf()` request.
+ *
+ * @template ResponseData - The type of the data returned in the response.
+ */
+export type FetchResponse<ResponseData = any> = ExtendedResponse<ResponseData>;
 
 export interface ResponseError<D = any> extends Error {
   config: ExtendedRequestConfig<D>;
@@ -95,6 +100,9 @@ export type CacheSkipFunction = <ResponseData = any>(
   config: RequestConfig,
 ) => boolean;
 
+/**
+ * Configuration object for retry related options
+ */
 export interface RetryOptions {
   /**
    * Maximum number of retry attempts.
@@ -331,7 +339,7 @@ interface ExtendedRequestConfig<D = any>
   shouldStopPolling?: PollingFunction<D>;
 }
 
-interface BaseRequestHandlerConfig<RequestData = any>
+export interface RequestHandlerConfig<RequestData = any>
   extends RequestConfig<RequestData> {
   fetcher?: FetcherInstance | null;
   logger?: any;
@@ -343,9 +351,6 @@ export type RequestConfig<RequestData = any> =
 export type FetcherConfig = Omit<ExtendedRequestConfig, 'url'> & {
   url: string;
 };
-
-export type RequestHandlerConfig<RequestData = any> =
-  BaseRequestHandlerConfig<RequestData>;
 
 export interface RequestHandlerReturnType {
   config: RequestHandlerConfig;
