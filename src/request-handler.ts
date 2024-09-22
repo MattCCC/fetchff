@@ -218,13 +218,13 @@ export function createRequestHandler(
   /**
    * Process global Request Error
    *
-   * @param {ResponseError} error      Error instance
-   * @param {RequestConfig} requestConfig   Per endpoint request config
+   * @param {ResponseError<ResponseData>} error      Error instance
+   * @param {RequestConfig<ResponseData>} requestConfig   Per endpoint request config
    * @returns {Promise<void>}
    */
-  const processError = async (
-    error: ResponseError,
-    requestConfig: RequestConfig,
+  const processError = async <ResponseData = DefaultResponse>(
+    error: ResponseError<ResponseData>,
+    requestConfig: RequestConfig<ResponseData>,
   ): Promise<void> => {
     if (!isRequestCancelled(error)) {
       logger('API ERROR', error);
@@ -241,13 +241,13 @@ export function createRequestHandler(
    * Output default response in case of an error, depending on chosen strategy
    *
    * @param {ResponseError<ResponseData>} error - Error instance
-   * @param {FetchResponse<ResponseData>} response - Response
+   * @param {FetchResponse<ResponseData> | null} response - Response. It may be "null" in case of request being aborted.
    * @param {RequestConfig<ResponseData>} requestConfig - Per endpoint request config
    * @returns {FetchResponse<ResponseData>} Response together with the error object
    */
   const outputErrorResponse = async <ResponseData = DefaultResponse>(
     error: ResponseError,
-    response: FetchResponse<ResponseData>,
+    response: FetchResponse<ResponseData> | null,
     requestConfig: RequestConfig<ResponseData>,
   ): Promise<any> => {
     const _isRequestCancelled = isRequestCancelled(error);
@@ -302,7 +302,7 @@ export function createRequestHandler(
       ..._reqConfig,
     } as RequestConfig;
 
-    let response = null as unknown as FetchResponse<ResponseData>;
+    let response: FetchResponse<ResponseData> | null = null;
     const fetcherConfig = buildConfig(url, data, mergedConfig);
 
     const {
@@ -353,8 +353,9 @@ export function createRequestHandler(
     let attempt = 0;
     let pollingAttempt = 0;
     let waitTime: number = delay;
+    const _retries = retries > 0 ? retries : 0;
 
-    while (attempt <= retries) {
+    while (attempt <= _retries) {
       try {
         // Add the request to the queue. Make sure to handle deduplication, cancellation, timeouts in accordance to retry settings
         const controller = await addRequest(
@@ -363,7 +364,7 @@ export function createRequestHandler(
           dedupeTime,
           cancellable,
           // Reset timeouts by default or when retries are ON
-          !!(timeout && (!retries || resetTimeout)),
+          !!(timeout && (!_retries || resetTimeout)),
         );
 
         // Shallow copy to ensure basic idempotency
@@ -446,7 +447,7 @@ export function createRequestHandler(
           !(!shouldRetry || (await shouldRetry(error, attempt))) ||
           !retryOn?.includes(status)
         ) {
-          await processError(error, fetcherConfig);
+          await processError<ResponseData>(error, fetcherConfig);
 
           removeRequest(fetcherConfig);
 
@@ -473,17 +474,29 @@ export function createRequestHandler(
   /**
    * Output response
    *
-   * @param response - Response payload
+   * @param Response. It may be "null" in case of request being aborted.
    * @param {RequestConfig} requestConfig - Request config
    * @param error - whether the response is erroneous
    * @returns {FetchResponse<ResponseData>} Response data
    */
   const outputResponse = <ResponseData = DefaultResponse>(
-    response: FetchResponse<ResponseData>,
+    response: FetchResponse<ResponseData> | null,
     requestConfig: RequestConfig,
     error: ResponseError<ResponseData> | null = null,
   ): FetchResponse<ResponseData> => {
     const defaultResponse = getConfig<any>(requestConfig, 'defaultResponse');
+
+    // This may happen when request is cancelled.
+    if (!response) {
+      return {
+        ok: false,
+        // Enhance the response with extra information
+        error,
+        data: defaultResponse,
+        headers: null,
+        config: requestConfig,
+      } as unknown as FetchResponse<ResponseData>;
+    }
 
     // Clean up the error object
     deleteProperty(error, 'response');

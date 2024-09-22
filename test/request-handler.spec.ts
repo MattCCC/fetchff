@@ -30,6 +30,15 @@ describe('Request Handler', () => {
       test: 'data',
     },
   };
+  const nestedDataMock = {
+    data: {
+      data: {
+        data: {
+          test: 'data',
+        },
+      },
+    },
+  };
 
   console.warn = jest.fn();
 
@@ -802,7 +811,6 @@ describe('Request Handler', () => {
         cancellable: true,
         rejectCancelled: true,
         strategy: 'reject',
-        flattenResponse: true,
         defaultResponse: null,
         onError: () => {},
       });
@@ -854,25 +862,32 @@ describe('Request Handler', () => {
     });
 
     it('should handle modified response in applyInterceptor', async () => {
+      const modifiedUrl = 'https://api.example.com/test-endpoint?key=value';
+
       fetchMock.mock(
-        'https://api.example.com/test-endpoint?key=value',
+        modifiedUrl,
         new Response(JSON.stringify({ username: 'original response' }), {
           status: 200,
         }),
       );
 
       const url = '/test-endpoint';
-      const data = { key: 'value' };
-      const config: RequestConfig = {
+      const params = { key: 'value' };
+      const requestConfig: RequestConfig = {
         async onResponse(response) {
           response.data = { username: 'modified response' };
         },
       };
 
-      const response = await requestHandler.request(url, data, config);
+      const { data, config } = await requestHandler.request(
+        url,
+        params,
+        requestConfig,
+      );
 
       expect(spy).toHaveBeenCalledTimes(4);
-      expect(response).toMatchObject({ username: 'modified response' });
+      expect(data).toMatchObject({ username: 'modified response' });
+      expect(config.url).toContain(modifiedUrl);
     });
 
     it('should handle request failure with interceptors', async () => {
@@ -991,7 +1006,7 @@ describe('Request Handler', () => {
       globalThis.fetch = jest.fn();
     });
 
-    it('should cancel previous request when successive request is made', async () => {
+    it('should cancel previous request and pass a different successive request', async () => {
       fetchMock.reset();
 
       const requestHandler = createRequestHandler({
@@ -1018,12 +1033,47 @@ describe('Request Handler', () => {
       );
 
       expect(secondRequest).resolves.toMatchObject({
-        username: 'response from second request',
+        data: { username: 'response from second request' },
       });
       expect(firstRequest).rejects.toThrow('The operation was aborted.');
     });
 
-    it('should cancel previous request when successive request is made through fetchf() and rejectCancelled is false', async () => {
+    it('should not cancel previous request when cancellable is set to false', async () => {
+      fetchMock.reset();
+
+      const requestHandler = createRequestHandler({
+        cancellable: false, // No request cancellation
+        rejectCancelled: true,
+        flattenResponse: false,
+      });
+
+      // Mock the first request
+      fetchMock.mock('https://example.com/first', {
+        status: 200,
+        body: { data: { message: 'response from first request' } },
+      });
+
+      // Mock the second request
+      fetchMock.mock('https://example.com/second', {
+        status: 200,
+        body: { data: { message: 'response from second request' } },
+      });
+
+      const firstRequest = requestHandler.request('https://example.com/first');
+      const secondRequest = requestHandler.request(
+        'https://example.com/second',
+      );
+
+      // Validate both requests resolve successfully without any cancellation
+      await expect(firstRequest).resolves.toMatchObject({
+        data: { data: { message: 'response from first request' } },
+      });
+      await expect(secondRequest).resolves.toMatchObject({
+        data: { data: { message: 'response from second request' } },
+      });
+    });
+
+    it('should cancel first request without throwing when successive request is made through fetchf() and rejectCancelled is false', async () => {
       fetchMock.reset();
 
       const abortedError = new DOMException(
@@ -1049,14 +1099,15 @@ describe('Request Handler', () => {
         flattenResponse: true,
         defaultResponse: {},
       });
+
       const secondRequest = fetchf('https://example.com/second', {
         flattenResponse: true,
       });
 
-      expect(secondRequest).resolves.toEqual({
-        username: 'response from second request',
+      expect(secondRequest).resolves.toMatchObject({
+        data: { username: 'response from second request' },
       });
-      expect(firstRequest).resolves.toEqual({});
+      expect(firstRequest).resolves.toMatchObject({ data: {} });
     });
   });
 
@@ -1078,23 +1129,6 @@ describe('Request Handler', () => {
       expect(response).toMatchObject(responseMock);
     });
 
-    it('should handle nested data if data flattening is on', async () => {
-      const requestHandler = createRequestHandler({
-        fetcher,
-        flattenResponse: true,
-      });
-
-      (requestHandler.getInstance() as any).request = jest
-        .fn()
-        .mockResolvedValue(responseMock);
-
-      const response = await requestHandler.request(apiUrl, null, {
-        method: 'post',
-      });
-
-      expect(response).toMatchObject(responseMock.data);
-    });
-
     it('should handle deeply nested data if data flattening is on', async () => {
       const requestHandler = createRequestHandler({
         fetcher,
@@ -1105,11 +1139,12 @@ describe('Request Handler', () => {
         .fn()
         .mockResolvedValue({ data: responseMock });
 
-      const response = await requestHandler.request(apiUrl, null, {
+      const { data } = await requestHandler.request(apiUrl, null, {
         method: 'patch',
       });
 
-      expect(response).toMatchObject(responseMock.data);
+      expect(data).toMatchObject(responseMock.data);
+      expect(data).not.toMatchObject(nestedDataMock);
     });
 
     it('should return null if there is no data', async () => {
@@ -1125,7 +1160,7 @@ describe('Request Handler', () => {
 
       expect(
         await requestHandler.request(apiUrl, null, { method: 'head' }),
-      ).toBe(null);
+      ).toMatchObject({ data: null });
     });
   });
 });
