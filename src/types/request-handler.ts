@@ -358,6 +358,6 @@ export interface RequestHandlerReturnType {
   request: <ResponseData = unknown>(
     url: string,
     data?: QueryParamsOrBody,
-    config?: RequestConfig | null,
+    config?: RequestConfig<ResponseData> | null,
   ) => Promise<ResponseData & FetchResponse<ResponseData>>;
 }
