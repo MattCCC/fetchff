@@ -649,6 +649,57 @@ The retry mechanism is configured via the `retry` option when instantiating the 
 
 </details>
 
+## Typings
+
+<details>
+  <summary><span style="cursor:pointer">Click to expand</span></summary>
+  <br>
+
+The `fetchff` package provides comprehensive TypeScript typings to enhance development experience and ensure type safety. Below are details on the available types for both `createApiFetcher()` and `fetchf()`.
+
+### Generic Typings
+
+The `fetchff` package includes several generic types to handle various aspects of API requests and responses:
+
+- **`QueryParams<T = unknown>`**: Represents query parameters for requests. Can be an object, `URLSearchParams`, an array of name-value pairs, or `null`.
+- **`BodyPayload<T = any>`**: Represents the request body. Can be `BodyInit`, an object, an array, a string, or `null`.
+- **`QueryParamsOrBody<T = unknown>`**: Union type for query parameters or body payload. Can be either `QueryParams<T>` or `BodyPayload<T>`.
+- **`UrlPathParams<T = unknown>`**: Represents URL path parameters. Can be an object or `null`.
+
+### Typings for `createApiFetcher()`
+
+The `createApiFetcher()` function provides a robust set of types to define and manage API interactions. The key types available are:
+
+- **`Endpoint<ResponseData = APIResponse, QueryParams = QueryParamsOrBody, PathParams = UrlPathParams>`**: Represents an API endpoint, allowing functions to be defined with optional query parameters, URL path parameters, and request configurations.
+- **`EndpointsMethods`**: Represents the list of API endpoints with their respective settings. It is your own interface that you can pass. It will be cross-checked against the `endpoints` property of the `createApiFetcher()` configuration. Each endpoint can be configured with its own specific settings such as query parameters, URL path parameters, and request configurations.
+- **`EndpointsCfg`**: Configuration for API endpoints, including query parameters, URL path parameters, and additional request configurations.
+- **`RequestInterceptor`**: Function to modify request configurations before they are sent.
+- **`ResponseInterceptor`**: Function to process responses before they are handled by the application.
+- **`ErrorInterceptor`**: Function to handle errors when a request fails.
+
+For a full list of types and detailed definitions, refer to the [api-handler.ts](https://github.com/MattCCC/fetchff/blob/docs-update/src/types/api-handler.ts) file.
+
+### Typings for `fetchf()`
+
+The `fetchf()` function includes types that help configure and manage network requests effectively:
+
+- **`RetryConfig`**: Configuration options for retry mechanisms, including the number of retries, delay between retries, and backoff strategies.
+- **`FetchfConfig`**: Configuration options for the `fetchf()` function, including request settings, interceptors, and retry configurations.
+- **`RequestHandler`**: Represents the request handler instance created by `fetchf()`. This includes methods for making requests and managing configurations.
+- **`CacheConfig`**: Configuration options for caching, including cache time, custom cache keys, and cache invalidation rules.
+- **`PollingConfig`**: Configuration options for polling, including polling intervals and conditions to stop polling.
+- **`ErrorStrategy`**: Defines strategies for handling errors, such as rejection, soft fail, default response, and silent modes.
+
+For a complete list of types and their definitions, refer to the [request-handler.ts](https://github.com/MattCCC/fetchff/blob/docs-update/src/types/request-handler.ts) file.
+
+### Benefits of Using Typings
+
+- **Type Safety**: Ensures that configurations and requests adhere to expected formats, reducing runtime errors and improving reliability.
+- **Autocompletion**: Provides better support for autocompletion in editors, making development faster and more intuitive.
+- **Documentation**: Helps in understanding available options and their expected values, improving code clarity and maintainability.
+
+</details>
+
 ## Comparison with another libraries
 
 | Feature                                            | fetchff     | ofetch       | wretch       | axios        | native fetch() |
@@ -678,8 +729,6 @@ The retry mechanism is configured via the `retry` option when instantiating the 
 | **Automatic Retry on Failure**                     | ✅          | ✅           | --           | ✅           | --             |
 | **Server-Side Rendering (SSR) Support**            | ✅          | ✅           | --           | --           | --             |
 | **Minimal Installation Size**                      | 🟢 (3.3 KB) | 🟡 (6.41 KB) | 🟢 (2.21 KB) | 🔴 (13.7 KB) | 🟢 (0 KB)      |
-
-Please mind that this table is for informational purposes only. All of these solutions differ. For example `swr` and `react-query` are more focused on React, re-rendering, query caching and keeping data in sync, while fetch wrappers like `fetchff` or `ofetch` aim to extend functionalities of native `fetch` so to reduce complexity of having to maintain various wrappers.
 
 ## ✏️ Examples
 
@@ -876,7 +925,7 @@ const books = await api.fetchBooks<Books>();
 
 </details>
 
-#### Advanced Usage with TypeScript and Custom Headers
+#### Using with TypeScript and Custom Headers
 
 <details>
   <summary><span style="cursor:pointer">Click to expand</span></summary>
@@ -940,7 +989,53 @@ In the example above we fetch data from an API for user with an ID of 1. We also
 
 </details>
 
-#### Per-request Error handling strategy - `reject` (default)
+#### Custom Fetcher
+
+<details>
+  <summary><span style="cursor:pointer">Click to expand</span></summary>
+  <br>
+
+```typescript
+import { createApiFetcher, RequestConfig, FetchResponse } from 'fetchff';
+
+// Define the custom fetcher object
+const customFetcher = {
+  create() {
+    // Create instance here. It will be called at the beginning of every request.
+    return {
+      // This function will be called whenever a request is being fired.
+      request: async (
+        url: string,
+        config: RequestConfig,
+      ): Promise<FetchResponse> => {
+        // Implement your custom fetch logic here
+        const response = await fetch(url, config);
+        // Optionally, process or transform the response
+        return response;
+      },
+    };
+  },
+};
+
+// Create the API fetcher with the custom fetcher
+const api = createApiFetcher({
+  baseURL: 'https://api.example.com/',
+  retry: retryConfig,
+  fetcher: customFetcher, // Provide the custom fetcher object directly
+  endpoints: {
+    getBooks: {
+      url: 'books/all',
+      method: 'get',
+      cancellable: true,
+      // All the global settings can be specified on per-endpoint basis as well
+    },
+  },
+});
+```
+
+</details>
+
+#### Error handling strategy - `reject` (default)
 
 <details>
   <summary><span style="cursor:pointer">Click to expand</span></summary>
@@ -975,7 +1070,7 @@ sendMessage();
 
 </details>
 
-#### Per-request Error handling strategy - `softFail`
+#### Error handling strategy - `softFail`
 
 <details>
   <summary><span style="cursor:pointer">Click to expand</span></summary>
@@ -1013,7 +1108,7 @@ sendMessage();
 
 </details>
 
-#### Per-request Error handling strategy - `defaultResponse`
+#### Error handling strategy - `defaultResponse`
 
 <details>
   <summary><span style="cursor:pointer">Click to expand</span></summary>
@@ -1064,7 +1159,7 @@ sendMessage();
 
 </details>
 
-#### Per-request Error handling strategy - `silent`
+#### Error handling strategy - `silent`
 
 <details>
   <summary><span style="cursor:pointer">Click to expand</span></summary>
@@ -1108,7 +1203,7 @@ sendMessage();
 
 </details>
 
-#### Per-request `onError` Interceptor
+#### `onError` Interceptor
 
 <details>
   <summary><span style="cursor:pointer">Click to expand</span></summary>
