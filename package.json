@@ -11,6 +11,7 @@
   "browser": "dist/browser/index.mjs",
   "module": "dist/browser/index.mjs",
   "types": "dist/index.d.ts",
+  "unpkg": "./dist/browser/index.mjs",
   "keywords": [
     "fetch",
     "fetchff",
