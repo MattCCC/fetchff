@@ -1004,12 +1004,9 @@ const customFetcher = {
     // Create instance here. It will be called at the beginning of every request.
     return {
       // This function will be called whenever a request is being fired.
-      request: async (
-        url: string,
-        config: RequestConfig,
-      ): Promise<FetchResponse> => {
+      request: async (config: RequestConfig): Promise<FetchResponse> => {
         // Implement your custom fetch logic here
-        const response = await fetch(url, config);
+        const response = await fetch(config.url, config);
         // Optionally, process or transform the response
         return response;
       },
