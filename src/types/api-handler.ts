@@ -47,14 +47,14 @@ export declare type Endpoint<
       (
         queryParams?: QueryParams,
         urlPathParams?: PathParams,
-        requestConfig?: RequestConfig,
+        requestConfig?: RequestConfig<ResponseData>,
       ): Promise<ResponseData & FetchResponse<ResponseData>>;
     }
   | {
       <ReturnedData = ResponseData, T = QueryParams, T2 = PathParams>(
         queryParams?: T,
         urlPathParams?: T2,
-        requestConfig?: RequestConfig,
+        requestConfig?: RequestConfig<ResponseData>,
       ): Promise<ReturnedData & FetchResponse<ReturnedData>>;
     };
 
@@ -103,7 +103,7 @@ export type ApiHandlerMethods<EndpointsMethods> = {
     endpointName: keyof EndpointsMethods | string,
     queryParams?: QueryParams,
     urlPathParams?: UrlPathParams,
-    requestConfig?: RequestConfig,
+    requestConfig?: RequestConfig<ResponseData>,
   ) => Promise<ResponseData & FetchResponse<ResponseData>>;
 };
 
