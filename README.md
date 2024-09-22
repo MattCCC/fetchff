@@ -1302,6 +1302,45 @@ sendMessage();
 
 </details>
 
+#### Request Chaining
+
+<details>
+  <summary><span style="cursor:pointer">Click to expand</span></summary>
+  <br>
+
+In this example, we make an initial request to get a user's details, then use that data to fetch additional information in a subsequent request. This pattern allows you to perform multiple asynchronous operations in sequence, using the result of one request to drive the next.
+
+```typescript
+import { createApiFetcher } from 'fetchff';
+
+// Initialize API fetcher with endpoints
+const api = createApiFetcher({
+  endpoints: {
+    getUser: { url: '/user' },
+    createPost: { url: '/post' },
+  },
+  apiUrl: 'https://example.com/api',
+});
+
+async function fetchUserAndCreatePost(userId: number, postData: any) {
+  // Fetch user data
+  const { data: userData } = await api.getUser({ userId });
+
+  // Create a new post with the fetched user data
+  return await api.createPost({
+    ...postData,
+    userId: userData.id, // Use the user's ID from the response
+  });
+}
+
+// Example usage
+fetchUserAndCreatePost(1, { title: 'New Post', content: 'This is a new post.' })
+  .then((response) => console.log('Post created:', response))
+  .catch((error) => console.error('Error:', error));
+```
+
+</details>
+
 ### Example Usage with Frameworks and Libraries
 
 `fetchff` is designed to seamlessly integrate with any popular frameworks like Next.js, libraries like React, Vue, React Query and SWR. It is written in pure JS so you can effortlessly manage API requests with minimal setup, and without any dependencies.
