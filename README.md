@@ -555,6 +555,51 @@ The caching system can be fine-tuned using the following options when configurin
 
 </details>
 
+## ✋ Automatic Request Cancellation
+
+<details>
+  <summary><span style="cursor:pointer">Click to expand</span></summary>
+  <br>
+<b>fetchff</b> simplifies making API requests by allowing customizable features such as request cancellation, retries, and response flattening. When a new request is made to the same API endpoint, the plugin automatically cancels any previous requests that haven't completed, ensuring that only the most recent request is processed.
+<br><br>
+It also supports:
+
+- Automatic retries for failed requests with configurable delay and exponential backoff.
+- Optional flattening of response data for easier access, removing nested `data` fields.
+
+You can choose to reject cancelled requests or return a default response instead through the `defaultResponse` setting.
+
+### Example
+
+```javascript
+import { fetchf } from 'fetchff';
+
+// Fire requests to sendPost every 100 ms. In this example you can see that previous requests are automatically cancelled
+setInterval(async () => {
+  // Create an API fetcher with cancellable requests enabled (note that we don't await here)
+  await fetchf('https://example.com/api/post/send', {
+    method: 'POST',
+    cancellable: true,
+    rejectCancelled: true,
+    dedupeTime: 0, // Disable request deduplication so to mimic cancellation of previous requests
+  });
+}, 100);
+```
+
+### Configuration
+
+- **`cancellable`**:
+  Type: `boolean`
+  Default: `false`
+  If set to `true`, any ongoing previous requests to the same API endpoint will be automatically cancelled when a subsequent request is made before the first one completes. This is useful in scenarios where repeated requests are made to the same endpoint (e.g., search inputs) and only the latest response is needed, avoiding unnecessary requests to the backend.
+
+- **`rejectCancelled`**:
+  Type: `boolean`
+  Default: `false`
+  Works in conjunction with the `cancellable` option. If set to `true`, the promise of a cancelled request will be rejected. By default (`false`), when a request is cancelled, instead of rejecting the promise, a `defaultResponse` will be returned, allowing graceful handling of cancellation without errors.
+
+</details>
+
 ## 📶 Polling Configuration
 
 <details>
@@ -1449,7 +1494,7 @@ Single calls:
 
 ```typescript
 const fetchProfile = ({ id }) =>
-  fetchff('https://example.com/api/profile/:id', { urlPathParams: id });
+  fetchf('https://example.com/api/profile/:id', { urlPathParams: id });
 
 export const useProfile = ({ id }) => {
   const { data, error } = useSWR(['profile', id], fetchProfile);
