@@ -43,7 +43,7 @@ export interface FetcherInstance {
 
 export interface CreatedCustomFetcherInstance {
   request<ResponseData = any>(
-    requestConfig: RequestConfig,
+    requestConfig: RequestConfig<ResponseData>,
   ): FetchResponse<ResponseData> | PromiseLike<FetchResponse<ResponseData>>;
 }
 
