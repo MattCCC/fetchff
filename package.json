@@ -59,7 +59,11 @@
     },
     {
       "path": "dist/browser/index.global.js",
-      "limit": "50 KB"
+      "limit": "10 KB"
+    },
+    {
+      "path": "dist/node/index.js",
+      "limit": "10 KB"
     }
   ],
   "devDependencies": {
