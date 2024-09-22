@@ -451,7 +451,7 @@ _Default:_ `reject`.
 <details>
   <summary><span style="cursor:pointer">Click to expand</span></summary>
   <br>
-  The caching mechanism in <b>fetchf()</b> and <b>createApiFetcher()</b> enhances performance by reducing redundant network requests and reusing previously fetched data when appropriate. This system ensures that cached responses are managed efficiently and only used when considered "fresh." Below is a breakdown of the key parameters that control caching behavior and their default values.
+  The caching mechanism in <b>fetchf()</b> and <b>createApiFetcher()</b> enhances performance by reducing redundant network requests and reusing previously fetched data when appropriate. This system ensures that cached responses are managed efficiently and only used when considered "fresh". Below is a breakdown of the key parameters that control caching behavior and their default values.
 
 ### Example
 
@@ -491,7 +491,7 @@ The caching system can be fine-tuned using the following options when configurin
 ### How It Works
 
 1. **Request and Cache Check**:  
-   When a request is made, the cache is first checked for an existing entry. If a valid cache entry is found and is still "fresh" (based on `cacheTime`), the cached response is returned immediately.
+   When a request is made, the cache is first checked for an existing entry. If a valid cache entry is found and is still "fresh" (based on `cacheTime`), the cached response is returned immediately. Note that when the native `fetch()` setting called `cache` is set to `reload` the request will automatically skip the internal cache.
 
 2. **Cache Key**:  
    A cache key uniquely identifies each request. By default, the key is generated based on the URL and other relevant request options. Custom keys can be provided using the `cacheKey` function.
@@ -1451,6 +1451,43 @@ export function useProfile(id: number) {
   });
 </script>
 ```
+
+</details>
+
+## 🛠️ Compatibility and Polyfills
+
+<details>
+  <summary><span style="cursor:pointer">Click to expand</span></summary>
+
+### Compatibility
+
+While `fetchff` is designed to work seamlessly with modern environments (ES2018+), some older browsers or specific edge cases might require additional support.
+
+Currently, `fetchff` offers three types of builds:
+
+1. <b>Browser ESM build (.mjs):</b> Ideal for modern browsers and module-based environments (when you use the [type="module"](https://caniuse.com/?search=type%3D%22module%22) attribute).
+   Location: `dist/browser/index.mjs`
+   Compatibility: `ES2018+`
+
+2. <b>Standard Browser build:</b> A global UMD bundle, compatible with older browsers.
+   Location: `dist/browser/index.global.js`
+   Compatibility: `ES2018+`
+
+3. <b>Node.js CJS build:</b> Designed for Node.js environments that rely on CommonJS modules.
+   Location: `dist/node/index.js`
+   Compatibility: `Node.js 18+`
+
+For projects that need to support older browsers, especially those predating ES2018, additional polyfills or transpilation may be necessary. Consider using tools like Babel, SWC or core-js to ensure compatibility with environments that do not natively support ES2018+ features. Bundlers like Webpack or Rollup usually handle these concerns out of the box.
+
+You can check [Can I Use ES2018](https://github.com/github/fetch) to verify browser support for specific ES2018 features.
+
+### Polyfills
+
+For environments that do not support modern JavaScript features or APIs, you might need to include polyfills. Some common polyfills include:
+
+- **Fetch Polyfill**: For environments that do not support the native `fetch` API. You can use libraries like [whatwg-fetch](https://github.com/github/fetch) to provide a fetch implementation.
+- **Promise Polyfill**: For older browsers that do not support Promises. Libraries like [es6-promise](https://github.com/stefanpenner/es6-promise) can be used.
+- **AbortController Polyfill**: For environments that do not support the `AbortController` API used for aborting fetch requests. You can use the [abort-controller](https://github.com/mysticatea/abort-controller) polyfill.
 
 </details>
 
