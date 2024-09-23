@@ -88,7 +88,9 @@ async function example3() {
     fetchBooks: Endpoint<Books, BooksQueryParams>;
   }
 
-  const api = createApiFetcher<Endpoints, typeof endpoints>({
+  type EndpointsConfiguration = typeof endpoints;
+
+  const api = createApiFetcher<Endpoints, EndpointsConfiguration>({
     apiUrl: '',
     endpoints,
   });
@@ -151,7 +153,9 @@ async function example4() {
     fetchBooks: Endpoint<Books, BooksQueryParams>;
   }
 
-  const api = createApiFetcher<Endpoints, typeof endpoints>({
+  type EndpointsConfiguration = typeof endpoints;
+
+  const api = createApiFetcher<Endpoints, EndpointsConfiguration>({
     apiUrl: '',
     endpoints,
     flattenResponse: true,
@@ -177,11 +181,13 @@ async function example4() {
 
 // createApiFetcher() - direct API request() call to a custom endpoint with flattenResponse == false
 async function example5() {
-  interface Endpoints5 {
+  interface MyEndpoints {
     fetchBooks: Endpoint<Books, BooksQueryParams>;
   }
 
-  const api = createApiFetcher<Endpoints5, typeof endpoints>({
+  type EndpointsConfiguration = typeof endpoints;
+
+  const api = createApiFetcher<MyEndpoints, EndpointsConfiguration>({
     apiUrl: '',
     endpoints,
   });

@@ -68,7 +68,7 @@ import { createRequestHandler } from './request-handler';
  */
 function createApiFetcher<
   EndpointsMethods extends object,
-  EndpointsCfg = never,
+  EndpointsSettings = never,
 >(config: ApiHandlerConfig<EndpointsMethods>) {
   const endpoints = config.endpoints;
   const requestHandler = createRequestHandler(config);
@@ -154,7 +154,7 @@ function createApiFetcher<
 
   return new Proxy(apiHandler, {
     get: (_target, prop: string) => get(prop),
-  }) as ApiHandlerMethods<EndpointsMethods, EndpointsCfg>;
+  }) as ApiHandlerMethods<EndpointsMethods, EndpointsSettings>;
 }
 
 export { createApiFetcher };
