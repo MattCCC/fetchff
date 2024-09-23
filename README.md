@@ -783,24 +783,27 @@ Each request returns the following Response Object of type <b>FetchResponse&lt;R
   <summary><span style="cursor:pointer">Click to expand</span></summary>
   <br>
 
-The `fetchff` package provides comprehensive TypeScript typings to enhance development experience and ensure type safety. Below are details on the available types for both `createApiFetcher()` and `fetchf()`.
+The `fetchff` package provides comprehensive TypeScript typings to enhance development experience and ensure type safety. Below are details on the available, exportable types for both `createApiFetcher()` and `fetchf()`.
 
 ### Generic Typings
 
 The `fetchff` package includes several generic types to handle various aspects of API requests and responses:
 
-- **`QueryParams<T = unknown>`**: Represents query parameters for requests. Can be an object, `URLSearchParams`, an array of name-value pairs, or `null`.
-- **`BodyPayload<T = any>`**: Represents the request body. Can be `BodyInit`, an object, an array, a string, or `null`.
-- **`QueryParamsOrBody<T = unknown>`**: Union type for query parameters or body payload. Can be either `QueryParams<T>` or `BodyPayload<T>`.
-- **`UrlPathParams<T = unknown>`**: Represents URL path parameters. Can be an object or `null`.
+- **`QueryParams<ParamsType>`**: Represents query parameters for requests. Can be an object, `URLSearchParams`, an array of name-value pairs, or `null`.
+- **`BodyPayload<PayloadType>`**: Represents the request body. Can be `BodyInit`, an object, an array, a string, or `null`.
+- **`QueryParamsOrBody<ParamsType, PayloadType>`**: Union type for query parameters or body payload. Can be either `QueryParams<ParamsType>` or `BodyPayload<PayloadType>`. Both default to `object`.
+- **`UrlPathParams<UrlParamsType>`**: Represents URL path parameters. Can be an object or `null`.
+- **`DefaultResponse`**: Default response for all requests. Default is: `any`.
 
 ### Typings for `createApiFetcher()`
 
-The `createApiFetcher()` function provides a robust set of types to define and manage API interactions. The key types available are:
+The `createApiFetcher<EndpointsMethods, EndpointsConfiguration>()` function provides a robust set of types to define and manage API interactions.
 
-- **`Endpoint<ResponseData = APIResponse, QueryParams = QueryParamsOrBody, PathParams = UrlPathParams>`**: Represents an API endpoint function, allowing to be defined with optional query parameters, URL path parameters, and request configuration.
-- **`EndpointsMethods`**: Represents the list of API endpoints with their respective settings. It is your own interface that you can pass. It will be cross-checked against the `endpoints` property of the `createApiFetcher()` configuration. Each endpoint can be configured with its own specific settings such as query parameters, URL path parameters, and request configurations.
-- **`EndpointsCfg`**: Configuration for API endpoints, including query parameters, URL path parameters, and additional request configurations.
+The key types are:
+
+- **`EndpointsMethods`**: Represents the list of API endpoints with their respective settings. It is your own interface that you can pass to this generic. It will be cross-checked against the `endpoints` object in your `createApiFetcher()` configuration.<br><br>Each endpoint can be configured with its own specific settings such as Response Payload, Query Parameters and URL Path Parameters.
+- **`Endpoint<ResponseData = DefaultResponse, QueryParams = QueryParamsOrBody, PathParams = UrlPathParams>`**: Represents an API endpoint function, allowing to be defined with optional query parameters, URL path parameters, and request configuration.
+- **`EndpointsSettings`**: Configuration for API endpoints, including query parameters, URL path parameters, and additional request configurations. Default is `typeof endpoints`.
 - **`RequestInterceptor`**: Function to modify request configurations before they are sent.
 - **`ResponseInterceptor`**: Function to process responses before they are handled by the application.
 - **`ErrorInterceptor`**: Function to handle errors when a request fails.
@@ -1035,7 +1038,9 @@ interface EndpointsList {
   fetchBook: Endpoint<Book, BookQueryParams, BookPathParams>;
 }
 
-const api = createApiFetcher<EndpointsList, typeof endpoints>({
+type EndpointsConfiguration = typeof endpoints;
+
+const api = createApiFetcher<EndpointsList, EndpointsConfiguration>({
   apiUrl: 'https://example.com/api/',
   endpoints,
 });
@@ -1084,7 +1089,9 @@ interface EndpointsList {
   getPosts: Endpoint<PostsResponse, PostsQueryParams, PostsPathParams>;
 }
 
-const api = createApiFetcher<EndpointsList, typeof endpoints>({
+type EndpointsConfiguration = typeof endpoints;
+
+const api = createApiFetcher<EndpointsList, EndpointsConfiguration>({
   apiUrl: 'https://example.com/api',
   endpoints,
   onError(error) {
