@@ -1021,7 +1021,7 @@ interface BookPathParams {
 
 ```typescript
 // api.ts
-import type { DefaultEndpoints } from 'fetchff';
+import type { Endpoint } from 'fetchff';
 import { createApiFetcher } from 'fetchff';
 
 const endpoints = {
