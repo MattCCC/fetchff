@@ -15,26 +15,31 @@ declare const emptyObjectSymbol: unique symbol;
 
 export type EmptyObject = { [emptyObjectSymbol]?: never };
 
-export declare type QueryParams<T = unknown> =
-  | (Record<string, T> & EmptyObject)
+type DefaultParams = Record<string, unknown>;
+type DefaultUrlParams = Record<string, unknown>;
+type DefaultPayload = Record<string, any>;
+
+export declare type QueryParams<ParamsType = DefaultParams> =
+  | (ParamsType & EmptyObject)
   | URLSearchParams
   | NameValuePair[]
   | null;
 
-export declare type BodyPayload<T = any> =
+export declare type UrlPathParams<UrlParamsType = DefaultUrlParams> =
+  UrlParamsType extends DefaultUrlParams
+    ? (UrlParamsType & EmptyObject) | null
+    : UrlParamsType | EmptyObject | null;
+
+export declare type BodyPayload<PayloadType = DefaultPayload> =
   | BodyInit
-  | (Record<string, T> & EmptyObject)
-  | T[]
-  | string
+  | (PayloadType & EmptyObject)
+  | PayloadType[]
   | null;
 
-export declare type QueryParamsOrBody<T = unknown> =
-  | QueryParams<T>
-  | BodyPayload<T>;
-
-export declare type UrlPathParams<T = unknown> =
-  | (Record<string, T> & EmptyObject)
-  | null;
+export declare type QueryParamsOrBody<
+  ParamsType = DefaultParams,
+  PayloadType = DefaultPayload,
+> = QueryParams<ParamsType> | BodyPayload<PayloadType>;
 
 /**
  * Represents an API endpoint handler with support for customizable query parameters, URL path parameters,
