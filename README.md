@@ -13,19 +13,19 @@ Managing multitude of API connections can be complex and time-consuming. `fetchf
 
 **Key Benefits:**
 
-<b style="color:green;font-size: 24px;">✓</b> **Small:** Minimal code footprint of ~3KB gzipped for managing extensive APIs.
+✅ **Small:** Minimal code footprint of ~3KB gzipped for managing extensive APIs.
 
-<b style="color:green;font-size: 24px;">✓</b> **Immutable:** Every request has its own instance.
+✅ **Immutable:** Every request has its own instance.
 
-<b style="color:green;font-size: 24px;">✓</b> **Isomorphic:** Comptabile with Node.js, Deno and modern browsers.
+✅ **Isomorphic:** Comptabile with Node.js, Deno and modern browsers.
 
-<b style="color:green;font-size: 24px;">✓</b> **Type Safe:** Strongly typed and written in TypeScript.
+✅ **Type Safe:** Strongly typed and written in TypeScript.
 
-<b style="color:green;font-size: 24px;">✓</b> **Scalable:** Easily scales from a few calls to complex API networks with thousands of APIs.
+✅ **Scalable:** Easily scales from a few calls to complex API networks with thousands of APIs.
 
-<b style="color:green;font-size: 24px;">✓</b> **Tested:** Battle tested in large projects, fully covered by unit tests.
+✅ **Tested:** Battle tested in large projects, fully covered by unit tests.
 
-<b style="color:green;font-size: 24px;">✓</b> **Maintained:** Since 2021 publicly through Github.
+✅ **Maintained:** Since 2021 publicly through Github.
 
 ## ✔️ Features
 
