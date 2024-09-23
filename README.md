@@ -9,15 +9,23 @@
 
 ## Why?
 
-Managing multiple API endpoints can be complex and time-consuming. `fetchff` simplifies this process by offering a straightforward, declarative approach to API handling using Repository Pattern. It reduces the need for extensive setup and middlewares, allowing developers to focus on data manipulation and application logic.
+Managing multitude of API connections can be complex and time-consuming. `fetchff` simplifies the process by offering a simple, declarative approach to API handling using Repository Pattern. It reduces the need for extensive setup, middlewares, retries, custom caching, and heavy plugins, and lets developers focus on data handling and application logic.
 
 **Key Benefits:**
 
-**✅ Simplicity:** Minimal code footprint for managing extensive APIs.
+- **Small:** Minimal code footprint of ~3KB gzipped for managing extensive APIs.
 
-**✅ Productivity:** Streamlines API interactions, enhancing developer efficiency.
+- **Immutable:** Every request has its own instance.
 
-**✅ Scalability:** Easily scales from a few endpoints to complex API networks.
+- **Isomorphic:** Comptabile with Node.js, Deno and modern browsers.
+
+- **Type Safe:** Strongly typed and written in TypeScript.
+
+- **Scalable:** Easily scales from a few calls to complex API networks with thousands of APIs.
+
+- **Tested:** Battle tested in large projects, fully covered by unit tests.
+
+- **Maintained:** Since 2021 publicly through Github.
 
 ## ✔️ Features
 
