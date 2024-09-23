@@ -162,7 +162,7 @@ const { data, error } = await api.getUser(
   <summary><span style="cursor:pointer">Click to expand</span></summary>
   <br>
 
-There are only 2 extra settings for `createApiFetcher()`:
+All the settings are available and can be used directly in the function or in the `endpoints` property (per-endpoint basis). There are also two extra global settings for `createApiFetcher()`:
 
 | Name      | Type              | Default | Description                                                                                                                                                                                                                                                                |
 | --------- | ----------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -177,61 +177,25 @@ There are only 2 extra settings for `createApiFetcher()`:
   <summary><span style="cursor:pointer">Click to expand</span></summary>
   <br>
 
-The `createApiFetcher()` automatically creates and returns API methods based on the endpoints provided. It also exposes some extra methods and properties that are useful to handle global config, dynamically add and remove endpoints etc.
+The `createApiFetcher()` automatically creates and returns API methods based on the `endpoints` object provided. It also exposes some extra methods and properties that are useful to handle global config, dynamically add and remove endpoints etc.
 
 #### `api.myEndpointName(queryParamsOrBodyPayload, urlPathParams, requestConfig)`
 
-Where "myEndpointName" is the name of your endpoint from `endpoints` object passed to the `createApiFetcher()`.
+Where `myEndpointName` is the name of your endpoint from `endpoints` object passed to the `createApiFetcher()`.
 
-**`queryParams`** / **`bodyPayload`** (optional) - Query Parameters or Body Payload for POST requests.
+**`queryParamsOrBodyPayload`** (optional) `object`, `URLSearchParams`, `NameValuePair[]` - Query Parameters or Body Payload.
 
-The first argument of API functions is an object that can serve different purposes based on the type of request being made:
+- For `GET` and `HEAD` Requests: This object is treated as query parameters.
 
-- For `GET` and `HEAD` Requests: This object will be treated as query parameters. You can pass key-value pairs where the values can be strings, numbers, or arrays. For example, if you pass { foo: [1, 2] }, it will be automatically serialized into foo[]=1&foo[]=2 in the URL.
+- For `POST` and all other Requests: This object is used for the data payload sent in the body of the request.
 
-- For `POST` (and similar) Requests: This object is used as the data payload. It will be sent in the body of the request. If your request also requires query parameters, you can still pass those in the first argument and then use the requestConfig.body or requestConfig.data for the payload.
+**Note:** If you need to use Query Params in the `POST` (and similar) requests, you can pass them, and then use `body` in `requestConfig` for the payload.
 
-**Note:** If you need to use Query Params in the `POST` (and similar) requests, you can pass them in this argument and then use `body` in `requestConfig` (third argument).
+**`urlPathParams`** (optional) `object` - Dynamic URL Path Parameters, so to replace URL path with some data. Check [Basic Settings](#⚙️-basic-settings) below for more information.
 
-**`urlPathParams`** (optional) - Dynamic URL Path Parameters, e.g. `/user-details/update/:userId`
+**`requestConfig`** (optional) `object` - To have more granular control over specific endpoints you can pass Request Config for particular endpoint. Check [Basic Settings](#⚙️-basic-settings) below for more information.
 
-The `urlPathParams` option allows you to dynamically replace parts of your URL with specific values in a declarative and straightforward way. This feature is particularly useful when you need to construct URLs that include variables or identifiers within the path.
-
-For example, consider the following URL template: `/user-details/update/:userId`. By using `urlPathParams`, you can replace `:userId` with an actual value when the API request is made.
-
-**`requestConfig`** (optional) - Request Configuration to overwrite global config in case
-To have more granular control over specific endpoints you can pass Request Config for particular endpoint. See the Settings below for more information.
-
-Returns: **`response`** object.
-
-##### Response Object
-
-- **`data`**:
-
-  - Contains the actual data returned from the API request.
-
-- **`error`**:
-
-  - An object with details about any error that occurred or `null` otherwise.
-  - **`name`**: The name of the error (e.g., 'ResponseError').
-  - **`message`**: A descriptive message about the error.
-  - **`status`**: The HTTP status code of the response (e.g., 404, 500).
-  - **`statusText`**: The HTTP status text of the response (e.g., 'Not Found', 'Internal Server Error').
-  - **`request`**: Details about the HTTP request that was sent (e.g., URL, method, headers).
-  - **`config`**: The configuration object used for the request, including URL, method, headers, and query parameters.
-  - **`response`**: The full response object received from the server, including all headers and body.
-
-- **`config`**:
-
-  - The configuration object with all settings used for the request, including URL, method, headers, and query parameters.
-
-- **`request`**:
-
-  - An alias for `config`.
-
-- **`headers`**:
-
-  - The response headers returned by the server, such as content type and caching information returned as simple key-value object.
+Returns: [Response Object](#📄-response-object) (see below).
 
 #### `api.config`
 
@@ -294,20 +258,20 @@ You can pass the settings:
 
 You can also use all native `fetch()` settings.
 
-|                            | Type                                                                                                   | Default | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| -------------------------- | ------------------------------------------------------------------------------------------------------ | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| baseURL<br>(alias: apiUrl) | `string`                                                                                               |         | Your API base url.                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| url                        | `string`                                                                                               |         | URL path e.g. /user-details/get                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| method                     | `string`                                                                                               | `GET`   | Default request method e.g. GET, POST, DELETE, PUT etc. All methods are supported.                                                                                                                                                                                                                                                                                                                                                                                         |
-| params                     | `object`<br>`URLSearchParams`<br>`NameValuePair[]`                                                     | `{}`    | Query Parameters - a key-value pairs added to the URL to send extra information with a request. If you pass an object, it will be automatically converted. It works with nested objects, arrays and custom data structures similarly to what `jQuery` used to do in the past. If you use `createApiFetcher()` then it is the first argument of your `api.myEndpoint()` function. You can still pass configuration in 3rd argument if want to.                              |
-| body<br>(alias: data)      | `object`<br>`string`<br>`FormData`<br>`URLSearchParams`<br>`Blob`<br>`ArrayBuffer`<br>`ReadableStream` | `{}`    | The body is the data sent with the request, such as JSON, text, or form data, included in the request payload for POST, PUT, or PATCH requests.                                                                                                                                                                                                                                                                                                                            |
-| urlPathParams              | `object`                                                                                               | `{}`    | It lets you dynamically replace segments of your URL with specific values in a clear and declarative manner. This feature is especially handy for constructing URLs with variable components or identifiers.<br><br>For example, suppose you need to update user details and have a URL template like `/user-details/update/:userId`. With `urlPathParams`, you can replace `:userId` with a real user ID, such as `123`, resulting in the URL `/user-details/update/123`. |
-| flattenResponse            | `boolean`                                                                                              | `false` | When set to `true`, this option flattens the nested response data. This means you can access the data directly without having to use `response.data.data`. It works only if the response structure includes a single `data` property.                                                                                                                                                                                                                                      |
-| defaultResponse            | `any`                                                                                                  | `null`  | Default response when there is no data or when endpoint fails depending on the chosen `strategy`                                                                                                                                                                                                                                                                                                                                                                           |
-| withCredentials            | `boolean`                                                                                              | `false` | Indicates whether credentials (such as cookies) should be included with the request.                                                                                                                                                                                                                                                                                                                                                                                       |
-| timeout                    | `number`                                                                                               | `30000` | You can set a request timeout for all requests or particular in milliseconds.                                                                                                                                                                                                                                                                                                                                                                                              |
-| dedupeTime                 | `number`                                                                                               | `1000`  | Time window, in milliseconds, during which identical requests are deduplicated (treated as single request).                                                                                                                                                                                                                                                                                                                                                                |
-| logger                     | `object`                                                                                               | `null`  | You can additionally specify logger object with your custom logger to automatically log the errors to the console. It should contain at least `error` and `warn` functions.                                                                                                                                                                                                                                                                                                |
+|                            | Type                                                                                                   | Default | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| -------------------------- | ------------------------------------------------------------------------------------------------------ | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| baseURL<br>(alias: apiUrl) | `string`                                                                                               |         | Your API base url.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| url                        | `string`                                                                                               |         | URL path e.g. /user-details/get                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| method                     | `string`                                                                                               | `GET`   | Default request method e.g. GET, POST, DELETE, PUT etc. All methods are supported.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| params                     | `object`<br>`URLSearchParams`<br>`NameValuePair[]`                                                     | `{}`    | Query Parameters - a key-value pairs added to the URL to send extra information with a request. If you pass an object, it will be automatically converted. It works with nested objects, arrays and custom data structures similarly to what `jQuery` used to do in the past. If you use `createApiFetcher()` then it is the first argument of your `api.myEndpoint()` function. You can still pass configuration in 3rd argument if want to.<br><br>You can pass key-value pairs where the values can be strings, numbers, or arrays. For example, if you pass `{ foo: [1, 2] }`, it will be automatically serialized into `foo[]=1&foo[]=2` in the URL. |
+| body<br>(alias: data)      | `object`<br>`string`<br>`FormData`<br>`URLSearchParams`<br>`Blob`<br>`ArrayBuffer`<br>`ReadableStream` | `{}`    | The body is the data sent with the request, such as JSON, text, or form data, included in the request payload for POST, PUT, or PATCH requests.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| urlPathParams              | `object`                                                                                               | `{}`    | It lets you dynamically replace segments of your URL with specific values in a clear and declarative manner. This feature is especially handy for constructing URLs with variable components or identifiers.<br><br>For example, suppose you need to update user details and have a URL template like `/user-details/update/:userId`. With `urlPathParams`, you can replace `:userId` with a real user ID, such as `123`, resulting in the URL `/user-details/update/123`.                                                                                                                                                                                |
+| flattenResponse            | `boolean`                                                                                              | `false` | When set to `true`, this option flattens the nested response data. This means you can access the data directly without having to use `response.data.data`. It works only if the response structure includes a single `data` property.                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| defaultResponse            | `any`                                                                                                  | `null`  | Default response when there is no data or when endpoint fails depending on the chosen `strategy`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| withCredentials            | `boolean`                                                                                              | `false` | Indicates whether credentials (such as cookies) should be included with the request.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| timeout                    | `number`                                                                                               | `30000` | You can set a request timeout for all requests or particular in milliseconds.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| dedupeTime                 | `number`                                                                                               | `1000`  | Time window, in milliseconds, during which identical requests are deduplicated (treated as single request).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| logger                     | `object`                                                                                               | `null`  | You can additionally specify logger object with your custom logger to automatically log the errors to the console. It should contain at least `error` and `warn` functions.                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 
 ## 🏷️ Headers
 
@@ -327,7 +291,7 @@ To set headers for a specific request, include the `headers` option in the reque
 
 The `fetchff` plugin automatically injects a set of default headers into every request. These default headers help ensure that requests are consistent and include necessary information for the server to process them correctly.
 
-#### Default Headers Injected:
+#### Default Headers Injected
 
 - **`Content-Type`**: `application/json;charset=utf-8`
   Specifies that the request body contains JSON data and sets the character encoding to UTF-8.
@@ -760,7 +724,52 @@ You can use the `onResponse` interceptor to customize how the response is handle
 
 </details>
 
-## Typings
+## 📄 Response Object
+
+<details>
+  <summary><span style="cursor:pointer">Click to expand</span></summary>
+  <br>
+Each request returns the following Response Object of type <b>FetchResponse&lt;ResponseData&gt;</b> where ResponseData is usually your custom interface or `object`.
+
+### Structure of the Response Object
+
+- **`data`**:
+
+  - **Type**: `ResponseData` (or your custom type passed through generic)
+
+  - Contains the actual data returned from the API request.
+
+- **`error`**:
+
+  - **Type**: `ResponseErr`
+
+  - An object with details about any error that occurred or `null` otherwise.
+  - **`name`**: The name of the error (e.g., 'ResponseError').
+  - **`message`**: A descriptive message about the error.
+  - **`status`**: The HTTP status code of the response (e.g., 404, 500).
+  - **`statusText`**: The HTTP status text of the response (e.g., 'Not Found', 'Internal Server Error').
+  - **`request`**: Details about the HTTP request that was sent (e.g., URL, method, headers).
+  - **`config`**: The configuration object used for the request, including URL, method, headers, and query parameters.
+  - **`response`**: The full response object received from the server, including all headers and body.
+
+- **`config`**:
+
+  - **Type**: `RequestConfig`
+  - The configuration object with all settings used for the request, including URL, method, headers, and query parameters.
+
+- **`request`**:
+
+  - **Type**: `RequestConfig`
+  - An alias for `config`.
+
+- **`headers`**:
+
+  - **Type**: `HeadersObject`
+  - The response headers returned by the server, such as content type and caching information returned as simple key-value object.
+
+</details>
+
+## 📦 Typings
 
 <details>
   <summary><span style="cursor:pointer">Click to expand</span></summary>
