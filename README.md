@@ -1,11 +1,16 @@
+<div align="center">
 <img src="./docs/logo.png" alt="logo" width="380"/>
 
-<b>Fast, lightweight and reusable data fetching</b>
+<h4 align="center">Fast, lightweight and reusable data fetching</h4>
+
+<i>"fetchff" stands for "fetch fast & flexibly" </i>
 
 [npm-url]: https://npmjs.org/package/fetchff
 [npm-image]: http://img.shields.io/npm/v/fetchff.svg
 
 [![NPM version][npm-image]][npm-url] [![Blazing Fast](https://badgen.now.sh/badge/speed/blazing%20%F0%9F%94%A5/green)](https://github.com/MattCCC/fetchff) [![Code Coverage](https://img.shields.io/badge/coverage-96.35-green)](https://github.com/MattCCC/fetchff) [![npm downloads](https://img.shields.io/npm/dm/fetchff.svg?color=lightblue)](http://npm-stat.com/charts.html?package=fetchff) [![gzip size](https://img.shields.io/bundlephobia/minzip/fetchff)](https://bundlephobia.com/result?p=fetchff)
+
+</div>
 
 ## Why?
 
@@ -34,9 +39,9 @@ Managing multitude of API connections can be complex and time-consuming. `fetchf
 - **Automatic Request Deduplication**: Set the time during which requests are deduplicated (treated as same request).
 - **Smart Cache Management**: Dynamically manage cache with configurable expiration, custom keys, and selective invalidation.
 - **Dynamic URLs Support**: Easily manage routes with dynamic parameters, such as `/user/:userId`.
-- **Global and Per Request Error Handling**: Flexible error management at both global and individual request levels.
+- **Error Handling**: Flexible error management at both global and individual request levels.
 - **Automatic Request Cancellation**: Utilizes `AbortController` to cancel previous requests automatically.
-- **Global and Per Request Timeouts**: Set timeouts globally or per request to prevent hanging operations.
+- **Timeouts**: Set timeouts globally or per request to prevent hanging operations.
 - **Multiple Fetching Strategies**: Handle failed requests with various strategies - promise rejection, silent hang, soft fail, or default response.
 - **Multiple Requests Chaining**: Easily chain multiple requests using promises for complex API interactions.
 - **Native `fetch()` Support**: Utilizes the built-in `fetch()` API, providing a modern and native solution for making HTTP requests.
@@ -544,16 +549,19 @@ You can choose to reject cancelled requests or return a default response instead
 ```javascript
 import { fetchf } from 'fetchff';
 
-// Fire requests to sendPost every 100 ms. In this example you can see that previous requests are automatically cancelled
-setInterval(async () => {
-  // Create an API fetcher with cancellable requests enabled (note that we don't await here)
-  await fetchf('https://example.com/api/post/send', {
+// Function to send the request
+const sendRequest = () => {
+  // In this example, the previous requests are automatically cancelled
+  // You can also control "dedupeTime" setting in order to fire the requests more or less frequently
+  fetchf('https://example.com/api/messages/update', {
     method: 'POST',
     cancellable: true,
     rejectCancelled: true,
-    dedupeTime: 0, // Disable request deduplication so to mimic cancellation of previous requests
   });
-}, 100);
+};
+
+// Attach keydown event listener to the input element with id "message"
+document.getElementById('message')?.addEventListener('keydown', sendRequest);
 ```
 
 ### Configuration
@@ -745,7 +753,7 @@ Each request returns the following Response Object of type <b>FetchResponse&lt;R
 
   - **Type**: `ResponseData` (or your custom type passed through generic)
 
-  - Contains the actual data returned from the API request.
+  - Contains the actual data returned from the API request, `null` or value of `defaultResponse` setting, if nothing is found.
 
 - **`error`**:
 
@@ -765,6 +773,16 @@ Each request returns the following Response Object of type <b>FetchResponse&lt;R
   - **Type**: `RequestConfig`
   - The configuration object with all settings used for the request, including URL, method, headers, and query parameters.
 
+- **`status`**:
+
+  - **Type**: `number`
+  - The HTTP status code of the response (e.g., 404, 500).
+
+- **`statusText`**:
+
+  - **Type**: `string`
+  - The HTTP status text of the response (e.g., 'Not Found', 'Internal Server Error').
+
 - **`request`**:
 
   - **Type**: `RequestConfig`
@@ -774,6 +792,8 @@ Each request returns the following Response Object of type <b>FetchResponse&lt;R
 
   - **Type**: `HeadersObject`
   - The response headers returned by the server, such as content type and caching information returned as simple key-value object.
+
+The whole response of the native `fetch()` is attached as well.
 
 </details>
 
@@ -876,7 +896,6 @@ Here’s an example of configuring and using the `createApiFetcher()` with all a
 ```typescript
 const api = createApiFetcher({
   baseURL: 'https://api.example.com/',
-  retry: retryConfig,
   endpoints: {
     getBooks: {
       url: 'books/all',
