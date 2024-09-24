@@ -99,19 +99,23 @@ export declare type Endpoint<
 // Setting 'unknown here lets us infer typings for non-predefined endpoints with dynamically set generic response data
 type EndpointDefaults = Endpoint<DefaultResponse>;
 
+type AFunction = (...args: any[]) => any;
+
 /**
  * Maps the method names from `EndpointsMethods` to their corresponding `Endpoint` type definitions.
  *
  * @template EndpointsMethods - The object containing endpoint method definitions.
  */
 type EndpointsRecord<EndpointsMethods> = {
-  [K in keyof EndpointsMethods]: EndpointsMethods[K] extends Endpoint<
-    infer ResponseData,
-    infer QueryParams,
-    infer UrlPathParams
-  >
-    ? Endpoint<ResponseData, QueryParams, UrlPathParams> // Method exists in a provided interface
-    : EndpointDefaults; // Method is not defined. Provide defaults
+  [K in keyof EndpointsMethods]: EndpointsMethods[K] extends AFunction
+    ? EndpointsMethods[K] // Map function signatures directly
+    : EndpointsMethods[K] extends Endpoint<
+          infer ResponseData,
+          infer QueryParams,
+          infer UrlPathParams
+        >
+      ? Endpoint<ResponseData, QueryParams, UrlPathParams> // Method is an Endpoint type
+      : EndpointDefaults; // Fallback to default Endpoint type
 };
 
 /**
