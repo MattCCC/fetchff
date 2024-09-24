@@ -1,7 +1,7 @@
 <div align="center">
 <img src="./docs/logo.png" alt="logo" width="380"/>
 
-<h4 align="center">Fast, lightweight and reusable data fetching</h4>
+<h4 align="center">Fast, lightweight (3 KB gzipped) and reusable data fetching</h4>
 
 <i>"fetchff" stands for "fetch fast & flexibly" </i>
 
