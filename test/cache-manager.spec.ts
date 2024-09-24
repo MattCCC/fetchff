@@ -115,7 +115,6 @@ describe('Cache Manager', () => {
       const key = generateCacheKey({
         url,
         method: 'POST',
-        // @ts-expect-error Number
         body: 10,
       });
       expect(key).toContain('1061505');

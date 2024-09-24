@@ -1,3 +1,6 @@
+/**
+ * This file contains various examples together with tests for typings declarations
+ */
 import { createApiFetcher, fetchf } from '../../src';
 import type { Endpoint } from '../../src/types';
 
@@ -112,14 +115,34 @@ async function example3() {
   // @ts-expect-error This will result in an error as endpoint is not defined
   const { data: movies2 } = await api.nonExistentEndpoint();
 
-  const { data: book1 } = await api.fetchBook<Book>(
+  interface NewBook {
+    alternativeInterface: string;
+  }
+
+  interface NewBookQueryParams {
+    color: string;
+  }
+
+  // Overwrite response of existing endpoint
+  const { data: book1 } = await api.fetchBook<NewBook>(
     { newBook: true },
     // @ts-expect-error should verify that bookId cannot be text
     { bookId: 'text' },
   );
 
-  // @ts-expect-error will result in an error since "someParams" is not defined
+  // Overwrite response and query params of existing endpoint
+  const { data: book11 } = await api.fetchBook<NewBook, NewBookQueryParams>({
+    // TODO: @ts-expect-error Recheck in the TS 5.6. Should not allow old param
+    newBook: true,
+    // @ts-expect-error TODO: Recheck in the TS 5.6. Color should be fine.
+    color: 'green',
+  });
+
+  // Standard fetch with predefined response and query params
   const { data: books } = await api.fetchBooks({
+    // This param exists
+    all: true,
+    // @ts-expect-error should catch "someParams" that is not defined
     someParams: 1,
   });
 
@@ -141,7 +164,8 @@ async function example3() {
     'Example 3',
     books satisfies Books,
     book satisfies Book,
-    book1 satisfies Book,
+    book1 satisfies NewBook,
+    book11 satisfies NewBook,
     book2 satisfies Book,
     book3 satisfies Book,
   );

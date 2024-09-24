@@ -139,22 +139,23 @@ function createApiFetcher<
    *
    * @param {*} prop          Caller
    */
-  function get(prop: string) {
-    if (prop in apiHandler) {
-      return apiHandler[prop as unknown as keyof typeof apiHandler];
-    }
+  return new Proxy<ApiHandlerMethods<EndpointsMethods, EndpointsSettings>>(
+    apiHandler as ApiHandlerMethods<EndpointsMethods, EndpointsSettings>,
+    {
+      get(_target, prop: string) {
+        if (prop in apiHandler) {
+          return apiHandler[prop as unknown as keyof typeof apiHandler];
+        }
 
-    // Prevent handler from triggering non-existent endpoints
-    if (!endpoints[prop]) {
-      return handleNonImplemented.bind(null, prop);
-    }
+        // Prevent handler from triggering non-existent endpoints
+        if (endpoints[prop]) {
+          return apiHandler.request.bind(null, prop);
+        }
 
-    return apiHandler.request.bind(null, prop);
-  }
-
-  return new Proxy(apiHandler, {
-    get: (_target, prop: string) => get(prop),
-  }) as ApiHandlerMethods<EndpointsMethods, EndpointsSettings>;
+        return handleNonImplemented.bind(null, prop);
+      },
+    },
+  );
 }
 
 export { createApiFetcher };
