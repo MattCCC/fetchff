@@ -54,8 +54,8 @@ interface EndpointFunction<ResponseData, QueryParams, PathParams, RequestBody> {
         ? PathParams
         : UParams,
     requestConfig?: RequestConfig<
-      [Resp] extends [never] ? RequestBody : RBody,
-      [Resp] extends [never] ? ResponseData : Resp
+      [Resp] extends [never] ? ResponseData : Resp,
+      [Resp] extends [never] ? RequestBody : RBody
     >,
   ): Promise<FetchResponse<[Resp] extends [never] ? ResponseData : Resp>>;
 }
