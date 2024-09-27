@@ -132,9 +132,8 @@ async function example3() {
 
   // Overwrite response and query params of existing endpoint
   const { data: book11 } = await api.fetchBook<NewBook, NewBookQueryParams>({
-    // TODO: @ts-expect-error Recheck in the TS 5.6. Should not allow old param
+    // @ts-expect-error Should not allow old param
     newBook: true,
-    // @ts-expect-error TODO: Recheck in the TS 5.6. Color should be fine.
     color: 'green',
   });
 
@@ -142,8 +141,8 @@ async function example3() {
   const { data: books } = await api.fetchBooks({
     // This param exists
     all: true,
-    // @ts-expect-error should catch "someParams" that is not defined
-    someParams: 1,
+    // @ts-expect-error should catch "randomParam" that is not defined
+    randomParam: 1,
   });
 
   const { data: book2 } = await api.fetchBook(

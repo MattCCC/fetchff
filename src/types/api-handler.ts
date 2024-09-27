@@ -41,6 +41,25 @@ export declare type QueryParamsOrBody<
   PayloadType = DefaultPayload,
 > = QueryParams<ParamsType> | BodyPayload<PayloadType>;
 
+interface EndpointFunction<ResponseData, QueryParams, PathParams, RequestBody> {
+  <Resp = never, QParams = never, UParams = never, RBody = never>(
+    queryParams?: [QParams] extends [never]
+      ? QueryParams
+      : [Resp] extends [never]
+        ? QueryParams
+        : QParams,
+    urlPathParams?: [UParams] extends [never]
+      ? PathParams
+      : [Resp] extends [never]
+        ? PathParams
+        : UParams,
+    requestConfig?: RequestConfig<
+      [Resp] extends [never] ? RequestBody : RBody,
+      [Resp] extends [never] ? ResponseData : Resp
+    >,
+  ): Promise<FetchResponse<[Resp] extends [never] ? ResponseData : Resp>>;
+}
+
 /**
  * Represents an API endpoint handler with support for customizable query parameters, URL path parameters,
  * and request configuration.
@@ -62,39 +81,8 @@ export declare type Endpoint<
   ResponseData = DefaultResponse,
   QueryParams = QueryParamsOrBody,
   PathParams = UrlPathParams,
-> =
-  /**
-   * Endpoint with customizable return data type.
-   *
-   * @template ReturnedData - The type of data returned in the response.
-   * @template T - The type of query parameters.
-   * @template T2 - The type of URL path parameters.
-   * @param {T} [queryParamsOrBody] - Optional query parameters for the request.
-   * @param {T2} [urlPathParams] - Optional URL path parameters for the request.
-   * @param {StructuredConfig<RequestConfig<ResponseData>>} [requestConfig] - Optional configuration for the request.
-   * @returns {Promise<FetchResponse<ReturnedData>>} - A promise resolving to the customized fetch response.
-   */
-  {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    <ReturnedData = ResponseData, _T = QueryParams, _T2 = PathParams>(
-      queryParamsOrBody?: QueryParams, // Works unless query params are defined as inline generic
-      urlPathParams?: PathParams,
-      requestConfig?: RequestConfig<ReturnedData>,
-    ): Promise<FetchResponse<ReturnedData>>;
-  } /**
-   * Endpoint with default `ResponseData`, `QueryParams`, and `PathParams`.
-   *
-   * @param {QueryParams} [queryParamsOrBody] - Optional query parameters for the request.
-   * @param {PathParams} [urlPathParams] - Optional URL path parameters for the request.
-   * @param {StructuredConfig<RequestConfig<ResponseData>>} [requestConfig] - Optional configuration for the request.
-   * @returns {Promise<FetchResponse<ResponseData>>} - A promise resolving to the fetch response.
-   */ & {
-    (
-      queryParamsOrBody?: QueryParams,
-      urlPathParams?: PathParams,
-      requestConfig?: RequestConfig<ResponseData>,
-    ): Promise<FetchResponse<ResponseData>>;
-  };
+  RequestBody = BodyPayload,
+> = EndpointFunction<ResponseData, QueryParams, PathParams, RequestBody>;
 
 // Setting 'unknown here lets us infer typings for non-predefined endpoints with dynamically set generic response data
 type EndpointDefaults = Endpoint<DefaultResponse>;
