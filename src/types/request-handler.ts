@@ -59,11 +59,12 @@ export interface HeadersObject {
   [key: string]: string;
 }
 
-export interface ExtendedResponse<D = any> extends Omit<Response, 'headers'> {
-  data: D extends [unknown] ? any : D;
-  error: ResponseError<D> | null;
+export interface ExtendedResponse<ResponseData = any, RequestBody = any>
+  extends Omit<Response, 'headers'> {
+  data: ResponseData extends [unknown] ? any : ResponseData;
+  error: ResponseError<ResponseData, RequestBody> | null;
   headers: HeadersObject & HeadersInit;
-  config: ExtendedRequestConfig<D>;
+  config: ExtendedRequestConfig<ResponseData, RequestBody>;
 }
 
 /**
@@ -71,35 +72,39 @@ export interface ExtendedResponse<D = any> extends Omit<Response, 'headers'> {
  *
  * @template ResponseData - The type of the data returned in the response.
  */
-export type FetchResponse<ResponseData = any> = ExtendedResponse<ResponseData>;
+export type FetchResponse<
+  ResponseData = any,
+  RequestBody = any,
+> = ExtendedResponse<ResponseData, RequestBody>;
 
-export interface ResponseError<D = any> extends Error {
-  config: ExtendedRequestConfig<D>;
+export interface ResponseError<ResponseData = any, RequestBody = any>
+  extends Error {
+  config: ExtendedRequestConfig<ResponseData, RequestBody>;
   code?: string;
   status?: number;
   statusText?: string;
-  request?: ExtendedRequestConfig<D>;
-  response?: FetchResponse<D>;
+  request?: ExtendedRequestConfig<ResponseData, RequestBody>;
+  response?: FetchResponse<ResponseData, RequestBody>;
 }
 
-export type RetryFunction = <T = any>(
-  error: ResponseError<T>,
+export type RetryFunction = <ResponseData = any, RequestBody = any>(
+  error: ResponseError<ResponseData, RequestBody>,
   attempts: number,
 ) => Promise<boolean>;
 
-export type PollingFunction<D = any> = (
-  response: FetchResponse<D>,
+export type PollingFunction<ResponseData = any, RequestBody = any> = (
+  response: FetchResponse<ResponseData, RequestBody>,
   attempts: number,
-  error?: ResponseError<D>,
+  error?: ResponseError<ResponseData, RequestBody>,
 ) => boolean;
 
 export type CacheKeyFunction = (config: FetcherConfig) => string;
 
 export type CacheBusterFunction = (config: FetcherConfig) => boolean;
 
-export type CacheSkipFunction = <ResponseData = any>(
+export type CacheSkipFunction = <ResponseData = any, RequestBody = any>(
   data: ResponseData,
-  config: RequestConfig,
+  config: RequestConfig<ResponseData, RequestBody>,
 ) => boolean;
 
 /**
@@ -198,12 +203,12 @@ export interface CacheOptions {
 }
 
 /**
- * ExtendedRequestConfig<D = any>
+ * ExtendedRequestConfig<ResponseData = any, RequestBody = any>
  *
  * This interface extends the standard `RequestInit` from the Fetch API, providing additional options
  * for handling requests, including custom error handling strategies, request interception, and more.
  */
-interface ExtendedRequestConfig<D = any>
+interface ExtendedRequestConfig<ResponseData = any, RequestBody = any>
   extends Omit<RequestInit, 'body'>,
     CacheOptions {
   /**
@@ -293,27 +298,33 @@ interface ExtendedRequestConfig<D = any>
    * Data to be sent as the request body, extending the native Fetch API's `body` option.
    * Supports `BodyInit`, objects, arrays, and strings, with automatic serialization.
    */
-  body?: BodyPayload<D>;
+  body?: BodyPayload<RequestBody>;
 
   /**
    * Alias for "body"
    */
-  data?: BodyPayload<D>;
+  data?: BodyPayload<RequestBody>;
 
   /**
    * A function or array of functions to intercept the request before it is sent.
    */
-  onRequest?: RequestInterceptor<D> | RequestInterceptor<D>[];
+  onRequest?:
+    | RequestInterceptor<RequestBody, ResponseData>
+    | RequestInterceptor<RequestBody, ResponseData>[];
 
   /**
    * A function or array of functions to intercept the response before it is resolved.
    */
-  onResponse?: ResponseInterceptor<D> | ResponseInterceptor<D>[];
+  onResponse?:
+    | ResponseInterceptor<ResponseData>
+    | ResponseInterceptor<ResponseData>[];
 
   /**
    * A function to handle errors that occur during the request or response processing.
    */
-  onError?: ErrorInterceptor | ErrorInterceptor[];
+  onError?:
+    | ErrorInterceptor<ResponseData, RequestBody>
+    | ErrorInterceptor<ResponseData, RequestBody>[];
 
   /**
    * The maximum time (in milliseconds) the request can take before automatically being aborted.
@@ -338,19 +349,24 @@ interface ExtendedRequestConfig<D = any>
    * @param response - The response data.
    * @returns `true` to stop polling, `false` to continue.
    */
-  shouldStopPolling?: PollingFunction<D>;
+  shouldStopPolling?: PollingFunction<ResponseData, RequestBody>;
 }
 
-export interface RequestHandlerConfig<RequestData = any>
-  extends RequestConfig<RequestData> {
+export interface RequestHandlerConfig<ResponseData = any, RequestBody = any>
+  extends RequestConfig<ResponseData, RequestBody> {
   fetcher?: FetcherInstance | null;
   logger?: any;
 }
 
-export type RequestConfig<RequestData = any> =
-  ExtendedRequestConfig<RequestData>;
+export type RequestConfig<
+  ResponseData = any,
+  RequestBody = any,
+> = ExtendedRequestConfig<ResponseData, RequestBody>;
 
-export type FetcherConfig = Omit<ExtendedRequestConfig, 'url'> & {
+export type FetcherConfig<ResponseData = any, RequestBody = any> = Omit<
+  ExtendedRequestConfig<ResponseData, RequestBody>,
+  'url'
+> & {
   url: string;
 };
 
@@ -365,6 +381,6 @@ export interface RequestHandlerReturnType {
   request: <ResponseData = unknown>(
     url: string,
     data?: QueryParamsOrBody,
-    config?: RequestConfig<ResponseData> | null,
-  ) => Promise<FetchResponse<ResponseData>>;
+    config?: RequestConfig<ResponseData, RequestBody> | null,
+  ) => Promise<FetchResponse<ResponseData, RequestBody>>;
 }

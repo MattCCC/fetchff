@@ -26,9 +26,10 @@ export declare type QueryParams<ParamsType = DefaultParams> =
   | null;
 
 export declare type UrlPathParams<UrlParamsType = DefaultUrlParams> =
-  UrlParamsType extends DefaultUrlParams
-    ? (UrlParamsType & EmptyObject) | null
-    : UrlParamsType | EmptyObject | null;
+  | (UrlParamsType extends DefaultUrlParams
+      ? (UrlParamsType & EmptyObject) | null
+      : UrlParamsType | EmptyObject | null)
+  | EmptyObject;
 
 export declare type BodyPayload<PayloadType = DefaultPayload> =
   | BodyInit
