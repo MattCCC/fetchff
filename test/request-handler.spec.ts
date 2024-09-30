@@ -8,7 +8,7 @@ import type {
   RequestHandlerReturnType,
 } from '../src/types/request-handler';
 import { fetchf } from '../src';
-import { ABORT_ERROR } from '../src/const';
+import { ABORT_ERROR } from '../src/constants';
 import { ResponseErr } from '../src/response-error';
 
 jest.mock('../src/utils', () => {

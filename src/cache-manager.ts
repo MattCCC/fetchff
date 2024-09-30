@@ -3,7 +3,7 @@ import { hash } from './hash';
 import { fetchf } from './index';
 import type { FetcherConfig } from './types/request-handler';
 import type { CacheEntry } from './types/cache-manager';
-import { GET, OBJECT, UNDEFINED } from './const';
+import { GET, OBJECT, UNDEFINED } from './constants';
 import { shallowSerialize, sortObject } from './utils';
 
 const cache = new Map<string, CacheEntry<any>>();

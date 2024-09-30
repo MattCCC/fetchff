@@ -1,5 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { APPLICATION_JSON, CONTENT_TYPE } from './const';
+import {
+  APPLICATION_CONTENT_TYPE,
+  APPLICATION_JSON,
+  CONTENT_TYPE,
+} from './constants';
 import type { DefaultResponse, FetchResponse } from './types/request-handler';
 
 /**
@@ -30,9 +34,13 @@ export async function parseResponseData<ResponseData = DefaultResponse>(
       data = await response.json(); // Parse JSON response
     } else if (contentType.includes('multipart/form-data')) {
       data = await response.formData(); // Parse as FormData
-    } else if (contentType.includes('application/octet-stream')) {
+    } else if (
+      contentType.includes(APPLICATION_CONTENT_TYPE + 'octet-stream')
+    ) {
       data = await response.blob(); // Parse as blob
-    } else if (contentType.includes('application/x-www-form-urlencoded')) {
+    } else if (
+      contentType.includes(APPLICATION_CONTENT_TYPE + 'x-www-form-urlencoded')
+    ) {
       data = await response.formData(); // Handle URL-encoded forms
     } else if (contentType.includes('text/')) {
       data = await response.text(); // Parse as text

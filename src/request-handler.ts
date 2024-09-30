@@ -41,7 +41,7 @@ import {
   OBJECT,
   STRING,
   UNDEFINED,
-} from './const';
+} from './constants';
 import { parseResponseData } from './response-parser';
 import { generateCacheKey, getCache, setCache } from './cache-manager';
 

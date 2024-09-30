@@ -1,4 +1,6 @@
-export const APPLICATION_JSON = 'application/json';
+export const APPLICATION_CONTENT_TYPE = 'application/';
+
+export const APPLICATION_JSON = APPLICATION_CONTENT_TYPE + 'json';
 export const CONTENT_TYPE = 'Content-Type';
 
 export const UNDEFINED = 'undefined';

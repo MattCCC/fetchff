@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { OBJECT, STRING, UNDEFINED } from './const';
+import { OBJECT, STRING, UNDEFINED } from './constants';
 import type {
   DefaultUrlParams,
   HeadersObject,
