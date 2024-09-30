@@ -149,7 +149,9 @@ type DefaultEndpoints<EndpointsSettings> = {
   [K in keyof EndpointsSettings]: EndpointDefaults;
 };
 
-type RequestConfigUrlRequired = Omit<RequestConfig, 'url'> & { url: string };
+export type RequestConfigUrlRequired = Omit<RequestConfig, 'url'> & {
+  url: string;
+};
 
 /**
  * Configuration for API endpoints, where each key is an endpoint name or string, and the value is the request configuration.

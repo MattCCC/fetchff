@@ -13,6 +13,7 @@ import type {
   FinalParams,
   FinalResponse,
   QueryParams,
+  RequestConfigUrlRequired,
   UrlPathParams,
 } from './types/api-handler';
 import { createRequestHandler } from './request-handler';
@@ -121,7 +122,9 @@ function createApiFetcher<
     > = {},
   ): Promise<FetchResponse<FinalResponse<ResponseData, DefaultResponse>>> {
     // Use global per-endpoint settings
-    const endpointConfig = endpoints[endpointName as string];
+    const endpointConfig =
+      endpoints[endpointName] ||
+      ({ url: endpointName as string } as RequestConfigUrlRequired);
 
     const responseData = await requestHandler.request<
       FinalResponse<ResponseData, DefaultResponse>,
