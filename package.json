@@ -1,7 +1,7 @@
 {
+  "name": "fetchff",
   "version": "2.9.0",
   "license": "UNLICENSED",
-  "name": "fetchff",
   "author": "Matt Czapliński <deindesign.pl@gmail.com>",
   "repository": {
     "type": "git",
@@ -11,24 +11,32 @@
   "browser": "dist/browser/index.mjs",
   "module": "dist/browser/index.mjs",
   "types": "dist/index.d.ts",
+  "unpkg": "./dist/browser/index.mjs",
   "keywords": [
     "fetch",
     "fetchff",
     "fetch-wrapper",
+    "fetch-client",
     "request",
     "cache",
+    "fetch-cache",
+    "fetch-retry",
     "api",
     "api-handler",
+    "http-request",
+    "http-client",
     "browser",
-    "node"
+    "node",
+    "nodejs"
   ],
   "engines": {
     "node": ">=18"
   },
+  "sideEffects": false,
   "scripts": {
     "build": "npm run build:node && npm run build:browser && npm run build:cleanup",
     "build:browser": "tsup --format esm,iife --out-dir dist/browser --env.NODE_ENV production",
-    "build:node": "tsup --format cjs --out-dir dist/node --env.NODE_ENV production",
+    "build:node": "tsup --format cjs --out-dir dist/node --env.NODE_ENV production --target node18",
     "build:cleanup": "rm -f dist/browser/index.d.mts dist/node/index.d.ts && mv dist/browser/index.d.ts dist/index.d.ts",
     "type-check": "tsc --noEmit",
     "test": "jest --forceExit --coverage --detectOpenHandles",
@@ -47,28 +55,32 @@
   "size-limit": [
     {
       "path": "dist/browser/index.mjs",
-      "limit": "10 KB"
+      "limit": "5 KB"
     },
     {
       "path": "dist/browser/index.global.js",
-      "limit": "50 KB"
+      "limit": "5 KB"
+    },
+    {
+      "path": "dist/node/index.js",
+      "limit": "5 KB"
     }
   ],
   "devDependencies": {
-    "@size-limit/preset-small-lib": "11.1.4",
-    "@types/jest": "29.5.12",
-    "eslint": "9.10.0",
+    "@size-limit/preset-small-lib": "11.1.5",
+    "@types/jest": "29.5.13",
+    "eslint": "9.11.1",
     "eslint-config-prettier": "9.1.0",
     "eslint-plugin-prettier": "5.2.1",
-    "fetch-mock": "11.0.0",
+    "fetch-mock": "11.1.5",
     "jest": "29.7.0",
     "prettier": "3.3.3",
-    "size-limit": "11.1.4",
-    "ts-jest": "29.2.4",
+    "size-limit": "11.1.5",
+    "ts-jest": "29.2.5",
     "tslib": "2.7.0",
-    "tsup": "8.2.4",
+    "tsup": "8.3.0",
     "typescript": "5.6.2",
-    "typescript-eslint": "8.5.0"
+    "typescript-eslint": "8.8.0"
   },
   "optionalDependencies": {
     "@rollup/rollup-linux-x64-gnu": "4.21.3"

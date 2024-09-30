@@ -1,6 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { OBJECT, STRING, UNDEFINED } from './const';
-import type { HeadersObject, QueryParams, UrlPathParams } from './types';
+import { OBJECT, STRING, UNDEFINED } from './constants';
+import type {
+  DefaultUrlParams,
+  HeadersObject,
+  QueryParams,
+  UrlPathParams,
+} from './types';
 
 export function isSearchParams(data: unknown): boolean {
   return data instanceof URLSearchParams;
@@ -161,7 +166,11 @@ export function replaceUrlPathParams(
   return url.replace(/:\w+/g, (str): string => {
     const word = str.substring(1);
 
-    return String(urlPathParams[word] ? urlPathParams[word] : str);
+    if ((urlPathParams as DefaultUrlParams)[word]) {
+      return String((urlPathParams as DefaultUrlParams)[word]);
+    }
+
+    return str;
   });
 }
 

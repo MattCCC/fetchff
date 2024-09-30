@@ -1,4 +1,4 @@
-import { ABORT_ERROR, TIMEOUT_ERROR } from './const';
+import { ABORT_ERROR, TIMEOUT_ERROR } from './constants';
 import type { RequestConfig } from './types';
 import type { QueueItem, RequestsQueue } from './types/queue-manager';
 

@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type {
+  DefaultResponse,
   RequestHandlerConfig,
   RequestConfig,
   Method,
@@ -11,10 +12,11 @@ import type {
   FetcherConfig,
 } from './types/request-handler';
 import type {
-  APIResponse,
   BodyPayload,
+  DefaultParams,
+  DefaultPayload,
+  DefaultUrlParams,
   QueryParams,
-  QueryParamsOrBody,
 } from './types/api-handler';
 import { applyInterceptor } from './interceptor-manager';
 import { ResponseErr } from './response-error';
@@ -39,7 +41,7 @@ import {
   OBJECT,
   STRING,
   UNDEFINED,
-} from './const';
+} from './constants';
 import { parseResponseData } from './response-parser';
 import { generateCacheKey, getCache, setCache } from './cache-manager';
 
@@ -134,13 +136,11 @@ export function createRequestHandler(
    * Build request configuration
    *
    * @param {string} url - Request url
-   * @param {QueryParamsOrBody} data - Query Params in case of GET and HEAD requests, body payload otherwise
    * @param {RequestConfig} reqConfig - Request config passed when making the request
    * @returns {RequestConfig} - Provider's instance
    */
   const buildConfig = (
     url: string,
-    data: QueryParamsOrBody,
     reqConfig: RequestConfig,
   ): FetcherConfig => {
     const method = getConfig<string>(
@@ -161,18 +161,12 @@ export function createRequestHandler(
     const explicitBodyData: BodyPayload =
       getConfig(reqConfig, 'body') || getConfig(reqConfig, 'data');
 
-    // For convenience, in POST requests the body payload is the "data"
-    // In edge cases we want to use Query Params in the POST requests
-    // and use explicitly passed "body" or "data" from request config
-    const shouldTreatDataAsParams =
-      data && (isGetAlikeMethod || explicitBodyData) ? true : false;
-
     // Final body data
     let body: RequestConfig['data'];
 
     // Only applicable for request methods 'PUT', 'POST', 'DELETE', and 'PATCH'
     if (!isGetAlikeMethod) {
-      body = explicitBodyData || (data as BodyPayload);
+      body = explicitBodyData;
     }
 
     // Native fetch compatible settings
@@ -182,13 +176,9 @@ export function createRequestHandler(
       ? 'include'
       : getConfig<RequestCredentials>(reqConfig, 'credentials');
 
-    deleteProperty(reqConfig, 'data');
-    deleteProperty(reqConfig, 'withCredentials');
-
-    const urlPath =
-      explicitParams || shouldTreatDataAsParams
-        ? appendQueryParams(dynamicUrl, explicitParams || (data as QueryParams))
-        : dynamicUrl;
+    const urlPath = explicitParams
+      ? appendQueryParams(dynamicUrl, explicitParams)
+      : dynamicUrl;
     const isFullUrl = urlPath.includes('://');
     const baseURL = isFullUrl
       ? ''
@@ -218,13 +208,13 @@ export function createRequestHandler(
   /**
    * Process global Request Error
    *
-   * @param {ResponseError} error      Error instance
-   * @param {RequestConfig} requestConfig   Per endpoint request config
+   * @param {ResponseError<ResponseData>} error      Error instance
+   * @param {RequestConfig<ResponseData>} requestConfig   Per endpoint request config
    * @returns {Promise<void>}
    */
-  const processError = async (
-    error: ResponseError,
-    requestConfig: RequestConfig,
+  const processError = async <ResponseData = DefaultResponse>(
+    error: ResponseError<ResponseData>,
+    requestConfig: RequestConfig<ResponseData>,
   ): Promise<void> => {
     if (!isRequestCancelled(error)) {
       logger('API ERROR', error);
@@ -240,15 +230,15 @@ export function createRequestHandler(
   /**
    * Output default response in case of an error, depending on chosen strategy
    *
-   * @param {ResponseError} error      Error instance
-   * @param {FetchResponse} response      Response
-   * @param {RequestConfig} requestConfig   Per endpoint request config
-   * @returns {*} Error response
+   * @param {ResponseError<ResponseData>} error - Error instance
+   * @param {FetchResponse<ResponseData> | null} response - Response. It may be "null" in case of request being aborted.
+   * @param {RequestConfig<ResponseData>} requestConfig - Per endpoint request config
+   * @returns {FetchResponse<ResponseData>} Response together with the error object
    */
-  const outputErrorResponse = async (
+  const outputErrorResponse = async <ResponseData = DefaultResponse>(
     error: ResponseError,
-    response: FetchResponse | null,
-    requestConfig: RequestConfig,
+    response: FetchResponse<ResponseData> | null,
+    requestConfig: RequestConfig<ResponseData>,
   ): Promise<any> => {
     const _isRequestCancelled = isRequestCancelled(error);
     const errorHandlingStrategy = getConfig<string>(requestConfig, 'strategy');
@@ -269,7 +259,7 @@ export function createRequestHandler(
       }
     }
 
-    return outputResponse(response, requestConfig, error);
+    return outputResponse<ResponseData>(response, requestConfig, error);
   };
 
   /**
@@ -286,16 +276,24 @@ export function createRequestHandler(
    * Handle Request depending on used strategy
    *
    * @param {string} url - Request url
-   * @param {QueryParamsOrBody} data - Query Params in case of GET and HEAD requests, body payload otherwise
    * @param {RequestConfig} reqConfig - Request config
    * @throws {ResponseError}
-   * @returns {Promise<ResponseData & FetchResponse<ResponseData>>} Response Data
+   * @returns {Promise<FetchResponse<ResponseData>>} Response Data
    */
-  const request = async <ResponseData = APIResponse>(
+  const request = async <
+    ResponseData = DefaultResponse,
+    QueryParams = DefaultParams,
+    PathParams = DefaultUrlParams,
+    RequestBody = DefaultPayload,
+  >(
     url: string,
-    data: QueryParamsOrBody = null,
-    reqConfig: RequestConfig | null = null,
-  ): Promise<ResponseData & FetchResponse<ResponseData>> => {
+    reqConfig: RequestConfig<
+      ResponseData,
+      QueryParams,
+      PathParams,
+      RequestBody
+    > | null = null,
+  ): Promise<FetchResponse<ResponseData>> => {
     const _reqConfig = reqConfig || {};
     const mergedConfig = {
       ...handlerConfig,
@@ -303,7 +301,7 @@ export function createRequestHandler(
     } as RequestConfig;
 
     let response: FetchResponse<ResponseData> | null = null;
-    const fetcherConfig = buildConfig(url, data, mergedConfig);
+    const fetcherConfig = buildConfig(url, mergedConfig);
 
     const {
       timeout,
@@ -328,9 +326,10 @@ export function createRequestHandler(
       const cacheBuster = mergedConfig.cacheBuster;
 
       if (!cacheBuster || !cacheBuster(fetcherConfig)) {
-        const cachedEntry = getCache<
-          ResponseData & FetchResponse<ResponseData>
-        >(_cacheKey, cacheTime);
+        const cachedEntry = getCache<FetchResponse<ResponseData>>(
+          _cacheKey,
+          cacheTime,
+        );
 
         if (cachedEntry) {
           // Serve stale data from cache
@@ -352,8 +351,9 @@ export function createRequestHandler(
     let attempt = 0;
     let pollingAttempt = 0;
     let waitTime: number = delay;
+    const _retries = retries > 0 ? retries : 0;
 
-    while (attempt <= retries) {
+    while (attempt <= _retries) {
       try {
         // Add the request to the queue. Make sure to handle deduplication, cancellation, timeouts in accordance to retry settings
         const controller = await addRequest(
@@ -362,7 +362,7 @@ export function createRequestHandler(
           dedupeTime,
           cancellable,
           // Reset timeouts by default or when retries are ON
-          !!(timeout && (!retries || resetTimeout)),
+          !!(timeout && (!_retries || resetTimeout)),
         );
 
         // Shallow copy to ensure basic idempotency
@@ -425,8 +425,7 @@ export function createRequestHandler(
         }
 
         // If polling is not required, or polling attempts are exhausted
-        const output = outputResponse(response, requestConfig) as ResponseData &
-          FetchResponse<ResponseData>;
+        const output = outputResponse<ResponseData>(response, requestConfig);
 
         if (cacheTime && _cacheKey) {
           const skipCache = requestConfig.skipCache;
@@ -446,11 +445,15 @@ export function createRequestHandler(
           !(!shouldRetry || (await shouldRetry(error, attempt))) ||
           !retryOn?.includes(status)
         ) {
-          await processError(error, fetcherConfig);
+          await processError<ResponseData>(error, fetcherConfig);
 
           removeRequest(fetcherConfig);
 
-          return outputErrorResponse(error, response, fetcherConfig);
+          return outputErrorResponse<ResponseData>(
+            error,
+            response,
+            fetcherConfig,
+          );
         }
 
         logger(`Attempt ${attempt + 1} failed. Retry in ${waitTime}ms.`);
@@ -463,38 +466,34 @@ export function createRequestHandler(
       }
     }
 
-    return outputResponse(response, fetcherConfig) as ResponseData &
-      FetchResponse<ResponseData>;
+    return outputResponse<ResponseData>(response, fetcherConfig);
   };
 
   /**
    * Output response
    *
-   * @param response - Response payload
+   * @param Response. It may be "null" in case of request being aborted.
    * @param {RequestConfig} requestConfig - Request config
    * @param error - whether the response is erroneous
-   * @returns {ResponseData | FetchResponse<ResponseData>} Response data
+   * @returns {FetchResponse<ResponseData>} Response data
    */
-  const outputResponse = <ResponseData = APIResponse>(
+  const outputResponse = <ResponseData = DefaultResponse>(
     response: FetchResponse<ResponseData> | null,
     requestConfig: RequestConfig,
     error: ResponseError<ResponseData> | null = null,
-  ): ResponseData | FetchResponse<ResponseData> => {
+  ): FetchResponse<ResponseData> => {
     const defaultResponse = getConfig<any>(requestConfig, 'defaultResponse');
-    const flattenResponse = getConfig<boolean>(
-      requestConfig,
-      'flattenResponse',
-    );
 
+    // This may happen when request is cancelled.
     if (!response) {
-      return flattenResponse
-        ? defaultResponse
-        : {
-            error,
-            headers: null,
-            data: defaultResponse,
-            config: requestConfig,
-          };
+      return {
+        ok: false,
+        // Enhance the response with extra information
+        error,
+        data: defaultResponse,
+        headers: null,
+        config: requestConfig,
+      } as unknown as FetchResponse<ResponseData>;
     }
 
     // Clean up the error object
@@ -514,8 +513,13 @@ export function createRequestHandler(
     }
 
     // Return flattened response immediately
+    const flattenResponse = getConfig<boolean>(
+      requestConfig,
+      'flattenResponse',
+    );
+
     if (flattenResponse) {
-      return flattenData(data);
+      response.data = flattenData(data);
     }
 
     // If it's a custom fetcher, and it does not return any Response instance, it may have its own internal handler
@@ -541,7 +545,7 @@ export function createRequestHandler(
       clone: response.clone.bind(response),
       arrayBuffer: response.arrayBuffer.bind(response),
 
-      // Extend with extra information
+      // Enhance the response with extra information
       error,
       data,
       headers: processHeaders(response.headers),

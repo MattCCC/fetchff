@@ -1,3 +1,6 @@
+/**
+ * This file contains various examples together with tests for typings declarations
+ */
 import { createApiFetcher, fetchf } from '../../src';
 import type { Endpoint } from '../../src/types';
 
@@ -88,7 +91,9 @@ async function example3() {
     fetchBooks: Endpoint<Books, BooksQueryParams>;
   }
 
-  const api = createApiFetcher<Endpoints, typeof endpoints>({
+  type EndpointsConfiguration = typeof endpoints;
+
+  const api = createApiFetcher<Endpoints, EndpointsConfiguration>({
     apiUrl: '',
     endpoints,
   });
@@ -100,29 +105,65 @@ async function example3() {
   const { data } = await api.ping();
 
   // Defined in EndpointsList with query param and url path param
-  const { data: book } = (await api.fetchBook(
-    { newBook: true },
-    { bookId: 1 },
-  )) satisfies Book;
+  const { data: book } = await api.fetchBook({
+    params: { newBook: true },
+    urlPathParams: { bookId: 1 },
+  });
 
-  // Defined in "endpoints" but not in EndpointsList. You don't need to add "fetchMovies: Endpoint;" explicitly.
+  // Defined in "endpoints" but not in EndpointsList so there is no need to add "fetchMovies: Endpoint;" explicitly.
   const { data: movies1 } = await api.fetchMovies();
+
+  // With dynamically inferred type
   const { data: movies } = await api.fetchMovies<Movies>();
   const { data: movies3 }: { data: Movies } = await api.fetchMovies<Movies>();
+
+  // With custom params not defined in any interface
+  const { data: movies4 } = await api.fetchMovies({
+    params: {
+      all: true,
+    },
+  });
 
   // @ts-expect-error This will result in an error as endpoint is not defined
   const { data: movies2 } = await api.nonExistentEndpoint();
 
-  const { data: book1 } = (await api.fetchBook<Book>(
+  interface NewBook {
+    alternativeInterface: string;
+  }
+
+  interface NewBookQueryParams {
+    color: string;
+  }
+
+  // Overwrite response of existing endpoint
+  const { data: book1 } = await api.fetchBook<NewBook>(
     { newBook: true },
     // @ts-expect-error should verify that bookId cannot be text
     { bookId: 'text' },
-  )) satisfies Book;
+  );
 
-  // @ts-expect-error will result in an error since "someParams" is not defined
-  const { data: books } = (await api.fetchBooks({
-    someParams: 1,
-  })) satisfies Books;
+  // Overwrite response and query params of existing endpoint
+  const { data: book11 } = await api.fetchBook<NewBook, NewBookQueryParams>({
+    params: {
+      // @ts-expect-error Should not allow old param
+      newBook: true,
+      color: 'green',
+      // TODO: @ts-expect-error Should not allow non-existent param
+      type: 'red',
+    },
+  });
+
+  // Standard fetch with predefined response and query params
+  const { data: books } = await api.fetchBooks({
+    // TODO: @ts-expect-error Non-existent setting
+    test: true,
+    params: {
+      // This param exists
+      all: true,
+      // @ts-expect-error Should not allow non-existent param
+      randomParam: 1,
+    },
+  });
 
   const { data: book2 } = await api.fetchBook(
     { newBook: true },
@@ -130,15 +171,23 @@ async function example3() {
     { bookId: 'text' },
   );
 
-  const { data: book3 } = await api.fetchBook(
+  const { data: book3 } = await api.fetchBook({
     // @ts-expect-error Error as newBook is not a boolean
-    { newBook: 'true' },
-    { bookId: 1 },
-  );
+    params: { newBook: 'true' },
+    urlPathParams: { bookId: 1 },
+  });
 
   console.log('Example 3', data, apiConfig, endpointsList);
-  console.log('Example 3', movies, movies1, movies2, movies3);
-  console.log('Example 3', books, book, book1, book2, book3);
+  console.log('Example 3', movies, movies1, movies2, movies3, movies4);
+  console.log(
+    'Example 3',
+    books satisfies Books,
+    book satisfies Book,
+    book1 satisfies NewBook,
+    book11 satisfies NewBook,
+    book2 satisfies Book,
+    book3 satisfies Book,
+  );
 }
 
 // createApiFetcher() - direct API request() call to a custom endpoint with flattenResponse == true
@@ -147,35 +196,94 @@ async function example4() {
     fetchBooks: Endpoint<Books, BooksQueryParams>;
   }
 
-  const api = createApiFetcher<Endpoints, typeof endpoints>({
+  type EndpointsConfiguration = typeof endpoints;
+
+  const api = createApiFetcher<Endpoints, EndpointsConfiguration>({
     apiUrl: '',
     endpoints,
     flattenResponse: true,
   });
 
-  const books = await api.request<Books>('fetchBooks');
-  const data1 = await api.request('https://example.com/api/custom-endpoint');
+  // Existing endpoint generic
+  const { data: books } = await api.request<Books>('fetchBooks');
 
-  // Specify generic
-  const data2 = await api.request<{ myData: true }>(
+  // Custom URL
+  const { data: data1 } = await api.request(
     'https://example.com/api/custom-endpoint',
   );
 
-  const data3 = await fetchf<{ myData: true }>(
+  interface OtherEndpointData {
+    myData: true;
+  }
+
+  // Explicitly defined empty config
+  const { data: data4 } = await api.request('fetchBooks', {
+    params: {
+      anyParam: true,
+    },
+  });
+
+  // Dynamically added Response to a generic
+  const { data: data2 } = await api.request<OtherEndpointData>(
     'https://example.com/api/custom-endpoint',
   );
 
-  console.log('Example 4', books);
-  console.log('Example 4', data1, data2, data3);
+  // Dynamically added Response to a generic using fetchf()
+  const { data: data3 } = await fetchf<OtherEndpointData>(
+    'https://example.com/api/custom-endpoint',
+  );
+
+  // Existing endpoint with custom params
+  interface DynamicQueryParams {
+    param1: string;
+  }
+
+  interface DynamicUrlParams {
+    urlparam2: number;
+  }
+
+  const { data: books2 } = await api.request<
+    Books,
+    DynamicQueryParams,
+    DynamicUrlParams
+  >('fetchBooks', {
+    // Native fetch() setting
+    cache: 'no-store',
+    // Extended fetch setting
+    cacheTime: 86000,
+    // TODO: @ts-expect-error Non-existent setting
+    something: true,
+    urlPathParams: {
+      // @ts-expect-error Non-existent param
+      urlparam1: '1',
+      urlparam2: 1,
+    },
+    params: {
+      param1: '1',
+      // @ts-expect-error Non-existent param
+      param2: 1,
+    },
+  });
+
+  console.log('Example 4', books satisfies Books, books2 satisfies Books);
+  console.log(
+    'Example 4',
+    data1,
+    data2 satisfies OtherEndpointData,
+    data3 satisfies OtherEndpointData,
+    data4,
+  );
 }
 
 // createApiFetcher() - direct API request() call to a custom endpoint with flattenResponse == false
 async function example5() {
-  interface Endpoints5 {
+  interface MyEndpoints {
     fetchBooks: Endpoint<Books, BooksQueryParams>;
   }
 
-  const api = createApiFetcher<Endpoints5, typeof endpoints>({
+  type EndpointsConfiguration = typeof endpoints;
+
+  const api = createApiFetcher<MyEndpoints, EndpointsConfiguration>({
     apiUrl: '',
     endpoints,
   });
@@ -195,7 +303,7 @@ async function example5() {
   console.log('Example 5', data1, data2);
 }
 
-// fetchf() - direct fetchf() request with flattenResponse == false
+// fetchf() - direct fetchf() request
 async function example6() {
   const { data: books } = await fetchf<Books>('fetchBooks');
   const { data: data1 } = await fetchf(
@@ -207,7 +315,17 @@ async function example6() {
     'https://example.com/api/custom-endpoint',
   );
 
-  console.log('Example 6', books);
+  // Fetch with custom settings
+  const { data: books2 } = await fetchf<Books>('fetchBooks', {
+    // Native fetch() setting
+    cache: 'no-store',
+    // Extended fetch setting
+    cacheTime: 86000,
+    // @ts-expect-error Non-existent setting
+    something: true,
+  });
+
+  console.log('Example 6', books satisfies Books, books2 satisfies Books);
   console.log('Example 6', data1, data2);
 }
 

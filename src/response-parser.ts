@@ -1,7 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { APPLICATION_JSON, CONTENT_TYPE } from './const';
-import type { APIResponse } from './types/api-handler';
-import type { FetchResponse } from './types/request-handler';
+import {
+  APPLICATION_CONTENT_TYPE,
+  APPLICATION_JSON,
+  CONTENT_TYPE,
+} from './constants';
+import type { DefaultResponse, FetchResponse } from './types/request-handler';
 
 /**
  * Parses the response data based on the Content-Type header.
@@ -9,7 +12,7 @@ import type { FetchResponse } from './types/request-handler';
  * @param response - The Response object to parse.
  * @returns A Promise that resolves to the parsed data.
  */
-export async function parseResponseData<ResponseData = APIResponse>(
+export async function parseResponseData<ResponseData = DefaultResponse>(
   response: FetchResponse<ResponseData>,
 ): Promise<any> {
   // Bail early when body is empty
@@ -31,9 +34,13 @@ export async function parseResponseData<ResponseData = APIResponse>(
       data = await response.json(); // Parse JSON response
     } else if (contentType.includes('multipart/form-data')) {
       data = await response.formData(); // Parse as FormData
-    } else if (contentType.includes('application/octet-stream')) {
+    } else if (
+      contentType.includes(APPLICATION_CONTENT_TYPE + 'octet-stream')
+    ) {
       data = await response.blob(); // Parse as blob
-    } else if (contentType.includes('application/x-www-form-urlencoded')) {
+    } else if (
+      contentType.includes(APPLICATION_CONTENT_TYPE + 'x-www-form-urlencoded')
+    ) {
       data = await response.formData(); // Handle URL-encoded forms
     } else if (contentType.includes('text/')) {
       data = await response.text(); // Parse as text

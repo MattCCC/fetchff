@@ -1,8 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type {
   BodyPayload,
+  DefaultParams,
+  DefaultPayload,
+  DefaultUrlParams,
   QueryParams,
-  QueryParamsOrBody,
   UrlPathParams,
 } from './api-handler';
 import type {
@@ -33,18 +35,30 @@ export type Method =
   | 'unlink'
   | 'UNLINK';
 
+export type DefaultResponse = any;
+
 export type NativeFetch = typeof fetch;
 
 export interface FetcherInstance {
   create: <RequestInstance = CreatedCustomFetcherInstance>(
-    config?: BaseRequestHandlerConfig,
+    config?: RequestHandlerConfig,
   ) => RequestInstance;
 }
 
 export interface CreatedCustomFetcherInstance {
-  request<ResponseData = any>(
-    requestConfig: RequestConfig,
-  ): FetchResponse<ResponseData> | PromiseLike<FetchResponse<ResponseData>>;
+  request<
+    ResponseData = DefaultResponse,
+    QueryParams = DefaultParams,
+    PathParams = DefaultUrlParams,
+    RequestBody = DefaultPayload,
+  >(
+    requestConfig: RequestConfig<
+      ResponseData,
+      QueryParams,
+      PathParams,
+      RequestBody
+    >,
+  ): PromiseLike<FetchResponse<ResponseData>>;
 }
 
 export type ErrorHandlingStrategy =
@@ -57,44 +71,57 @@ export interface HeadersObject {
   [key: string]: string;
 }
 
-export interface ExtendedResponse<D = any> extends Omit<Response, 'headers'> {
-  data: D extends unknown ? any : D;
-  error: ResponseError<D> | null;
+export interface ExtendedResponse<ResponseData = any, RequestBody = any>
+  extends Omit<Response, 'headers'> {
+  data: ResponseData extends [unknown] ? any : ResponseData;
+  error: ResponseError<ResponseData, RequestBody> | null;
   headers: HeadersObject & HeadersInit;
-  config: ExtendedRequestConfig<D>;
+  config: ExtendedRequestConfig<ResponseData, RequestBody>;
 }
 
-export type FetchResponse<T = any> = ExtendedResponse<T>;
+/**
+ * Represents the response from a `fetchf()` request.
+ *
+ * @template ResponseData - The type of the data returned in the response.
+ */
+export type FetchResponse<
+  ResponseData = any,
+  RequestBody = any,
+> = ExtendedResponse<ResponseData, RequestBody>;
 
-export interface ResponseError<D = any> extends Error {
-  config: ExtendedRequestConfig<D>;
+export interface ResponseError<ResponseData = any, RequestBody = any>
+  extends Error {
+  config: ExtendedRequestConfig<ResponseData, RequestBody>;
   code?: string;
   status?: number;
   statusText?: string;
-  request?: ExtendedRequestConfig<D>;
-  response?: FetchResponse<D>;
+  request?: ExtendedRequestConfig<ResponseData, RequestBody>;
+  response?: FetchResponse<ResponseData, RequestBody>;
 }
 
-export type RetryFunction = <T = any>(
-  error: ResponseError<T>,
+export type RetryFunction = <ResponseData = any, RequestBody = any>(
+  error: ResponseError<ResponseData, RequestBody>,
   attempts: number,
 ) => Promise<boolean>;
 
-export type PollingFunction = <ResponseData = any>(
-  response: FetchResponse<ResponseData>,
+export type PollingFunction<ResponseData = any, RequestBody = any> = (
+  response: FetchResponse<ResponseData, RequestBody>,
   attempts: number,
-  error?: ResponseError,
+  error?: ResponseError<ResponseData, RequestBody>,
 ) => boolean;
 
 export type CacheKeyFunction = (config: FetcherConfig) => string;
 
 export type CacheBusterFunction = (config: FetcherConfig) => boolean;
 
-export type CacheSkipFunction = <ResponseData = any>(
+export type CacheSkipFunction = <ResponseData = any, RequestBody = any>(
   data: ResponseData,
-  config: RequestConfig,
+  config: RequestConfig<ResponseData, RequestBody>,
 ) => boolean;
 
+/**
+ * Configuration object for retry related options
+ */
 export interface RetryOptions {
   /**
    * Maximum number of retry attempts.
@@ -188,13 +215,17 @@ export interface CacheOptions {
 }
 
 /**
- * ExtendedRequestConfig<D = any>
+ * ExtendedRequestConfig<ResponseData = any, RequestBody = any>
  *
  * This interface extends the standard `RequestInit` from the Fetch API, providing additional options
  * for handling requests, including custom error handling strategies, request interception, and more.
  */
-interface ExtendedRequestConfig<D = any>
-  extends Omit<RequestInit, 'body'>,
+export interface ExtendedRequestConfig<
+  ResponseData = any,
+  QueryParams_ = any,
+  PathParams = any,
+  RequestBody = any,
+> extends Omit<RequestInit, 'body'>,
     CacheOptions {
   /**
    * Custom error handling strategy for the request.
@@ -231,7 +262,7 @@ interface ExtendedRequestConfig<D = any>
    * An object representing dynamic URL path parameters.
    * For example, `{ userId: 1 }` would replace `:userId` in the URL with `1`.
    */
-  urlPathParams?: UrlPathParams;
+  urlPathParams?: UrlPathParams<PathParams>;
 
   /**
    * Configuration options for retrying failed requests.
@@ -267,7 +298,7 @@ interface ExtendedRequestConfig<D = any>
   /**
    * Query parameters to include in the request URL.
    */
-  params?: QueryParams;
+  params?: QueryParams<QueryParams_>;
 
   /**
    * Indicates whether credentials (such as cookies) should be included with the request.
@@ -283,27 +314,33 @@ interface ExtendedRequestConfig<D = any>
    * Data to be sent as the request body, extending the native Fetch API's `body` option.
    * Supports `BodyInit`, objects, arrays, and strings, with automatic serialization.
    */
-  body?: BodyPayload<D>;
+  body?: BodyPayload<RequestBody>;
 
   /**
    * Alias for "body"
    */
-  data?: BodyPayload<D>;
+  data?: BodyPayload<RequestBody>;
 
   /**
    * A function or array of functions to intercept the request before it is sent.
    */
-  onRequest?: RequestInterceptor<D> | RequestInterceptor<D>[];
+  onRequest?:
+    | RequestInterceptor<RequestBody, ResponseData>
+    | RequestInterceptor<RequestBody, ResponseData>[];
 
   /**
    * A function or array of functions to intercept the response before it is resolved.
    */
-  onResponse?: ResponseInterceptor<D> | ResponseInterceptor<D>[];
+  onResponse?:
+    | ResponseInterceptor<ResponseData>
+    | ResponseInterceptor<ResponseData>[];
 
   /**
    * A function to handle errors that occur during the request or response processing.
    */
-  onError?: ErrorInterceptor | ErrorInterceptor[];
+  onError?:
+    | ErrorInterceptor<ResponseData, RequestBody>
+    | ErrorInterceptor<ResponseData, RequestBody>[];
 
   /**
    * The maximum time (in milliseconds) the request can take before automatically being aborted.
@@ -328,36 +365,50 @@ interface ExtendedRequestConfig<D = any>
    * @param response - The response data.
    * @returns `true` to stop polling, `false` to continue.
    */
-  shouldStopPolling?: PollingFunction;
+  shouldStopPolling?: PollingFunction<ResponseData, RequestBody>;
 }
 
-interface BaseRequestHandlerConfig<RequestData = any>
-  extends RequestConfig<RequestData> {
+export interface RequestHandlerConfig<ResponseData = any, RequestBody = any>
+  extends RequestConfig<ResponseData, RequestBody> {
   fetcher?: FetcherInstance | null;
   logger?: any;
 }
 
-export type RequestConfig<RequestData = any> =
-  ExtendedRequestConfig<RequestData>;
+export type RequestConfig<
+  ResponseData = any,
+  QueryParams = any,
+  PathParams = any,
+  RequestBody = any,
+> = ExtendedRequestConfig<ResponseData, QueryParams, PathParams, RequestBody>;
 
-export type FetcherConfig = Omit<ExtendedRequestConfig, 'url'> & {
+export type FetcherConfig<
+  ResponseData = any,
+  QueryParams = any,
+  PathParams = any,
+  RequestBody = any,
+> = Omit<
+  ExtendedRequestConfig<ResponseData, QueryParams, PathParams, RequestBody>,
+  'url'
+> & {
   url: string;
 };
-
-export type RequestHandlerConfig<RequestData = any> =
-  BaseRequestHandlerConfig<RequestData>;
 
 export interface RequestHandlerReturnType {
   config: RequestHandlerConfig;
   getInstance: () => CreatedCustomFetcherInstance | null;
-  buildConfig: (
+  buildConfig: (url: string, config: RequestConfig) => RequestConfig;
+  request: <
+    ResponseData = DefaultResponse,
+    QueryParams = DefaultParams,
+    PathParams = DefaultUrlParams,
+    RequestBody = DefaultPayload,
+  >(
     url: string,
-    data: QueryParamsOrBody,
-    config: RequestConfig,
-  ) => RequestConfig;
-  request: <ResponseData = unknown>(
-    url: string,
-    data?: QueryParamsOrBody,
-    config?: RequestConfig | null,
-  ) => Promise<ResponseData & FetchResponse<ResponseData>>;
+    config?: RequestConfig<
+      ResponseData,
+      QueryParams,
+      PathParams,
+      RequestBody
+    > | null,
+  ) => Promise<FetchResponse<ResponseData, RequestBody>>;
 }

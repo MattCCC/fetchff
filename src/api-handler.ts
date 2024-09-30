@@ -1,14 +1,19 @@
 import type {
   RequestConfig,
   FetchResponse,
+  DefaultResponse,
   CreatedCustomFetcherInstance,
 } from './types/request-handler';
 import type {
   ApiHandlerConfig,
+  ApiHandlerDefaultMethods,
   ApiHandlerMethods,
-  ApiHandlerReturnType,
-  APIResponse,
-  QueryParamsOrBody,
+  DefaultPayload,
+  FallbackValue,
+  FinalParams,
+  FinalResponse,
+  QueryParams,
+  RequestConfigUrlRequired,
   UrlPathParams,
 } from './types/api-handler';
 import { createRequestHandler } from './request-handler';
@@ -27,7 +32,7 @@ import { createRequestHandler } from './request-handler';
  * @param {number} config.timeout - Request timeout
  * @param {number} config.dedupeTime - Time window, in milliseconds, during which identical requests are deduplicated (treated as single request).
  * @param {string} config.strategy - Error Handling Strategy
- * @param {string} config.flattenResponse - Whether to flatten response "data" object within "data" one
+ * @param {string} config.flattenResponse - Whether to flatten response "data" object within "data". It works only if the response structure includes a single data property.
  * @param {*} config.defaultResponse - Default response when there is no data or when endpoint fails depending on the chosen strategy. It's "null" by default
  * @param {Object} [config.retry] - Options for retrying requests.
  * @param {number} [config.retry.retries=0] - Number of retry attempts. No retries by default.
@@ -68,7 +73,7 @@ import { createRequestHandler } from './request-handler';
  */
 function createApiFetcher<
   EndpointsMethods extends object,
-  EndpointsCfg = never,
+  EndpointsSettings = never,
 >(config: ApiHandlerConfig<EndpointsMethods>) {
   const endpoints = config.endpoints;
   const requestHandler = createRequestHandler(config);
@@ -98,55 +103,43 @@ function createApiFetcher<
    * Handle Single API Request
    * It considers settings in following order: per-request settings, global per-endpoint settings, global settings.
    *
-   * @param {string} endpointName - The name of the API endpoint to call.
-   * @param {QueryParamsOrBody} [data={}] - Query parameters to include in the request.
-   * @param {UrlPathParams} [urlPathParams={}] - URI parameters to include in the request.
+   * @param {keyof EndpointsMethods | string} endpointName - The name of the API endpoint to call.
    * @param {EndpointConfig} [requestConfig={}] - Additional configuration for the request.
-   * @returns {Promise<Response & FetchResponse>} - A promise that resolves with the response from the API provider.
+   * @returns {Promise<FetchResponse<ResponseData>>} - A promise that resolves with the response from the API provider.
    */
-  async function request<Response = APIResponse>(
+  async function request<
+    ResponseData = never,
+    QueryParams_ = never,
+    UrlParams = never,
+    RequestBody = never,
+  >(
     endpointName: keyof EndpointsMethods | string,
-    data: QueryParamsOrBody = {},
-    urlPathParams: UrlPathParams = {},
-    requestConfig: RequestConfig = {},
-  ): Promise<Response & FetchResponse<Response>> {
+    requestConfig: RequestConfig<
+      FinalResponse<ResponseData, DefaultResponse>,
+      FinalParams<ResponseData, QueryParams_, QueryParams>,
+      FinalParams<ResponseData, UrlParams, UrlPathParams>,
+      FallbackValue<ResponseData, DefaultPayload, RequestBody>
+    > = {},
+  ): Promise<FetchResponse<FinalResponse<ResponseData, DefaultResponse>>> {
     // Use global per-endpoint settings
-    const endpointConfig = endpoints[endpointName as string];
+    const endpointConfig =
+      endpoints[endpointName] ||
+      ({ url: endpointName as string } as RequestConfigUrlRequired);
 
-    const responseData = await requestHandler.request<Response>(
-      endpointConfig.url,
-      data,
-      {
-        ...(endpointConfig || {}),
-        ...requestConfig,
-        urlPathParams,
-      },
-    );
+    const responseData = await requestHandler.request<
+      FinalResponse<ResponseData, DefaultResponse>,
+      FinalParams<ResponseData, QueryParams_, QueryParams>,
+      FinalParams<ResponseData, UrlParams, UrlParams>,
+      FallbackValue<ResponseData, DefaultPayload, RequestBody>
+    >(endpointConfig.url, {
+      ...endpointConfig,
+      ...requestConfig,
+    });
 
     return responseData;
   }
 
-  /**
-   * Maps all API requests using native Proxy
-   *
-   * @param {*} prop          Caller
-   */
-  function get(prop: string) {
-    if (prop in apiHandler) {
-      return apiHandler[
-        prop as unknown as keyof ApiHandlerMethods<EndpointsMethods>
-      ];
-    }
-
-    // Prevent handler from triggering non-existent endpoints
-    if (!endpoints[prop]) {
-      return handleNonImplemented.bind(null, prop);
-    }
-
-    return apiHandler.request.bind(null, prop);
-  }
-
-  const apiHandler: ApiHandlerMethods<EndpointsMethods> = {
+  const apiHandler: ApiHandlerDefaultMethods<EndpointsMethods> = {
     config,
     endpoints,
     requestHandler,
@@ -154,9 +147,28 @@ function createApiFetcher<
     request,
   };
 
-  return new Proxy(apiHandler, {
-    get: (_target, prop: string) => get(prop),
-  }) as ApiHandlerReturnType<EndpointsMethods, EndpointsCfg>;
+  /**
+   * Maps all API requests using native Proxy
+   *
+   * @param {*} prop          Caller
+   */
+  return new Proxy<ApiHandlerMethods<EndpointsMethods, EndpointsSettings>>(
+    apiHandler as ApiHandlerMethods<EndpointsMethods, EndpointsSettings>,
+    {
+      get(_target, prop: string) {
+        if (prop in apiHandler) {
+          return apiHandler[prop as unknown as keyof typeof apiHandler];
+        }
+
+        // Prevent handler from triggering non-existent endpoints
+        if (endpoints[prop]) {
+          return apiHandler.request.bind(null, prop);
+        }
+
+        return handleNonImplemented.bind(null, prop);
+      },
+    },
+  );
 }
 
 export { createApiFetcher };

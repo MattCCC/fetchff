@@ -1,23 +1,36 @@
+<div align="center">
 <img src="./docs/logo.png" alt="logo" width="380"/>
 
-<b>Fast, lightweight and reusable data fetching</b>
+<h4 align="center">Fast, lightweight (~3 KB gzipped) and reusable data fetching</h4>
+
+<i>"fetchff" stands for "fetch fast & flexibly" </i>
 
 [npm-url]: https://npmjs.org/package/fetchff
 [npm-image]: http://img.shields.io/npm/v/fetchff.svg
 
 [![NPM version][npm-image]][npm-url] [![Blazing Fast](https://badgen.now.sh/badge/speed/blazing%20%F0%9F%94%A5/green)](https://github.com/MattCCC/fetchff) [![Code Coverage](https://img.shields.io/badge/coverage-96.35-green)](https://github.com/MattCCC/fetchff) [![npm downloads](https://img.shields.io/npm/dm/fetchff.svg?color=lightblue)](http://npm-stat.com/charts.html?package=fetchff) [![gzip size](https://img.shields.io/bundlephobia/minzip/fetchff)](https://bundlephobia.com/result?p=fetchff)
 
+</div>
+
 ## Why?
 
-Managing multiple API endpoints can be complex and time-consuming. `fetchff` simplifies this process by offering a straightforward, declarative approach to API handling using Repository Pattern. It reduces the need for extensive setup and middlewares, allowing developers to focus on data manipulation and application logic.
+Managing multitude of API connections in large Frontend Application can be complex, time-consuming and hard to scale. `fetchff` simplifies the process by offering a simple, declarative approach to API handling using Repository Pattern. It reduces the need for extensive setup, middlewares, retries, custom caching, and heavy plugins, and lets developers focus on data handling and application logic.
 
 **Key Benefits:**
 
-**✅ Simplicity:** Minimal code footprint for managing extensive APIs.
+✅ **Small:** Minimal code footprint of ~3KB gzipped for managing extensive APIs.
 
-**✅ Productivity:** Streamlines API interactions, enhancing developer efficiency.
+✅ **Immutable:** Every request has its own instance.
 
-**✅ Scalability:** Easily scales from a few endpoints to complex API networks.
+✅ **Isomorphic:** Comptabile with Node.js, Deno and modern browsers.
+
+✅ **Type Safe:** Strongly typed and written in TypeScript.
+
+✅ **Scalable:** Easily scales from a few calls to complex API networks with thousands of APIs.
+
+✅ **Tested:** Battle tested in large projects, fully covered by unit tests.
+
+✅ **Maintained:** Since 2021 publicly through Github.
 
 ## ✔️ Features
 
@@ -26,13 +39,13 @@ Managing multiple API endpoints can be complex and time-consuming. `fetchff` sim
 - **Automatic Request Deduplication**: Set the time during which requests are deduplicated (treated as same request).
 - **Smart Cache Management**: Dynamically manage cache with configurable expiration, custom keys, and selective invalidation.
 - **Dynamic URLs Support**: Easily manage routes with dynamic parameters, such as `/user/:userId`.
-- **Native `fetch()` Support**: Uses the modern `fetch()` API by default, eliminating the need for libraries like Axios.
-- **Global and Per Request Error Handling**: Flexible error management at both global and individual request levels.
+- **Error Handling**: Flexible error management at both global and individual request levels.
 - **Automatic Request Cancellation**: Utilizes `AbortController` to cancel previous requests automatically.
-- **Global and Per Request Timeouts**: Set timeouts globally or per request to prevent hanging operations.
+- **Timeouts**: Set timeouts globally or per request to prevent hanging operations.
 - **Multiple Fetching Strategies**: Handle failed requests with various strategies - promise rejection, silent hang, soft fail, or default response.
 - **Multiple Requests Chaining**: Easily chain multiple requests using promises for complex API interactions.
-- **Supports All Axios Options**: Fully compatible with all Axios configuration options for seamless integration.
+- **Native `fetch()` Support**: Utilizes the built-in `fetch()` API, providing a modern and native solution for making HTTP requests.
+- **Customizable**: Fully compatible with a wide range of HTTP request configuration options, allowing for flexible and detailed request customization.
 - **Lightweight**: Minimal footprint, only a few KBs when gzipped, ensuring quick load times.
 - **Framework Independent**: Pure JavaScript solution, compatible with any framework or library.
 - **Cross-Framework compatible**: Makes it easy to integration with Frameworks and Libraries, both Client Side and Server Side.
@@ -145,15 +158,15 @@ const api = createApiFetcher({
     },
     // Define more endpoints as needed
   },
-  // You can set some settings globally. They will
-  strategy: 'softFail', // no try/catch required
+  // You can set all settings globally
+  strategy: 'softFail', // no try/catch required in case of errors
 });
 
 // Make a GET request to http://example.com/api/user-details/2/?rating[]=1&rating[]=2
-const { data, error } = await api.getUser(
-  { rating: [1, 2] }, // Append some Query Params. Passed arrays, objects etc. will be parsed automatically
-  { id: 2 }, // URL Path Params, replaces :id in the URL with 2
-);
+const { data, error } = await api.getUser({
+  params: { rating: [1, 2] }, //  Passed arrays, objects etc. will be parsed automatically
+  urlPathParams: { id: 2 }, // Replace :id with 2 in the URL
+});
 ```
 
 #### Multiple API Specific Settings
@@ -162,110 +175,26 @@ const { data, error } = await api.getUser(
   <summary><span style="cursor:pointer">Click to expand</span></summary>
   <br>
 
-There are only 2 extra settings for `createApiFetcher()`:
+All the Request Settings can be used directly in the function or in the `endpoints` property (on per-endpoint basis). There are also two extra global settings for `createApiFetcher()`:
 
 | Name      | Type              | Default | Description                                                                                                                                                                                                                                                                |
 | --------- | ----------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | endpoints | `object`          |         | List of your endpoints. Each endpoint accepts all the settings below. They can be set globally, per-endpoint or per-request.                                                                                                                                               |
 | fetcher   | `FetcherInstance` |         | A custom adapter (an instance / object) that exposes `create()` function so to create instance of API Fetcher. The `create()` should return `request()` function that would be used when making the requests. The native `fetch()` is used if the fetcher is not provided. |
 
-</details>
-
 #### How It Works
 
-<details>
-  <summary><span style="cursor:pointer">Click to expand</span></summary>
-  <br>
+The `createApiFetcher()` automatically creates and returns API methods based on the `endpoints` object provided. It also exposes some extra methods and properties that are useful to handle global config, dynamically add and remove endpoints etc.
 
-The `createApiFetcher()` automatically creates and returns API methods based on the endpoints provided. It also exposes some extra methods and properties that are useful to handle global config, dynamically add and remove endpoints etc.
+#### `api.yourEndpoint(requestConfig)`
 
-#### `api.myEndpointName(queryParamsOrBodyPayload, urlPathParams, requestConfig)`
+Where `yourEndpoint` is the name of your endpoint, the key from `endpoints` object passed to the `createApiFetcher()`.
 
-Where "myEndpointName" is the name of your endpoint from `endpoints` object passed to the `createApiFetcher()`.
+**`requestConfig`** (optional) `object` - To have more granular control over specific endpoints you can pass Request Config for particular endpoint. Check <b>Basic Settings</b> below for more information.
 
-**`queryParams`** / **`bodyPayload`** (optional) - Query Parameters or Body Payload for POST requests.
+Returns: <b>Response Object</b> (see below).
 
-The first argument of API functions is an object that can serve different purposes based on the type of request being made:
-
-- For `GET` and `HEAD` Requests: This object will be treated as query parameters. You can pass key-value pairs where the values can be strings, numbers, or arrays. For example, if you pass { foo: [1, 2] }, it will be automatically serialized into foo[]=1&foo[]=2 in the URL.
-
-- For `POST` (and similar) Requests: This object is used as the data payload. It will be sent in the body of the request. If your request also requires query parameters, you can still pass those in the first argument and then use the requestConfig.body or requestConfig.data for the payload.
-
-**Note:** If you need to use Query Params in the `POST` (and similar) requests, you can pass them in this argument and then use `body` in `requestConfig` (third argument).
-
-**`urlPathParams`** (optional) - Dynamic URL Path Parameters, e.g. `/user-details/update/:userId`
-
-The urlPathParams option allows you to dynamically replace parts of your URL with specific values in a declarative and straightforward way. This feature is particularly useful when you need to construct URLs that include variables or identifiers within the path.
-
-For example, consider the following URL template: `/user-details/update/:userId`. By using urlPathParams, you can replace `:userId` with an actual value when the API request is made.
-
-**`requestConfig`** (optional) - Request Configuration to overwrite global config in case
-To have more granular control over specific endpoints you can pass Request Config for particular endpoint. See the Settings below for more information.
-
-Returns: **`response`** or **`data`** object, depending on `flattenResponse` setting.
-
-##### Response Object without `flattenResponse` (default)
-
-When `flattenResponse` is disabled, the response object includes a more detailed structure, encapsulating various aspects of the response:
-
-- **`data`**:
-
-  - Contains the actual data returned from the API request.
-
-- **`error`**:
-
-  - An object with details about any error that occurred or `null` otherwise.
-  - **`name`**: The name of the error (e.g., 'ResponseError').
-  - **`message`**: A descriptive message about the error.
-  - **`status`**: The HTTP status code of the response (e.g., 404, 500).
-  - **`statusText`**: The HTTP status text of the response (e.g., 'Not Found', 'Internal Server Error').
-  - **`request`**: Details about the HTTP request that was sent (e.g., URL, method, headers).
-  - **`config`**: The configuration object used for the request, including URL, method, headers, and query parameters.
-  - **`response`**: The full response object received from the server, including all headers and body.
-
-- **`config`**:
-
-  - The configuration object with all settings used for the request, including URL, method, headers, and query parameters.
-
-- **`request`**:
-
-  - An alias for `config`.
-
-- **`headers`**:
-  - The response headers returned by the server, such as content type and caching information returned as simple key-value object.
-
-##### Response Object with `flattenResponse`
-
-When the `flattenResponse` option is enabled, the `data` from the API response is directly exposed as the top-level property of the response object. This simplifies access to the actual data, as it is not nested within additional response metadata.
-
-##### Key Points
-
-- **With `flattenResponse` Enabled**:
-
-  - **`data`**: Directly contains the API response data.
-
-- **With `flattenResponse` Disabled**:
-  - **`data`**: Contains the API response data nested within a broader response structure.
-  - **`error`**: Provides detailed information about any errors encountered.
-  - **`config`**: Shows the request configuration.
-  - **`request`**: Details the actual HTTP request sent.
-  - **`headers`**: Includes the response headers from the server.
-
-The `flattenResponse` option provides a more streamlined response object by placing the data directly at the top level, while disabling it gives a more comprehensive response structure with additional metadata.
-
-#### `api.config`
-
-You can access `api.config` property directly, so to modify global headers, and other settings on fly. Please mind it is a property, not a function.
-
-#### `api.endpoints`
-
-You can access `api.endpoints` property directly, so to modify endpoints list. It can be useful if you want to append or remove global endpoints. Please mind it is a property, not a function.
-
-#### `api.getInstance()`
-
-When API handler is firstly initialized, a new custom `fetcher` instance is created. You can call `api.getInstance()` if you want to get that instance directly, for example to add some interceptors. The instance of `fetcher` is created using `fetcher.create()` functions. Your fetcher can include anything. It will be triggered instead of native fetch() that is available by default.
-
-#### `api.request()`
+#### `api.request(endpointNameOrUrl, requestConfig)`
 
 The `api.request()` helper function is a versatile method provided for making API requests with customizable configurations. It allows you to perform HTTP requests to any endpoint defined in your API setup and provides a straightforward way to handle queries, path parameters, and request configurations dynamically.
 
@@ -286,21 +215,44 @@ const api = createApiFetcher({
 });
 
 // Using api.request to make a POST request
-const { data, error } = await api.request(
-  'updateUserData',
-  {
+const { data, error } = await api.request('updateUserData', {
+  body: {
     name: 'John Doe', // Data Payload
   },
-  {
-    id: '123', // URL Path Param :id
+  urlPathParams: {
+    id: '123', // URL Path Param :id will be replaced with 123
   },
-);
+});
 
 // Using api.request to make a GET request to an external API
 const { data, error } = await api.request('https://example.com/api/user', {
-  name: 'John Smith', // Query Params
+  params: {
+    name: 'John Smith', // Query Params
+  },
 });
 ```
+
+#### `api.config`
+
+You can access `api.config` property directly, so to modify global headers, and other settings on fly. Please mind it is a property, not a function.
+
+#### `api.endpoints`
+
+You can access `api.endpoints` property directly, so to modify endpoints list. It can be useful if you want to append or remove global endpoints. Please mind it is a property, not a function.
+
+#### `api.getInstance()`
+
+If you initialize API handler with your custom `fetcher`, then this function will return the instance is created using `fetcher.create()` function. Your fetcher can include anything. It will be triggering `fetcher.request()` instead of native fetch() that is available by default. It gives you ultimate flexibility on how you want your requests to be made.
+
+</details>
+
+## 🛠️ Plugin API Architecture
+
+<details>
+  <summary><span style="cursor:pointer">Click to expand</span></summary>
+  <br>
+
+![Example SVG](./docs/api-architecture.png)
 
 </details>
 
@@ -314,22 +266,88 @@ You can pass the settings:
 
 You can also use all native `fetch()` settings.
 
-|                            | Type                                                                                                   | Default | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| -------------------------- | ------------------------------------------------------------------------------------------------------ | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| baseURL<br>(alias: apiUrl) | `string`                                                                                               |         | Your API base url.                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| url                        | `string`                                                                                               |         | URL path e.g. /user-details/get                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| method                     | `string`                                                                                               | `GET`   | Default request method e.g. GET, POST, DELETE, PUT etc. All methods are supported.                                                                                                                                                                                                                                                                                                                                                                                         |
-| params                     | `object`<br>`URLSearchParams`<br>`NameValuePair[]`                                                     | `{}`    | Query Parameters - a key-value pairs added to the URL to send extra information with a request. If you pass an object, it will be automatically converted. It works with nested objects, arrays and custom data structures similarly to what `jQuery` used to do in the past. If you use `createApiFetcher()` then it is the first argument of your `api.myEndpoint()` function. You can still pass configuration in 3rd argument if want to.                              |
-| body<br>(alias: data)      | `object`<br>`string`<br>`FormData`<br>`URLSearchParams`<br>`Blob`<br>`ArrayBuffer`<br>`ReadableStream` | `{}`    | The body is the data sent with the request, such as JSON, text, or form data, included in the request payload for POST, PUT, or PATCH requests.                                                                                                                                                                                                                                                                                                                            |
-| urlPathParams              | `object`                                                                                               | `{}`    | It lets you dynamically replace segments of your URL with specific values in a clear and declarative manner. This feature is especially handy for constructing URLs with variable components or identifiers.<br><br>For example, suppose you need to update user details and have a URL template like `/user-details/update/:userId`. With `urlPathParams`, you can replace `:userId` with a real user ID, such as `123`, resulting in the URL `/user-details/update/123`. |
-| cancellable                | `boolean`                                                                                              | `false` | If `true`, any ongoing previous requests to same API endpoint will be cancelled, if a subsequent request is made meanwhile. This helps you avoid unnecessary requests to the backend.                                                                                                                                                                                                                                                                                      |
-| rejectCancelled            | `boolean`                                                                                              | `false` | If `true` and request is set to `cancellable`, a cancelled requests' promise will be rejected. By default, instead of rejecting the promise, `defaultResponse` is returned.                                                                                                                                                                                                                                                                                                |
-| flattenResponse            | `boolean`                                                                                              | `false` | Flatten nested response data, so you can avoid writing `response.data.data` and obtain response directly. Response is flattened when there is a "data" within response "data", and no other object properties set.                                                                                                                                                                                                                                                         |
-| defaultResponse            | `any`                                                                                                  | `null`  | Default response when there is no data or when endpoint fails depending on the chosen `strategy`                                                                                                                                                                                                                                                                                                                                                                           |
-| withCredentials            | `boolean`                                                                                              | `false` | Indicates whether credentials (such as cookies) should be included with the request.                                                                                                                                                                                                                                                                                                                                                                                       |
-| timeout                    | `number`                                                                                               | `30000` | You can set a request timeout for all requests or particular in milliseconds.                                                                                                                                                                                                                                                                                                                                                                                              |
-| dedupeTime                 | `number`                                                                                               | `1000`  | Time window, in milliseconds, during which identical requests are deduplicated (treated as single request).                                                                                                                                                                                                                                                                                                                                                                |
-| logger                     | `object`                                                                                               | `null`  | You can additionally specify logger object with your custom logger to automatically log the errors to the console. It should contain at least `error` and `warn` functions.                                                                                                                                                                                                                                                                                                |
+|                            | Type                                                                                                   | Default | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| -------------------------- | ------------------------------------------------------------------------------------------------------ | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| baseURL<br>(alias: apiUrl) | `string`                                                                                               |         | Your API base url.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| url                        | `string`                                                                                               |         | URL path e.g. /user-details/get                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| method                     | `string`                                                                                               | `GET`   | Default request method e.g. GET, POST, DELETE, PUT etc. All methods are supported.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| params                     | `object`<br>`URLSearchParams`<br>`NameValuePair[]`                                                     | `{}`    | Query Parameters - a key-value pairs added to the URL to send extra information with a request. If you pass an object, it will be automatically converted. It works with nested objects, arrays and custom data structures similarly to what `jQuery` used to do in the past. If you use `createApiFetcher()` then it is the first argument of your `api.yourEndpoint()` function. You can still pass configuration in 3rd argument if want to.<br><br>You can pass key-value pairs where the values can be strings, numbers, or arrays. For example, if you pass `{ foo: [1, 2] }`, it will be automatically serialized into `foo[]=1&foo[]=2` in the URL. |
+| body<br>(alias: data)      | `object`<br>`string`<br>`FormData`<br>`URLSearchParams`<br>`Blob`<br>`ArrayBuffer`<br>`ReadableStream` | `{}`    | The body is the data sent with the request, such as JSON, text, or form data, included in the request payload for POST, PUT, or PATCH requests.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| urlPathParams              | `object`                                                                                               | `{}`    | It lets you dynamically replace segments of your URL with specific values in a clear and declarative manner. This feature is especially handy for constructing URLs with variable components or identifiers.<br><br>For example, suppose you need to update user details and have a URL template like `/user-details/update/:userId`. With `urlPathParams`, you can replace `:userId` with a real user ID, such as `123`, resulting in the URL `/user-details/update/123`.                                                                                                                                                                                  |
+| flattenResponse            | `boolean`                                                                                              | `false` | When set to `true`, this option flattens the nested response data. This means you can access the data directly without having to use `response.data.data`. It works only if the response structure includes a single `data` property.                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| defaultResponse            | `any`                                                                                                  | `null`  | Default response when there is no data or when endpoint fails depending on the chosen `strategy`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| withCredentials            | `boolean`                                                                                              | `false` | Indicates whether credentials (such as cookies) should be included with the request.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| timeout                    | `number`                                                                                               | `30000` | You can set a request timeout for all requests or particular in milliseconds.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| dedupeTime                 | `number`                                                                                               | `1000`  | Time window, in milliseconds, during which identical requests are deduplicated (treated as single request).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| logger                     | `object`                                                                                               | `null`  | You can additionally specify logger object with your custom logger to automatically log the errors to the console. It should contain at least `error` and `warn` functions.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+
+## 🏷️ Headers
+
+<details>
+  <summary><span style="cursor:pointer">Click to expand</span></summary>
+  <br>
+
+`fetchff` provides robust support for handling HTTP headers in your requests. You can configure and manipulate headers at both global and per-request levels. Here’s a detailed overview of how to work with headers using `fetchff`.
+
+**Note:** Header keys are case-sensitive when specified in request objects. Ensure that the keys are provided in the correct case to avoid issues with header handling.
+
+### How to Set Per-Request Headers
+
+To set headers for a specific request, include the `headers` option in the request configuration. This option accepts an `object` where the keys are the header names and the values are the corresponding header values.
+
+### Default Headers
+
+The `fetchff` plugin automatically injects a set of default headers into every request. These default headers help ensure that requests are consistent and include necessary information for the server to process them correctly.
+
+#### Default Headers Injected
+
+- **`Content-Type`**: `application/json;charset=utf-8`
+  Specifies that the request body contains JSON data and sets the character encoding to UTF-8.
+
+- **`Accept`**: `application/json, text/plain, */*`
+  Indicates the media types that the client is willing to receive from the server. This includes JSON, plain text, and any other types.
+
+- **`Accept-Encoding`**: `gzip, deflate, br`
+  Specifies the content encoding that the client can understand, including gzip, deflate, and Brotli compression.
+
+### Setting Headers Globally
+
+You can set default headers that will be included in all requests made with a specific `createApiFetcher` instance. This is useful for setting common headers like authentication tokens or content types.
+
+#### Example: Setting Headers Globally
+
+```typescript
+import { createApiFetcher } from 'fetchff';
+
+const api = createApiFetcher({
+  baseURL: 'https://api.example.com/',
+  headers: {
+    'Content-Type': 'application/json',
+    Authorization: 'Bearer YOUR_TOKEN',
+  },
+  // other configurations
+});
+```
+
+### Setting Per-Request Headers
+
+In addition to global default headers, you can also specify headers on a per-request basis. This allows you to override global headers or set specific headers for individual requests.
+
+#### Example: Setting Per-Request Headers
+
+```typescript
+import { fetchf } from 'fetchff';
+
+// Example of making a GET request with custom headers
+const { data } = await fetchf('https://api.example.com/endpoint', {
+  headers: {
+    Authorization: 'Bearer YOUR_ACCESS_TOKEN',
+    'Custom-Header': 'CustomValue',
+  },
+});
+```
+
+</details>
 
 ## 🌀 Interceptors
 
@@ -451,7 +469,7 @@ _Default:_ `reject`.
 <details>
   <summary><span style="cursor:pointer">Click to expand</span></summary>
   <br>
-  The caching mechanism in <b>fetchf()</b> and <b>createApiFetcher()</b> enhances performance by reducing redundant network requests and reusing previously fetched data when appropriate. This system ensures that cached responses are managed efficiently and only used when considered "fresh." Below is a breakdown of the key parameters that control caching behavior and their default values.
+  The caching mechanism in <b>fetchf()</b> and <b>createApiFetcher()</b> enhances performance by reducing redundant network requests and reusing previously fetched data when appropriate. This system ensures that cached responses are managed efficiently and only used when considered "fresh". Below is a breakdown of the key parameters that control caching behavior and their default values.
 
 ### Example
 
@@ -491,7 +509,7 @@ The caching system can be fine-tuned using the following options when configurin
 ### How It Works
 
 1. **Request and Cache Check**:  
-   When a request is made, the cache is first checked for an existing entry. If a valid cache entry is found and is still "fresh" (based on `cacheTime`), the cached response is returned immediately.
+   When a request is made, the cache is first checked for an existing entry. If a valid cache entry is found and is still "fresh" (based on `cacheTime`), the cached response is returned immediately. Note that when the native `fetch()` setting called `cache` is set to `reload` the request will automatically skip the internal cache.
 
 2. **Cache Key**:  
    A cache key uniquely identifies each request. By default, the key is generated based on the URL and other relevant request options. Custom keys can be provided using the `cacheKey` function.
@@ -504,6 +522,54 @@ The caching system can be fine-tuned using the following options when configurin
 
 5. **Final Outcome**:  
    If no valid cache entry is found, or the cache is skipped or busted, the request proceeds to the network, and the response is cached based on the provided configuration.
+
+</details>
+
+## ✋ Automatic Request Cancellation
+
+<details>
+  <summary><span style="cursor:pointer">Click to expand</span></summary>
+  <br>
+<b>fetchff</b> simplifies making API requests by allowing customizable features such as request cancellation, retries, and response flattening. When a new request is made to the same API endpoint, the plugin automatically cancels any previous requests that haven't completed, ensuring that only the most recent request is processed.
+<br><br>
+It also supports:
+
+- Automatic retries for failed requests with configurable delay and exponential backoff.
+- Optional flattening of response data for easier access, removing nested `data` fields.
+
+You can choose to reject cancelled requests or return a default response instead through the `defaultResponse` setting.
+
+### Example
+
+```javascript
+import { fetchf } from 'fetchff';
+
+// Function to send the request
+const sendRequest = () => {
+  // In this example, the previous requests are automatically cancelled
+  // You can also control "dedupeTime" setting in order to fire the requests more or less frequently
+  fetchf('https://example.com/api/messages/update', {
+    method: 'POST',
+    cancellable: true,
+    rejectCancelled: true,
+  });
+};
+
+// Attach keydown event listener to the input element with id "message"
+document.getElementById('message')?.addEventListener('keydown', sendRequest);
+```
+
+### Configuration
+
+- **`cancellable`**:
+  Type: `boolean`
+  Default: `false`
+  If set to `true`, any ongoing previous requests to the same API endpoint will be automatically cancelled when a subsequent request is made before the first one completes. This is useful in scenarios where repeated requests are made to the same endpoint (e.g., search inputs) and only the latest response is needed, avoiding unnecessary requests to the backend.
+
+- **`rejectCancelled`**:
+  Type: `boolean`
+  Default: `false`
+  Works in conjunction with the `cancellable` option. If set to `true`, the promise of a cancelled request will be rejected. By default (`false`), when a request is cancelled, instead of rejecting the promise, a `defaultResponse` will be returned, allowing graceful handling of cancellation without errors.
 
 </details>
 
@@ -643,33 +709,119 @@ The retry mechanism is configured via the `retry` option when instantiating the 
 
 </details>
 
-## Typings
+## 🧩 Response Data Transformation
 
 <details>
   <summary><span style="cursor:pointer">Click to expand</span></summary>
   <br>
 
-The `fetchff` package provides comprehensive TypeScript typings to enhance development experience and ensure type safety. Below are details on the available types for both `createApiFetcher()` and `fetchf()`.
+The `fetchff` plugin automatically handles response data transformation for any instance of `Response` returned by the `fetch()` (or a custom `fetcher`) based on the `Content-Type` header, ensuring that data is parsed correctly according to its format.
+
+### **How It Works**
+
+- **JSON (`application/json`):** Parses the response as JSON.
+- **Form Data (`multipart/form-data`):** Parses the response as `FormData`.
+- **Binary Data (`application/octet-stream`):** Parses the response as a `Blob`.
+- **URL-encoded Form Data (`application/x-www-form-urlencoded`):** Parses the response as `FormData`.
+- **Text (`text/*`):** Parses the response as plain text.
+
+If the `Content-Type` header is missing or not recognized, the plugin defaults to attempting JSON parsing. If that fails, it will try to parse the response as text.
+
+This approach ensures that the `fetchff` plugin can handle a variety of response formats, providing a flexible and reliable method for processing data from API requests.
+
+### `onResponse` Interceptor
+
+You can use the `onResponse` interceptor to customize how the response is handled before it reaches your application. This interceptor gives you access to the raw `Response` object, allowing you to transform the data or modify the response behavior based on your needs.
+
+</details>
+
+## 📄 Response Object
+
+<details>
+  <summary><span style="cursor:pointer">Click to expand</span></summary>
+  <br>
+Each request returns the following Response Object of type <b>FetchResponse&lt;ResponseData&gt;</b> where ResponseData is usually your custom interface or `object`.
+
+### Structure of the Response Object
+
+- **`data`**:
+
+  - **Type**: `ResponseData` (or your custom type passed through generic)
+
+  - Contains the actual data returned from the API request, `null` or value of `defaultResponse` setting, if nothing is found.
+
+- **`error`**:
+
+  - **Type**: `ResponseErr`
+
+  - An object with details about any error that occurred or `null` otherwise.
+  - **`name`**: The name of the error (e.g., 'ResponseError').
+  - **`message`**: A descriptive message about the error.
+  - **`status`**: The HTTP status code of the response (e.g., 404, 500).
+  - **`statusText`**: The HTTP status text of the response (e.g., 'Not Found', 'Internal Server Error').
+  - **`request`**: Details about the HTTP request that was sent (e.g., URL, method, headers).
+  - **`config`**: The configuration object used for the request, including URL, method, headers, and query parameters.
+  - **`response`**: The full response object received from the server, including all headers and body.
+
+- **`config`**:
+
+  - **Type**: `RequestConfig`
+  - The configuration object with all settings used for the request, including URL, method, headers, and query parameters.
+
+- **`status`**:
+
+  - **Type**: `number`
+  - The HTTP status code of the response (e.g., 404, 500).
+
+- **`statusText`**:
+
+  - **Type**: `string`
+  - The HTTP status text of the response (e.g., 'Not Found', 'Internal Server Error').
+
+- **`request`**:
+
+  - **Type**: `RequestConfig`
+  - An alias for `config`.
+
+- **`headers`**:
+
+  - **Type**: `HeadersObject`
+  - The response headers returned by the server, such as content type and caching information returned as simple key-value object.
+
+The whole response of the native `fetch()` is attached as well.
+
+</details>
+
+## 📦 Typings
+
+<details>
+  <summary><span style="cursor:pointer">Click to expand</span></summary>
+  <br>
+
+The `fetchff` package provides comprehensive TypeScript typings to enhance development experience and ensure type safety. Below are details on the available, exportable types for both `createApiFetcher()` and `fetchf()`.
 
 ### Generic Typings
 
 The `fetchff` package includes several generic types to handle various aspects of API requests and responses:
 
-- **`QueryParams<T = unknown>`**: Represents query parameters for requests. Can be an object, `URLSearchParams`, an array of name-value pairs, or `null`.
-- **`BodyPayload<T = any>`**: Represents the request body. Can be `BodyInit`, an object, an array, a string, or `null`.
-- **`QueryParamsOrBody<T = unknown>`**: Union type for query parameters or body payload. Can be either `QueryParams<T>` or `BodyPayload<T>`.
-- **`UrlPathParams<T = unknown>`**: Represents URL path parameters. Can be an object or `null`.
+- **`QueryParams<ParamsType>`**: Represents query parameters for requests. Can be an object, `URLSearchParams`, an array of name-value pairs, or `null`.
+- **`BodyPayload<PayloadType>`**: Represents the request body. Can be `BodyInit`, an object, an array, a string, or `null`.
+- **`UrlPathParams<UrlParamsType>`**: Represents URL path parameters. Can be an object or `null`.
+- **`DefaultResponse`**: Default response for all requests. Default is: `any`.
 
 ### Typings for `createApiFetcher()`
 
-The `createApiFetcher()` function provides a robust set of types to define and manage API interactions. The key types available are:
+The `createApiFetcher<EndpointsMethods, EndpointsConfiguration>()` function provides a robust set of types to define and manage API interactions.
 
-- **`Endpoint<ResponseData = APIResponse, QueryParams = QueryParamsOrBody, PathParams = UrlPathParams>`**: Represents an API endpoint, allowing functions to be defined with optional query parameters, URL path parameters, and request configurations.
-- **`EndpointsMethods`**: Represents the list of API endpoints with their respective settings. It is your own interface that you can pass. It will be cross-checked against the `endpoints` property of the `createApiFetcher()` configuration. Each endpoint can be configured with its own specific settings such as query parameters, URL path parameters, and request configurations.
-- **`EndpointsCfg`**: Configuration for API endpoints, including query parameters, URL path parameters, and additional request configurations.
+The key types are:
+
+- **`EndpointsMethods`**: Represents the list of API endpoints with their respective settings. It is your own interface that you can pass to this generic. It will be cross-checked against the `endpoints` object in your `createApiFetcher()` configuration.<br><br>Each endpoint can be configured with its own specific settings such as Response Payload, Query Parameters and URL Path Parameters.
+- **`Endpoint<ResponseData = DefaultResponse, QueryParams = DefaultParams, PathParams = DefaultUrlParams, RequestBody = DefaultPayload>`**: Represents an API endpoint function, allowing to be defined with optional query parameters, URL path parameters, request configuration (settings), and request body (data).
+- **`EndpointsSettings`**: Configuration for API endpoints, including query parameters, URL path parameters, and additional request configurations. Default is `typeof endpoints`.
 - **`RequestInterceptor`**: Function to modify request configurations before they are sent.
 - **`ResponseInterceptor`**: Function to process responses before they are handled by the application.
 - **`ErrorInterceptor`**: Function to handle errors when a request fails.
+- **`CreatedCustomFetcherInstance`**: Represents the custom `fetcher` instance created by its `create()` function.
 
 For a full list of types and detailed definitions, refer to the [api-handler.ts](https://github.com/MattCCC/fetchff/blob/docs-update/src/types/api-handler.ts) file.
 
@@ -677,9 +829,8 @@ For a full list of types and detailed definitions, refer to the [api-handler.ts]
 
 The `fetchf()` function includes types that help configure and manage network requests effectively:
 
+- **`RequestHandlerConfig`**: Main configuration options for the `fetchf()` function, including request settings, interceptors, and retry configurations.
 - **`RetryConfig`**: Configuration options for retry mechanisms, including the number of retries, delay between retries, and backoff strategies.
-- **`FetchfConfig`**: Configuration options for the `fetchf()` function, including request settings, interceptors, and retry configurations.
-- **`RequestHandler`**: Represents the request handler instance created by `fetchf()`. This includes methods for making requests and managing configurations.
 - **`CacheConfig`**: Configuration options for caching, including cache time, custom cache keys, and cache invalidation rules.
 - **`PollingConfig`**: Configuration options for polling, including polling intervals and conditions to stop polling.
 - **`ErrorStrategy`**: Defines strategies for handling errors, such as rejection, soft fail, default response, and silent modes.
@@ -739,7 +890,6 @@ Here’s an example of configuring and using the `createApiFetcher()` with all a
 ```typescript
 const api = createApiFetcher({
   baseURL: 'https://api.example.com/',
-  retry: retryConfig,
   endpoints: {
     getBooks: {
       url: 'books/all',
@@ -841,9 +991,14 @@ const api = createApiFetcher({
 
 // Make a wrapper function and call your API
 async function sendAndGetMessage() {
-  await api.sendMessage({ message: 'Text' }, { postId: 1 });
+  await api.sendMessage({
+    body: { message: 'Text' },
+    urlPathParams: { postId: 1 },
+  });
 
-  const { data } = await api.getMessage({ postId: 1 });
+  const { data } = await api.getMessage({
+    params: { postId: 1 },
+  });
 }
 
 // Invoke your wrapper function
@@ -884,7 +1039,7 @@ interface BookPathParams {
 
 ```typescript
 // api.ts
-import type { DefaultEndpoints } from 'fetchff';
+import type { Endpoint } from 'fetchff';
 import { createApiFetcher } from 'fetchff';
 
 const endpoints = {
@@ -901,17 +1056,22 @@ interface EndpointsList {
   fetchBook: Endpoint<Book, BookQueryParams, BookPathParams>;
 }
 
-const api = createApiFetcher<EndpointsList, typeof endpoints>({
+type EndpointsConfiguration = typeof endpoints;
+
+const api = createApiFetcher<EndpointsList, EndpointsConfiguration>({
   apiUrl: 'https://example.com/api/',
   endpoints,
 });
 ```
 
 ```typescript
-const book = await api.fetchBook({ newBook: true }, { bookId: 1 });
+const book = await api.fetchBook({
+  params: { newBook: true },
+  urlPathParams: { bookId: 1 },
+});
 
 // Will return an error since "rating" does not exist in "BookQueryParams"
-const anotherBook = await api.fetchBook({ rating: 5 });
+const anotherBook = await api.fetchBook({ params: { rating: 5 } });
 
 // You can also pass generic type directly to the request
 const books = await api.fetchBooks<Books>();
@@ -950,7 +1110,9 @@ interface EndpointsList {
   getPosts: Endpoint<PostsResponse, PostsQueryParams, PostsPathParams>;
 }
 
-const api = createApiFetcher<EndpointsList, typeof endpoints>({
+type EndpointsConfiguration = typeof endpoints;
+
+const api = createApiFetcher<EndpointsList, EndpointsConfiguration>({
   apiUrl: 'https://example.com/api',
   endpoints,
   onError(error) {
@@ -963,20 +1125,26 @@ const api = createApiFetcher<EndpointsList, typeof endpoints>({
 
 // Fetch user data - "data" will return data directly
 // GET to: http://example.com/api/user-details?userId=1&ratings[]=1&ratings[]=2
-const { data } = await api.getUser({ userId: 1, ratings: [1, 2] });
+const { data } = await api.getUser({ params: { userId: 1, ratings: [1, 2] } });
 
 // Fetch posts - "data" will return data directly
 // GET to: http://example.com/api/posts/myTestSubject?additionalInfo=something
-const { data } = await api.getPosts(
-  { additionalInfo: 'something' },
-  { subject: 'test' },
-);
+const { data } = await api.getPosts({
+  params: { additionalInfo: 'something' },
+  urlPathParams: { subject: 'test' },
+});
 
 // Send POST request to update userId "1"
-await api.updateUserDetails({ name: 'Mark' }, { userId: 1 });
+await api.updateUserDetails({
+  body: { name: 'Mark' },
+  urlPathParams: { userId: 1 },
+});
 
 // Send POST request to update array of user ratings for userId "1"
-await api.updateUserDetails({ name: 'Mark', ratings: [1, 2] }, { userId: 1 });
+await api.updateUserDetails({
+  body: { name: 'Mark', ratings: [1, 2] },
+  urlPathParams: { userId: 1 },
+});
 ```
 
 In the example above we fetch data from an API for user with an ID of 1. We also make a GET request to fetch some posts, update user's name to Mark. If you want to use more strict typings, please check TypeScript Usage section below.
@@ -1048,7 +1216,10 @@ const api = createApiFetcher({
 
 async function sendMessage() {
   try {
-    await api.sendMessage({ message: 'Text' }, { postId: 1 });
+    await api.sendMessage({
+      body: { message: 'Text' },
+      urlPathParams: { postId: 1 },
+    });
 
     console.log('Message sent successfully');
   } catch (error) {
@@ -1082,10 +1253,10 @@ const api = createApiFetcher({
 });
 
 async function sendMessage() {
-  const { data, error } = await api.sendMessage(
-    { message: 'Text' },
-    { postId: 1 },
-  );
+  const { data, error } = await api.sendMessage({
+    body: { message: 'Text' },
+    urlPathParams: { postId: 1 },
+  });
 
   if (error) {
     console.error('Request Error', error);
@@ -1122,19 +1293,17 @@ const api = createApiFetcher({
 });
 
 async function sendMessage() {
-  const { data } = await api.sendMessage(
-    { message: 'Text' },
-    { postId: 1 },
-    {
-      strategy: 'defaultResponse',
-      // null is a default setting, you can change it to empty {} or anything
-      // defaultResponse: null,
-      onError(error) {
-        // Callback is still triggered here
-        console.log(error);
-      },
+  const { data } = await api.sendMessage({
+    body: { message: 'Text' },
+    urlPathParams: { postId: 1 },
+    strategy: 'defaultResponse',
+    // null is a default setting, you can change it to empty {} or anything
+    // defaultResponse: null,
+    onError(error) {
+      // Callback is still triggered here
+      console.log(error);
     },
-  );
+  });
 
   if (data === null) {
     // Because of the strategy, if API call fails, it will just return null
@@ -1173,16 +1342,14 @@ const api = createApiFetcher({
 });
 
 async function sendMessage() {
-  await api.sendMessage(
-    { message: 'Text' },
-    { postId: 1 },
-    {
-      strategy: 'silent',
-      onError(error) {
-        console.log(error);
-      },
+  await api.sendMessage({
+    body: { message: 'Text' },
+    urlPathParams: { postId: 1 },
+    strategy: 'silent',
+    onError(error) {
+      console.log(error);
     },
-  );
+  });
 
   // Because of the strategy, if API call fails, it will never reach this point. Otherwise try/catch would need to be required.
   console.log('Message sent successfully');
@@ -1214,22 +1381,61 @@ const api = createApiFetcher({
 });
 
 async function sendMessage() {
-  await api.sendMessage(
-    { message: 'Text' },
-    { postId: 1 },
-    {
-      onError(error) {
-        console.log('Error', error.message);
-        console.log(error.response);
-        console.log(error.config);
-      },
+  await api.sendMessage({
+    body: { message: 'Text' },
+    urlPathParams: { postId: 1 },
+    onError(error) {
+      console.log('Error', error.message);
+      console.log(error.response);
+      console.log(error.config);
     },
-  );
+  });
 
   console.log('Message sent successfully');
 }
 
 sendMessage();
+```
+
+</details>
+
+#### Request Chaining
+
+<details>
+  <summary><span style="cursor:pointer">Click to expand</span></summary>
+  <br>
+
+In this example, we make an initial request to get a user's details, then use that data to fetch additional information in a subsequent request. This pattern allows you to perform multiple asynchronous operations in sequence, using the result of one request to drive the next.
+
+```typescript
+import { createApiFetcher } from 'fetchff';
+
+// Initialize API fetcher with endpoints
+const api = createApiFetcher({
+  endpoints: {
+    getUser: { url: '/user' },
+    createPost: { url: '/post' },
+  },
+  apiUrl: 'https://example.com/api',
+});
+
+async function fetchUserAndCreatePost(userId: number, postData: any) {
+  // Fetch user data
+  const { data: userData } = await api.getUser({ params: { userId } });
+
+  // Create a new post with the fetched user data
+  return await api.createPost({
+    body: {
+      ...postData,
+      userId: userData.id, // Use the user's ID from the response
+    },
+  });
+}
+
+// Example usage
+fetchUserAndCreatePost(1, { title: 'New Post', content: 'This is a new post.' })
+  .then((response) => console.log('Post created:', response))
+  .catch((error) => console.error('Error:', error));
 ```
 
 </details>
@@ -1243,12 +1449,14 @@ sendMessage();
 <details>
   <summary><span style="cursor:pointer">Click to expand</span></summary>
   <br>
-  You can implement a `useApi()` hook to handle the data fetching. Since this package has everything included, you don't really need anything more than a simple hook to utilize.
+  You can implement a `useApi()` hook to handle the data fetching. Since this package has everything included, you don't really need anything more than a simple hook to utilize.<br><br>
 
-```typescript
+Create `api.ts` file:
+
+```tsx
 import { createApiFetcher } from 'fetchff';
 
-const api = createApiFetcher({
+export const api = createApiFetcher({
   apiUrl: 'https://example.com/api',
   strategy: 'softFail',
   endpoints: {
@@ -1257,10 +1465,14 @@ const api = createApiFetcher({
     },
   },
 });
+```
 
+Create `useApi.ts` file:
+
+```tsx
 export const useApi = (apiFunction) => {
   const [data, setData] = useState(null);
-  const [error,] = useState(null);
+  const [error] = useState(null);
   const [isLoading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -1270,9 +1482,9 @@ export const useApi = (apiFunction) => {
       const { data, error } = await apiFunction();
 
       if (error) {
-          setError(error);
+        setError(error);
       } else {
-          setData(data);
+        setData(data);
       }
 
       setLoading(false);
@@ -1281,18 +1493,25 @@ export const useApi = (apiFunction) => {
     fetchData();
   }, [apiFunction]);
 
-  return {data, error, isLoading, setData};
+  return { data, error, isLoading, setData };
 };
+```
 
-const ProfileComponent = ({ id }) => {
-  const { data: profile, error, isLoading } = useApi(() => api.getProfile({ id }));
+Call the API in the components:
+
+```tsx
+export const ProfileComponent = ({ id }) => {
+  const {
+    data: profile,
+    error,
+    isLoading,
+  } = useApi(() => api.getProfile({ urlPathParams: { id } }));
 
   if (isLoading) return <div>Loading...</div>;
   if (error) return <div>Error: {error.message}</div>;
 
   return <div>{JSON.stringify(profile)}</div>;
 };
-
 ```
 
 </details>
@@ -1305,7 +1524,7 @@ const ProfileComponent = ({ id }) => {
 
 Integrate `fetchff` with React Query to streamline your data fetching:
 
-```typescript
+```tsx
 import { createApiFetcher } from 'fetchff';
 
 const api = createApiFetcher({
@@ -1318,7 +1537,9 @@ const api = createApiFetcher({
 });
 
 export const useProfile = ({ id }) => {
-  return useQuery(['profile', id], () => api.getProfile({ id }));
+  return useQuery(['profile', id], () =>
+    api.getProfile({ urlPathParams: { id } }),
+  );
 };
 ```
 
@@ -1336,7 +1557,7 @@ Single calls:
 
 ```typescript
 const fetchProfile = ({ id }) =>
-  fetchff('https://example.com/api/profile/:id', { urlPathParams: id });
+  fetchf('https://example.com/api/profile/:id', { urlPathParams: id });
 
 export const useProfile = ({ id }) => {
   const { data, error } = useSWR(['profile', id], fetchProfile);
@@ -1351,7 +1572,7 @@ export const useProfile = ({ id }) => {
 
 Many endpoints:
 
-```typescript
+```tsx
 import { createApiFetcher } from 'fetchff';
 import useSWR from 'swr';
 
@@ -1365,7 +1586,7 @@ const api = createApiFetcher({
 });
 
 export const useProfile = ({ id }) => {
-  const fetcher = () => api.getProfile({ id });
+  const fetcher = () => api.getProfile({ urlPathParams: { id } });
 
   const { data, error } = useSWR(['profile', id], fetcher);
 
@@ -1411,7 +1632,7 @@ export function useProfile(id: number) {
   const isError = ref(null);
 
   const fetchProfile = async () => {
-    const { data, error } = await api.getProfile({ id });
+    const { data, error } = await api.getProfile({ urlPathParams: { id } });
 
     if (error) isError.value = error;
     else if (data) profile.value = data;
@@ -1451,6 +1672,43 @@ export function useProfile(id: number) {
   });
 </script>
 ```
+
+</details>
+
+## 🛠️ Compatibility and Polyfills
+
+<details>
+  <summary><span style="cursor:pointer">Click to expand</span></summary>
+
+### Compatibility
+
+While `fetchff` is designed to work seamlessly with modern environments (ES2018+), some older browsers or specific edge cases might require additional support.
+
+Currently, `fetchff` offers three types of builds:
+
+1. <b>Browser ESM build (.mjs):</b> Ideal for modern browsers and module-based environments (when you use the [type="module"](https://caniuse.com/?search=type%3D%22module%22) attribute).
+   Location: `dist/browser/index.mjs`
+   Compatibility: `ES2018+`
+
+2. <b>Standard Browser build:</b> A global UMD bundle, compatible with older browsers.
+   Location: `dist/browser/index.global.js`
+   Compatibility: `ES2018+`
+
+3. <b>Node.js CJS build:</b> Designed for Node.js environments that rely on CommonJS modules.
+   Location: `dist/node/index.js`
+   Compatibility: `Node.js 18+`
+
+For projects that need to support older browsers, especially those predating ES2018, additional polyfills or transpilation may be necessary. Consider using tools like Babel, SWC or core-js to ensure compatibility with environments that do not natively support ES2018+ features. Bundlers like Webpack or Rollup usually handle these concerns out of the box.
+
+You can check [Can I Use ES2018](https://github.com/github/fetch) to verify browser support for specific ES2018 features.
+
+### Polyfills
+
+For environments that do not support modern JavaScript features or APIs, you might need to include polyfills. Some common polyfills include:
+
+- **Fetch Polyfill**: For environments that do not support the native `fetch` API. You can use libraries like [whatwg-fetch](https://github.com/github/fetch) to provide a fetch implementation.
+- **Promise Polyfill**: For older browsers that do not support Promises. Libraries like [es6-promise](https://github.com/stefanpenner/es6-promise) can be used.
+- **AbortController Polyfill**: For environments that do not support the `AbortController` API used for aborting fetch requests. You can use the [abort-controller](https://github.com/mysticatea/abort-controller) polyfill.
 
 </details>
 

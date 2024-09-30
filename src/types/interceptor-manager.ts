@@ -5,16 +5,22 @@ import type {
   ResponseError,
 } from './request-handler';
 
-export type RequestInterceptor<D = any> = (
-  config: RequestHandlerConfig<D>,
+export type RequestInterceptor<RequestBody = any, ResponseData = any> = (
+  config: RequestHandlerConfig<ResponseData, RequestBody>,
 ) =>
-  | RequestHandlerConfig<D>
+  | RequestHandlerConfig<ResponseData, RequestBody>
   | void
-  | Promise<RequestHandlerConfig<D>>
+  | Promise<RequestHandlerConfig<ResponseData, RequestBody>>
   | Promise<void>;
 
-export type ResponseInterceptor<D = any> = (
-  response: FetchResponse<D>,
-) => FetchResponse<D> | void | Promise<FetchResponse<D>> | Promise<void>;
+export type ResponseInterceptor<ResponseData = any> = (
+  response: FetchResponse<ResponseData>,
+) =>
+  | FetchResponse<ResponseData>
+  | void
+  | Promise<FetchResponse<ResponseData>>
+  | Promise<void>;
 
-export type ErrorInterceptor = (error: ResponseError) => unknown;
+export type ErrorInterceptor<ResponseData = any, RequestBody = any> = (
+  error: ResponseError<ResponseData, RequestBody>,
+) => unknown;

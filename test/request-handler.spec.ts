@@ -8,7 +8,8 @@ import type {
   RequestHandlerReturnType,
 } from '../src/types/request-handler';
 import { fetchf } from '../src';
-import { ABORT_ERROR } from '../src/const';
+import { ABORT_ERROR } from '../src/constants';
+import { ResponseErr } from '../src/response-error';
 
 jest.mock('../src/utils', () => {
   const originalModule = jest.requireActual('../src/utils');
@@ -28,6 +29,15 @@ describe('Request Handler', () => {
   const responseMock = {
     data: {
       test: 'data',
+    },
+  };
+  const nestedDataMock = {
+    data: {
+      data: {
+        data: {
+          test: 'data',
+        },
+      },
     },
   };
 
@@ -62,9 +72,10 @@ describe('Request Handler', () => {
     });
 
     const buildConfig = (method: string, url: string, data: any, config: any) =>
-      (requestHandler as any).buildConfig(url, data, {
+      (requestHandler as any).buildConfig(url, {
         ...config,
         method,
+        data,
       });
 
     it('should not differ when the same request is made', () => {
@@ -89,13 +100,14 @@ describe('Request Handler', () => {
       const result = buildConfig(
         'GET',
         'https://example.com/api',
-        { foo: 'bar' },
+        {},
         {
           headers,
+          params: { foo: 'bar' },
         },
       );
 
-      expect(result).toEqual({
+      expect(result).toMatchObject({
         url: 'https://example.com/api?foo=bar',
         method: 'GET',
         headers,
@@ -112,7 +124,7 @@ describe('Request Handler', () => {
         },
       );
 
-      expect(result).toEqual({
+      expect(result).toMatchObject({
         url: 'https://example.com/api',
         method: 'POST',
         headers,
@@ -130,7 +142,7 @@ describe('Request Handler', () => {
         },
       );
 
-      expect(result).toEqual({
+      expect(result).toMatchObject({
         url: 'https://example.com/api',
         method: 'PUT',
         headers,
@@ -148,7 +160,7 @@ describe('Request Handler', () => {
         },
       );
 
-      expect(result).toEqual({
+      expect(result).toMatchObject({
         url: 'https://example.com/api',
         method: 'DELETE',
         headers,
@@ -160,14 +172,14 @@ describe('Request Handler', () => {
       const result = buildConfig(
         'POST',
         'https://example.com/api',
-        { foo: 'bar' },
+        { additional: 'info' },
         {
           headers: { 'X-CustomHeader': 'Some token' },
-          data: { additional: 'info' },
+          params: { foo: 'bar' },
         },
       );
 
-      expect(result).toEqual({
+      expect(result).toMatchObject({
         url: 'https://example.com/api?foo=bar',
         method: 'POST',
         headers: {
@@ -180,7 +192,7 @@ describe('Request Handler', () => {
     it('should handle empty data and config', () => {
       const result = buildConfig('POST', 'https://example.com/api', null, {});
 
-      expect(result).toEqual({
+      expect(result).toMatchObject({
         url: 'https://example.com/api',
         method: 'POST',
         body: null,
@@ -195,7 +207,7 @@ describe('Request Handler', () => {
         {},
       );
 
-      expect(result).toEqual({
+      expect(result).toMatchObject({
         url: 'https://example.com/api',
         method: 'POST',
         body: 'rawData',
@@ -206,11 +218,13 @@ describe('Request Handler', () => {
       const result = buildConfig(
         'head',
         'https://example.com/api',
-        { foo: [1, 2] },
         {},
+        {
+          params: { foo: [1, 2] },
+        },
       );
 
-      expect(result).toEqual({
+      expect(result).toMatchObject({
         url: 'https://example.com/api?foo[]=1&foo[]=2',
         method: 'HEAD',
       });
@@ -220,11 +234,13 @@ describe('Request Handler', () => {
       const result = buildConfig(
         'POST',
         'https://example.com/api',
-        { foo: 'bar' },
-        { data: { additional: 'info' } },
+        { additional: 'info' },
+        {
+          params: { foo: 'bar' },
+        },
       );
 
-      expect(result).toEqual({
+      expect(result).toMatchObject({
         url: 'https://example.com/api?foo=bar',
         method: 'POST',
         body: JSON.stringify({ additional: 'info' }),
@@ -236,7 +252,7 @@ describe('Request Handler', () => {
         withCredentials: true,
       });
 
-      expect(result).toEqual({
+      expect(result).toMatchObject({
         url: 'https://example.com/api',
         method: 'POST',
         credentials: 'include',
@@ -254,7 +270,7 @@ describe('Request Handler', () => {
         {},
       );
 
-      expect(result).toEqual({
+      expect(result).toMatchObject({
         url: 'https://example.com/api',
         method: 'POST',
         body: JSON.stringify({ foo: 'bar' }),
@@ -266,12 +282,17 @@ describe('Request Handler', () => {
         'GET',
         'https://example.com/api',
         { foo: 'bar' },
-        { body: { additional: 'info' }, data: { additional: 'info' } },
+        {
+          body: { additional: 'info' },
+          data: { additional: 'info' },
+          params: { foo: 'bar' },
+        },
       );
 
-      expect(result).toEqual({
+      expect(result).toMatchObject({
         url: 'https://example.com/api?foo=bar',
         method: 'GET',
+        params: { foo: 'bar' },
       });
     });
   });
@@ -344,7 +365,7 @@ describe('Request Handler', () => {
         .mockRejectedValue(new Error('Request Failed'));
 
       try {
-        await requestHandler.request(apiUrl, null, {
+        await requestHandler.request(apiUrl, {
           strategy: 'reject',
         });
       } catch (error) {
@@ -802,7 +823,6 @@ describe('Request Handler', () => {
         cancellable: true,
         rejectCancelled: true,
         strategy: 'reject',
-        flattenResponse: true,
         defaultResponse: null,
         onError: () => {},
       });
@@ -823,10 +843,9 @@ describe('Request Handler', () => {
       });
 
       const url = '/test-endpoint';
-      const data = { key: 'value' };
-      const config = {};
+      const params = { key: 'value' };
 
-      await requestHandler.request(url, data, config);
+      await requestHandler.request(url, { params });
 
       expect(spy).toHaveBeenCalledTimes(4);
     });
@@ -838,14 +857,14 @@ describe('Request Handler', () => {
       });
 
       const url = '/test-endpoint';
-      const data = { key: 'value' };
+      const params = { key: 'value' };
       const config = {
         onRequest(config) {
           config.headers = { 'Modified-Header': 'ModifiedValue' };
         },
       } as RequestConfig;
 
-      await requestHandler.request(url, data, config);
+      await requestHandler.request(url, { ...config, params });
 
       expect(spy).toHaveBeenCalledTimes(4);
       expect(fetchMock.lastOptions()).toMatchObject({
@@ -854,25 +873,31 @@ describe('Request Handler', () => {
     });
 
     it('should handle modified response in applyInterceptor', async () => {
+      const modifiedUrl = 'https://api.example.com/test-endpoint?key=value';
+
       fetchMock.mock(
-        'https://api.example.com/test-endpoint?key=value',
+        modifiedUrl,
         new Response(JSON.stringify({ username: 'original response' }), {
           status: 200,
         }),
       );
 
       const url = '/test-endpoint';
-      const data = { key: 'value' };
-      const config: RequestConfig = {
+      const params = { key: 'value' };
+      const requestConfig: RequestConfig = {
         async onResponse(response) {
           response.data = { username: 'modified response' };
         },
       };
 
-      const response = await requestHandler.request(url, data, config);
+      const { data, config } = await requestHandler.request(url, {
+        ...requestConfig,
+        params,
+      });
 
       expect(spy).toHaveBeenCalledTimes(4);
-      expect(response).toMatchObject({ username: 'modified response' });
+      expect(data).toMatchObject({ username: 'modified response' });
+      expect(config.url).toContain(modifiedUrl);
     });
 
     it('should handle request failure with interceptors', async () => {
@@ -882,10 +907,12 @@ describe('Request Handler', () => {
       });
 
       const url = '/test-endpoint';
-      const data = { key: 'value' };
+      const params = { key: 'value' };
       const config = {};
 
-      await expect(requestHandler.request(url, data, config)).rejects.toThrow(
+      await expect(
+        requestHandler.request(url, { ...config, params }),
+      ).rejects.toThrow(
         'https://api.example.com/test-endpoint?key=value failed! Status: 500',
       );
 
@@ -900,10 +927,12 @@ describe('Request Handler', () => {
       });
 
       const url = '/test-endpoint';
-      const data = { key: 'value' };
+      const params = { key: 'value' };
       const config = {};
 
-      await expect(requestHandler.request(url, data, config)).rejects.toThrow(
+      await expect(
+        requestHandler.request(url, { ...config, params }),
+      ).rejects.toThrow(
         'https://api.example.com/test-endpoint?key=value failed! Status: 404',
       );
 
@@ -977,7 +1006,7 @@ describe('Request Handler', () => {
         .mockRejectedValue(new Error('Request Failed'));
 
       try {
-        await requestHandler.request(apiUrl, null, {
+        await requestHandler.request(apiUrl, {
           strategy: 'reject',
         });
       } catch (error) {
@@ -991,7 +1020,69 @@ describe('Request Handler', () => {
       globalThis.fetch = jest.fn();
     });
 
-    it('should cancel previous request when successive request is made', async () => {
+    it('should cancel previous request when fetchf() is used', async () => {
+      const url = 'https://example.com/api/post/send';
+
+      // Reset fetchMock before each test
+      fetchMock.reset();
+
+      let requestCounter = 0;
+
+      // Mock the endpoint with a conditional response
+      fetchMock.mock(
+        url,
+        () => {
+          // Increment the counter for each request
+          requestCounter++;
+
+          if (requestCounter === 1) {
+            // Simulate successful response for the first request
+            return {
+              status: 200,
+              body: { message: 'This response is mocked once' },
+            };
+          } else {
+            // Simulate aborted request for subsequent requests
+            return Promise.reject(
+              new DOMException('The operation was aborted.', 'AbortError'),
+            );
+          }
+        },
+        { overwriteRoutes: true },
+      );
+
+      // Create an API fetcher with cancellable requests enabled
+      const sendPost = () =>
+        fetchf(url, {
+          cancellable: true,
+          rejectCancelled: true,
+        });
+
+      async function sendData() {
+        const firstRequest = sendPost();
+        const secondRequest = sendPost();
+
+        try {
+          const secondResponse = await secondRequest;
+          expect(secondResponse).toMatchObject({
+            message: 'This response is mocked once',
+          });
+
+          await expect(firstRequest).rejects.toThrow(
+            'The operation was aborted.',
+          );
+        } catch (error) {
+          const err = error as ResponseErr;
+
+          expect(err.message).toBe('The operation was aborted.');
+        }
+      }
+
+      // Execute the sendData function and await its completion
+      await sendData();
+    });
+
+    it('should cancel previous request and pass a different successive request', async () => {
       fetchMock.reset();
 
       const requestHandler = createRequestHandler({
@@ -1018,12 +1109,47 @@ describe('Request Handler', () => {
       );
 
       expect(secondRequest).resolves.toMatchObject({
-        username: 'response from second request',
+        data: { username: 'response from second request' },
       });
       expect(firstRequest).rejects.toThrow('The operation was aborted.');
     });
 
-    it('should cancel previous request when successive request is made through fetchf() and rejectCancelled is false', async () => {
+    it('should not cancel previous request when cancellable is set to false', async () => {
+      fetchMock.reset();
+
+      const requestHandler = createRequestHandler({
+        cancellable: false, // No request cancellation
+        rejectCancelled: true,
+        flattenResponse: false,
+      });
+
+      // Mock the first request
+      fetchMock.mock('https://example.com/first', {
+        status: 200,
+        body: { data: { message: 'response from first request' } },
+      });
+
+      // Mock the second request
+      fetchMock.mock('https://example.com/second', {
+        status: 200,
+        body: { data: { message: 'response from second request' } },
+      });
+
+      const firstRequest = requestHandler.request('https://example.com/first');
+      const secondRequest = requestHandler.request(
+        'https://example.com/second',
+      );
+
+      // Validate both requests resolve successfully without any cancellation
+      await expect(firstRequest).resolves.toMatchObject({
+        data: { data: { message: 'response from first request' } },
+      });
+      await expect(secondRequest).resolves.toMatchObject({
+        data: { data: { message: 'response from second request' } },
+      });
+    });
+
+    it('should cancel first request without throwing when successive request is made through fetchf() and rejectCancelled is false', async () => {
       fetchMock.reset();
 
       const abortedError = new DOMException(
@@ -1049,14 +1175,15 @@ describe('Request Handler', () => {
         flattenResponse: true,
         defaultResponse: {},
       });
+
       const secondRequest = fetchf('https://example.com/second', {
         flattenResponse: true,
       });
 
-      expect(secondRequest).resolves.toEqual({
-        username: 'response from second request',
+      expect(secondRequest).resolves.toMatchObject({
+        data: { username: 'response from second request' },
       });
-      expect(firstRequest).resolves.toEqual({});
+      expect(firstRequest).resolves.toMatchObject({ data: {} });
     });
   });
 
@@ -1071,28 +1198,11 @@ describe('Request Handler', () => {
         .fn()
         .mockResolvedValue(responseMock);
 
-      const response = await requestHandler.request(apiUrl, null, {
+      const response = await requestHandler.request(apiUrl, {
         method: 'put',
       });
 
       expect(response).toMatchObject(responseMock);
-    });
-
-    it('should handle nested data if data flattening is on', async () => {
-      const requestHandler = createRequestHandler({
-        fetcher,
-        flattenResponse: true,
-      });
-
-      (requestHandler.getInstance() as any).request = jest
-        .fn()
-        .mockResolvedValue(responseMock);
-
-      const response = await requestHandler.request(apiUrl, null, {
-        method: 'post',
-      });
-
-      expect(response).toMatchObject(responseMock.data);
     });
 
     it('should handle deeply nested data if data flattening is on', async () => {
@@ -1105,11 +1215,12 @@ describe('Request Handler', () => {
         .fn()
         .mockResolvedValue({ data: responseMock });
 
-      const response = await requestHandler.request(apiUrl, null, {
+      const { data } = await requestHandler.request(apiUrl, {
         method: 'patch',
       });
 
-      expect(response).toMatchObject(responseMock.data);
+      expect(data).toMatchObject(responseMock.data);
+      expect(data).not.toMatchObject(nestedDataMock);
     });
 
     it('should return null if there is no data', async () => {
@@ -1124,8 +1235,8 @@ describe('Request Handler', () => {
         .mockResolvedValue({ data: null });
 
       expect(
-        await requestHandler.request(apiUrl, null, { method: 'head' }),
-      ).toBe(null);
+        await requestHandler.request(apiUrl, { method: 'head' }),
+      ).toMatchObject({ data: null });
     });
   });
 });

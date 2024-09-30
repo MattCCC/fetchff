@@ -1,5 +1,9 @@
 import { createRequestHandler } from './request-handler';
-import type { APIResponse, FetchResponse, RequestHandlerConfig } from './types';
+import type {
+  DefaultResponse,
+  FetchResponse,
+  RequestHandlerConfig,
+} from './types';
 
 /**
  * Simple wrapper for request fetching.
@@ -7,13 +11,13 @@ import type { APIResponse, FetchResponse, RequestHandlerConfig } from './types';
  *
  * @param {string | URL | globalThis.Request} url - Request URL.
  * @param {RequestHandlerConfig} config - Configuration object for the request handler.
- * @returns {Promise<ResponseData & FetchResponse<ResponseData>>} Response Data.
+ * @returns {Promise<FetchResponse<ResponseData>>} Response Data.
  */
-export async function fetchf<ResponseData = APIResponse>(
+export async function fetchf<ResponseData = DefaultResponse>(
   url: string,
   config: RequestHandlerConfig<ResponseData> = {},
-): Promise<ResponseData & FetchResponse<ResponseData>> {
-  return createRequestHandler(config).request<ResponseData>(url, null, config);
+): Promise<FetchResponse<ResponseData>> {
+  return createRequestHandler(config).request<ResponseData>(url, config);
 }
 
 export * from './types';

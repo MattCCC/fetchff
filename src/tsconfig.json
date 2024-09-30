@@ -21,7 +21,7 @@
     "noImplicitReturns": true,
     "noImplicitUseStrict": false,
     "noFallthroughCasesInSwitch": true,
-    "lib": ["esnext", "es2017", "dom"]
+    "lib": ["esnext", "ES2018", "dom"]
   },
   "exclude": ["demo", "scripts", "node_modules"]
 }

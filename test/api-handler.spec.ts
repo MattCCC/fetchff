@@ -35,11 +35,11 @@ describe('API Handler', () => {
 
       jest.spyOn(api, 'request').mockResolvedValueOnce(userDataMock as any);
 
-      const response = await api.getUser({ userId: 1 });
+      const response = await api.getUser({ params: { userId: 1 } });
 
       expect(api.request).toHaveBeenCalledTimes(1);
       expect(api.request).toHaveBeenCalledWith('getUser', {
-        userId: 1,
+        params: { userId: 1 },
       });
       expect(response).toBe(userDataMock);
     });
@@ -70,12 +70,11 @@ describe('API Handler', () => {
         .spyOn(api.requestHandler, 'request')
         .mockResolvedValueOnce(userDataMock as any);
 
-      const response = await api.getUserByIdAndName(null, urlPathParams);
+      const response = await api.getUserByIdAndName({ urlPathParams });
 
       expect(api.requestHandler.request).toHaveBeenCalledTimes(1);
       expect(api.requestHandler.request).toHaveBeenCalledWith(
         '/user-details/:id/:name',
-        null,
         { url: '/user-details/:id/:name', urlPathParams },
       );
       expect(response).toBe(userDataMock);
@@ -96,14 +95,14 @@ describe('API Handler', () => {
         .spyOn(api.requestHandler, 'request')
         .mockResolvedValueOnce(userDataMock as any);
 
-      const response = await api.getUserByIdAndName(null, urlPathParams, {
+      const response = await api.getUserByIdAndName({
+        urlPathParams,
         headers,
       });
 
       expect(api.requestHandler.request).toHaveBeenCalledTimes(1);
       expect(api.requestHandler.request).toHaveBeenCalledWith(
         '/user-details/:id/:name',
-        null,
         { url: '/user-details/:id/:name', headers, urlPathParams },
       );
       expect(response).toBe(userDataMock);
