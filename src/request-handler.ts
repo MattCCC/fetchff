@@ -176,9 +176,6 @@ export function createRequestHandler(
       ? 'include'
       : getConfig<RequestCredentials>(reqConfig, 'credentials');
 
-    deleteProperty(reqConfig, 'data');
-    deleteProperty(reqConfig, 'withCredentials');
-
     const urlPath = explicitParams
       ? appendQueryParams(dynamicUrl, explicitParams)
       : dynamicUrl;
