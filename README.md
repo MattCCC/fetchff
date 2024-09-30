@@ -158,15 +158,15 @@ const api = createApiFetcher({
     },
     // Define more endpoints as needed
   },
-  // You can set some settings globally. They will
-  strategy: 'softFail', // no try/catch required
+  // You can set all settings globally
+  strategy: 'softFail', // no try/catch required in case of errors
 });
 
 // Make a GET request to http://example.com/api/user-details/2/?rating[]=1&rating[]=2
-const { data, error } = await api.getUser(
-  { rating: [1, 2] }, // Append some Query Params. Passed arrays, objects etc. will be parsed automatically
-  { id: 2 }, // URL Path Params, replaces :id in the URL with 2
-);
+const { data, error } = await api.getUser({
+  params: { rating: [1, 2] }, //  Passed arrays, objects etc. will be parsed automatically
+  urlPathParams: { id: 2 }, // Replace :id with 2 in the URL
+});
 ```
 
 #### Multiple API Specific Settings
@@ -215,19 +215,20 @@ const api = createApiFetcher({
 });
 
 // Using api.request to make a POST request
-const { data, error } = await api.request(
-  'updateUserData',
-  {
+const { data, error } = await api.request('updateUserData', {
+  body: {
     name: 'John Doe', // Data Payload
   },
-  {
-    id: '123', // URL Path Param :id
+  urlPathParams: {
+    id: '123', // URL Path Param :id will be replaced with 123
   },
-);
+});
 
 // Using api.request to make a GET request to an external API
 const { data, error } = await api.request('https://example.com/api/user', {
-  name: 'John Smith', // Query Params
+  params: {
+    name: 'John Smith', // Query Params
+  },
 });
 ```
 
@@ -990,9 +991,14 @@ const api = createApiFetcher({
 
 // Make a wrapper function and call your API
 async function sendAndGetMessage() {
-  await api.sendMessage({ message: 'Text' }, { postId: 1 });
+  await api.sendMessage({
+    body: { message: 'Text' },
+    urlPathParams: { postId: 1 },
+  });
 
-  const { data } = await api.getMessage({ postId: 1 });
+  const { data } = await api.getMessage({
+    params: { postId: 1 },
+  });
 }
 
 // Invoke your wrapper function
@@ -1059,10 +1065,13 @@ const api = createApiFetcher<EndpointsList, EndpointsConfiguration>({
 ```
 
 ```typescript
-const book = await api.fetchBook({ newBook: true }, { bookId: 1 });
+const book = await api.fetchBook({
+  params: { newBook: true },
+  urlPathParams: { bookId: 1 },
+});
 
 // Will return an error since "rating" does not exist in "BookQueryParams"
-const anotherBook = await api.fetchBook({ rating: 5 });
+const anotherBook = await api.fetchBook({ params: { rating: 5 } });
 
 // You can also pass generic type directly to the request
 const books = await api.fetchBooks<Books>();
@@ -1116,20 +1125,26 @@ const api = createApiFetcher<EndpointsList, EndpointsConfiguration>({
 
 // Fetch user data - "data" will return data directly
 // GET to: http://example.com/api/user-details?userId=1&ratings[]=1&ratings[]=2
-const { data } = await api.getUser({ userId: 1, ratings: [1, 2] });
+const { data } = await api.getUser({ params: { userId: 1, ratings: [1, 2] } });
 
 // Fetch posts - "data" will return data directly
 // GET to: http://example.com/api/posts/myTestSubject?additionalInfo=something
-const { data } = await api.getPosts(
-  { additionalInfo: 'something' },
-  { subject: 'test' },
-);
+const { data } = await api.getPosts({
+  params: { additionalInfo: 'something' },
+  urlPathParams: { subject: 'test' },
+});
 
 // Send POST request to update userId "1"
-await api.updateUserDetails({ name: 'Mark' }, { userId: 1 });
+await api.updateUserDetails({
+  body: { name: 'Mark' },
+  urlPathParams: { userId: 1 },
+});
 
 // Send POST request to update array of user ratings for userId "1"
-await api.updateUserDetails({ name: 'Mark', ratings: [1, 2] }, { userId: 1 });
+await api.updateUserDetails({
+  body: { name: 'Mark', ratings: [1, 2] },
+  urlPathParams: { userId: 1 },
+});
 ```
 
 In the example above we fetch data from an API for user with an ID of 1. We also make a GET request to fetch some posts, update user's name to Mark. If you want to use more strict typings, please check TypeScript Usage section below.
@@ -1201,7 +1216,10 @@ const api = createApiFetcher({
 
 async function sendMessage() {
   try {
-    await api.sendMessage({ message: 'Text' }, { postId: 1 });
+    await api.sendMessage({
+      body: { message: 'Text' },
+      urlPathParams: { postId: 1 },
+    });
 
     console.log('Message sent successfully');
   } catch (error) {
@@ -1235,10 +1253,10 @@ const api = createApiFetcher({
 });
 
 async function sendMessage() {
-  const { data, error } = await api.sendMessage(
-    { message: 'Text' },
-    { postId: 1 },
-  );
+  const { data, error } = await api.sendMessage({
+    body: { message: 'Text' },
+    urlPathParams: { postId: 1 },
+  });
 
   if (error) {
     console.error('Request Error', error);
@@ -1275,19 +1293,17 @@ const api = createApiFetcher({
 });
 
 async function sendMessage() {
-  const { data } = await api.sendMessage(
-    { message: 'Text' },
-    { postId: 1 },
-    {
-      strategy: 'defaultResponse',
-      // null is a default setting, you can change it to empty {} or anything
-      // defaultResponse: null,
-      onError(error) {
-        // Callback is still triggered here
-        console.log(error);
-      },
+  const { data } = await api.sendMessage({
+    body: { message: 'Text' },
+    urlPathParams: { postId: 1 },
+    strategy: 'defaultResponse',
+    // null is a default setting, you can change it to empty {} or anything
+    // defaultResponse: null,
+    onError(error) {
+      // Callback is still triggered here
+      console.log(error);
     },
-  );
+  });
 
   if (data === null) {
     // Because of the strategy, if API call fails, it will just return null
@@ -1326,16 +1342,14 @@ const api = createApiFetcher({
 });
 
 async function sendMessage() {
-  await api.sendMessage(
-    { message: 'Text' },
-    { postId: 1 },
-    {
-      strategy: 'silent',
-      onError(error) {
-        console.log(error);
-      },
+  await api.sendMessage({
+    body: { message: 'Text' },
+    urlPathParams: { postId: 1 },
+    strategy: 'silent',
+    onError(error) {
+      console.log(error);
     },
-  );
+  });
 
   // Because of the strategy, if API call fails, it will never reach this point. Otherwise try/catch would need to be required.
   console.log('Message sent successfully');
@@ -1367,17 +1381,15 @@ const api = createApiFetcher({
 });
 
 async function sendMessage() {
-  await api.sendMessage(
-    { message: 'Text' },
-    { postId: 1 },
-    {
-      onError(error) {
-        console.log('Error', error.message);
-        console.log(error.response);
-        console.log(error.config);
-      },
+  await api.sendMessage({
+    body: { message: 'Text' },
+    urlPathParams: { postId: 1 },
+    onError(error) {
+      console.log('Error', error.message);
+      console.log(error.response);
+      console.log(error.config);
     },
-  );
+  });
 
   console.log('Message sent successfully');
 }
@@ -1409,12 +1421,14 @@ const api = createApiFetcher({
 
 async function fetchUserAndCreatePost(userId: number, postData: any) {
   // Fetch user data
-  const { data: userData } = await api.getUser({ userId });
+  const { data: userData } = await api.getUser({ params: { userId } });
 
   // Create a new post with the fetched user data
   return await api.createPost({
-    ...postData,
-    userId: userData.id, // Use the user's ID from the response
+    body: {
+      ...postData,
+      userId: userData.id, // Use the user's ID from the response
+    },
   });
 }
 
@@ -1435,12 +1449,14 @@ fetchUserAndCreatePost(1, { title: 'New Post', content: 'This is a new post.' })
 <details>
   <summary><span style="cursor:pointer">Click to expand</span></summary>
   <br>
-  You can implement a `useApi()` hook to handle the data fetching. Since this package has everything included, you don't really need anything more than a simple hook to utilize.
+  You can implement a `useApi()` hook to handle the data fetching. Since this package has everything included, you don't really need anything more than a simple hook to utilize.<br><br>
 
-```typescript
+Create `api.ts` file:
+
+```tsx
 import { createApiFetcher } from 'fetchff';
 
-const api = createApiFetcher({
+export const api = createApiFetcher({
   apiUrl: 'https://example.com/api',
   strategy: 'softFail',
   endpoints: {
@@ -1449,10 +1465,14 @@ const api = createApiFetcher({
     },
   },
 });
+```
 
+Create `useApi.ts` file:
+
+```tsx
 export const useApi = (apiFunction) => {
   const [data, setData] = useState(null);
-  const [error,] = useState(null);
+  const [error] = useState(null);
   const [isLoading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -1462,9 +1482,9 @@ export const useApi = (apiFunction) => {
       const { data, error } = await apiFunction();
 
       if (error) {
-          setError(error);
+        setError(error);
       } else {
-          setData(data);
+        setData(data);
       }
 
       setLoading(false);
@@ -1473,18 +1493,25 @@ export const useApi = (apiFunction) => {
     fetchData();
   }, [apiFunction]);
 
-  return {data, error, isLoading, setData};
+  return { data, error, isLoading, setData };
 };
+```
 
-const ProfileComponent = ({ id }) => {
-  const { data: profile, error, isLoading } = useApi(() => api.getProfile({ id }));
+Call the API in the components:
+
+```tsx
+export const ProfileComponent = ({ id }) => {
+  const {
+    data: profile,
+    error,
+    isLoading,
+  } = useApi(() => api.getProfile({ urlPathParams: { id } }));
 
   if (isLoading) return <div>Loading...</div>;
   if (error) return <div>Error: {error.message}</div>;
 
   return <div>{JSON.stringify(profile)}</div>;
 };
-
 ```
 
 </details>
@@ -1497,7 +1524,7 @@ const ProfileComponent = ({ id }) => {
 
 Integrate `fetchff` with React Query to streamline your data fetching:
 
-```typescript
+```tsx
 import { createApiFetcher } from 'fetchff';
 
 const api = createApiFetcher({
@@ -1510,7 +1537,9 @@ const api = createApiFetcher({
 });
 
 export const useProfile = ({ id }) => {
-  return useQuery(['profile', id], () => api.getProfile({ id }));
+  return useQuery(['profile', id], () =>
+    api.getProfile({ urlPathParams: { id } }),
+  );
 };
 ```
 
@@ -1543,7 +1572,7 @@ export const useProfile = ({ id }) => {
 
 Many endpoints:
 
-```typescript
+```tsx
 import { createApiFetcher } from 'fetchff';
 import useSWR from 'swr';
 
@@ -1557,7 +1586,7 @@ const api = createApiFetcher({
 });
 
 export const useProfile = ({ id }) => {
-  const fetcher = () => api.getProfile({ id });
+  const fetcher = () => api.getProfile({ urlPathParams: { id } });
 
   const { data, error } = useSWR(['profile', id], fetcher);
 
@@ -1603,7 +1632,7 @@ export function useProfile(id: number) {
   const isError = ref(null);
 
   const fetchProfile = async () => {
-    const { data, error } = await api.getProfile({ id });
+    const { data, error } = await api.getProfile({ urlPathParams: { id } });
 
     if (error) isError.value = error;
     else if (data) profile.value = data;
