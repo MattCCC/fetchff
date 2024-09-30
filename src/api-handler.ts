@@ -8,6 +8,11 @@ import type {
   ApiHandlerConfig,
   ApiHandlerDefaultMethods,
   ApiHandlerMethods,
+  DefaultPayload,
+  FallbackValue,
+  FinalParams,
+  FinalResponse,
+  QueryParams,
   QueryParamsOrBody,
   UrlPathParams,
 } from './types/api-handler';
@@ -99,29 +104,48 @@ function createApiFetcher<
    * It considers settings in following order: per-request settings, global per-endpoint settings, global settings.
    *
    * @param {keyof EndpointsMethods | string} endpointName - The name of the API endpoint to call.
-   * @param {QueryParamsOrBody} [data={}] - Query parameters to include in the request.
+   * @param {QueryParamsOrBody} [queryParamsOrBody={}] - Query parameters to include in the request.
    * @param {UrlPathParams} [urlPathParams={}] - URI parameters to include in the request.
    * @param {EndpointConfig} [requestConfig={}] - Additional configuration for the request.
    * @returns {Promise<FetchResponse<ResponseData>>} - A promise that resolves with the response from the API provider.
    */
-  async function request<ResponseData = DefaultResponse>(
+  async function request<
+    ResponseData = never,
+    QueryParams_ = never,
+    UrlParams = never,
+    RequestBody = never,
+  >(
     endpointName: keyof EndpointsMethods | string,
-    data: QueryParamsOrBody = {},
-    urlPathParams: UrlPathParams = {},
-    requestConfig: RequestConfig = {},
-  ): Promise<FetchResponse<ResponseData>> {
+    queryParamsOrBody: FinalParams<
+      ResponseData,
+      QueryParams_,
+      QueryParams
+    > = {},
+    urlPathParams: FinalParams<ResponseData, UrlParams, UrlPathParams> = {},
+    requestConfig: RequestConfig<
+      FinalResponse<ResponseData, DefaultResponse>,
+      FinalParams<
+        ResponseData,
+        QueryParamsOrBody<QueryParams_, RequestBody>,
+        QueryParamsOrBody
+      >,
+      FinalParams<ResponseData, UrlParams, UrlParams>,
+      FallbackValue<ResponseData, DefaultPayload, RequestBody>
+    > = {},
+  ): Promise<FetchResponse<FinalResponse<ResponseData, DefaultResponse>>> {
     // Use global per-endpoint settings
     const endpointConfig = endpoints[endpointName as string];
 
-    const responseData = await requestHandler.request<ResponseData>(
-      endpointConfig.url,
-      data,
-      {
-        ...endpointConfig,
-        ...requestConfig,
-        urlPathParams,
-      },
-    );
+    const responseData = await requestHandler.request<
+      FinalResponse<ResponseData, DefaultResponse>,
+      FinalParams<ResponseData, QueryParams_, QueryParams>,
+      FinalParams<ResponseData, UrlParams, UrlParams>,
+      FallbackValue<ResponseData, DefaultPayload, RequestBody>
+    >(endpointConfig.url, queryParamsOrBody, {
+      ...endpointConfig,
+      ...requestConfig,
+      urlPathParams,
+    });
 
     return responseData;
   }

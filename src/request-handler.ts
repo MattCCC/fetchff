@@ -13,6 +13,9 @@ import type {
 } from './types/request-handler';
 import type {
   BodyPayload,
+  DefaultParams,
+  DefaultPayload,
+  DefaultUrlParams,
   QueryParams,
   QueryParamsOrBody,
 } from './types/api-handler';
@@ -286,15 +289,25 @@ export function createRequestHandler(
    * Handle Request depending on used strategy
    *
    * @param {string} url - Request url
-   * @param {QueryParamsOrBody} data - Query Params in case of GET and HEAD requests, body payload otherwise
+   * @param {QueryParamsOrBody} queryParamsOrBody - Query Params in case of GET and HEAD requests, body payload otherwise
    * @param {RequestConfig} reqConfig - Request config
    * @throws {ResponseError}
    * @returns {Promise<FetchResponse<ResponseData>>} Response Data
    */
-  const request = async <ResponseData = DefaultResponse>(
+  const request = async <
+    ResponseData = DefaultResponse,
+    QueryParams = DefaultParams,
+    PathParams = DefaultUrlParams,
+    RequestBody = DefaultPayload,
+  >(
     url: string,
-    data: QueryParamsOrBody = null,
-    reqConfig: RequestConfig | null = null,
+    queryParamsOrBody: QueryParamsOrBody<QueryParams, RequestBody> = null,
+    reqConfig: RequestConfig<
+      ResponseData,
+      QueryParams,
+      PathParams,
+      RequestBody
+    > | null = null,
   ): Promise<FetchResponse<ResponseData>> => {
     const _reqConfig = reqConfig || {};
     const mergedConfig = {
@@ -303,7 +316,7 @@ export function createRequestHandler(
     } as RequestConfig;
 
     let response: FetchResponse<ResponseData> | null = null;
-    const fetcherConfig = buildConfig(url, data, mergedConfig);
+    const fetcherConfig = buildConfig(url, queryParamsOrBody, mergedConfig);
 
     const {
       timeout,

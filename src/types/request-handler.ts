@@ -1,6 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type {
   BodyPayload,
+  DefaultParams,
+  DefaultPayload,
+  DefaultUrlParams,
   QueryParams,
   QueryParamsOrBody,
   UrlPathParams,
@@ -44,8 +47,18 @@ export interface FetcherInstance {
 }
 
 export interface CreatedCustomFetcherInstance {
-  request<ResponseData = any>(
-    requestConfig: RequestConfig<ResponseData>,
+  request<
+    ResponseData = DefaultResponse,
+    QueryParams = DefaultParams,
+    PathParams = DefaultUrlParams,
+    RequestBody = DefaultPayload,
+  >(
+    requestConfig: RequestConfig<
+      ResponseData,
+      QueryParams,
+      PathParams,
+      RequestBody
+    >,
   ): PromiseLike<FetchResponse<ResponseData>>;
 }
 
@@ -208,8 +221,12 @@ export interface CacheOptions {
  * This interface extends the standard `RequestInit` from the Fetch API, providing additional options
  * for handling requests, including custom error handling strategies, request interception, and more.
  */
-interface ExtendedRequestConfig<ResponseData = any, RequestBody = any>
-  extends Omit<RequestInit, 'body'>,
+interface ExtendedRequestConfig<
+  ResponseData = any,
+  QueryParams_ = any,
+  PathParams = any,
+  RequestBody = any,
+> extends Omit<RequestInit, 'body'>,
     CacheOptions {
   /**
    * Custom error handling strategy for the request.
@@ -246,7 +263,7 @@ interface ExtendedRequestConfig<ResponseData = any, RequestBody = any>
    * An object representing dynamic URL path parameters.
    * For example, `{ userId: 1 }` would replace `:userId` in the URL with `1`.
    */
-  urlPathParams?: UrlPathParams;
+  urlPathParams?: UrlPathParams<PathParams>;
 
   /**
    * Configuration options for retrying failed requests.
@@ -282,7 +299,7 @@ interface ExtendedRequestConfig<ResponseData = any, RequestBody = any>
   /**
    * Query parameters to include in the request URL.
    */
-  params?: QueryParams;
+  params?: QueryParams<QueryParams_>;
 
   /**
    * Indicates whether credentials (such as cookies) should be included with the request.
@@ -360,11 +377,18 @@ export interface RequestHandlerConfig<ResponseData = any, RequestBody = any>
 
 export type RequestConfig<
   ResponseData = any,
+  QueryParams = any,
+  PathParams = any,
   RequestBody = any,
-> = ExtendedRequestConfig<ResponseData, RequestBody>;
+> = ExtendedRequestConfig<ResponseData, QueryParams, PathParams, RequestBody>;
 
-export type FetcherConfig<ResponseData = any, RequestBody = any> = Omit<
-  ExtendedRequestConfig<ResponseData, RequestBody>,
+export type FetcherConfig<
+  ResponseData = any,
+  QueryParams = any,
+  PathParams = any,
+  RequestBody = any,
+> = Omit<
+  ExtendedRequestConfig<ResponseData, QueryParams, PathParams, RequestBody>,
   'url'
 > & {
   url: string;
@@ -378,9 +402,19 @@ export interface RequestHandlerReturnType {
     data: QueryParamsOrBody,
     config: RequestConfig,
   ) => RequestConfig;
-  request: <ResponseData = unknown>(
+  request: <
+    ResponseData = DefaultResponse,
+    QueryParams = DefaultParams,
+    PathParams = DefaultUrlParams,
+    RequestBody = DefaultPayload,
+  >(
     url: string,
-    data?: QueryParamsOrBody,
-    config?: RequestConfig<ResponseData, RequestBody> | null,
+    data?: QueryParamsOrBody<QueryParams, RequestBody>,
+    config?: RequestConfig<
+      ResponseData,
+      QueryParams,
+      PathParams,
+      RequestBody
+    > | null,
   ) => Promise<FetchResponse<ResponseData, RequestBody>>;
 }

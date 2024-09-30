@@ -9,15 +9,18 @@ import type {
 } from './request-handler';
 
 // Common type definitions
-type NameValuePair = { name: string; value: string };
+interface NameValuePair {
+  name: string;
+  value: string;
+}
 
 declare const emptyObjectSymbol: unique symbol;
 
 export type EmptyObject = { [emptyObjectSymbol]?: never };
 
-type DefaultParams = Record<string, unknown>;
-type DefaultUrlParams = Record<string, unknown>;
-type DefaultPayload = Record<string, any>;
+export type DefaultParams = Record<string, unknown>;
+export type DefaultUrlParams = Record<string, unknown>;
+export type DefaultPayload = Record<string, any>;
 
 export declare type QueryParams<ParamsType = DefaultParams> =
   | (ParamsType & EmptyObject)
@@ -26,10 +29,11 @@ export declare type QueryParams<ParamsType = DefaultParams> =
   | null;
 
 export declare type UrlPathParams<UrlParamsType = DefaultUrlParams> =
-  | (UrlParamsType extends DefaultUrlParams
-      ? (UrlParamsType & EmptyObject) | null
-      : UrlParamsType | EmptyObject | null)
-  | EmptyObject;
+  | ([UrlParamsType] extends [DefaultUrlParams]
+      ? UrlParamsType & EmptyObject
+      : UrlParamsType)
+  | EmptyObject
+  | null;
 
 export declare type BodyPayload<PayloadType = DefaultPayload> =
   | BodyInit
@@ -38,27 +42,75 @@ export declare type BodyPayload<PayloadType = DefaultPayload> =
   | null;
 
 export declare type QueryParamsOrBody<
-  ParamsType = DefaultParams,
-  PayloadType = DefaultPayload,
-> = QueryParams<ParamsType> | BodyPayload<PayloadType>;
+  ParamsType = never,
+  PayloadType = never,
+> =
+  | ([ParamsType] extends [never]
+      ? [PayloadType] extends [never]
+        ? QueryParams<DefaultParams> | BodyPayload<DefaultPayload> // Load both
+        : BodyPayload<PayloadType> // Only load BodyPayload
+      : QueryParams<ParamsType>) // Only load QueryParams
+  | EmptyObject;
 
-interface EndpointFunction<ResponseData, QueryParams, PathParams, RequestBody> {
-  <Resp = never, QParams = never, UParams = never, RBody = never>(
-    queryParams?: [QParams] extends [never]
-      ? QueryParams
-      : [Resp] extends [never]
-        ? QueryParams
-        : QParams,
-    urlPathParams?: [UParams] extends [never]
-      ? PathParams
-      : [Resp] extends [never]
-        ? PathParams
-        : UParams,
+// Helper types declared outside the interface
+export type FallbackValue<T, U, D = T> = [T] extends [never] ? U : D;
+
+export type FinalResponse<Response, ResponseData> = FallbackValue<
+  Response,
+  ResponseData
+>;
+
+export type FinalParams<Response, ParamsType, DefaultParams> = [
+  ParamsType,
+] extends [never]
+  ? DefaultParams
+  : [Response] extends [never]
+    ? DefaultParams
+    : ParamsType | EmptyObject;
+
+interface EndpointFunction<
+  ResponseData,
+  QueryParams,
+  PathParams,
+  RequestBody_,
+> {
+  <
+    Response = never,
+    QueryParams_ = never,
+    UrlParams = never,
+    RequestBody = never,
+  >(
+    queryParamsOrBody?: FinalParams<Response, QueryParams_, QueryParams>,
+    urlPathParams?: FinalParams<Response, UrlParams, PathParams>,
     requestConfig?: RequestConfig<
-      [Resp] extends [never] ? ResponseData : Resp,
-      [Resp] extends [never] ? RequestBody : RBody
+      FallbackValue<Response, ResponseData>,
+      FinalParams<ResponseData, QueryParams_, QueryParams>,
+      FinalParams<ResponseData, UrlParams, UrlPathParams>,
+      FallbackValue<Response, RequestBody_, RequestBody>
     >,
-  ): Promise<FetchResponse<[Resp] extends [never] ? ResponseData : Resp>>;
+  ): Promise<FetchResponse<FinalResponse<Response, ResponseData>>>;
+}
+
+export interface RequestEndpointFunction<EndpointsMethods> {
+  <
+    ResponseData = never,
+    QueryParams_ = never,
+    UrlParams = never,
+    RequestBody = never,
+  >(
+    endpointName: keyof EndpointsMethods | string,
+    queryParamsOrBody?: QueryParamsOrBody<
+      FinalParams<ResponseData, QueryParams_, QueryParams>,
+      RequestBody
+    >,
+    urlPathParams?: FinalParams<ResponseData, UrlParams, UrlPathParams>,
+    requestConfig?: RequestConfig<
+      FinalResponse<ResponseData, DefaultResponse>,
+      FinalParams<ResponseData, QueryParams_, QueryParams>,
+      FinalParams<ResponseData, UrlParams, UrlPathParams>,
+      FallbackValue<ResponseData, DefaultPayload, RequestBody>
+    >,
+  ): Promise<FetchResponse<FinalResponse<ResponseData, DefaultResponse>>>;
 }
 
 /**
@@ -170,12 +222,7 @@ export type ApiHandlerDefaultMethods<EndpointsMethods> = {
   endpoints: EndpointsConfig<EndpointsMethods>;
   requestHandler: RequestHandlerReturnType;
   getInstance: () => CreatedCustomFetcherInstance | null;
-  request: <ResponseData = DefaultResponse>(
-    endpointName: keyof EndpointsMethods | string,
-    queryParams?: QueryParams,
-    urlPathParams?: UrlPathParams,
-    requestConfig?: RequestConfig<ResponseData>,
-  ) => Promise<FetchResponse<ResponseData>>;
+  request: RequestEndpointFunction<EndpointsMethods>;
 };
 
 /**
