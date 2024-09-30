@@ -17,7 +17,6 @@ import type {
   DefaultPayload,
   DefaultUrlParams,
   QueryParams,
-  QueryParamsOrBody,
 } from './types/api-handler';
 import { applyInterceptor } from './interceptor-manager';
 import { ResponseErr } from './response-error';
@@ -137,13 +136,11 @@ export function createRequestHandler(
    * Build request configuration
    *
    * @param {string} url - Request url
-   * @param {QueryParamsOrBody} data - Query Params in case of GET and HEAD requests, body payload otherwise
    * @param {RequestConfig} reqConfig - Request config passed when making the request
    * @returns {RequestConfig} - Provider's instance
    */
   const buildConfig = (
     url: string,
-    data: QueryParamsOrBody,
     reqConfig: RequestConfig,
   ): FetcherConfig => {
     const method = getConfig<string>(
@@ -164,18 +161,12 @@ export function createRequestHandler(
     const explicitBodyData: BodyPayload =
       getConfig(reqConfig, 'body') || getConfig(reqConfig, 'data');
 
-    // For convenience, in POST requests the body payload is the "data"
-    // In edge cases we want to use Query Params in the POST requests
-    // and use explicitly passed "body" or "data" from request config
-    const shouldTreatDataAsParams =
-      data && (isGetAlikeMethod || explicitBodyData) ? true : false;
-
     // Final body data
     let body: RequestConfig['data'];
 
     // Only applicable for request methods 'PUT', 'POST', 'DELETE', and 'PATCH'
     if (!isGetAlikeMethod) {
-      body = explicitBodyData || (data as BodyPayload);
+      body = explicitBodyData;
     }
 
     // Native fetch compatible settings
@@ -188,10 +179,9 @@ export function createRequestHandler(
     deleteProperty(reqConfig, 'data');
     deleteProperty(reqConfig, 'withCredentials');
 
-    const urlPath =
-      explicitParams || shouldTreatDataAsParams
-        ? appendQueryParams(dynamicUrl, explicitParams || (data as QueryParams))
-        : dynamicUrl;
+    const urlPath = explicitParams
+      ? appendQueryParams(dynamicUrl, explicitParams)
+      : dynamicUrl;
     const isFullUrl = urlPath.includes('://');
     const baseURL = isFullUrl
       ? ''
@@ -289,7 +279,6 @@ export function createRequestHandler(
    * Handle Request depending on used strategy
    *
    * @param {string} url - Request url
-   * @param {QueryParamsOrBody} queryParamsOrBody - Query Params in case of GET and HEAD requests, body payload otherwise
    * @param {RequestConfig} reqConfig - Request config
    * @throws {ResponseError}
    * @returns {Promise<FetchResponse<ResponseData>>} Response Data
@@ -301,7 +290,6 @@ export function createRequestHandler(
     RequestBody = DefaultPayload,
   >(
     url: string,
-    queryParamsOrBody: QueryParamsOrBody<QueryParams, RequestBody> = null,
     reqConfig: RequestConfig<
       ResponseData,
       QueryParams,
@@ -316,7 +304,7 @@ export function createRequestHandler(
     } as RequestConfig;
 
     let response: FetchResponse<ResponseData> | null = null;
-    const fetcherConfig = buildConfig(url, queryParamsOrBody, mergedConfig);
+    const fetcherConfig = buildConfig(url, mergedConfig);
 
     const {
       timeout,

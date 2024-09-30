@@ -6,6 +6,7 @@ import type {
   RequestHandlerReturnType,
   CreatedCustomFetcherInstance,
   DefaultResponse,
+  ExtendedRequestConfig,
 } from './request-handler';
 
 // Common type definitions
@@ -41,17 +42,6 @@ export declare type BodyPayload<PayloadType = DefaultPayload> =
   | PayloadType[]
   | null;
 
-export declare type QueryParamsOrBody<
-  ParamsType = never,
-  PayloadType = never,
-> =
-  | ([ParamsType] extends [never]
-      ? [PayloadType] extends [never]
-        ? QueryParams<DefaultParams> | BodyPayload<DefaultPayload> // Load both
-        : BodyPayload<PayloadType> // Only load BodyPayload
-      : QueryParams<ParamsType>) // Only load QueryParams
-  | EmptyObject;
-
 // Helper types declared outside the interface
 export type FallbackValue<T, U, D = T> = [T] extends [never] ? U : D;
 
@@ -70,25 +60,18 @@ export type FinalParams<Response, ParamsType, DefaultParams> = [
 
 interface EndpointFunction<
   ResponseData,
-  QueryParams,
+  QueryParams_,
   PathParams,
   RequestBody_,
 > {
-  <
-    Response = never,
-    QueryParams_ = never,
-    UrlParams = never,
-    RequestBody = never,
-  >(
-    queryParamsOrBody?: FinalParams<Response, QueryParams_, QueryParams>,
-    urlPathParams?: FinalParams<Response, UrlParams, PathParams>,
-    requestConfig?: RequestConfig<
-      FallbackValue<Response, ResponseData>,
-      FinalParams<ResponseData, QueryParams_, QueryParams>,
-      FinalParams<ResponseData, UrlParams, UrlPathParams>,
-      FallbackValue<Response, RequestBody_, RequestBody>
+  <Resp = never, QueryParams = never, UrlParams = never, RequestBody = never>(
+    requestConfig?: ExtendedRequestConfig<
+      FallbackValue<Resp, ResponseData>,
+      FinalParams<Resp, QueryParams, QueryParams_>,
+      FinalParams<Resp, UrlParams, PathParams>,
+      FallbackValue<Resp, RequestBody_, RequestBody>
     >,
-  ): Promise<FetchResponse<FinalResponse<Response, ResponseData>>>;
+  ): Promise<FetchResponse<FallbackValue<Resp, ResponseData>>>;
 }
 
 export interface RequestEndpointFunction<EndpointsMethods> {
@@ -99,11 +82,6 @@ export interface RequestEndpointFunction<EndpointsMethods> {
     RequestBody = never,
   >(
     endpointName: keyof EndpointsMethods | string,
-    queryParamsOrBody?: QueryParamsOrBody<
-      FinalParams<ResponseData, QueryParams_, QueryParams>,
-      RequestBody
-    >,
-    urlPathParams?: FinalParams<ResponseData, UrlParams, UrlPathParams>,
     requestConfig?: RequestConfig<
       FinalResponse<ResponseData, DefaultResponse>,
       FinalParams<ResponseData, QueryParams_, QueryParams>,
@@ -132,10 +110,10 @@ export interface RequestEndpointFunction<EndpointsMethods> {
  */
 export declare type Endpoint<
   ResponseData = DefaultResponse,
-  QueryParams = QueryParamsOrBody,
+  QueryParams_ = QueryParams,
   PathParams = UrlPathParams,
   RequestBody = BodyPayload,
-> = EndpointFunction<ResponseData, QueryParams, PathParams, RequestBody>;
+> = EndpointFunction<ResponseData, QueryParams_, PathParams, RequestBody>;
 
 // Setting 'unknown here lets us infer typings for non-predefined endpoints with dynamically set generic response data
 type EndpointDefaults = Endpoint<DefaultResponse>;

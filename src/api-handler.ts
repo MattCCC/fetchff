@@ -13,7 +13,6 @@ import type {
   FinalParams,
   FinalResponse,
   QueryParams,
-  QueryParamsOrBody,
   UrlPathParams,
 } from './types/api-handler';
 import { createRequestHandler } from './request-handler';
@@ -116,20 +115,10 @@ function createApiFetcher<
     RequestBody = never,
   >(
     endpointName: keyof EndpointsMethods | string,
-    queryParamsOrBody: FinalParams<
-      ResponseData,
-      QueryParams_,
-      QueryParams
-    > = {},
-    urlPathParams: FinalParams<ResponseData, UrlParams, UrlPathParams> = {},
     requestConfig: RequestConfig<
       FinalResponse<ResponseData, DefaultResponse>,
-      FinalParams<
-        ResponseData,
-        QueryParamsOrBody<QueryParams_, RequestBody>,
-        QueryParamsOrBody
-      >,
-      FinalParams<ResponseData, UrlParams, UrlParams>,
+      FinalParams<ResponseData, QueryParams_, QueryParams>,
+      FinalParams<ResponseData, UrlParams, UrlPathParams>,
       FallbackValue<ResponseData, DefaultPayload, RequestBody>
     > = {},
   ): Promise<FetchResponse<FinalResponse<ResponseData, DefaultResponse>>> {
@@ -141,10 +130,9 @@ function createApiFetcher<
       FinalParams<ResponseData, QueryParams_, QueryParams>,
       FinalParams<ResponseData, UrlParams, UrlParams>,
       FallbackValue<ResponseData, DefaultPayload, RequestBody>
-    >(endpointConfig.url, queryParamsOrBody, {
+    >(endpointConfig.url, {
       ...endpointConfig,
       ...requestConfig,
-      urlPathParams,
     });
 
     return responseData;

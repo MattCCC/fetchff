@@ -17,7 +17,7 @@ export async function fetchf<ResponseData = DefaultResponse>(
   url: string,
   config: RequestHandlerConfig<ResponseData> = {},
 ): Promise<FetchResponse<ResponseData>> {
-  return createRequestHandler(config).request<ResponseData>(url, null, config);
+  return createRequestHandler(config).request<ResponseData>(url, config);
 }
 
 export * from './types';

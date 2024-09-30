@@ -5,7 +5,6 @@ import type {
   DefaultPayload,
   DefaultUrlParams,
   QueryParams,
-  QueryParamsOrBody,
   UrlPathParams,
 } from './api-handler';
 import type {
@@ -221,7 +220,7 @@ export interface CacheOptions {
  * This interface extends the standard `RequestInit` from the Fetch API, providing additional options
  * for handling requests, including custom error handling strategies, request interception, and more.
  */
-interface ExtendedRequestConfig<
+export interface ExtendedRequestConfig<
   ResponseData = any,
   QueryParams_ = any,
   PathParams = any,
@@ -397,11 +396,7 @@ export type FetcherConfig<
 export interface RequestHandlerReturnType {
   config: RequestHandlerConfig;
   getInstance: () => CreatedCustomFetcherInstance | null;
-  buildConfig: (
-    url: string,
-    data: QueryParamsOrBody,
-    config: RequestConfig,
-  ) => RequestConfig;
+  buildConfig: (url: string, config: RequestConfig) => RequestConfig;
   request: <
     ResponseData = DefaultResponse,
     QueryParams = DefaultParams,
@@ -409,7 +404,6 @@ export interface RequestHandlerReturnType {
     RequestBody = DefaultPayload,
   >(
     url: string,
-    data?: QueryParamsOrBody<QueryParams, RequestBody>,
     config?: RequestConfig<
       ResponseData,
       QueryParams,

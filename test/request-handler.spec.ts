@@ -72,9 +72,10 @@ describe('Request Handler', () => {
     });
 
     const buildConfig = (method: string, url: string, data: any, config: any) =>
-      (requestHandler as any).buildConfig(url, data, {
+      (requestHandler as any).buildConfig(url, {
         ...config,
         method,
+        data,
       });
 
     it('should not differ when the same request is made', () => {
@@ -99,13 +100,14 @@ describe('Request Handler', () => {
       const result = buildConfig(
         'GET',
         'https://example.com/api',
-        { foo: 'bar' },
+        {},
         {
           headers,
+          params: { foo: 'bar' },
         },
       );
 
-      expect(result).toEqual({
+      expect(result).toMatchObject({
         url: 'https://example.com/api?foo=bar',
         method: 'GET',
         headers,
@@ -170,14 +172,14 @@ describe('Request Handler', () => {
       const result = buildConfig(
         'POST',
         'https://example.com/api',
-        { foo: 'bar' },
+        { additional: 'info' },
         {
           headers: { 'X-CustomHeader': 'Some token' },
-          data: { additional: 'info' },
+          params: { foo: 'bar' },
         },
       );
 
-      expect(result).toEqual({
+      expect(result).toMatchObject({
         url: 'https://example.com/api?foo=bar',
         method: 'POST',
         headers: {
@@ -216,11 +218,13 @@ describe('Request Handler', () => {
       const result = buildConfig(
         'head',
         'https://example.com/api',
-        { foo: [1, 2] },
         {},
+        {
+          params: { foo: [1, 2] },
+        },
       );
 
-      expect(result).toEqual({
+      expect(result).toMatchObject({
         url: 'https://example.com/api?foo[]=1&foo[]=2',
         method: 'HEAD',
       });
@@ -230,11 +234,13 @@ describe('Request Handler', () => {
       const result = buildConfig(
         'POST',
         'https://example.com/api',
-        { foo: 'bar' },
-        { data: { additional: 'info' } },
+        { additional: 'info' },
+        {
+          params: { foo: 'bar' },
+        },
       );
 
-      expect(result).toEqual({
+      expect(result).toMatchObject({
         url: 'https://example.com/api?foo=bar',
         method: 'POST',
         body: JSON.stringify({ additional: 'info' }),
@@ -276,12 +282,17 @@ describe('Request Handler', () => {
         'GET',
         'https://example.com/api',
         { foo: 'bar' },
-        { body: { additional: 'info' }, data: { additional: 'info' } },
+        {
+          body: { additional: 'info' },
+          data: { additional: 'info' },
+          params: { foo: 'bar' },
+        },
       );
 
-      expect(result).toEqual({
+      expect(result).toMatchObject({
         url: 'https://example.com/api?foo=bar',
         method: 'GET',
+        params: { foo: 'bar' },
       });
     });
   });
@@ -354,7 +365,7 @@ describe('Request Handler', () => {
         .mockRejectedValue(new Error('Request Failed'));
 
       try {
-        await requestHandler.request(apiUrl, null, {
+        await requestHandler.request(apiUrl, {
           strategy: 'reject',
         });
       } catch (error) {
@@ -832,10 +843,9 @@ describe('Request Handler', () => {
       });
 
       const url = '/test-endpoint';
-      const data = { key: 'value' };
-      const config = {};
+      const params = { key: 'value' };
 
-      await requestHandler.request(url, data, config);
+      await requestHandler.request(url, { params });
 
       expect(spy).toHaveBeenCalledTimes(4);
     });
@@ -847,14 +857,14 @@ describe('Request Handler', () => {
       });
 
       const url = '/test-endpoint';
-      const data = { key: 'value' };
+      const params = { key: 'value' };
       const config = {
         onRequest(config) {
           config.headers = { 'Modified-Header': 'ModifiedValue' };
         },
       } as RequestConfig;
 
-      await requestHandler.request(url, data, config);
+      await requestHandler.request(url, { ...config, params });
 
       expect(spy).toHaveBeenCalledTimes(4);
       expect(fetchMock.lastOptions()).toMatchObject({
@@ -880,11 +890,10 @@ describe('Request Handler', () => {
         },
       };
 
-      const { data, config } = await requestHandler.request(
-        url,
+      const { data, config } = await requestHandler.request(url, {
+        ...requestConfig,
         params,
-        requestConfig,
-      );
+      });
 
       expect(spy).toHaveBeenCalledTimes(4);
       expect(data).toMatchObject({ username: 'modified response' });
@@ -898,10 +907,12 @@ describe('Request Handler', () => {
       });
 
       const url = '/test-endpoint';
-      const data = { key: 'value' };
+      const params = { key: 'value' };
       const config = {};
 
-      await expect(requestHandler.request(url, data, config)).rejects.toThrow(
+      await expect(
+        requestHandler.request(url, { ...config, params }),
+      ).rejects.toThrow(
         'https://api.example.com/test-endpoint?key=value failed! Status: 500',
       );
 
@@ -916,10 +927,12 @@ describe('Request Handler', () => {
       });
 
       const url = '/test-endpoint';
-      const data = { key: 'value' };
+      const params = { key: 'value' };
       const config = {};
 
-      await expect(requestHandler.request(url, data, config)).rejects.toThrow(
+      await expect(
+        requestHandler.request(url, { ...config, params }),
+      ).rejects.toThrow(
         'https://api.example.com/test-endpoint?key=value failed! Status: 404',
       );
 
@@ -993,7 +1006,7 @@ describe('Request Handler', () => {
         .mockRejectedValue(new Error('Request Failed'));
 
       try {
-        await requestHandler.request(apiUrl, null, {
+        await requestHandler.request(apiUrl, {
           strategy: 'reject',
         });
       } catch (error) {
@@ -1185,7 +1198,7 @@ describe('Request Handler', () => {
         .fn()
         .mockResolvedValue(responseMock);
 
-      const response = await requestHandler.request(apiUrl, null, {
+      const response = await requestHandler.request(apiUrl, {
         method: 'put',
       });
 
@@ -1202,7 +1215,7 @@ describe('Request Handler', () => {
         .fn()
         .mockResolvedValue({ data: responseMock });
 
-      const { data } = await requestHandler.request(apiUrl, null, {
+      const { data } = await requestHandler.request(apiUrl, {
         method: 'patch',
       });
 
@@ -1222,7 +1235,7 @@ describe('Request Handler', () => {
         .mockResolvedValue({ data: null });
 
       expect(
-        await requestHandler.request(apiUrl, null, { method: 'head' }),
+        await requestHandler.request(apiUrl, { method: 'head' }),
       ).toMatchObject({ data: null });
     });
   });

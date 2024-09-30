@@ -105,7 +105,10 @@ async function example3() {
   const { data } = await api.ping();
 
   // Defined in EndpointsList with query param and url path param
-  const { data: book } = await api.fetchBook({ newBook: true }, { bookId: 1 });
+  const { data: book } = await api.fetchBook({
+    params: { newBook: true },
+    urlPathParams: { bookId: 1 },
+  });
 
   // Defined in "endpoints" but not in EndpointsList so there is no need to add "fetchMovies: Endpoint;" explicitly.
   const { data: movies1 } = await api.fetchMovies();
@@ -116,7 +119,9 @@ async function example3() {
 
   // With custom params not defined in any interface
   const { data: movies4 } = await api.fetchMovies({
-    all: true,
+    params: {
+      all: true,
+    },
   });
 
   // @ts-expect-error This will result in an error as endpoint is not defined
@@ -139,19 +144,25 @@ async function example3() {
 
   // Overwrite response and query params of existing endpoint
   const { data: book11 } = await api.fetchBook<NewBook, NewBookQueryParams>({
-    // @ts-expect-error Should not allow old param
-    newBook: true,
-    color: 'green',
-    // TODO: @ts-expect-error Should not allow non-existent param
-    type: 'red',
+    params: {
+      // @ts-expect-error Should not allow old param
+      newBook: true,
+      color: 'green',
+      // TODO: @ts-expect-error Should not allow non-existent param
+      type: 'red',
+    },
   });
 
   // Standard fetch with predefined response and query params
   const { data: books } = await api.fetchBooks({
-    // This param exists
-    all: true,
-    // @ts-expect-error Should not allow non-existent param
-    randomParam: 1,
+    // TODO: @ts-expect-error Non-existent setting
+    test: true,
+    params: {
+      // This param exists
+      all: true,
+      // @ts-expect-error Should not allow non-existent param
+      randomParam: 1,
+    },
   });
 
   const { data: book2 } = await api.fetchBook(
@@ -160,11 +171,11 @@ async function example3() {
     { bookId: 'text' },
   );
 
-  const { data: book3 } = await api.fetchBook(
+  const { data: book3 } = await api.fetchBook({
     // @ts-expect-error Error as newBook is not a boolean
-    { newBook: 'true' },
-    { bookId: 1 },
-  );
+    params: { newBook: 'true' },
+    urlPathParams: { bookId: 1 },
+  });
 
   console.log('Example 3', data, apiConfig, endpointsList);
   console.log('Example 3', movies, movies1, movies2, movies3, movies4);
@@ -206,7 +217,11 @@ async function example4() {
   }
 
   // Explicitly defined empty config
-  const { data: data4 } = await api.request('fetchBooks', null, null, {});
+  const { data: data4 } = await api.request('fetchBooks', {
+    params: {
+      anyParam: true,
+    },
+  });
 
   // Dynamically added Response to a generic
   const { data: data2 } = await api.request<OtherEndpointData>(
@@ -231,27 +246,24 @@ async function example4() {
     Books,
     DynamicQueryParams,
     DynamicUrlParams
-  >(
-    'fetchBooks',
-    {
-      param1: '1',
-      // @ts-expect-error Non-existent param
-      param2: 1,
-    },
-    {
+  >('fetchBooks', {
+    // Native fetch() setting
+    cache: 'no-store',
+    // Extended fetch setting
+    cacheTime: 86000,
+    // TODO: @ts-expect-error Non-existent setting
+    something: true,
+    urlPathParams: {
       // @ts-expect-error Non-existent param
       urlparam1: '1',
       urlparam2: 1,
     },
-    {
-      // Native fetch() setting
-      cache: 'no-store',
-      // Extended fetch setting
-      cacheTime: 86000,
-      // @ts-expect-error Non-existent setting
-      something: true,
+    params: {
+      param1: '1',
+      // @ts-expect-error Non-existent param
+      param2: 1,
     },
-  );
+  });
 
   console.log('Example 4', books satisfies Books, books2 satisfies Books);
   console.log(
