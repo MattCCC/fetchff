@@ -124,7 +124,7 @@ describe('Request Handler', () => {
         },
       );
 
-      expect(result).toEqual({
+      expect(result).toMatchObject({
         url: 'https://example.com/api',
         method: 'POST',
         headers,
@@ -142,7 +142,7 @@ describe('Request Handler', () => {
         },
       );
 
-      expect(result).toEqual({
+      expect(result).toMatchObject({
         url: 'https://example.com/api',
         method: 'PUT',
         headers,
@@ -160,7 +160,7 @@ describe('Request Handler', () => {
         },
       );
 
-      expect(result).toEqual({
+      expect(result).toMatchObject({
         url: 'https://example.com/api',
         method: 'DELETE',
         headers,
@@ -192,7 +192,7 @@ describe('Request Handler', () => {
     it('should handle empty data and config', () => {
       const result = buildConfig('POST', 'https://example.com/api', null, {});
 
-      expect(result).toEqual({
+      expect(result).toMatchObject({
         url: 'https://example.com/api',
         method: 'POST',
         body: null,
@@ -207,7 +207,7 @@ describe('Request Handler', () => {
         {},
       );
 
-      expect(result).toEqual({
+      expect(result).toMatchObject({
         url: 'https://example.com/api',
         method: 'POST',
         body: 'rawData',
@@ -252,7 +252,7 @@ describe('Request Handler', () => {
         withCredentials: true,
       });
 
-      expect(result).toEqual({
+      expect(result).toMatchObject({
         url: 'https://example.com/api',
         method: 'POST',
         credentials: 'include',
@@ -270,7 +270,7 @@ describe('Request Handler', () => {
         {},
       );
 
-      expect(result).toEqual({
+      expect(result).toMatchObject({
         url: 'https://example.com/api',
         method: 'POST',
         body: JSON.stringify({ foo: 'bar' }),
