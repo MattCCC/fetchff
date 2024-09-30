@@ -103,8 +103,6 @@ function createApiFetcher<
    * It considers settings in following order: per-request settings, global per-endpoint settings, global settings.
    *
    * @param {keyof EndpointsMethods | string} endpointName - The name of the API endpoint to call.
-   * @param {QueryParamsOrBody} [queryParamsOrBody={}] - Query parameters to include in the request.
-   * @param {UrlPathParams} [urlPathParams={}] - URI parameters to include in the request.
    * @param {EndpointConfig} [requestConfig={}] - Additional configuration for the request.
    * @returns {Promise<FetchResponse<ResponseData>>} - A promise that resolves with the response from the API provider.
    */

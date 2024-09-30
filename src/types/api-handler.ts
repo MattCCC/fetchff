@@ -99,8 +99,9 @@ export interface RequestEndpointFunction<EndpointsMethods> {
  * and URL path parameters (`T2`).
  *
  * @template ResponseData - The type of the response data (default: `DefaultResponse`).
- * @template QueryParams - The type of the query parameters (default: `QueryParamsOrBody`).
+ * @template QueryParams - The type of the query parameters (default: `QueryParams`).
  * @template PathParams - The type of the URL path parameters (default: `UrlPathParams`).
+ * @template RequestBody - The type of the Requesty Body (default: `BodyPayload`).
  *
  * @example
  *  interface EndpointsMethods {
