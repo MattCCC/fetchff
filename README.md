@@ -245,6 +245,16 @@ If you initialize API handler with your custom `fetcher`, then this function wil
 
 </details>
 
+## 🛠️ Plugin API Architecture
+
+<details>
+  <summary><span style="cursor:pointer">Click to expand</span></summary>
+  <br>
+
+![Example SVG](./docs/api-architecture.png)
+
+</details>
+
 ## ⚙️ Basic Settings
 
 You can pass the settings:

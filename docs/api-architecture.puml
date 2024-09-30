@@ -1,0 +1,50 @@
+@startuml
+
+!define RECTANGLE class
+
+RECTANGLE GlobalConfig {
+  +baseURL: string
+  +fetcher: Fetcher
+  +endpoints: EndpointsSettings
+  ...
+  [other RequestConfig settings]
+}
+
+note left of GlobalConfig
+  Configurations can be defined at three levels:
+  1. Global via createApiFetcher()
+  2. Per-endpoint in EndpointConfig
+  3. Per-request in fetchf() or api.yourEndpoint()
+end note
+
+RECTANGLE EndpointConfig {
+  +url: string
+  ...
+  [other RequestConfig settings]
+}
+
+RECTANGLE RequestConfig {
+  +timeout: number
+  +params: object
+  +body: object
+  ...
+  [all other RequestConfig settings]
+}
+
+RECTANGLE ApiFetcher {
+  +fetchf(endpointNameOrUrl: string, requestConfig: RequestConfig)
+}
+
+RECTANGLE ApiEndpoints {
+  +api.request(endpointNameOrUrl: string, requestConfig: RequestConfig)
+  +api.yourEndpoint(requestConfig: RequestConfig)
+}
+
+GlobalConfig --|> EndpointConfig : defines
+EndpointConfig --|> RequestConfig : provides defaults
+GlobalConfig ..> ApiEndpoints : applies globally
+EndpointConfig ..> ApiEndpoints : applies globally
+RequestConfig ..> ApiFetcher : per-request settings
+RequestConfig ..> ApiEndpoints : per-request settings
+
+@enduml
