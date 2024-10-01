@@ -368,10 +368,15 @@ export interface ExtendedRequestConfig<
   shouldStopPolling?: PollingFunction<ResponseData, RequestBody>;
 }
 
+export interface Logger {
+  warn(message?: any, ...optionalParams: any[]): void;
+  error?(message?: any, ...optionalParams: any[]): void;
+}
+
 export interface RequestHandlerConfig<ResponseData = any, RequestBody = any>
   extends RequestConfig<ResponseData, RequestBody> {
   fetcher?: FetcherInstance | null;
-  logger?: any;
+  logger?: Logger | null;
 }
 
 export type RequestConfig<
