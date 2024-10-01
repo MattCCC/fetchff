@@ -106,7 +106,7 @@ export interface RequestEndpointFunction<EndpointsMethods> {
  * @example
  *  interface EndpointsMethods {
  *    getUser: Endpoint<UserResponse>;
- *    getPosts: Endpoint<PostsResponse, PostsQueryParams, PostsUrlPathParams>;
+ *    getPosts: Endpoint<PostsResponse, PostsQueryParams, PostsUrlPathParams, PostsRequestBody>;
  *  }
  */
 export declare type Endpoint<

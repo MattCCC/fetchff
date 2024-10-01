@@ -10,6 +10,8 @@ import type {
   RequestHandlerReturnType,
   CreatedCustomFetcherInstance,
   FetcherConfig,
+  FetcherInstance,
+  Logger,
 } from './types/request-handler';
 import type {
   BodyPayload,
@@ -91,21 +93,6 @@ export function createRequestHandler(
   };
 
   /**
-   * Immediately create instance of custom fetcher if it is defined
-   */
-  const customFetcher = handlerConfig.fetcher;
-  const requestInstance = customFetcher?.create(handlerConfig) || null;
-
-  /**
-   * Get Provider Instance
-   *
-   * @returns {CreatedCustomFetcherInstance | null} Provider's instance
-   */
-  const getInstance = (): CreatedCustomFetcherInstance | null => {
-    return requestInstance;
-  };
-
-  /**
    * Gets a configuration value from `reqConfig`, defaulting to `handlerConfig` if not present.
    *
    * @param {RequestConfig} reqConfig - Request configuration object.
@@ -122,13 +109,34 @@ export function createRequestHandler(
   };
 
   /**
+   * Immediately create instance of custom fetcher if it is defined
+   */
+  const customFetcher = getConfig<FetcherInstance>(config, 'fetcher');
+  const requestInstance = customFetcher?.create(handlerConfig) || null;
+
+  /**
+   * Get Provider Instance
+   *
+   * @returns {CreatedCustomFetcherInstance | null} Provider's instance
+   */
+  const getInstance = (): CreatedCustomFetcherInstance | null => {
+    return requestInstance;
+  };
+
+  /**
    * Logs messages or errors using the configured logger's `warn` method.
    *
+   * @param {RequestConfig} reqConfig - Request config passed when making the request
    * @param {...(string | ResponseError<any>)} args - Messages or errors to log.
    */
-  const logger = (...args: (string | ResponseError<any>)[]): void => {
-    if (handlerConfig.logger?.warn) {
-      handlerConfig.logger.warn(...args);
+  const logger = (
+    reqConfig: RequestConfig,
+    ...args: (string | ResponseError<any>)[]
+  ): void => {
+    const logger = getConfig<Logger>(reqConfig, 'logger');
+
+    if (logger?.warn) {
+      logger.warn(...args);
     }
   };
 
@@ -136,30 +144,30 @@ export function createRequestHandler(
    * Build request configuration
    *
    * @param {string} url - Request url
-   * @param {RequestConfig} reqConfig - Request config passed when making the request
+   * @param {RequestConfig} requestConfig - Request config passed when making the request
    * @returns {RequestConfig} - Provider's instance
    */
   const buildConfig = (
     url: string,
-    reqConfig: RequestConfig,
+    requestConfig: RequestConfig,
   ): FetcherConfig => {
     const method = getConfig<string>(
-      reqConfig,
+      requestConfig,
       'method',
     ).toUpperCase() as Method;
     const isGetAlikeMethod = method === GET || method === HEAD;
 
     const dynamicUrl = replaceUrlPathParams(
       url,
-      getConfig(reqConfig, 'urlPathParams'),
+      getConfig(requestConfig, 'urlPathParams'),
     );
 
     // The explicitly passed "params"
-    const explicitParams = getConfig<QueryParams>(reqConfig, 'params');
+    const explicitParams = getConfig<QueryParams>(requestConfig, 'params');
 
     // The explicitly passed "body" or "data"
     const explicitBodyData: BodyPayload =
-      getConfig(reqConfig, 'body') || getConfig(reqConfig, 'data');
+      getConfig(requestConfig, 'body') || getConfig(requestConfig, 'data');
 
     // Final body data
     let body: RequestConfig['data'];
@@ -170,11 +178,14 @@ export function createRequestHandler(
     }
 
     // Native fetch compatible settings
-    const isWithCredentials = getConfig<boolean>(reqConfig, 'withCredentials');
+    const isWithCredentials = getConfig<boolean>(
+      requestConfig,
+      'withCredentials',
+    );
 
     const credentials = isWithCredentials
       ? 'include'
-      : getConfig<RequestCredentials>(reqConfig, 'credentials');
+      : getConfig<RequestCredentials>(requestConfig, 'credentials');
 
     const urlPath = explicitParams
       ? appendQueryParams(dynamicUrl, explicitParams)
@@ -182,8 +193,8 @@ export function createRequestHandler(
     const isFullUrl = urlPath.includes('://');
     const baseURL = isFullUrl
       ? ''
-      : getConfig<string>(reqConfig, 'baseURL') ||
-        getConfig<string>(reqConfig, 'apiUrl');
+      : getConfig<string>(requestConfig, 'baseURL') ||
+        getConfig<string>(requestConfig, 'apiUrl');
 
     // Automatically stringify request body, if possible and when not dealing with strings
     if (
@@ -196,7 +207,7 @@ export function createRequestHandler(
     }
 
     return {
-      ...reqConfig,
+      ...requestConfig,
       credentials,
       body,
       method,
@@ -217,7 +228,7 @@ export function createRequestHandler(
     requestConfig: RequestConfig<ResponseData>,
   ): Promise<void> => {
     if (!isRequestCancelled(error)) {
-      logger('API ERROR', error);
+      logger(requestConfig, 'API ERROR', error);
     }
 
     // Local interceptors
@@ -417,7 +428,7 @@ export function createRequestHandler(
           // Restart the main retry loop
           pollingAttempt++;
 
-          logger(`Polling attempt ${pollingAttempt}...`);
+          logger(requestConfig, 'Polling attempt ' + pollingAttempt + '...');
 
           await delayInvocation(pollingInterval);
 
@@ -456,7 +467,10 @@ export function createRequestHandler(
           );
         }
 
-        logger(`Attempt ${attempt + 1} failed. Retry in ${waitTime}ms.`);
+        logger(
+          mergedConfig,
+          `Attempt ${attempt + 1} failed. Retry in ${waitTime}ms.`,
+        );
 
         await delayInvocation(waitTime);
 
@@ -479,7 +493,7 @@ export function createRequestHandler(
    */
   const outputResponse = <ResponseData = DefaultResponse>(
     response: FetchResponse<ResponseData> | null,
-    requestConfig: RequestConfig,
+    requestConfig: RequestConfig<ResponseData>,
     error: ResponseError<ResponseData> | null = null,
   ): FetchResponse<ResponseData> => {
     const defaultResponse = getConfig<any>(requestConfig, 'defaultResponse');
