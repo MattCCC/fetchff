@@ -175,12 +175,11 @@ const { data, error } = await api.getUser({
   <summary><span style="cursor:pointer">Click to expand</span></summary>
   <br>
 
-All the Request Settings can be used directly in the function or in the `endpoints` property (on per-endpoint basis). There are also two extra global settings for `createApiFetcher()`:
+All the Request Settings can be directly used in the function as global settings for all endpoints. They can be also used within the `endpoints` property (on per-endpoint basis). The exposed `endpoints` property is as follows:
 
-| Name      | Type              | Default | Description                                                                                                                                                                                                                                                                |
-| --------- | ----------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| endpoints | `object`          |         | List of your endpoints. Each endpoint accepts all the settings below. They can be set globally, per-endpoint or per-request.                                                                                                                                               |
-| fetcher   | `FetcherInstance` |         | A custom adapter (an instance / object) that exposes `create()` function so to create instance of API Fetcher. The `create()` should return `request()` function that would be used when making the requests. The native `fetch()` is used if the fetcher is not provided. |
+- **`endpoints`**:
+  Type: `EndpointsConfig<EndpointsMethods>`
+  List of your endpoints. Each endpoint is an object that accepts all the Request Settings (see the Basic Settings below). The endpoints are required to be specified.
 
 #### How It Works
 
@@ -206,7 +205,7 @@ import { createApiFetcher } from 'fetchff';
 const api = createApiFetcher({
   apiUrl: 'https://example.com/api',
   endpoints: {
-    updateUserData: {
+    updateUser: {
       url: '/update-user/:id',
       method: 'POST',
     },
@@ -215,7 +214,7 @@ const api = createApiFetcher({
 });
 
 // Using api.request to make a POST request
-const { data, error } = await api.request('updateUserData', {
+const { data, error } = await api.request('updateUser', {
   body: {
     name: 'John Doe', // Data Payload
   },
@@ -280,6 +279,7 @@ You can also use all native `fetch()` settings.
 | timeout                    | `number`                                                                                               | `30000` | You can set a request timeout for all requests or particular in milliseconds.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | dedupeTime                 | `number`                                                                                               | `1000`  | Time window, in milliseconds, during which identical requests are deduplicated (treated as single request).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | logger                     | `Logger`                                                                                               | `null`  | You can additionally specify logger object with your custom logger to automatically log the errors to the console. It should contain at least `error` and `warn` functions.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| fetcher                    | `FetcherInstance`                                                                                      |         | A custom adapter (an instance / object) that exposes `create()` function so to create instance of API Fetcher. The `create()` should return `request()` function that would be used when making the requests. The native `fetch()` is used if the fetcher is not provided.                                                                                                                                                                                                                                                                                                                                                                                  |
 
 ## 🏷️ Headers
 
