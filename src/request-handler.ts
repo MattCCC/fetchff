@@ -92,16 +92,30 @@ export function createRequestHandler(
     ...config,
   };
 
-  if (config.retry) {
-    handlerConfig.retry = { ...defaultConfig.retry, ...config.retry };
-  }
+  /**
+   * Merges the specified property from the base configuration and the new configuration into the target configuration.
+   *
+   * @param {K} property - The property key to merge from the base and new configurations. Must be a key of RequestHandlerConfig.
+   * @param {RequestHandlerConfig} targetConfig - The configuration object that will receive the merged properties.
+   * @param {RequestHandlerConfig} baseConfig - The base configuration object that provides default values.
+   * @param {RequestHandlerConfig} newConfig - The new configuration object that contains user-specific settings to merge.
+   */
+  const mergeConfig = <K extends keyof RequestHandlerConfig>(
+    property: K,
+    targetConfig: RequestHandlerConfig,
+    baseConfig: RequestHandlerConfig,
+    newConfig: RequestHandlerConfig,
+  ) => {
+    if (newConfig[property]) {
+      targetConfig[property] = {
+        ...baseConfig[property],
+        ...newConfig[property],
+      };
+    }
+  };
 
-  if (config.headers) {
-    handlerConfig.headers = {
-      ...defaultConfig.headers,
-      ...config.headers,
-    };
-  }
+  mergeConfig('retry', handlerConfig, defaultConfig, config);
+  mergeConfig('headers', handlerConfig, defaultConfig, config);
 
   /**
    * Gets a configuration value from `reqConfig`, defaulting to `handlerConfig` if not present.
@@ -322,16 +336,8 @@ export function createRequestHandler(
       ..._reqConfig,
     } as RequestConfig;
 
-    if (_reqConfig.retry) {
-      mergedConfig.retry = { ...handlerConfig.retry, ..._reqConfig.retry };
-    }
-
-    if (_reqConfig.headers) {
-      mergedConfig.headers = {
-        ...handlerConfig.headers,
-        ..._reqConfig.headers,
-      };
-    }
+    mergeConfig('retry', mergedConfig, handlerConfig, _reqConfig);
+    mergeConfig('headers', mergedConfig, handlerConfig, _reqConfig);
 
     let response: FetchResponse<ResponseData> | null = null;
     const fetcherConfig = buildConfig(url, mergedConfig);
