@@ -7,7 +7,6 @@ node_modules
 package
 docs
 
-CODE_OF_CONDUCT.md
 SECURITY.md
 
 *.tgz
