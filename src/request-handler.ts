@@ -92,6 +92,17 @@ export function createRequestHandler(
     ...config,
   };
 
+  if (config.retry) {
+    handlerConfig.retry = { ...defaultConfig.retry, ...config.retry };
+  }
+
+  if (config.headers) {
+    handlerConfig.headers = {
+      ...defaultConfig.headers,
+      ...config.headers,
+    };
+  }
+
   /**
    * Gets a configuration value from `reqConfig`, defaulting to `handlerConfig` if not present.
    *
@@ -310,6 +321,17 @@ export function createRequestHandler(
       ...handlerConfig,
       ..._reqConfig,
     } as RequestConfig;
+
+    if (_reqConfig.retry) {
+      mergedConfig.retry = { ...handlerConfig.retry, ..._reqConfig.retry };
+    }
+
+    if (_reqConfig.headers) {
+      mergedConfig.headers = {
+        ...handlerConfig.headers,
+        ..._reqConfig.headers,
+      };
+    }
 
     let response: FetchResponse<ResponseData> | null = null;
     const fetcherConfig = buildConfig(url, mergedConfig);

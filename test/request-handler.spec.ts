@@ -71,41 +71,28 @@ describe('Request Handler', () => {
       requestHandler = createRequestHandler({});
     });
 
-    const buildConfig = (method: string, url: string, data: any, config: any) =>
-      (requestHandler as any).buildConfig(url, {
-        ...config,
-        method,
-        data,
+    it('should not differ when the same request is made', () => {
+      const result = requestHandler?.buildConfig('https://example.com/api', {
+        method: 'GET',
+        data: { foo: 'bar' },
+        baseURL: 'abc',
       });
 
-    it('should not differ when the same request is made', () => {
-      const result = buildConfig(
-        'GET',
-        'https://example.com/api',
-        { foo: 'bar' },
-        { baseURL: 'abc' },
-      );
-
-      const result2 = buildConfig(
-        'GET',
-        'https://example.com/api',
-        { foo: 'bar' },
-        { baseURL: 'abc' },
-      );
+      const result2 = requestHandler?.buildConfig('https://example.com/api', {
+        method: 'GET',
+        data: { foo: 'bar' },
+        baseURL: 'abc',
+      });
 
       expect(result).toEqual(result2);
     });
 
     it('should handle GET requests correctly', () => {
-      const result = buildConfig(
-        'GET',
-        'https://example.com/api',
-        {},
-        {
-          headers,
-          params: { foo: 'bar' },
-        },
-      );
+      const result = requestHandler?.buildConfig('https://example.com/api', {
+        method: 'GET',
+        headers,
+        params: { foo: 'bar' },
+      });
 
       expect(result).toMatchObject({
         url: 'https://example.com/api?foo=bar',
@@ -115,14 +102,11 @@ describe('Request Handler', () => {
     });
 
     it('should handle POST requests correctly', () => {
-      const result = buildConfig(
-        'POST',
-        'https://example.com/api',
-        { foo: 'bar' },
-        {
-          headers,
-        },
-      );
+      const result = requestHandler?.buildConfig('https://example.com/api', {
+        method: 'POST',
+        data: { foo: 'bar' },
+        headers,
+      });
 
       expect(result).toMatchObject({
         url: 'https://example.com/api',
@@ -133,14 +117,11 @@ describe('Request Handler', () => {
     });
 
     it('should handle PUT requests correctly', () => {
-      const result = buildConfig(
-        'PUT',
-        'https://example.com/api',
-        { foo: 'bar' },
-        {
-          headers,
-        },
-      );
+      const result = requestHandler?.buildConfig('https://example.com/api', {
+        method: 'PUT',
+        data: { foo: 'bar' },
+        headers,
+      });
 
       expect(result).toMatchObject({
         url: 'https://example.com/api',
@@ -151,14 +132,11 @@ describe('Request Handler', () => {
     });
 
     it('should handle DELETE requests correctly', () => {
-      const result = buildConfig(
-        'DELETE',
-        'https://example.com/api',
-        { foo: 'bar' },
-        {
-          headers,
-        },
-      );
+      const result = requestHandler?.buildConfig('https://example.com/api', {
+        method: 'DELETE',
+        data: { foo: 'bar' },
+        headers,
+      });
 
       expect(result).toMatchObject({
         url: 'https://example.com/api',
@@ -169,20 +147,27 @@ describe('Request Handler', () => {
     });
 
     it('should handle custom headers and config when both data and query params are passed', () => {
-      const result = buildConfig(
-        'POST',
-        'https://example.com/api',
-        { additional: 'info' },
-        {
-          headers: { 'X-CustomHeader': 'Some token' },
-          params: { foo: 'bar' },
-        },
-      );
+      const mergedConfig = {
+        headers,
+      } as RequestConfig;
+
+      mergedConfig.headers = {
+        ...mergedConfig.headers,
+        ...{ 'X-CustomHeader': 'Some token' },
+      };
+
+      const result = requestHandler?.buildConfig('https://example.com/api', {
+        ...mergedConfig,
+        method: 'POST',
+        data: { additional: 'info' },
+        params: { foo: 'bar' },
+      });
 
       expect(result).toMatchObject({
         url: 'https://example.com/api?foo=bar',
         method: 'POST',
         headers: {
+          ...headers,
           'X-CustomHeader': 'Some token',
         },
         body: JSON.stringify({ additional: 'info' }),
@@ -190,7 +175,10 @@ describe('Request Handler', () => {
     });
 
     it('should handle empty data and config', () => {
-      const result = buildConfig('POST', 'https://example.com/api', null, {});
+      const result = requestHandler?.buildConfig('https://example.com/api', {
+        method: 'POST',
+        data: null,
+      });
 
       expect(result).toMatchObject({
         url: 'https://example.com/api',
@@ -200,12 +188,10 @@ describe('Request Handler', () => {
     });
 
     it('should handle data as string', () => {
-      const result = buildConfig(
-        'POST',
-        'https://example.com/api',
-        'rawData',
-        {},
-      );
+      const result = requestHandler?.buildConfig('https://example.com/api', {
+        method: 'POST',
+        data: 'rawData',
+      });
 
       expect(result).toMatchObject({
         url: 'https://example.com/api',
@@ -215,14 +201,10 @@ describe('Request Handler', () => {
     });
 
     it('should correctly append query params for GET-alike methods', () => {
-      const result = buildConfig(
-        'head',
-        'https://example.com/api',
-        {},
-        {
-          params: { foo: [1, 2] },
-        },
-      );
+      const result = requestHandler?.buildConfig('https://example.com/api', {
+        method: 'HEAD',
+        params: { foo: [1, 2] },
+      });
 
       expect(result).toMatchObject({
         url: 'https://example.com/api?foo[]=1&foo[]=2',
@@ -231,14 +213,11 @@ describe('Request Handler', () => {
     });
 
     it('should handle POST with query params in config', () => {
-      const result = buildConfig(
-        'POST',
-        'https://example.com/api',
-        { additional: 'info' },
-        {
-          params: { foo: 'bar' },
-        },
-      );
+      const result = requestHandler?.buildConfig('https://example.com/api', {
+        method: 'POST',
+        data: { additional: 'info' },
+        params: { foo: 'bar' },
+      });
 
       expect(result).toMatchObject({
         url: 'https://example.com/api?foo=bar',
@@ -248,7 +227,9 @@ describe('Request Handler', () => {
     });
 
     it('should append credentials if flag is used', () => {
-      const result = buildConfig('POST', 'https://example.com/api', null, {
+      const result = requestHandler?.buildConfig('https://example.com/api', {
+        method: 'POST',
+        data: null,
         withCredentials: true,
       });
 
@@ -261,14 +242,10 @@ describe('Request Handler', () => {
     });
 
     it('should not append query params to POST requests if body is set as data', () => {
-      const result = buildConfig(
-        'POST',
-        'https://example.com/api',
-        {
-          foo: 'bar',
-        },
-        {},
-      );
+      const result = requestHandler?.buildConfig('https://example.com/api', {
+        method: 'POST',
+        data: { foo: 'bar' },
+      });
 
       expect(result).toMatchObject({
         url: 'https://example.com/api',
@@ -278,16 +255,12 @@ describe('Request Handler', () => {
     });
 
     it('should not append body nor data to GET requests', () => {
-      const result = buildConfig(
-        'GET',
-        'https://example.com/api',
-        { foo: 'bar' },
-        {
-          body: { additional: 'info' },
-          data: { additional: 'info' },
-          params: { foo: 'bar' },
-        },
-      );
+      const result = requestHandler?.buildConfig('https://example.com/api', {
+        method: 'GET',
+        data: { foo: 'bar' },
+        body: { additional: 'info' },
+        params: { foo: 'bar' },
+      });
 
       expect(result).toMatchObject({
         url: 'https://example.com/api?foo=bar',
