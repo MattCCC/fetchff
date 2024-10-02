@@ -846,6 +846,7 @@ For a complete list of types and their definitions, refer to the [request-handle
 | **Unified API Client**                             | ✅          | --           | --           | --           | --             |
 | **Smart Request Cache**                            | ✅          | --           | --           | --           | --             |
 | **Automatic Request Deduplication**                | ✅          | --           | --           | --           | --             |
+| **Custom Fetching Adapter**                        | ✅          | --           | --           | --           | --             |
 | **Built-in Error Handling**                        | ✅          | --           | ✅           | --           | --             |
 | **Customizable Error Handling**                    | ✅          | --           | ✅           | ✅           | --             |
 | **Retries with exponential backoff**               | ✅          | --           | --           | --           | --             |
