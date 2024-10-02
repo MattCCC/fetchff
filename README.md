@@ -175,12 +175,11 @@ const { data, error } = await api.getUser({
   <summary><span style="cursor:pointer">Click to expand</span></summary>
   <br>
 
-All the Request Settings can be used directly in the function or in the `endpoints` property (on per-endpoint basis). There are also two extra global settings for `createApiFetcher()`:
+All the Request Settings can be directly used in the function as global settings for all endpoints. They can be also used within the `endpoints` property (on per-endpoint basis). The exposed `endpoints` property is as follows:
 
-| Name      | Type              | Default | Description                                                                                                                                                                                                                                                                |
-| --------- | ----------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| endpoints | `object`          |         | List of your endpoints. Each endpoint accepts all the settings below. They can be set globally, per-endpoint or per-request.                                                                                                                                               |
-| fetcher   | `FetcherInstance` |         | A custom adapter (an instance / object) that exposes `create()` function so to create instance of API Fetcher. The `create()` should return `request()` function that would be used when making the requests. The native `fetch()` is used if the fetcher is not provided. |
+- **`endpoints`**:
+  Type: `EndpointsConfig<EndpointsMethods>`
+  List of your endpoints. Each endpoint is an object that accepts all the Request Settings (see the Basic Settings below). The endpoints are required to be specified.
 
 #### How It Works
 
@@ -206,7 +205,7 @@ import { createApiFetcher } from 'fetchff';
 const api = createApiFetcher({
   apiUrl: 'https://example.com/api',
   endpoints: {
-    updateUserData: {
+    updateUser: {
       url: '/update-user/:id',
       method: 'POST',
     },
@@ -215,7 +214,7 @@ const api = createApiFetcher({
 });
 
 // Using api.request to make a POST request
-const { data, error } = await api.request('updateUserData', {
+const { data, error } = await api.request('updateUser', {
   body: {
     name: 'John Doe', // Data Payload
   },
@@ -279,7 +278,8 @@ You can also use all native `fetch()` settings.
 | withCredentials            | `boolean`                                                                                              | `false` | Indicates whether credentials (such as cookies) should be included with the request.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | timeout                    | `number`                                                                                               | `30000` | You can set a request timeout for all requests or particular in milliseconds.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | dedupeTime                 | `number`                                                                                               | `1000`  | Time window, in milliseconds, during which identical requests are deduplicated (treated as single request).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| logger                     | `object`                                                                                               | `null`  | You can additionally specify logger object with your custom logger to automatically log the errors to the console. It should contain at least `error` and `warn` functions.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| logger                     | `Logger`                                                                                               | `null`  | You can additionally specify logger object with your custom logger to automatically log the errors to the console. It should contain at least `error` and `warn` functions.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| fetcher                    | `FetcherInstance`                                                                                      |         | A custom adapter (an instance / object) that exposes `create()` function so to create instance of API Fetcher. The `create()` should return `request()` function that would be used when making the requests. The native `fetch()` is used if the fetcher is not provided.                                                                                                                                                                                                                                                                                                                                                                                  |
 
 ## 🏷️ Headers
 
@@ -290,25 +290,6 @@ You can also use all native `fetch()` settings.
 `fetchff` provides robust support for handling HTTP headers in your requests. You can configure and manipulate headers at both global and per-request levels. Here’s a detailed overview of how to work with headers using `fetchff`.
 
 **Note:** Header keys are case-sensitive when specified in request objects. Ensure that the keys are provided in the correct case to avoid issues with header handling.
-
-### How to Set Per-Request Headers
-
-To set headers for a specific request, include the `headers` option in the request configuration. This option accepts an `object` where the keys are the header names and the values are the corresponding header values.
-
-### Default Headers
-
-The `fetchff` plugin automatically injects a set of default headers into every request. These default headers help ensure that requests are consistent and include necessary information for the server to process them correctly.
-
-#### Default Headers Injected
-
-- **`Content-Type`**: `application/json;charset=utf-8`
-  Specifies that the request body contains JSON data and sets the character encoding to UTF-8.
-
-- **`Accept`**: `application/json, text/plain, */*`
-  Indicates the media types that the client is willing to receive from the server. This includes JSON, plain text, and any other types.
-
-- **`Accept-Encoding`**: `gzip, deflate, br`
-  Specifies the content encoding that the client can understand, including gzip, deflate, and Brotli compression.
 
 ### Setting Headers Globally
 
@@ -346,6 +327,19 @@ const { data } = await fetchf('https://api.example.com/endpoint', {
   },
 });
 ```
+
+### Default Headers
+
+The `fetchff` plugin automatically injects a set of default headers into every request. These default headers help ensure that requests are consistent and include necessary information for the server to process them correctly.
+
+- **`Content-Type`**: `application/json;charset=utf-8`
+  Specifies that the request body contains JSON data and sets the character encoding to UTF-8.
+
+- **`Accept`**: `application/json, text/plain, */*`
+  Indicates the media types that the client is willing to receive from the server. This includes JSON, plain text, and any other types.
+
+- **`Accept-Encoding`**: `gzip, deflate, br`
+  Specifies the content encoding that the client can understand, including gzip, deflate, and Brotli compression.
 
 </details>
 
@@ -852,6 +846,7 @@ For a complete list of types and their definitions, refer to the [request-handle
 | **Unified API Client**                             | ✅          | --           | --           | --           | --             |
 | **Smart Request Cache**                            | ✅          | --           | --           | --           | --             |
 | **Automatic Request Deduplication**                | ✅          | --           | --           | --           | --             |
+| **Custom Fetching Adapter**                        | ✅          | --           | --           | --           | --             |
 | **Built-in Error Handling**                        | ✅          | --           | ✅           | --           | --             |
 | **Customizable Error Handling**                    | ✅          | --           | ✅           | ✅           | --             |
 | **Retries with exponential backoff**               | ✅          | --           | --           | --           | --             |
@@ -911,6 +906,10 @@ const api = createApiFetcher({
   method: 'get', // Default request method.
   params: {}, // Default params added to all requests.
   data: {}, // Alias for 'body'. Default data passed to POST, PUT, DELETE and PATCH requests.
+  cacheTime: 300, // Cache is valid for 5 minutes
+  cacheKey: (config) => `${config.url}-${config.method}`, // Custom cache key based on URL and method
+  cacheBuster: (config) => config.method === 'POST', // Bust cache for POST requests
+  skipCache: (response, config) => response.status !== 200, // Skip caching on non-200 responses
   onError(error) {
     // Interceptor on error
     console.error('Request failed', error);
@@ -1449,7 +1448,7 @@ fetchUserAndCreatePost(1, { title: 'New Post', content: 'This is a new post.' })
 <details>
   <summary><span style="cursor:pointer">Click to expand</span></summary>
   <br>
-  You can implement a `useApi()` hook to handle the data fetching. Since this package has everything included, you don't really need anything more than a simple hook to utilize.<br><br>
+  You can implement a `useFetcher()` hook to handle the data fetching. Since this package has everything included, you don't really need anything more than a simple hook to utilize.<br><br>
 
 Create `api.ts` file:
 
@@ -1467,10 +1466,10 @@ export const api = createApiFetcher({
 });
 ```
 
-Create `useApi.ts` file:
+Create `useFetcher.ts` file:
 
 ```tsx
-export const useApi = (apiFunction) => {
+export const useFetcher = (apiFunction) => {
   const [data, setData] = useState(null);
   const [error] = useState(null);
   const [isLoading, setLoading] = useState(true);
@@ -1505,7 +1504,7 @@ export const ProfileComponent = ({ id }) => {
     data: profile,
     error,
     isLoading,
-  } = useApi(() => api.getProfile({ urlPathParams: { id } }));
+  } = useFetcher(() => api.getProfile({ urlPathParams: { id } }));
 
   if (isLoading) return <div>Loading...</div>;
   if (error) return <div>Error: {error.message}</div>;

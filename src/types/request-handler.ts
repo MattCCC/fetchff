@@ -366,13 +366,41 @@ export interface ExtendedRequestConfig<
    * @returns `true` to stop polling, `false` to continue.
    */
   shouldStopPolling?: PollingFunction<ResponseData, RequestBody>;
+
+  /**
+   * A custom fetcher instance to handle requests instead of the default implementation.
+   * When `null`, the default fetch behavior is used.
+   *
+   * @example:
+   * const customFetcher: FetcherInstance = { create: () => ({ request: (config) => fetch(config.url) }) };
+   * fetchf('/endpoint', { fetcher: customFetcher });
+   *
+   * @default null
+   */
+  fetcher?: FetcherInstance | null;
+
+  /**
+   * A custom logger instance to handle warnings and errors.
+   * When `null`, logging is disabled.
+   *
+   * @example:
+   * const customLogger: Logger = { warn: console.warn, error: console.error };
+   * fetchf('/endpoint', { logger: customLogger });
+   *
+   * @default null (Logging is disabled)
+   */
+  logger?: Logger | null;
 }
 
-export interface RequestHandlerConfig<ResponseData = any, RequestBody = any>
-  extends RequestConfig<ResponseData, RequestBody> {
-  fetcher?: FetcherInstance | null;
-  logger?: any;
+export interface Logger {
+  warn(message?: any, ...optionalParams: any[]): void;
+  error?(message?: any, ...optionalParams: any[]): void;
 }
+
+export type RequestHandlerConfig<
+  ResponseData = any,
+  RequestBody = any,
+> = RequestConfig<ResponseData, RequestBody>;
 
 export type RequestConfig<
   ResponseData = any,
