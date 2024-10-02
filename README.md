@@ -1447,7 +1447,7 @@ fetchUserAndCreatePost(1, { title: 'New Post', content: 'This is a new post.' })
 <details>
   <summary><span style="cursor:pointer">Click to expand</span></summary>
   <br>
-  You can implement a `useApi()` hook to handle the data fetching. Since this package has everything included, you don't really need anything more than a simple hook to utilize.<br><br>
+  You can implement a `useFetcher()` hook to handle the data fetching. Since this package has everything included, you don't really need anything more than a simple hook to utilize.<br><br>
 
 Create `api.ts` file:
 
@@ -1465,10 +1465,10 @@ export const api = createApiFetcher({
 });
 ```
 
-Create `useApi.ts` file:
+Create `useFetcher.ts` file:
 
 ```tsx
-export const useApi = (apiFunction) => {
+export const useFetcher = (apiFunction) => {
   const [data, setData] = useState(null);
   const [error] = useState(null);
   const [isLoading, setLoading] = useState(true);
@@ -1503,7 +1503,7 @@ export const ProfileComponent = ({ id }) => {
     data: profile,
     error,
     isLoading,
-  } = useApi(() => api.getProfile({ urlPathParams: { id } }));
+  } = useFetcher(() => api.getProfile({ urlPathParams: { id } }));
 
   if (isLoading) return <div>Loading...</div>;
   if (error) return <div>Error: {error.message}</div>;
