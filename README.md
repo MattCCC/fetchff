@@ -3,7 +3,7 @@
 
 <h4 align="center">Fast, lightweight (~3 KB gzipped) and reusable data fetching</h4>
 
-<i>"fetchff" stands for "fetch fast & flexibly" </i>
+<i>"fetchff" stands for "fetch fast & flexibly"</i>
 
 [npm-url]: https://npmjs.org/package/fetchff
 [npm-image]: http://img.shields.io/npm/v/fetchff.svg
@@ -22,7 +22,7 @@ Managing multitude of API connections in large Frontend Application can be compl
 
 ✅ **Immutable:** Every request has its own instance.
 
-✅ **Isomorphic:** Comptabile with Node.js, Deno and modern browsers.
+✅ **Isomorphic:** Compatible with Node.js, Deno and modern browsers.
 
 ✅ **Type Safe:** Strongly typed and written in TypeScript.
 

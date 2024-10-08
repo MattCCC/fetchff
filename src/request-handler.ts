@@ -405,6 +405,7 @@ export function createRequestHandler(
         );
 
         // Shallow copy to ensure basic idempotency
+        // Note that the refrence of the main object does not change here so it is safe in context of queue management and interceptors
         const requestConfig: RequestConfig = {
           signal: controller.signal,
           ...fetcherConfig,
