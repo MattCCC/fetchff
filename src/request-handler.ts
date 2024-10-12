@@ -202,6 +202,43 @@ export function createRequestHandler(
       body = explicitBodyData;
     }
 
+    const headers = getConfig<HeadersInit>(requestConfig, 'headers') || {};
+
+    // Only applicable for request methods 'PUT' and 'DELETE' without a body
+    if (['DELETE', 'PUT'].includes(method) && !body) {
+      // Check if Content-Type is not explicitly provided in requestConfig.headers
+      let explicitContentType: string | undefined = undefined;
+      if (
+        requestConfig.headers &&
+        typeof requestConfig.headers === 'object' &&
+        !Array.isArray(requestConfig.headers)
+      ) {
+        explicitContentType = (requestConfig.headers as Record<string, string>)[
+          CONTENT_TYPE
+        ];
+      }
+
+      if (!explicitContentType) {
+        // If Content-Type is not explicitly set in requestConfig
+        if (headers instanceof Headers) {
+          if (headers.has(CONTENT_TYPE)) {
+            headers.delete(CONTENT_TYPE);
+          }
+        } else if (Array.isArray(headers)) {
+          const contentTypeHeaderIndex = headers.findIndex(
+            (header) => header[0].toLowerCase() === CONTENT_TYPE,
+          );
+          if (contentTypeHeaderIndex > -1) {
+            headers.splice(contentTypeHeaderIndex, 1); // Remove Content-Type header
+          }
+        } else if (typeof headers === 'object') {
+          if (headers[CONTENT_TYPE]) {
+            delete headers[CONTENT_TYPE];
+          }
+        }
+      }
+    }
+
     // Native fetch compatible settings
     const isWithCredentials = getConfig<boolean>(
       requestConfig,
@@ -236,11 +273,10 @@ export function createRequestHandler(
       credentials,
       body,
       method,
-
       url: baseURL + urlPath,
+      headers,
     };
   };
-
   /**
    * Process global Request Error
    *
