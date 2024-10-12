@@ -277,6 +277,7 @@ export function createRequestHandler(
       headers,
     };
   };
+
   /**
    * Process global Request Error
    *
