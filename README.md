@@ -417,7 +417,7 @@ The following options are available for configuring interceptors in the `Request
 Here's an example of how to configure error handling:
 
 ```typescript
-const { data } = await fetchf('https://api.example.com/', {
+const { data, error } = await fetchf('https://api.example.com/', {
   strategy: 'reject', // Use 'reject' strategy for error handling (default)
 });
 ```
