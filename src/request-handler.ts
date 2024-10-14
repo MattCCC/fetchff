@@ -56,7 +56,6 @@ const defaultConfig: RequestHandlerConfig = {
   headers: {
     Accept: APPLICATION_JSON + ', text/plain, */*',
     'Accept-Encoding': 'gzip, deflate, br',
-    [CONTENT_TYPE]: APPLICATION_JSON + ';charset=utf-8',
   },
   retry: {
     delay: 1000,
@@ -166,6 +165,35 @@ export function createRequestHandler(
   };
 
   /**
+   * Sets the Content-Type header if needed based on the method and body.
+   *
+   * @param {HeadersInit} headers - The headers object where Content-Type will be set.
+   * @param {string} method - The HTTP method (e.g., GET, POST, PUT, DELETE).
+   * @param {any} [body] - Optional request body to determine if Content-Type is needed.
+   */
+  const setContentTypeIfNeeded = (
+    headers: HeadersInit,
+    method: string,
+    body?: any,
+  ) => {
+    // For PUT and DELETE methods, do not set Content-Type if no body is provided.
+    if (['PUT', 'DELETE'].includes(method) && !body) {
+      return;
+    }
+
+    // Automatically set Content-Type to 'application/json;charset=utf-8' if not already present.
+    if (headers instanceof Headers) {
+      if (!headers.has(CONTENT_TYPE)) {
+        headers.set(CONTENT_TYPE, APPLICATION_JSON + ';charset=utf-8');
+      }
+    } else if (typeof headers === 'object' && !Array.isArray(headers)) {
+      if (!headers[CONTENT_TYPE]) {
+        headers[CONTENT_TYPE] = APPLICATION_JSON + ';charset=utf-8';
+      }
+    }
+  };
+
+  /**
    * Build request configuration
    *
    * @param {string} url - Request url
@@ -202,42 +230,10 @@ export function createRequestHandler(
       body = explicitBodyData;
     }
 
-    const headers = getConfig<HeadersInit>(requestConfig, 'headers') || {};
+    const headers = getConfig<HeadersInit>(requestConfig, 'headers');
 
-    // Only applicable for request methods 'PUT' and 'DELETE' without a body
-    if (['DELETE', 'PUT'].includes(method) && !body) {
-      // Check if Content-Type is not explicitly provided in requestConfig.headers
-      let explicitContentType: string | undefined = undefined;
-      if (
-        requestConfig.headers &&
-        typeof requestConfig.headers === 'object' &&
-        !Array.isArray(requestConfig.headers)
-      ) {
-        explicitContentType = (requestConfig.headers as Record<string, string>)[
-          CONTENT_TYPE
-        ];
-      }
-
-      if (!explicitContentType) {
-        // If Content-Type is not explicitly set in requestConfig
-        if (headers instanceof Headers) {
-          if (headers.has(CONTENT_TYPE)) {
-            headers.delete(CONTENT_TYPE);
-          }
-        } else if (Array.isArray(headers)) {
-          const contentTypeHeaderIndex = headers.findIndex(
-            (header) => header[0].toLowerCase() === CONTENT_TYPE,
-          );
-          if (contentTypeHeaderIndex > -1) {
-            headers.splice(contentTypeHeaderIndex, 1); // Remove Content-Type header
-          }
-        } else if (typeof headers === 'object') {
-          if (headers[CONTENT_TYPE]) {
-            delete headers[CONTENT_TYPE];
-          }
-        }
-      }
-    }
+    // Add or remove Content-Type depending on the conditions
+    setContentTypeIfNeeded(headers, method, body);
 
     // Native fetch compatible settings
     const isWithCredentials = getConfig<boolean>(
