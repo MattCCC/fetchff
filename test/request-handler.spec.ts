@@ -10,7 +10,6 @@ import type {
 import { fetchf } from '../src';
 import { ABORT_ERROR } from '../src/constants';
 import { ResponseErr } from '../src/response-error';
-import { APPLICATION_JSON } from '../src/constants';
 
 jest.mock('../src/utils', () => {
   const originalModule = jest.requireActual('../src/utils');
@@ -69,7 +68,9 @@ describe('Request Handler', () => {
     };
 
     beforeAll(() => {
-      requestHandler = createRequestHandler({});
+      requestHandler = createRequestHandler({
+        headers,
+      });
     });
 
     it('should not differ when the same request is made', () => {
@@ -268,6 +269,106 @@ describe('Request Handler', () => {
         method: 'GET',
         params: { foo: 'bar' },
       });
+    });
+  });
+
+  describe('Request Handler - Content-Type Handling', () => {
+    let requestHandler: RequestHandlerReturnType;
+
+    beforeEach(() => {
+      requestHandler = createRequestHandler({});
+    });
+
+    afterEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it('should remove Content-Type for DELETE method if no body is provided', () => {
+      const result = requestHandler.buildConfig(apiUrl, {
+        method: 'DELETE',
+      });
+
+      expect(result.headers).not.toHaveProperty('Content-Type');
+    });
+
+    it('should remove Content-Type for PUT method if no body is provided', () => {
+      const result = requestHandler.buildConfig(apiUrl, {
+        method: 'PUT',
+      });
+
+      expect(result.headers).not.toHaveProperty('Content-Type');
+    });
+
+    it('should keep Content-Type for DELETE method if body is provided', () => {
+      const result = requestHandler.buildConfig(apiUrl, {
+        method: 'DELETE',
+        body: { foo: 'bar' },
+      });
+
+      expect(result.headers).toHaveProperty(
+        'Content-Type',
+        'application/json;charset=utf-8',
+      );
+    });
+
+    it('should keep Content-Type for PUT method if body is provided', () => {
+      const result = requestHandler.buildConfig(apiUrl, {
+        method: 'PUT',
+        data: { foo: 'bar' },
+      });
+
+      expect(result.headers).toHaveProperty(
+        'Content-Type',
+        'application/json;charset=utf-8',
+      );
+    });
+
+    it('should not remove Content-Type for other methods', () => {
+      const postResult = requestHandler.buildConfig(apiUrl, {
+        method: 'POST',
+      });
+
+      expect(postResult.headers).toHaveProperty(
+        'Content-Type',
+        'application/json;charset=utf-8',
+      );
+
+      const getResult = requestHandler.buildConfig(apiUrl, {
+        method: 'GET',
+      });
+
+      expect(getResult.headers).toHaveProperty(
+        'Content-Type',
+        'application/json;charset=utf-8',
+      );
+    });
+
+    it('should keep custom Content-Type for DELETE method', () => {
+      const result = requestHandler.buildConfig(apiUrl, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+      });
+
+      expect(result.headers).toHaveProperty(
+        'Content-Type',
+        'application/x-www-form-urlencoded',
+      );
+    });
+
+    it('should keep custom Content-Type for PUT method', () => {
+      const result = requestHandler.buildConfig(apiUrl, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+      });
+
+      expect(result.headers).toHaveProperty(
+        'Content-Type',
+        'application/x-www-form-urlencoded',
+      );
     });
   });
 
@@ -1211,111 +1312,6 @@ describe('Request Handler', () => {
       expect(
         await requestHandler.request(apiUrl, { method: 'head' }),
       ).toMatchObject({ data: null });
-    });
-  });
-
-  describe('Request Handler - Content-Type Handling', () => {
-    let requestHandler: RequestHandlerReturnType;
-
-    const defaultHeader = {
-      'Content-Type': 'application/json;charset=utf-8',
-      Accept: APPLICATION_JSON + ', text/plain, */*',
-      'Accept-Encoding': 'gzip, deflate, br',
-    };
-
-    beforeEach(() => {
-      requestHandler = createRequestHandler({
-        fetcher,
-        headers: defaultHeader,
-      });
-    });
-
-    it('should remove Content-Type for DELETE method if no body is provided', () => {
-      const result = requestHandler.buildConfig(apiUrl, {
-        method: 'DELETE',
-      });
-
-      expect(result.headers).not.toHaveProperty('Content-Type');
-    });
-
-    it('should remove Content-Type for PUT method if no body is provided', () => {
-      const result = requestHandler.buildConfig(apiUrl, {
-        method: 'PUT',
-      });
-
-      expect(result.headers).not.toHaveProperty('Content-Type');
-    });
-
-    it('should keep Content-Type for DELETE method if body is provided', () => {
-      const result = requestHandler.buildConfig(apiUrl, {
-        method: 'DELETE',
-        body: { foo: 'bar' },
-      });
-
-      expect(result.headers).toHaveProperty(
-        'Content-Type',
-        'application/json;charset=utf-8',
-      );
-    });
-
-    it('should keep Content-Type for PUT method if body is provided', () => {
-      const result = requestHandler.buildConfig(apiUrl, {
-        method: 'PUT',
-        data: { foo: 'bar' },
-      });
-
-      expect(result.headers).toHaveProperty(
-        'Content-Type',
-        'application/json;charset=utf-8',
-      );
-    });
-
-    it('should not remove Content-Type for other methods', () => {
-      const postResult = requestHandler.buildConfig(apiUrl, {
-        method: 'POST',
-      });
-
-      expect(postResult.headers).toHaveProperty(
-        'Content-Type',
-        'application/json;charset=utf-8',
-      );
-
-      const getResult = requestHandler.buildConfig(apiUrl, {
-        method: 'GET',
-      });
-
-      expect(getResult.headers).toHaveProperty(
-        'Content-Type',
-        'application/json;charset=utf-8',
-      );
-    });
-
-    it('should keep custom Content-Type for DELETE method', () => {
-      const result = requestHandler.buildConfig(apiUrl, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-      });
-
-      expect(result.headers).toHaveProperty(
-        'Content-Type',
-        'application/x-www-form-urlencoded',
-      );
-    });
-
-    it('should keep custom Content-Type for PUT method', () => {
-      const result = requestHandler.buildConfig(apiUrl, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-      });
-
-      expect(result.headers).toHaveProperty(
-        'Content-Type',
-        'application/x-www-form-urlencoded',
-      );
     });
   });
 });
