@@ -12,6 +12,7 @@ import type {
   FetcherConfig,
   FetcherInstance,
   Logger,
+  HeadersObject,
 } from './types/request-handler';
 import type {
   BodyPayload,
@@ -172,26 +173,18 @@ export function createRequestHandler(
    * @param {any} [body] - Optional request body to determine if Content-Type is needed.
    */
   const setContentTypeIfNeeded = (
-    headers: HeadersInit,
+    headers: HeadersObject,
     method: string,
     body?: any,
   ) => {
     // For PUT and DELETE methods, do not set Content-Type if no body is provided.
-    if (!body) {
-      if (['PUT', 'DELETE'].includes(method)) {
-        return;
-      }
+    if (['PUT', 'DELETE'].includes(method) && !body) {
+      return;
     }
 
     // Automatically set Content-Type to 'application/json;charset=utf-8' if not already present.
-    if (headers instanceof Headers) {
-      if (!headers.has(CONTENT_TYPE)) {
-        headers.set(CONTENT_TYPE, APPLICATION_JSON + ';charset=utf-8');
-      }
-    } else if (headers && !headers[CONTENT_TYPE]) {
-      if (!headers[CONTENT_TYPE]) {
-        headers[CONTENT_TYPE] = APPLICATION_JSON + ';charset=utf-8';
-      }
+    if (headers && !headers[CONTENT_TYPE]) {
+      headers[CONTENT_TYPE] = APPLICATION_JSON + ';charset=utf-8';
     }
   };
 
@@ -232,7 +225,7 @@ export function createRequestHandler(
       body = explicitBodyData;
     }
 
-    const headers = getConfig<HeadersInit>(requestConfig, 'headers');
+    const headers = getConfig<HeadersObject>(requestConfig, 'headers');
 
     // Add or remove Content-Type depending on the conditions
     setContentTypeIfNeeded(headers, method, body);
