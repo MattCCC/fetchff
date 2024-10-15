@@ -177,8 +177,10 @@ export function createRequestHandler(
     body?: any,
   ) => {
     // For PUT and DELETE methods, do not set Content-Type if no body is provided.
-    if (['PUT', 'DELETE'].includes(method) && !body) {
-      return;
+    if (!body) {
+      if (['PUT', 'DELETE'].includes(method)) {
+        return;
+      }
     }
 
     // Automatically set Content-Type to 'application/json;charset=utf-8' if not already present.
@@ -186,7 +188,7 @@ export function createRequestHandler(
       if (!headers.has(CONTENT_TYPE)) {
         headers.set(CONTENT_TYPE, APPLICATION_JSON + ';charset=utf-8');
       }
-    } else if (typeof headers === 'object' && !Array.isArray(headers)) {
+    } else if (headers && !headers[CONTENT_TYPE]) {
       if (!headers[CONTENT_TYPE]) {
         headers[CONTENT_TYPE] = APPLICATION_JSON + ';charset=utf-8';
       }
