@@ -515,7 +515,10 @@ export function createRequestHandler(
           PathParams,
           RequestBody
         >;
-        const status = error?.response?.status || error?.status || 0;
+
+        // Fallback to response.status for Network or CORS errors
+        const status =
+          error?.response?.status || error?.status || response.status || 0;
 
         if (
           attempt === retries ||
