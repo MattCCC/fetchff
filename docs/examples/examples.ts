@@ -340,6 +340,31 @@ async function example7() {
   console.log('Example 7', response);
 }
 
+// fetchf() - different error payload
+async function example8() {
+  interface SuccessResponseData {
+    bookId: string;
+    bookText: string;
+  }
+
+  interface ErrorResponseData {
+    errorCode: number;
+    errorText: string;
+  }
+
+  const { data, error } = await fetchf<SuccessResponseData | ErrorResponseData>(
+    'https://example.com/api/custom-endpoint',
+  );
+
+  if (error) {
+    const errorData = data as ErrorResponseData;
+
+    console.log('Example 8 Error', errorData.errorCode);
+  } else {
+    console.log('Example 8 Success', data);
+  }
+}
+
 example1();
 example2();
 example3();
@@ -347,3 +372,4 @@ example4();
 example5();
 example6();
 example7();
+example8();

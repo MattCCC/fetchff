@@ -414,7 +414,7 @@ The following options are available for configuring interceptors in the `Request
 
 ### Configuration
 
-The `strategy` option can be configured with the following values:
+#### `strategy`
 
 **`reject`**: (default)
 Promises are rejected, and global error handling is triggered. You must use `try/catch` blocks to handle errors.
@@ -437,7 +437,7 @@ const { data, error } = await fetchf('https://api.example.com/', {
   strategy: 'softFail',
 });
 
-if (error !== null) {
+if (error) {
   console.error(error.status, error.statusText, error.response, error.config);
 }
 ```
@@ -453,7 +453,7 @@ const { data, error } = await fetchf('https://api.example.com/', {
   defaultResponse: {},
 });
 
-if (error !== null) {
+if (error) {
   console.error('Request failed', data); // "data" will be equal to {} if there is an error
 }
 ```
@@ -474,6 +474,8 @@ async function myLoadingProcess() {
 myLoadingProcess();
 ```
 
+#### `onError`
+
 The `onError` option can be configured to intercept errors:
 
 ```typescript
@@ -484,6 +486,39 @@ const { data } = await fetchf('https://api.example.com/', {
     console.error('Request failed', error.status, error.statusText);
   },
 });
+```
+
+#### Different Error and Success Responses
+
+There might be scenarios when your successful response data structure differs from the one that is on error. In such circumstances you can use union type and assign it depending on if it's an error or not.
+
+```typescript
+interface SuccessResponseData {
+  bookId: string;
+  bookText: string;
+}
+
+interface ErrorResponseData {
+  errorCode: number;
+  errorText: string;
+}
+
+type ResponseData = SuccessResponseData | ErrorResponseData;
+
+const { data, error } = await fetchf<ResponseData>('https://api.example.com/', {
+  strategy: 'softFail',
+});
+
+// Check for error here as 'data' is available for both successful and erroneous responses
+if (error) {
+  const errorData = data as ErrorResponseData;
+
+  console.log('Request failed', errorData.errorCode, errorData.errorText);
+} else {
+  const successData = data as SuccessResponseData;
+
+  console.log('Request successful', successData.bookText);
+}
 ```
 
 ### How It Works
