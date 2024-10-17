@@ -1,16 +1,33 @@
-import type { FetchResponse, RequestConfig } from './types';
+import type {
+  DefaultParams,
+  DefaultPayload,
+  DefaultResponse,
+  DefaultUrlParams,
+  FetchResponse,
+  RequestConfig,
+} from './types';
 
-export class ResponseErr extends Error {
-  response: FetchResponse;
-  request: RequestConfig;
-  config: RequestConfig;
+export class ResponseError<
+  ResponseData = DefaultResponse,
+  QueryParams = DefaultParams,
+  PathParams = DefaultUrlParams,
+  RequestBody = DefaultPayload,
+> extends Error {
   status: number;
   statusText: string;
+  request: RequestConfig<ResponseData, QueryParams, PathParams, RequestBody>;
+  config: RequestConfig<ResponseData, QueryParams, PathParams, RequestBody>;
+  response: FetchResponse<ResponseData, RequestBody>;
 
   constructor(
     message: string,
-    requestInfo: RequestConfig,
-    response: FetchResponse,
+    requestInfo: RequestConfig<
+      ResponseData,
+      QueryParams,
+      PathParams,
+      RequestBody
+    >,
+    response: FetchResponse<ResponseData, RequestBody>,
   ) {
     super(message);
 
