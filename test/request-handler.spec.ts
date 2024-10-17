@@ -9,7 +9,7 @@ import type {
 } from '../src/types/request-handler';
 import { fetchf } from '../src';
 import { ABORT_ERROR } from '../src/constants';
-import { ResponseErr } from '../src/response-error';
+import type { ResponseError } from '../src/response-error';
 
 jest.mock('../src/utils', () => {
   const originalModule = jest.requireActual('../src/utils');
@@ -1045,7 +1045,7 @@ describe('Request Handler', () => {
             'The operation was aborted.',
           );
         } catch (error) {
-          const err = error as ResponseErr;
+          const err = error as ResponseError;
 
           expect(err.message).toBe('The operation was aborted.');
         }
