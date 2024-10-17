@@ -102,12 +102,22 @@ export interface ResponseError<
   response?: FetchResponse<ResponseData, RequestBody>;
 }
 
-export type RetryFunction = <ResponseData = any, RequestBody = any>(
-  error: ResponseError<ResponseData, RequestBody>,
+export type RetryFunction = <
+  ResponseData = DefaultResponse,
+  QueryParams = DefaultParams,
+  PathParams = DefaultUrlParams,
+  RequestBody = DefaultPayload,
+>(
+  error: ResponseError<ResponseData, QueryParams, PathParams, RequestBody>,
   attempts: number,
 ) => Promise<boolean>;
 
-export type PollingFunction<ResponseData = any, RequestBody = any> = (
+export type PollingFunction<
+  ResponseData = DefaultResponse,
+  QueryParams = DefaultParams,
+  PathParams = DefaultUrlParams,
+  RequestBody = DefaultPayload,
+> = (
   response: FetchResponse<ResponseData, RequestBody>,
   attempts: number,
   error?: ResponseError<ResponseData, QueryParams, PathParams, RequestBody>,
