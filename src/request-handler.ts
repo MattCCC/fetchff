@@ -28,7 +28,6 @@ import {
   delayInvocation,
   flattenData,
   processHeaders,
-  deleteProperty,
   isSearchParams,
 } from './utils';
 import { addRequest, removeRequest } from './queue-manager';
@@ -600,11 +599,6 @@ export function createRequestHandler(
         config: requestConfig,
       } as unknown as FetchResponse<ResponseData>;
     }
-
-    // Clean up the error object
-    deleteProperty(error, 'response');
-    deleteProperty(error, 'request');
-    deleteProperty(error, 'config');
 
     let data = response?.data;
 
