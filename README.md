@@ -412,40 +412,79 @@ The following options are available for configuring interceptors in the `Request
   <br>
   Error handling strategies define how to manage errors that occur during requests. You can configure the <b>strategy</b> option to specify what should happen when an error occurs. This affects whether promises are rejected, if errors are handled silently, or if default responses are provided. You can also combine it with <b>onError</b> interceptor for more tailored approach.
 
-### Example
-
-Here's an example of how to configure error handling:
-
-```typescript
-const { data } = await fetchf('https://api.example.com/', {
-  strategy: 'reject', // Use 'reject' strategy for error handling (default). You need to use try / catch in case
-});
-```
-
-```typescript
-const { data, error } = await fetchf('https://api.example.com/', {
-  strategy: 'softFail', // Use 'softFail' strategy for error handling so to avoid using try / catch everywhere
-});
-```
-
-Check `Response Object` section below to see the payload of the `error` object.
-
 ### Configuration
 
 The `strategy` option can be configured with the following values:
-_Default:_ `reject`.
 
-- **`reject`**:  
-  Promises are rejected, and global error handling is triggered. You must use `try/catch` blocks to handle errors.
+**`reject`**: (default)
+Promises are rejected, and global error handling is triggered. You must use `try/catch` blocks to handle errors.
 
-- **`softFail`**:  
-  Returns a response object with additional properties such as `data`, `error`, `config`, `request`, and `headers` when an error occurs. This approach avoids throwing errors, allowing you to handle error information directly within the response's `error` object without the need for `try/catch` blocks.
+```typescript
+try {
+  const { data } = await fetchf('https://api.example.com/', {
+    strategy: 'reject', // It is default so it does not really needs to be specified
+  });
+} catch (error) {
+  console.error(error.status, error.statusText, error.response, error.config);
+}
+```
 
-- **`defaultResponse`**:  
-  Returns a default response specified in case of an error. The promise will not be rejected. This can be used in conjunction with `flattenResponse` and `defaultResponse: {}` to provide sensible defaults.
+**`softFail`**:  
+ Returns a response object with additional property of `error` when an error occurs and does not throw any error. This approach helps you to handle error information directly within the response's `error` object without the need for `try/catch` blocks.
 
-- **`silent`**:  
-  Hangs the promise silently on error, useful for fire-and-forget requests without the need for `try/catch`. In case of an error, the promise will never be resolved or rejected, and any code after will never be executed. This strategy is useful for dispatching requests within asynchronous wrapper functions that do not need to be awaited. It prevents excessive usage of `try/catch` or additional response data checks everywhere. It can be used in combination with `onError` to handle errors separately.
+```typescript
+const { data, error } = await fetchf('https://api.example.com/', {
+  strategy: 'softFail',
+});
+
+if (error !== null) {
+  console.error(error.status, error.statusText, error.response, error.config);
+}
+```
+
+Check `Response Object` section below to see how `error` object is structured.
+
+**`defaultResponse`**:  
+ Returns a default response specified in case of an error. The promise will not be rejected. This can be used in conjunction with `flattenResponse` and `defaultResponse: {}` to provide sensible defaults.
+
+```typescript
+const { data, error } = await fetchf('https://api.example.com/', {
+  strategy: 'defaultResponse',
+  defaultResponse: {},
+});
+
+if (error !== null) {
+  console.error('Request failed', data); // "data" will be equal to {} if there is an error
+}
+```
+
+**`silent`**:  
+ Hangs the promise silently on error, useful for fire-and-forget requests without the need for `try/catch`. In case of an error, the promise will never be resolved or rejected, and any code after will never be executed. This strategy is useful for dispatching requests within asynchronous wrapper functions that do not need to be awaited. It prevents excessive usage of `try/catch` or additional response data checks everywhere. It can be used in combination with `onError` to handle errors separately.
+
+```typescript
+async function myLoadingProcess() {
+  const { data } = await fetchf('https://api.example.com/', {
+    strategy: 'silent',
+  });
+
+  // In case of an error nothing below will ever be executed.
+  console.log('This console log will not appear.');
+}
+
+myLoadingProcess();
+```
+
+The `onError` option can be configured to intercept errors:
+
+```typescript
+const { data } = await fetchf('https://api.example.com/', {
+  strategy: 'softFail',
+  onError(error) {
+    // Intercept any error
+    console.error('Request failed', error.status, error.statusText);
+  },
+});
+```
 
 ### How It Works
 
