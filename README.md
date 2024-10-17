@@ -417,10 +417,18 @@ The following options are available for configuring interceptors in the `Request
 Here's an example of how to configure error handling:
 
 ```typescript
-const { data, error } = await fetchf('https://api.example.com/', {
-  strategy: 'reject', // Use 'reject' strategy for error handling (default)
+const { data } = await fetchf('https://api.example.com/', {
+  strategy: 'reject', // Use 'reject' strategy for error handling (default). You need to use try / catch in case
 });
 ```
+
+```typescript
+const { data, error } = await fetchf('https://api.example.com/', {
+  strategy: 'softFail', // Use 'softFail' strategy for error handling so to avoid using try / catch everywhere
+});
+```
+
+Check `Response Object` section below to see the payload of the `error` object.
 
 ### Configuration
 
@@ -431,7 +439,7 @@ _Default:_ `reject`.
   Promises are rejected, and global error handling is triggered. You must use `try/catch` blocks to handle errors.
 
 - **`softFail`**:  
-  Returns a response object with additional properties such as `data`, `error`, `config`, `request`, and `headers` when an error occurs. This approach avoids throwing errors, allowing you to handle error information directly within the response object without the need for `try/catch` blocks.
+  Returns a response object with additional properties such as `data`, `error`, `config`, `request`, and `headers` when an error occurs. This approach avoids throwing errors, allowing you to handle error information directly within the response's `error` object without the need for `try/catch` blocks.
 
 - **`defaultResponse`**:  
   Returns a default response specified in case of an error. The promise will not be rejected. This can be used in conjunction with `flattenResponse` and `defaultResponse: {}` to provide sensible defaults.
@@ -746,10 +754,10 @@ Each request returns the following Response Object of type <b>FetchResponse&lt;R
 
 - **`error`**:
 
-  - **Type**: `ResponseErr`
+  - **Type**: `ResponseError<ResponseData, QueryParams, PathParams, RequestBody>`
 
   - An object with details about any error that occurred or `null` otherwise.
-  - **`name`**: The name of the error (e.g., 'ResponseError').
+  - **`name`**: The name of the error, that is `ResponseError`.
   - **`message`**: A descriptive message about the error.
   - **`status`**: The HTTP status code of the response (e.g., 404, 500).
   - **`statusText`**: The HTTP status text of the response (e.g., 'Not Found', 'Internal Server Error').
