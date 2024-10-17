@@ -1,5 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type {
+  DefaultParams,
+  DefaultPayload,
+  DefaultUrlParams,
+} from './api-handler';
+import type {
+  DefaultResponse,
   FetchResponse,
   RequestHandlerConfig,
   ResponseError,
@@ -21,6 +27,11 @@ export type ResponseInterceptor<ResponseData = any> = (
   | Promise<FetchResponse<ResponseData>>
   | Promise<void>;
 
-export type ErrorInterceptor<ResponseData = any, RequestBody = any> = (
-  error: ResponseError<ResponseData, RequestBody>,
+export type ErrorInterceptor<
+  ResponseData = DefaultResponse,
+  QueryParams = DefaultParams,
+  PathParams = DefaultUrlParams,
+  RequestBody = DefaultPayload,
+> = (
+  error: ResponseError<ResponseData, QueryParams, PathParams, RequestBody>,
 ) => unknown;
