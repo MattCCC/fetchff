@@ -403,7 +403,7 @@ export interface Logger {
 export type RequestHandlerConfig<
   ResponseData = any,
   RequestBody = any,
-> = RequestConfig<ResponseData, RequestBody>;
+> = RequestConfig<ResponseData, any, any, RequestBody>;
 
 export type RequestConfig<
   ResponseData = any,
