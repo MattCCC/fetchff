@@ -173,7 +173,7 @@ export function createRequestHandler(
    * @param {any} [body] - Optional request body to determine if Content-Type is needed.
    */
   const setContentTypeIfNeeded = (
-    headers: HeadersObject,
+    headers: HeadersInit,
     method: string,
     body?: any,
   ) => {
@@ -183,7 +183,15 @@ export function createRequestHandler(
     }
 
     // Automatically set Content-Type to 'application/json;charset=utf-8' if not already present.
-    if (headers && !headers[CONTENT_TYPE]) {
+    if (headers instanceof Headers) {
+      if (!headers.has(CONTENT_TYPE)) {
+        headers.set(CONTENT_TYPE, APPLICATION_JSON + ';charset=utf-8');
+      }
+    } else if (
+      typeof headers === 'object' &&
+      !Array.isArray(headers) &&
+      !headers[CONTENT_TYPE]
+    ) {
       headers[CONTENT_TYPE] = APPLICATION_JSON + ';charset=utf-8';
     }
   };
