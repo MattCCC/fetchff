@@ -95,11 +95,11 @@ export interface ResponseError<
   PathParams = DefaultUrlParams,
   RequestBody = DefaultPayload,
 > extends Error {
-  status?: number;
-  statusText?: string;
-  request?: RequestConfig<ResponseData, QueryParams, PathParams, RequestBody>;
+  status: number;
+  statusText: string;
+  request: RequestConfig<ResponseData, QueryParams, PathParams, RequestBody>;
   config: RequestConfig<ResponseData, QueryParams, PathParams, RequestBody>;
-  response?: FetchResponse<ResponseData, RequestBody>;
+  response: FetchResponse<ResponseData, RequestBody> | null;
 }
 
 export type RetryFunction = <

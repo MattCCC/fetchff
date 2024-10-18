@@ -9,7 +9,7 @@ import type {
 } from '../src/types/request-handler';
 import { fetchf } from '../src';
 import { ABORT_ERROR } from '../src/constants';
-import type { ResponseError } from '../src/response-error';
+import type { ResponseError } from '../src/errors/response-error';
 
 jest.mock('../src/utils', () => {
   const originalModule = jest.requireActual('../src/utils');
@@ -382,7 +382,7 @@ describe('Request Handler', () => {
       });
 
       // Mock fetch to return a successful response every time
-      (globalThis.fetch as any).mockResolvedValue({
+      (globalThis.fetch as jest.Mock).mockResolvedValue({
         ok: true,
         clone: jest.fn().mockReturnValue({}),
         json: jest.fn().mockResolvedValue({}),
@@ -423,7 +423,7 @@ describe('Request Handler', () => {
       });
 
       // Mock fetch to return a successful response
-      (globalThis.fetch as any).mockResolvedValue({
+      (globalThis.fetch as jest.Mock).mockResolvedValue({
         ok: true,
         clone: jest.fn().mockReturnValue({}),
         json: jest.fn().mockResolvedValue({}),
@@ -455,7 +455,7 @@ describe('Request Handler', () => {
       });
 
       // Mock fetch to fail
-      (globalThis.fetch as any).mockRejectedValue({
+      (globalThis.fetch as jest.Mock).mockRejectedValue({
         status: 500,
         json: jest.fn().mockResolvedValue({}),
       });
@@ -466,7 +466,7 @@ describe('Request Handler', () => {
 
       mockDelayInvocation.mockResolvedValue(true);
 
-      await expect(requestHandler.request('/endpoint')).rejects.toEqual({
+      await expect(requestHandler.request('/endpoint')).rejects.toMatchObject({
         status: 500,
         json: expect.any(Function),
       });
@@ -501,7 +501,7 @@ describe('Request Handler', () => {
       });
 
       // Mock fetch to return a successful response
-      (globalThis.fetch as any).mockResolvedValue({
+      (globalThis.fetch as jest.Mock).mockResolvedValue({
         ok: true,
         clone: jest.fn().mockReturnValue({}),
         json: jest.fn().mockResolvedValue({}),
@@ -535,7 +535,7 @@ describe('Request Handler', () => {
       });
 
       // Mock fetch to return a successful response
-      (globalThis.fetch as any).mockResolvedValue({
+      (globalThis.fetch as jest.Mock).mockResolvedValue({
         ok: true,
         clone: jest.fn().mockReturnValue({}),
         json: jest.fn().mockResolvedValue({}),
@@ -586,7 +586,7 @@ describe('Request Handler', () => {
 
       // Mock fetch to fail twice and then succeed
       let callCount = 0;
-      (globalThis.fetch as any).mockImplementation(() => {
+      (globalThis.fetch as jest.Mock).mockImplementation(() => {
         callCount++;
         if (callCount <= retryConfig.retries) {
           return Promise.reject({
@@ -649,7 +649,7 @@ describe('Request Handler', () => {
         onError: jest.fn(),
       });
 
-      (globalThis.fetch as any).mockRejectedValue({
+      (globalThis.fetch as jest.Mock).mockRejectedValue({
         status: 500,
         json: jest.fn().mockResolvedValue({}),
       });
@@ -699,12 +699,12 @@ describe('Request Handler', () => {
         onError: jest.fn(),
       });
 
-      (globalThis.fetch as any).mockRejectedValue({
+      (globalThis.fetch as jest.Mock).mockRejectedValue({
         status: 400,
         json: jest.fn().mockResolvedValue({}),
       });
 
-      await expect(requestHandler.request('/endpoint')).rejects.toEqual({
+      await expect(requestHandler.request('/endpoint')).rejects.toMatchObject({
         status: 400,
         json: expect.any(Function),
       });
@@ -728,7 +728,7 @@ describe('Request Handler', () => {
         onError: jest.fn(),
       });
 
-      (globalThis.fetch as any).mockRejectedValue({
+      (globalThis.fetch as jest.Mock).mockRejectedValue({
         status: 500,
         json: jest.fn().mockResolvedValue({}),
       });
@@ -771,12 +771,12 @@ describe('Request Handler', () => {
         onError: jest.fn(),
       });
 
-      (globalThis.fetch as any).mockRejectedValue({
+      (globalThis.fetch as jest.Mock).mockRejectedValue({
         status: 500,
         json: jest.fn().mockResolvedValue({}),
       });
 
-      await expect(requestHandler.request('/endpoint')).rejects.toEqual({
+      await expect(requestHandler.request('/endpoint')).rejects.toMatchObject({
         status: 500,
         json: expect.any(Function),
       });

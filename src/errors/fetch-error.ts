@@ -5,9 +5,12 @@ import type {
   DefaultUrlParams,
   FetchResponse,
   RequestConfig,
-} from './types';
+} from '../types';
 
-export class ResponseError<
+/**
+ * This is a base error class
+ */
+export class FetchError<
   ResponseData = DefaultResponse,
   QueryParams = DefaultParams,
   PathParams = DefaultUrlParams,
@@ -17,26 +20,22 @@ export class ResponseError<
   statusText: string;
   request: RequestConfig<ResponseData, QueryParams, PathParams, RequestBody>;
   config: RequestConfig<ResponseData, QueryParams, PathParams, RequestBody>;
-  response: FetchResponse<ResponseData, RequestBody>;
+  response: FetchResponse<ResponseData, RequestBody> | null;
 
   constructor(
     message: string,
-    requestInfo: RequestConfig<
-      ResponseData,
-      QueryParams,
-      PathParams,
-      RequestBody
-    >,
-    response: FetchResponse<ResponseData, RequestBody>,
+    request: RequestConfig<ResponseData, QueryParams, PathParams, RequestBody>,
+    response: FetchResponse<ResponseData, RequestBody> | null,
   ) {
     super(message);
 
-    this.name = 'ResponseError';
+    this.name = 'FetchError';
+
     this.message = message;
-    this.status = response.status;
-    this.statusText = response.statusText;
-    this.request = requestInfo;
-    this.config = requestInfo;
+    this.status = response?.status || 0;
+    this.statusText = response?.statusText || '';
+    this.request = request;
+    this.config = request;
     this.response = response;
   }
 }

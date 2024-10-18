@@ -20,7 +20,7 @@ import type {
   QueryParams,
 } from './types/api-handler';
 import { applyInterceptor } from './interceptor-manager';
-import { ResponseError } from './response-error';
+import { ResponseError } from './errors/response-error';
 import {
   appendQueryParams,
   isJSONSerializable,
@@ -516,14 +516,17 @@ export function createRequestHandler(
           RequestBody
         >;
 
-        // Fallback to response.status for Network or CORS errors
-        const status =
-          error?.response?.status || error?.status || response.status || 0;
+        // Append additional information to Network, CORS or any other fetch() errors
+        error.status = response?.status || 0;
+        error.statusText = response?.statusText || '';
+        error.config = fetcherConfig;
+        error.request = fetcherConfig;
+        error.response = response;
 
         if (
           attempt === retries ||
           !(!shouldRetry || (await shouldRetry(error, attempt))) ||
-          !retryOn?.includes(status)
+          !retryOn?.includes(error.status)
         ) {
           await processError<
             ResponseData,
