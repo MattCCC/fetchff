@@ -517,7 +517,8 @@ export function createRequestHandler(
         >;
 
         // Append additional information to Network, CORS or any other fetch() errors
-        error.status = response?.status || 0;
+        error.status =
+          error?.response?.status || error?.status || response?.status || 0;
         error.statusText = response?.statusText || '';
         error.config = fetcherConfig;
         error.request = fetcherConfig;
