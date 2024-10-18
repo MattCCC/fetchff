@@ -74,9 +74,9 @@ export interface HeadersObject {
 export interface ExtendedResponse<ResponseData = any, RequestBody = any>
   extends Omit<Response, 'headers'> {
   data: ResponseData extends [unknown] ? any : ResponseData;
-  error: ResponseError<ResponseData, RequestBody> | null;
+  error: ResponseError<ResponseData, any, any, RequestBody> | null;
   headers: HeadersObject & HeadersInit;
-  config: ExtendedRequestConfig<ResponseData, RequestBody>;
+  config: RequestConfig<ResponseData, any, any, RequestBody>;
 }
 
 /**
@@ -89,25 +89,38 @@ export type FetchResponse<
   RequestBody = any,
 > = ExtendedResponse<ResponseData, RequestBody>;
 
-export interface ResponseError<ResponseData = any, RequestBody = any>
-  extends Error {
-  config: ExtendedRequestConfig<ResponseData, RequestBody>;
-  code?: string;
-  status?: number;
-  statusText?: string;
-  request?: ExtendedRequestConfig<ResponseData, RequestBody>;
-  response?: FetchResponse<ResponseData, RequestBody>;
+export interface ResponseError<
+  ResponseData = DefaultResponse,
+  QueryParams = DefaultParams,
+  PathParams = DefaultUrlParams,
+  RequestBody = DefaultPayload,
+> extends Error {
+  status: number;
+  statusText: string;
+  request: RequestConfig<ResponseData, QueryParams, PathParams, RequestBody>;
+  config: RequestConfig<ResponseData, QueryParams, PathParams, RequestBody>;
+  response: FetchResponse<ResponseData, RequestBody> | null;
 }
 
-export type RetryFunction = <ResponseData = any, RequestBody = any>(
-  error: ResponseError<ResponseData, RequestBody>,
+export type RetryFunction = <
+  ResponseData = DefaultResponse,
+  QueryParams = DefaultParams,
+  PathParams = DefaultUrlParams,
+  RequestBody = DefaultPayload,
+>(
+  error: ResponseError<ResponseData, QueryParams, PathParams, RequestBody>,
   attempts: number,
 ) => Promise<boolean>;
 
-export type PollingFunction<ResponseData = any, RequestBody = any> = (
+export type PollingFunction<
+  ResponseData = DefaultResponse,
+  QueryParams = DefaultParams,
+  PathParams = DefaultUrlParams,
+  RequestBody = DefaultPayload,
+> = (
   response: FetchResponse<ResponseData, RequestBody>,
   attempts: number,
-  error?: ResponseError<ResponseData, RequestBody>,
+  error?: ResponseError<ResponseData, QueryParams, PathParams, RequestBody>,
 ) => boolean;
 
 export type CacheKeyFunction = (config: FetcherConfig) => string;
@@ -116,7 +129,7 @@ export type CacheBusterFunction = (config: FetcherConfig) => boolean;
 
 export type CacheSkipFunction = <ResponseData = any, RequestBody = any>(
   data: ResponseData,
-  config: RequestConfig<ResponseData, RequestBody>,
+  config: RequestConfig<ResponseData, any, any, RequestBody>,
 ) => boolean;
 
 /**
@@ -400,7 +413,7 @@ export interface Logger {
 export type RequestHandlerConfig<
   ResponseData = any,
   RequestBody = any,
-> = RequestConfig<ResponseData, RequestBody>;
+> = RequestConfig<ResponseData, any, any, RequestBody>;
 
 export type RequestConfig<
   ResponseData = any,
