@@ -117,7 +117,7 @@ To address these challenges, the `fetchf()` provides several enhancements:
 1. **Consistent Error Handling:**
 
    - In JavaScript, the native `fetch()` function does not reject the Promise for HTTP error statuses such as 404 (Not Found) or 500 (Internal Server Error). Instead, `fetch()` resolves the Promise with a `Response` object, where the `ok` property indicates the success of the request. If the request encounters a network error or fails due to other issues (e.g., server downtime), `fetch()` will reject the Promise.
-   - This approach aligns error handling with common practices and makes it easier to manage errors consistently.
+   - The `fetchff` plugin aligns error handling with common practices and makes it easier to manage errors consistently by rejecting erroneous status codes.
 
 2. **Enhanced Retry Mechanism:**
 
@@ -127,7 +127,7 @@ To address these challenges, the `fetchf()` provides several enhancements:
 
 3. **Improved Error Visibility:**
 
-   - **Error Wrapping:** The `createApiFetcher()` and `fetchf()` wrap errors in a custom `RequestError` class, which provides detailed information about the request and response, similarly to what Axios does. This makes debugging easier and improves visibility into what went wrong.
+   - **Error Wrapping:** The `createApiFetcher()` and `fetchf()` wrap errors in a custom `ResponseError` class, which provides detailed information about the request and response. This makes debugging easier and improves visibility into what went wrong.
 
 4. **Extended settings:**
    - Check Settings table for more information about all settings.
@@ -412,6 +412,11 @@ The following options are available for configuring interceptors in the `Request
   <br>
   Error handling strategies define how to manage errors that occur during requests. You can configure the <b>strategy</b> option to specify what should happen when an error occurs. This affects whether promises are rejected, if errors are handled silently, or if default responses are provided. You can also combine it with <b>onError</b> interceptor for more tailored approach.
 
+  <br>
+  <br>
+
+The native `fetch()` API function doesn't throw exceptions for HTTP errors like `404` or `500` — it only rejects the promise if there is a network-level error (e.g., the request fails due to a DNS error, no internet connection, or CORS issues). The `fetchf()` function brings consistency and lets you align the behavior depending on chosen strategy. By default, all errors are rejected.
+
 ### Configuration
 
 #### `strategy`
@@ -474,6 +479,23 @@ async function myLoadingProcess() {
 myLoadingProcess();
 ```
 
+##### How It Works
+
+1. **Reject Strategy**:  
+   When using the `reject` strategy, if an error occurs, the promise is rejected, and global error handling logic is triggered. You must use `try/catch` to handle these errors.
+
+2. **Soft Fail Strategy**:  
+   With `softFail`, the response object includes additional properties that provide details about the error without rejecting the promise. This allows you to handle error information directly within the response.
+
+3. **Default Response Strategy**:  
+   The `defaultResponse` strategy returns a predefined default response when an error occurs. This approach prevents the promise from being rejected, allowing for default values to be used in place of error data.
+
+4. **Silent Strategy**:  
+   The `silent` strategy results in the promise hanging silently on error. The promise will not be resolved or rejected, and any subsequent code will not execute. This is useful for fire-and-forget requests and can be combined with `onError` for separate error handling.
+
+5. **Custom Error Handling**:  
+   Depending on the strategy chosen, you can tailor how errors are managed, either by handling them directly within response objects, using default responses, or managing them silently.
+
 #### `onError`
 
 The `onError` option can be configured to intercept errors:
@@ -520,23 +542,6 @@ if (error) {
   console.log('Request successful', successData.bookText);
 }
 ```
-
-### How It Works
-
-1. **Reject Strategy**:  
-   When using the `reject` strategy, if an error occurs, the promise is rejected, and global error handling logic is triggered. You must use `try/catch` to handle these errors.
-
-2. **Soft Fail Strategy**:  
-   With `softFail`, the response object includes additional properties that provide details about the error without rejecting the promise. This allows you to handle error information directly within the response.
-
-3. **Default Response Strategy**:  
-   The `defaultResponse` strategy returns a predefined default response when an error occurs. This approach prevents the promise from being rejected, allowing for default values to be used in place of error data.
-
-4. **Silent Strategy**:  
-   The `silent` strategy results in the promise hanging silently on error. The promise will not be resolved or rejected, and any subsequent code will not execute. This is useful for fire-and-forget requests and can be combined with `onError` for separate error handling.
-
-5. **Custom Error Handling**:  
-   Depending on the strategy chosen, you can tailor how errors are managed, either by handling them directly within response objects, using default responses, or managing them silently.
 
 </details>
 
