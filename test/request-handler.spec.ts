@@ -8,7 +8,16 @@ import type {
   RequestHandlerReturnType,
 } from '../src/types/request-handler';
 import { fetchf } from '../src';
-import { ABORT_ERROR, APPLICATION_JSON, CHARSET_UTF_8 } from '../src/constants';
+import {
+  ABORT_ERROR,
+  APPLICATION_JSON,
+  CHARSET_UTF_8,
+  CONTENT_TYPE,
+  DELETE,
+  GET,
+  POST,
+  PUT,
+} from '../src/constants';
 import { ResponseErr } from '../src/response-error';
 
 jest.mock('../src/utils', () => {
@@ -286,12 +295,12 @@ describe('Request Handler', () => {
     });
 
     describe.each([
-      { method: 'DELETE', body: undefined, expectContentType: false },
-      { method: 'PUT', body: undefined, expectContentType: false },
-      { method: 'DELETE', body: { foo: 'bar' }, expectContentType: true },
-      { method: 'PUT', body: { foo: 'bar' }, expectContentType: true },
-      { method: 'POST', body: undefined, expectContentType: true },
-      { method: 'GET', body: undefined, expectContentType: true },
+      { method: DELETE, body: undefined, expectContentType: false },
+      { method: PUT, body: undefined, expectContentType: false },
+      { method: DELETE, body: { foo: 'bar' }, expectContentType: true },
+      { method: PUT, body: { foo: 'bar' }, expectContentType: true },
+      { method: POST, body: undefined, expectContentType: true },
+      { method: GET, body: undefined, expectContentType: true },
     ])(
       '$method request with body: $body',
       ({ method, body, expectContentType }) => {
@@ -303,18 +312,18 @@ describe('Request Handler', () => {
             const result = requestHandler.buildConfig(apiUrl, { method, body });
             if (expectContentType) {
               expect(result.headers).toHaveProperty(
-                'Content-Type',
+                CONTENT_TYPE,
                 contentTypeValue,
               );
             } else {
-              expect(result.headers).not.toHaveProperty('Content-Type');
+              expect(result.headers).not.toHaveProperty(CONTENT_TYPE);
             }
           },
         );
       },
     );
 
-    describe.each(['DELETE', 'PUT'])(
+    describe.each([DELETE, PUT])(
       '%s method with custom Content-Type',
       (method) => {
         it(`should keep custom Content-Type for ${method} method`, () => {
