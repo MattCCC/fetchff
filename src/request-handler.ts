@@ -40,11 +40,9 @@ import {
   CANCELLED_ERROR,
   CHARSET_UTF_8,
   CONTENT_TYPE,
-  DELETE,
   GET,
   HEAD,
   OBJECT,
-  PUT,
   STRING,
   UNDEFINED,
 } from './constants';
@@ -180,23 +178,25 @@ export function createRequestHandler(
     method: string,
     body?: unknown,
   ): void => {
-    if (!body && [PUT, DELETE].includes(method)) {
+    if (!body && ['PUT', 'DELETE'].includes(method)) {
       return;
-    }
+    } else {
+      const contentTypeValue = APPLICATION_JSON + ';' + CHARSET_UTF_8;
 
-    const contentTypeValue = APPLICATION_JSON + ';' + CHARSET_UTF_8;
-
-    if (headers instanceof Headers) {
-      if (!headers.has(CONTENT_TYPE)) {
-        headers.set(CONTENT_TYPE, contentTypeValue);
+      if (headers instanceof Headers) {
+        if (!headers.has(CONTENT_TYPE)) {
+          headers.set(CONTENT_TYPE, contentTypeValue);
+        }
+      } else if (
+        typeof headers === OBJECT &&
+        !Array.isArray(headers) &&
+        !headers[CONTENT_TYPE]
+      ) {
+        headers[CONTENT_TYPE] = contentTypeValue;
       }
-    } else if (
-      typeof headers === OBJECT &&
-      !Array.isArray(headers) &&
-      !headers[CONTENT_TYPE]
-    ) {
-      headers[CONTENT_TYPE] = contentTypeValue;
     }
+
+    return;
   };
 
   /**

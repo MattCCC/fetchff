@@ -13,10 +13,8 @@ import {
   APPLICATION_JSON,
   CHARSET_UTF_8,
   CONTENT_TYPE,
-  DELETE,
   GET,
   POST,
-  PUT,
 } from '../src/constants';
 import { ResponseErr } from '../src/response-error';
 
@@ -295,10 +293,10 @@ describe('Request Handler', () => {
     });
 
     describe.each([
-      { method: DELETE, body: undefined, expectContentType: false },
-      { method: PUT, body: undefined, expectContentType: false },
-      { method: DELETE, body: { foo: 'bar' }, expectContentType: true },
-      { method: PUT, body: { foo: 'bar' }, expectContentType: true },
+      { method: 'DELETE', body: undefined, expectContentType: false },
+      { method: 'PUT', body: undefined, expectContentType: false },
+      { method: 'DELETE', body: { foo: 'bar' }, expectContentType: true },
+      { method: 'PUT', body: { foo: 'bar' }, expectContentType: true },
       { method: POST, body: undefined, expectContentType: true },
       { method: GET, body: undefined, expectContentType: true },
     ])(
@@ -323,7 +321,7 @@ describe('Request Handler', () => {
       },
     );
 
-    describe.each([DELETE, PUT])(
+    describe.each(['DELETE', 'PUT'])(
       '%s method with custom Content-Type',
       (method) => {
         it(`should keep custom Content-Type for ${method} method`, () => {
