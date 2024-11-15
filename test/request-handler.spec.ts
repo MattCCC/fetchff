@@ -14,7 +14,6 @@ import {
   CHARSET_UTF_8,
   CONTENT_TYPE,
   GET,
-  POST,
 } from '../src/constants';
 import { ResponseErr } from '../src/response-error';
 
@@ -297,7 +296,7 @@ describe('Request Handler', () => {
       { method: 'PUT', body: undefined, expectContentType: false },
       { method: 'DELETE', body: { foo: 'bar' }, expectContentType: true },
       { method: 'PUT', body: { foo: 'bar' }, expectContentType: true },
-      { method: POST, body: undefined, expectContentType: true },
+      { method: 'POST', body: undefined, expectContentType: true },
       { method: GET, body: undefined, expectContentType: true },
     ])(
       '$method request with body: $body',

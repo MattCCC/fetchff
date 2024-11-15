@@ -13,5 +13,4 @@ export const TIMEOUT_ERROR = 'TimeoutError';
 export const CANCELLED_ERROR = 'CanceledError';
 
 export const GET = 'GET';
-export const POST = 'POST';
 export const HEAD = 'HEAD';
