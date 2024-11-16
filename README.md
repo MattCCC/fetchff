@@ -415,7 +415,7 @@ The following options are available for configuring interceptors in the `Request
   <br>
   <br>
 
-The native `fetch()` API function doesn't throw exceptions for HTTP errors like `404` or `500` — it only rejects the promise if there is a network-level error (e.g., the request fails due to a DNS error, no internet connection, or CORS issues). The `fetchf()` function brings consistency and lets you align the behavior depending on chosen strategy. By default, all errors are rejected.
+The native `fetch()` API function doesn't throw exceptions for HTTP errors like `404` or `500` — it only rejects the promise if there is a network-level error (e.g. the request fails due to a DNS error, no internet connection, or CORS issues). The `fetchf()` function brings consistency and lets you align the behavior depending on chosen strategy. By default, all errors are rejected.
 
 ### Configuration
 
