@@ -8,7 +8,13 @@ import type {
   RequestHandlerReturnType,
 } from '../src/types/request-handler';
 import { fetchf } from '../src';
-import { ABORT_ERROR } from '../src/constants';
+import {
+  ABORT_ERROR,
+  APPLICATION_JSON,
+  CHARSET_UTF_8,
+  CONTENT_TYPE,
+  GET,
+} from '../src/constants';
 import { ResponseErr } from '../src/response-error';
 
 jest.mock('../src/utils', () => {
@@ -26,6 +32,7 @@ const fetcher = {
 
 describe('Request Handler', () => {
   const apiUrl = 'http://example.com/api/';
+  const contentTypeValue = APPLICATION_JSON + ';' + CHARSET_UTF_8;
   const responseMock = {
     data: {
       test: 'data',
@@ -64,11 +71,13 @@ describe('Request Handler', () => {
     const headers = {
       Accept: 'application/json, text/plain, */*',
       'Accept-Encoding': 'gzip, deflate, br',
-      'Content-Type': 'application/json;charset=utf-8',
+      'Content-Type': contentTypeValue,
     };
 
     beforeAll(() => {
-      requestHandler = createRequestHandler({});
+      requestHandler = createRequestHandler({
+        headers,
+      });
     });
 
     it('should not differ when the same request is made', () => {
@@ -268,6 +277,65 @@ describe('Request Handler', () => {
         params: { foo: 'bar' },
       });
     });
+  });
+
+  describe('request() Content-Type', () => {
+    let requestHandler: RequestHandlerReturnType;
+    const contentTypeValue = 'application/json;charset=utf-8';
+
+    beforeEach(() => {
+      requestHandler = createRequestHandler({});
+    });
+
+    afterEach(() => {
+      jest.clearAllMocks();
+    });
+
+    describe.each([
+      { method: 'DELETE', body: undefined, expectContentType: false },
+      { method: 'PUT', body: undefined, expectContentType: false },
+      { method: 'DELETE', body: { foo: 'bar' }, expectContentType: true },
+      { method: 'PUT', body: { foo: 'bar' }, expectContentType: true },
+      { method: 'POST', body: undefined, expectContentType: true },
+      { method: GET, body: undefined, expectContentType: true },
+    ])(
+      '$method request with body: $body',
+      ({ method, body, expectContentType }) => {
+        it(
+          expectContentType
+            ? 'should set Content-Type when body is provided or method requires it'
+            : 'should not set Content-Type when no body is provided for DELETE or PUT',
+          () => {
+            const result = requestHandler.buildConfig(apiUrl, { method, body });
+            if (expectContentType) {
+              expect(result.headers).toHaveProperty(
+                CONTENT_TYPE,
+                contentTypeValue,
+              );
+            } else {
+              expect(result.headers).not.toHaveProperty(CONTENT_TYPE);
+            }
+          },
+        );
+      },
+    );
+
+    describe.each(['DELETE', 'PUT'])(
+      '%s method with custom Content-Type',
+      (method) => {
+        it(`should keep custom Content-Type for ${method} method`, () => {
+          const customContentType = 'application/x-www-form-urlencoded';
+          const result = requestHandler.buildConfig(apiUrl, {
+            method,
+            headers: { 'Content-Type': customContentType },
+          });
+          expect(result.headers).toHaveProperty(
+            'Content-Type',
+            customContentType,
+          );
+        });
+      },
+    );
   });
 
   describe('request()', () => {

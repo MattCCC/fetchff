@@ -12,6 +12,7 @@ import type {
   FetcherConfig,
   FetcherInstance,
   Logger,
+  HeadersObject,
 } from './types/request-handler';
 import type {
   BodyPayload,
@@ -37,6 +38,7 @@ import {
   ABORT_ERROR,
   APPLICATION_JSON,
   CANCELLED_ERROR,
+  CHARSET_UTF_8,
   CONTENT_TYPE,
   GET,
   HEAD,
@@ -56,7 +58,6 @@ const defaultConfig: RequestHandlerConfig = {
   headers: {
     Accept: APPLICATION_JSON + ', text/plain, */*',
     'Accept-Encoding': 'gzip, deflate, br',
-    [CONTENT_TYPE]: APPLICATION_JSON + ';charset=utf-8',
   },
   retry: {
     delay: 1000,
@@ -166,6 +167,39 @@ export function createRequestHandler(
   };
 
   /**
+   * Sets the Content-Type header to 'application/json;charset=utf-8' if needed based on the method and body.
+   *
+   * @param headers - The headers object where Content-Type will be set.
+   * @param method - The HTTP method (e.g., GET, POST, PUT, DELETE).
+   * @param body - Optional request body to determine if Content-Type is needed.
+   */
+  const setContentTypeIfNeeded = (
+    headers: HeadersInit,
+    method: string,
+    body?: unknown,
+  ): void => {
+    if (!body && ['PUT', 'DELETE'].includes(method)) {
+      return;
+    } else {
+      const contentTypeValue = APPLICATION_JSON + ';' + CHARSET_UTF_8;
+
+      if (headers instanceof Headers) {
+        if (!headers.has(CONTENT_TYPE)) {
+          headers.set(CONTENT_TYPE, contentTypeValue);
+        }
+      } else if (
+        typeof headers === OBJECT &&
+        !Array.isArray(headers) &&
+        !headers[CONTENT_TYPE]
+      ) {
+        headers[CONTENT_TYPE] = contentTypeValue;
+      }
+    }
+
+    return;
+  };
+
+  /**
    * Build request configuration
    *
    * @param {string} url - Request url
@@ -202,6 +236,10 @@ export function createRequestHandler(
       body = explicitBodyData;
     }
 
+    const headers = getConfig<HeadersObject>(requestConfig, 'headers');
+
+    setContentTypeIfNeeded(headers, method, body);
+
     // Native fetch compatible settings
     const isWithCredentials = getConfig<boolean>(
       requestConfig,
@@ -236,7 +274,7 @@ export function createRequestHandler(
       credentials,
       body,
       method,
-
+      headers,
       url: baseURL + urlPath,
     };
   };
