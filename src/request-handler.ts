@@ -519,9 +519,11 @@ export function createRequestHandler(
         const status = error?.response?.status || error?.status || 0;
 
         if (
-          attempt === retries ||
-          !(!shouldRetry || (await shouldRetry(error, attempt))) ||
-          !retryOn?.includes(status)
+          // We check retries provided regardless of the shouldRetry being provided so to avoid infinite loops.
+          // It is a fail-safe so to prevent excessive retry attempts even if custom retry logic suggests a retry.
+          attempt === retries || // Stop if the maximum retries have been reached
+          !retryOn?.includes(status) || // Check if the error status is retryable
+          !(await shouldRetry?.(error, attempt)) // If shouldRetry is defined, evaluate it
         ) {
           await processError<ResponseData>(error, fetcherConfig);
 
