@@ -201,7 +201,11 @@ export function isJSONSerializable(value: any): boolean {
     return true;
   }
 
-  if (Buffer.isBuffer(value)) {
+  if (
+    typeof globalThis !== UNDEFINED &&
+    typeof globalThis.Buffer !== UNDEFINED &&
+    globalThis.Buffer.isBuffer(value)
+  ) {
     return false;
   }
 
