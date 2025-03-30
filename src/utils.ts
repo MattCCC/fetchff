@@ -167,7 +167,9 @@ export function replaceUrlPathParams(
     const word = str.substring(1);
 
     if ((urlPathParams as DefaultUrlParams)[word]) {
-      return String((urlPathParams as DefaultUrlParams)[word]);
+      return encodeURIComponent(
+        String((urlPathParams as DefaultUrlParams)[word]),
+      );
     }
 
     return str;
