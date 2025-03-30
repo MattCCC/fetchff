@@ -6,7 +6,6 @@ import type {
   Method,
   RetryOptions,
   FetchResponse,
-  ResponseError,
   RequestHandlerReturnType,
   CreatedCustomFetcherInstance,
   FetcherConfig,
@@ -22,7 +21,7 @@ import type {
   QueryParams,
 } from './types/api-handler';
 import { applyInterceptor } from './interceptor-manager';
-import { ResponseErr } from './response-error';
+import { ResponseError } from './errors/response-error';
 import {
   appendQueryParams,
   isJSONSerializable,
@@ -30,7 +29,6 @@ import {
   delayInvocation,
   flattenData,
   processHeaders,
-  deleteProperty,
   isSearchParams,
 } from './utils';
 import { addRequest, removeRequest } from './queue-manager';
@@ -282,16 +280,26 @@ export function createRequestHandler(
   /**
    * Process global Request Error
    *
-   * @param {ResponseError<ResponseData>} error      Error instance
-   * @param {RequestConfig<ResponseData>} requestConfig   Per endpoint request config
+   * @param {ResponseError<ResponseData, QueryParams, PathParams, RequestBody>} error      Error instance
+   * @param {RequestConfig<ResponseData, QueryParams, PathParams, RequestBody>} requestConfig   Per endpoint request config
    * @returns {Promise<void>}
    */
-  const processError = async <ResponseData = DefaultResponse>(
-    error: ResponseError<ResponseData>,
-    requestConfig: RequestConfig<ResponseData>,
+  const processError = async <
+    ResponseData = DefaultResponse,
+    QueryParams = DefaultParams,
+    PathParams = DefaultUrlParams,
+    RequestBody = DefaultPayload,
+  >(
+    error: ResponseError<ResponseData, QueryParams, PathParams, RequestBody>,
+    requestConfig: RequestConfig<
+      ResponseData,
+      QueryParams,
+      PathParams,
+      RequestBody
+    >,
   ): Promise<void> => {
-    if (!isRequestCancelled(error)) {
-      logger(requestConfig, 'API ERROR', error);
+    if (!isRequestCancelled(error as ResponseError)) {
+      logger(requestConfig, 'API ERROR', error as ResponseError);
     }
 
     // Local interceptors
@@ -304,17 +312,27 @@ export function createRequestHandler(
   /**
    * Output default response in case of an error, depending on chosen strategy
    *
-   * @param {ResponseError<ResponseData>} error - Error instance
-   * @param {FetchResponse<ResponseData> | null} response - Response. It may be "null" in case of request being aborted.
-   * @param {RequestConfig<ResponseData>} requestConfig - Per endpoint request config
-   * @returns {FetchResponse<ResponseData>} Response together with the error object
+   * @param {ResponseError<ResponseData, QueryParams, PathParams, RequestBody>} error - Error instance
+   * @param {FetchResponse<ResponseData, RequestBody> | null} response - Response. It may be "null" in case of request being aborted.
+   * @param {RequestConfig<ResponseData, QueryParams, PathParams, RequestBody>} requestConfig - Per endpoint request config
+   * @returns {FetchResponse<ResponseData, RequestBody>} Response together with the error object
    */
-  const outputErrorResponse = async <ResponseData = DefaultResponse>(
-    error: ResponseError,
-    response: FetchResponse<ResponseData> | null,
-    requestConfig: RequestConfig<ResponseData>,
+  const outputErrorResponse = async <
+    ResponseData = DefaultResponse,
+    QueryParams = DefaultParams,
+    PathParams = DefaultUrlParams,
+    RequestBody = DefaultPayload,
+  >(
+    error: ResponseError<ResponseData, QueryParams, PathParams, RequestBody>,
+    response: FetchResponse<ResponseData, RequestBody> | null,
+    requestConfig: RequestConfig<
+      ResponseData,
+      QueryParams,
+      PathParams,
+      RequestBody
+    >,
   ): Promise<any> => {
-    const _isRequestCancelled = isRequestCancelled(error);
+    const _isRequestCancelled = isRequestCancelled(error as ResponseError);
     const errorHandlingStrategy = getConfig<string>(requestConfig, 'strategy');
     const rejectCancelled = getConfig<boolean>(
       requestConfig,
@@ -333,7 +351,11 @@ export function createRequestHandler(
       }
     }
 
-    return outputResponse<ResponseData>(response, requestConfig, error);
+    return outputResponse<ResponseData, QueryParams, PathParams, RequestBody>(
+      response,
+      requestConfig,
+      error,
+    );
   };
 
   /**
@@ -367,7 +389,7 @@ export function createRequestHandler(
       PathParams,
       RequestBody
     > | null = null,
-  ): Promise<FetchResponse<ResponseData>> => {
+  ): Promise<FetchResponse<ResponseData, RequestBody>> => {
     const _reqConfig = reqConfig || {};
     const mergedConfig = {
       ...handlerConfig,
@@ -461,7 +483,7 @@ export function createRequestHandler(
           response = (await fetch(
             requestConfig.url as string,
             requestConfig as RequestInit,
-          )) as FetchResponse<ResponseData>;
+          )) as unknown as FetchResponse<ResponseData, RequestBody>;
         }
 
         // Add more information to response object
@@ -471,7 +493,12 @@ export function createRequestHandler(
 
           // Check if the response status is not outside the range 200-299 and if so, output error
           if (!response.ok) {
-            throw new ResponseErr(
+            throw new ResponseError<
+              ResponseData,
+              QueryParams,
+              PathParams,
+              RequestBody
+            >(
               `${requestConfig.url} failed! Status: ${response.status || null}`,
               requestConfig,
               response,
@@ -503,7 +530,12 @@ export function createRequestHandler(
         }
 
         // If polling is not required, or polling attempts are exhausted
-        const output = outputResponse<ResponseData>(response, requestConfig);
+        const output = outputResponse<
+          ResponseData,
+          QueryParams,
+          PathParams,
+          RequestBody
+        >(response, requestConfig);
 
         if (cacheTime && _cacheKey) {
           const skipCache = requestConfig.skipCache;
@@ -515,23 +547,40 @@ export function createRequestHandler(
 
         return output;
       } catch (err) {
-        const error = err as ResponseErr;
-        const status = error?.response?.status || error?.status || 0;
+        const error = err as ResponseError<
+          ResponseData,
+          QueryParams,
+          PathParams,
+          RequestBody
+        >;
+
+        // Append additional information to Network, CORS or any other fetch() errors
+        error.status = error?.status || response?.status || 0;
+        error.statusText = error?.statusText || response?.statusText || '';
+        error.config = fetcherConfig;
+        error.request = fetcherConfig;
+        error.response = response;
 
         if (
           attempt === retries ||
           !(!shouldRetry || (await shouldRetry(error, attempt))) ||
-          !retryOn?.includes(status)
+          !retryOn?.includes(error.status)
         ) {
-          await processError<ResponseData>(error, fetcherConfig);
+          await processError<
+            ResponseData,
+            QueryParams,
+            PathParams,
+            RequestBody
+          >(error, fetcherConfig);
 
           removeRequest(fetcherConfig);
 
-          return outputErrorResponse<ResponseData>(
-            error,
-            response,
-            fetcherConfig,
-          );
+          return outputErrorResponse<
+            ResponseData,
+            QueryParams,
+            PathParams,
+            RequestBody
+          >(error, response, fetcherConfig);
         }
 
         logger(
@@ -547,7 +596,10 @@ export function createRequestHandler(
       }
     }
 
-    return outputResponse<ResponseData>(response, fetcherConfig);
+    return outputResponse<ResponseData, QueryParams, PathParams, RequestBody>(
+      response,
+      fetcherConfig,
+    );
   };
 
   /**
@@ -558,11 +610,26 @@ export function createRequestHandler(
    * @param error - whether the response is erroneous
    * @returns {FetchResponse<ResponseData>} Response data
    */
-  const outputResponse = <ResponseData = DefaultResponse>(
-    response: FetchResponse<ResponseData> | null,
-    requestConfig: RequestConfig<ResponseData>,
-    error: ResponseError<ResponseData> | null = null,
-  ): FetchResponse<ResponseData> => {
+  const outputResponse = <
+    ResponseData = DefaultResponse,
+    QueryParams = DefaultParams,
+    PathParams = DefaultUrlParams,
+    RequestBody = DefaultPayload,
+  >(
+    response: FetchResponse<ResponseData, RequestBody> | null,
+    requestConfig: RequestConfig<
+      ResponseData,
+      QueryParams,
+      PathParams,
+      RequestBody
+    >,
+    error: ResponseError<
+      ResponseData,
+      QueryParams,
+      PathParams,
+      RequestBody
+    > | null = null,
+  ): FetchResponse<ResponseData, RequestBody> => {
     const defaultResponse = getConfig<any>(requestConfig, 'defaultResponse');
 
     // This may happen when request is cancelled.
@@ -576,11 +643,6 @@ export function createRequestHandler(
         config: requestConfig,
       } as unknown as FetchResponse<ResponseData>;
     }
-
-    // Clean up the error object
-    deleteProperty(error, 'response');
-    deleteProperty(error, 'request');
-    deleteProperty(error, 'config');
 
     let data = response?.data;
 

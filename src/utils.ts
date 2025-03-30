@@ -201,7 +201,11 @@ export function isJSONSerializable(value: any): boolean {
     return true;
   }
 
-  if (Buffer.isBuffer(value)) {
+  if (
+    typeof globalThis !== UNDEFINED &&
+    typeof globalThis.Buffer !== UNDEFINED &&
+    globalThis.Buffer.isBuffer(value)
+  ) {
     return false;
   }
 
@@ -290,19 +294,4 @@ export function processHeaders(
   }
 
   return headersObject;
-}
-
-/**
- * Deletes a property from an object if it exists.
- *
- * @param obj - The object from which to delete the property.
- * @param property - The property to delete from the object.
- */
-export function deleteProperty<T extends Record<string, any>>(
-  obj: T | null,
-  property: keyof T,
-): void {
-  if (obj && property in obj) {
-    delete obj[property];
-  }
 }
