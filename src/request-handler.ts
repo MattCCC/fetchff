@@ -688,8 +688,7 @@ export function createRequestHandler(
       clone: () => response.clone(),
       arrayBuffer: () => response.arrayBuffer(),
       formData: () => response.formData(),
-      bytes: () =>
-        response.arrayBuffer().then((buffer) => new Uint8Array(buffer)),
+      bytes: () => response.bytes(),
 
       // Enhance the response with extra information
       error,
