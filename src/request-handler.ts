@@ -674,7 +674,6 @@ export function createRequestHandler(
     return {
       body: response.body,
       bodyUsed: response.bodyUsed,
-      formData: response.formData,
       ok: response.ok,
       redirected: response.redirected,
       type: response.type,
@@ -682,11 +681,13 @@ export function createRequestHandler(
       status: response.status,
       statusText: response.statusText,
 
-      blob: response.blob.bind(response),
-      json: response.json.bind(response),
-      text: response.text.bind(response),
-      clone: response.clone.bind(response),
-      arrayBuffer: response.arrayBuffer.bind(response),
+      // Convert methods to use arrow functions to preserve correct return types
+      blob: () => response.blob(),
+      json: () => response.json(),
+      text: () => response.text(),
+      clone: () => response.clone(),
+      arrayBuffer: () => response.arrayBuffer(),
+      formData: () => response.formData(),
 
       // Enhance the response with extra information
       error,
