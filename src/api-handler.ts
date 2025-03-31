@@ -17,6 +17,7 @@ import type {
   UrlPathParams,
 } from './types/api-handler';
 import { createRequestHandler } from './request-handler';
+import { fetchf } from '.';
 
 /**
  * Creates an instance of API Handler.
@@ -125,34 +126,30 @@ function createApiFetcher<
     const endpointConfig =
       endpoints[endpointName] ||
       ({ url: String(endpointName) } as RequestConfigUrlRequired);
+    const url = endpointConfig.url;
 
     // Block Protocol-relative URLs as they could lead to SSRF (Server-Side Request Forgery)
-    if (endpointConfig.url.startsWith('//')) {
+    if (url.startsWith('//')) {
       throw new Error('Protocol-relative URLs are not allowed.');
     }
 
     // Prevent potential Server-Side Request Forgery attack and leakage of credentials when same instance is used for external requests
-    const shouldMerge =
-      !!endpoints[endpointName] ||
-      (!endpoints[endpointName] && endpointConfig.url.startsWith('://'));
+    const isAbsoluteUrl = url.includes('://');
 
-    const safeMergedConfig = shouldMerge
-      ? {
-          ...endpointConfig,
-          ...requestConfig,
-        }
-      : requestConfig;
+    if (isAbsoluteUrl) {
+      // Retrigger fetch to ensure completely new instance of handler being triggered for external URLs
+      return await fetchf(url, requestConfig);
+    }
 
     const responseData = await requestHandler.request<
       FinalResponse<ResponseData, DefaultResponse>,
       FinalParams<ResponseData, QueryParams_, QueryParams>,
       FinalParams<ResponseData, UrlParams, UrlParams>,
       FallbackValue<ResponseData, DefaultPayload, RequestBody>
-    >(
-      endpointConfig.url,
-      safeMergedConfig as RequestConfigUrlRequired,
-      shouldMerge,
-    );
+    >(url, {
+      ...endpointConfig,
+      ...requestConfig,
+    });
 
     return responseData;
   }

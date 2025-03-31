@@ -167,11 +167,14 @@ export function createRequestHandler(
   };
 
   /**
-   * Sets the Content-Type header to 'application/json;charset=utf-8' if needed based on the method and body.
+   * Ensures the `Content-Type` header is set to `application/json; charset=utf-8`
+   * if it is not already present and the request method and body meet specific conditions.
    *
-   * @param headers - The headers object where Content-Type will be set.
-   * @param method - The HTTP method (e.g., GET, POST, PUT, DELETE).
-   * @param body - Optional request body to determine if Content-Type is needed.
+   * @param headers - The headers object to modify. Can be an instance of `Headers`
+   *                  or a plain object conforming to `HeadersInit`.
+   * @param method - The HTTP method of the request (e.g., 'PUT', 'DELETE', etc.).
+   * @param body - The optional body of the request. If no body is provided and the
+   *               method is 'PUT' or 'DELETE', the function exits without modifying headers.
    */
   const setContentTypeIfNeeded = (
     headers: HeadersInit,
@@ -180,23 +183,21 @@ export function createRequestHandler(
   ): void => {
     if (!body && ['PUT', 'DELETE'].includes(method)) {
       return;
-    } else {
-      const contentTypeValue = APPLICATION_JSON + ';' + CHARSET_UTF_8;
-
-      if (headers instanceof Headers) {
-        if (!headers.has(CONTENT_TYPE)) {
-          headers.set(CONTENT_TYPE, contentTypeValue);
-        }
-      } else if (
-        typeof headers === OBJECT &&
-        !Array.isArray(headers) &&
-        !headers[CONTENT_TYPE]
-      ) {
-        headers[CONTENT_TYPE] = contentTypeValue;
-      }
     }
 
-    return;
+    const contentTypeValue = APPLICATION_JSON + ';' + CHARSET_UTF_8;
+
+    if (headers instanceof Headers) {
+      if (!headers.has(CONTENT_TYPE)) {
+        headers.set(CONTENT_TYPE, contentTypeValue);
+      }
+    } else if (
+      typeof headers === OBJECT &&
+      !Array.isArray(headers) &&
+      !headers[CONTENT_TYPE]
+    ) {
+      headers[CONTENT_TYPE] = contentTypeValue;
+    }
   };
 
   /**
@@ -375,7 +376,6 @@ export function createRequestHandler(
    *
    * @param {string} url - Request url
    * @param {RequestConfig} reqConfig - Request config passed when making the request
-   * @param {boolean} shouldMergeConfig - Whether Request config should be merged with global config
    * @throws {ResponseError}
    * @returns {Promise<FetchResponse<ResponseData>>} Response Data
    */
@@ -392,15 +392,12 @@ export function createRequestHandler(
       PathParams,
       RequestBody
     > | null = null,
-    shouldMergeConfig: undefined | boolean = true,
   ): Promise<FetchResponse<ResponseData, RequestBody>> => {
     const _reqConfig = sanitizeObject(reqConfig || {});
-    const mergedConfig = shouldMergeConfig
-      ? {
-          ...handlerConfig,
-          ..._reqConfig,
-        }
-      : { ...defaultConfig, ..._reqConfig };
+    const mergedConfig = {
+      ...handlerConfig,
+      ..._reqConfig,
+    };
 
     mergeConfig('retry', mergedConfig, handlerConfig, _reqConfig);
     mergeConfig('headers', mergedConfig, handlerConfig, _reqConfig);

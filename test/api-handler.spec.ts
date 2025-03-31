@@ -77,7 +77,6 @@ describe('API Handler', () => {
       expect(api.requestHandler.request).toHaveBeenCalledWith(
         '/user-details/:id/:name',
         { url: '/user-details/:id/:name', urlPathParams },
-        true,
       );
       expect(response).toBe(userDataMock);
     });
@@ -106,7 +105,6 @@ describe('API Handler', () => {
       expect(api.requestHandler.request).toHaveBeenCalledWith(
         '/user-details/:id/:name',
         { url: '/user-details/:id/:name', headers, urlPathParams },
-        true,
       );
       expect(response).toBe(userDataMock);
     });
