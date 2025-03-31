@@ -57,6 +57,12 @@ export function sortObject(obj: Record<string, any>): object {
 
   for (let i = 0, len = keys.length; i < len; i++) {
     const key = keys[i];
+
+    // Skip dangerous property names to prevent prototype pollution
+    if (['__proto__', 'constructor', 'prototype'].includes(key)) {
+      continue;
+    }
+
     sortedObj[key] = obj[key];
   }
 
@@ -249,7 +255,14 @@ export async function delayInvocation(ms: number): Promise<boolean> {
  * @param {any} data - The data to be flattened. Can be of any type, including objects, arrays, or primitives.
  * @returns {any} - The flattened data if the criteria are met; otherwise, the original `data`.
  */
-export function flattenData(data: any): any {
+export function flattenData(data: any, depth = 0): any {
+  const MAX_DEPTH = 10;
+
+  // Prevent stack overflow with recursion depth limit
+  if (depth >= MAX_DEPTH) {
+    return data;
+  }
+
   if (
     data &&
     typeof data === OBJECT &&

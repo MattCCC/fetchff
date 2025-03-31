@@ -4,6 +4,7 @@ import {
   appendQueryParams,
   delayInvocation,
   processHeaders,
+  sortObject,
 } from '../src/utils';
 
 describe('Utils', () => {
@@ -11,6 +12,91 @@ describe('Utils', () => {
 
   afterEach((done) => {
     done();
+  });
+
+  describe('sortObject()', () => {
+    it('should sort object keys alphabetically', () => {
+      const input = { z: 1, a: 2, b: 3, c: 4 };
+      const output = sortObject(input);
+
+      const keys = Object.keys(output);
+      expect(keys).toEqual(['a', 'b', 'c', 'z']);
+    });
+
+    it('should return a new object without modifying the original', () => {
+      const input = { z: 1, a: 2 };
+      const output = sortObject(input);
+
+      expect(output).not.toBe(input); // Should be a different reference
+      expect(input).toEqual({ z: 1, a: 2 }); // Original should remain unchanged
+    });
+
+    it('should preserve all property values', () => {
+      const input = {
+        b: 'string',
+        a: 123,
+        c: true,
+        d: null,
+        e: undefined,
+        f: { nested: 'object' },
+        g: [1, 2, 3],
+      };
+      const output = sortObject(input) as Record<string, unknown>;
+
+      expect(output.a).toBe(123);
+      expect(output.b).toBe('string');
+      expect(output.c).toBe(true);
+      expect(output.d).toBe(null);
+      expect(output.e).toBe(undefined);
+      expect(output.f).toEqual({ nested: 'object' });
+      expect(output.g).toEqual([1, 2, 3]);
+    });
+
+    it('should handle empty objects', () => {
+      const input = {};
+      const output = sortObject(input);
+
+      expect(output).toEqual({});
+    });
+
+    it('should handle objects with special characters in keys', () => {
+      const input = { $key: 1, _key: 2, '123key': 3 };
+      const output = sortObject(input);
+
+      const keys = Object.keys(output);
+      expect(keys).toEqual(['$key', '123key', '_key']);
+    });
+
+    it('should skip dangerous property names to prevent prototype pollution', () => {
+      const input = {
+        normal: 'safe',
+        __proto__: { polluted: true },
+        constructor: 'unsafe',
+        prototype: 'danger',
+      };
+      const output = sortObject(input);
+
+      expect(output).toEqual({ normal: 'safe' });
+      expect(Object.prototype.hasOwnProperty.call(output, '__proto__')).toBe(
+        false,
+      );
+      expect(Object.prototype.hasOwnProperty.call(output, 'constructor')).toBe(
+        false,
+      );
+      expect(Object.prototype.hasOwnProperty.call(output, 'prototype')).toBe(
+        false,
+      );
+    });
+
+    it('should correctly sort unicode characters', () => {
+      const input = { é: 1, à: 2, ç: 3, b: 4, a: 5 };
+      const output = sortObject(input);
+
+      const keys = Object.keys(output);
+      // Note: The exact sort order may vary by JavaScript engine,
+      // but generally alphabetical with unicode collation rules
+      expect(keys.indexOf('a')).toBeLessThan(keys.indexOf('b'));
+    });
   });
 
   describe('isJSONSerializable()', () => {
