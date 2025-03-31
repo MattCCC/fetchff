@@ -183,6 +183,7 @@ export function appendQueryParams(url: string, params: QueryParams): string {
   const queryStringParts = buildParams('', params).join('&');
 
   // Encode special characters as per RFC 3986, https://datatracker.ietf.org/doc/html/rfc3986
+  // This is for compatibility with server frameworks that expect the literal notation
   const encodedQueryString = queryStringParts.replace(/%5B%5D/g, '[]'); // Keep '[]' for arrays
 
   return appendQueryStringToUrl(url, encodedQueryString);
