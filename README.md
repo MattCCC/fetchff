@@ -1035,6 +1035,8 @@ Security is a core design principle of FetchFF, with sanitization mechanisms run
 | **Multiple Fetching Strategies**                   | ✅          | --           | --           | --           | --             |
 | **Dynamic URLs**                                   | ✅          | --           | ✅           | --           | --             |
 | **Automatic Retry on Failure**                     | ✅          | ✅           | --           | ✅           | --             |
+| **Built-in Input Sanitization**                    | ✅          | --           | --           | --           | --             |
+| **Prototype Pollution Protection**                 | ✅          | --           | --           | --           | --             |
 | **Server-Side Rendering (SSR) Support**            | ✅          | ✅           | --           | --           | --             |
 | **Minimal Installation Size**                      | 🟢 (3.3 KB) | 🟡 (6.41 KB) | 🟢 (2.21 KB) | 🔴 (13.7 KB) | 🟢 (0 KB)      |
 
