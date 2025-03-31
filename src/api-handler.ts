@@ -131,15 +131,28 @@ function createApiFetcher<
       throw new Error('Protocol-relative URLs are not allowed.');
     }
 
+    // Prevent potential Server-Side Request Forgery attack and leakage of credentials when same instance is used for external requests
+    const shouldMerge =
+      !!endpoints[endpointName] ||
+      (!endpoints[endpointName] && endpointConfig.url.startsWith('://'));
+
+    const safeMergedConfig = shouldMerge
+      ? {
+          ...endpointConfig,
+          ...requestConfig,
+        }
+      : requestConfig;
+
     const responseData = await requestHandler.request<
       FinalResponse<ResponseData, DefaultResponse>,
       FinalParams<ResponseData, QueryParams_, QueryParams>,
       FinalParams<ResponseData, UrlParams, UrlParams>,
       FallbackValue<ResponseData, DefaultPayload, RequestBody>
-    >(endpointConfig.url, {
-      ...endpointConfig,
-      ...requestConfig,
-    });
+    >(
+      endpointConfig.url,
+      safeMergedConfig as RequestConfigUrlRequired,
+      shouldMerge,
+    );
 
     return responseData;
   }

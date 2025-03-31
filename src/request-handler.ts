@@ -373,7 +373,8 @@ export function createRequestHandler(
    * Handle Request depending on used strategy
    *
    * @param {string} url - Request url
-   * @param {RequestConfig} reqConfig - Request config
+   * @param {RequestConfig} reqConfig - Request config passed when making the request
+   * @param {boolean} shouldMergeConfig - Whether Request config should be merged with global config
    * @throws {ResponseError}
    * @returns {Promise<FetchResponse<ResponseData>>} Response Data
    */
@@ -390,12 +391,15 @@ export function createRequestHandler(
       PathParams,
       RequestBody
     > | null = null,
+    shouldMergeConfig: undefined | boolean = true,
   ): Promise<FetchResponse<ResponseData, RequestBody>> => {
     const _reqConfig = sanitizeObject(reqConfig || {});
-    const mergedConfig = {
-      ...handlerConfig,
-      ..._reqConfig,
-    } as RequestConfig;
+    const mergedConfig = shouldMergeConfig
+      ? {
+          ...handlerConfig,
+          ..._reqConfig,
+        }
+      : { ...defaultConfig, ..._reqConfig };
 
     mergeConfig('retry', mergedConfig, handlerConfig, _reqConfig);
     mergeConfig('headers', mergedConfig, handlerConfig, _reqConfig);
