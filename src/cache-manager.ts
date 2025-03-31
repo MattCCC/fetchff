@@ -97,7 +97,7 @@ export function generateCacheKey(options: FetcherConfig): string {
     integrity +
     headersString +
     bodyString
-  );
+  ).replace(/[^\w-_]/g, ''); // Prevent cache poisoning by removal of anything that isn't letters, numbers, - or _
 }
 
 /**
