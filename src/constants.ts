@@ -7,6 +7,7 @@ export const CONTENT_TYPE = 'Content-Type';
 export const UNDEFINED = 'undefined';
 export const OBJECT = 'object';
 export const STRING = 'string';
+export const FUNCTION = 'function';
 
 export const ABORT_ERROR = 'AbortError';
 export const TIMEOUT_ERROR = 'TimeoutError';

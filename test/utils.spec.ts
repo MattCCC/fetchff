@@ -4,6 +4,8 @@ import {
   appendQueryParams,
   delayInvocation,
   processHeaders,
+  sortObject,
+  sanitizeObject,
 } from '../src/utils';
 
 describe('Utils', () => {
@@ -11,6 +13,185 @@ describe('Utils', () => {
 
   afterEach((done) => {
     done();
+  });
+
+  describe('sanitizeObject()', () => {
+    it('should remove dangerous properties from objects', () => {
+      const input = {
+        safe: 'value',
+        __proto__: { polluted: true },
+        constructor: 'unsafe',
+        prototype: 'danger',
+      };
+      const output = sanitizeObject(input);
+
+      expect(output).toEqual({ safe: 'value' });
+      expect(Object.prototype.hasOwnProperty.call(output, '__proto__')).toBe(
+        false,
+      );
+      expect(Object.prototype.hasOwnProperty.call(output, 'constructor')).toBe(
+        false,
+      );
+      expect(Object.prototype.hasOwnProperty.call(output, 'prototype')).toBe(
+        false,
+      );
+    });
+
+    it('should return a new object reference', () => {
+      const input = { a: 1, b: 2 };
+      const output = sanitizeObject(input);
+
+      expect(output).not.toBe(input); // Different reference
+      expect(output).toEqual(input); // Same content
+    });
+
+    it('should handle null and undefined inputs', () => {
+      // @ts-expect-error Null and undefined are not objects
+      expect(sanitizeObject(null)).toBeNull();
+      // @ts-expect-error Null and undefined are not objects
+      expect(sanitizeObject(undefined)).toBeUndefined();
+    });
+
+    it('should handle array inputs without modification', () => {
+      const input = [1, 2, 3];
+      expect(sanitizeObject(input)).toEqual(input);
+    });
+
+    it('should handle primitive inputs without modification', () => {
+      // @ts-expect-error String, number, and boolean are not objects
+      expect(sanitizeObject('string')).toBe('string');
+      // @ts-expect-error String, number, and boolean are not objects
+      expect(sanitizeObject(123)).toBe(123);
+      // @ts-expect-error String, number, and boolean are not objects
+      expect(sanitizeObject(true)).toBe(true);
+    });
+
+    it('should preserve all safe properties', () => {
+      const date = new Date();
+      const input = {
+        string: 'text',
+        number: 42,
+        boolean: true,
+        array: [1, 2, 3],
+        object: { nested: 'value' },
+        date: date,
+        nullValue: null,
+        undefinedValue: undefined,
+      };
+
+      const output = sanitizeObject(input);
+      expect(output).toEqual(input);
+    });
+
+    it('should handle empty objects', () => {
+      expect(sanitizeObject({})).toEqual({});
+    });
+
+    it('should not modify nested objects', () => {
+      const input = {
+        safe: 'value',
+        nested: {
+          __proto__: { polluted: true },
+          safe: 'nested value',
+        },
+      };
+
+      const output = sanitizeObject(input);
+
+      // The top-level object is sanitized, but nested objects are not recursively sanitized
+      expect(output).toEqual({
+        safe: 'value',
+        nested: {
+          __proto__: { polluted: true },
+          safe: 'nested value',
+        },
+      });
+    });
+  });
+
+  describe('sortObject()', () => {
+    it('should sort object keys alphabetically', () => {
+      const input = { z: 1, a: 2, b: 3, c: 4 };
+      const output = sortObject(input);
+
+      const keys = Object.keys(output);
+      expect(keys).toEqual(['a', 'b', 'c', 'z']);
+    });
+
+    it('should return a new object without modifying the original', () => {
+      const input = { z: 1, a: 2 };
+      const output = sortObject(input);
+
+      expect(output).not.toBe(input); // Should be a different reference
+      expect(input).toEqual({ z: 1, a: 2 }); // Original should remain unchanged
+    });
+
+    it('should preserve all property values', () => {
+      const input = {
+        b: 'string',
+        a: 123,
+        c: true,
+        d: null,
+        e: undefined,
+        f: { nested: 'object' },
+        g: [1, 2, 3],
+      };
+      const output = sortObject(input) as Record<string, unknown>;
+
+      expect(output.a).toBe(123);
+      expect(output.b).toBe('string');
+      expect(output.c).toBe(true);
+      expect(output.d).toBe(null);
+      expect(output.e).toBe(undefined);
+      expect(output.f).toEqual({ nested: 'object' });
+      expect(output.g).toEqual([1, 2, 3]);
+    });
+
+    it('should handle empty objects', () => {
+      const input = {};
+      const output = sortObject(input);
+
+      expect(output).toEqual({});
+    });
+
+    it('should handle objects with special characters in keys', () => {
+      const input = { $key: 1, _key: 2, '123key': 3 };
+      const output = sortObject(input);
+
+      const keys = Object.keys(output);
+      expect(keys).toEqual(['$key', '123key', '_key']);
+    });
+
+    it('should skip dangerous property names to prevent prototype pollution', () => {
+      const input = {
+        normal: 'safe',
+        __proto__: { polluted: true },
+        constructor: 'unsafe',
+        prototype: 'danger',
+      };
+      const output = sortObject(input);
+
+      expect(output).toEqual({ normal: 'safe' });
+      expect(Object.prototype.hasOwnProperty.call(output, '__proto__')).toBe(
+        false,
+      );
+      expect(Object.prototype.hasOwnProperty.call(output, 'constructor')).toBe(
+        false,
+      );
+      expect(Object.prototype.hasOwnProperty.call(output, 'prototype')).toBe(
+        false,
+      );
+    });
+
+    it('should correctly sort unicode characters', () => {
+      const input = { é: 1, à: 2, ç: 3, b: 4, a: 5 };
+      const output = sortObject(input);
+
+      const keys = Object.keys(output);
+      // Note: The exact sort order may vary by JavaScript engine,
+      // but generally alphabetical with unicode collation rules
+      expect(keys.indexOf('a')).toBeLessThan(keys.indexOf('b'));
+    });
   });
 
   describe('isJSONSerializable()', () => {

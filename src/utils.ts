@@ -1,11 +1,16 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { OBJECT, STRING, UNDEFINED } from './constants';
+import { FUNCTION, OBJECT, STRING, UNDEFINED } from './constants';
 import type {
   DefaultUrlParams,
   HeadersObject,
   QueryParams,
   UrlPathParams,
 } from './types';
+
+// Prevent stack overflow with recursion depth limit
+const MAX_DEPTH = 10;
+
+const dangerousProps = ['__proto__', 'constructor', 'prototype'];
 
 export function isSearchParams(data: unknown): boolean {
   return data instanceof URLSearchParams;
@@ -41,6 +46,31 @@ export function shallowSerialize(obj: Record<string, any>): string {
 }
 
 /**
+ * Removes properties that could lead to prototype pollution from an object.
+ *
+ * This function creates a shallow copy of the input object with dangerous
+ * properties like '__proto__', 'constructor', and 'prototype' removed.
+ *
+ * @param obj - The object to sanitize
+ * @returns A new object without dangerous properties
+ */
+export function sanitizeObject<T extends Record<string, any>>(
+  obj: T,
+): Partial<T> {
+  if (!obj || typeof obj !== OBJECT || Array.isArray(obj)) {
+    return obj;
+  }
+
+  const safeObj = { ...obj };
+
+  dangerousProps.forEach((prop) => {
+    delete safeObj[prop];
+  });
+
+  return safeObj;
+}
+
+/**
  * Sorts the keys of an object and returns a new object with sorted keys.
  *
  * This function is optimized for performance by minimizing the number of object operations
@@ -57,6 +87,12 @@ export function sortObject(obj: Record<string, any>): object {
 
   for (let i = 0, len = keys.length; i < len; i++) {
     const key = keys[i];
+
+    // Skip dangerous property names to prevent prototype pollution
+    if (dangerousProps.includes(key)) {
+      continue;
+    }
+
     sortedObj[key] = obj[key];
   }
 
@@ -103,12 +139,17 @@ export function appendQueryParams(url: string, params: QueryParams): string {
   const s: string[] = [];
   const encode = encodeURIComponent;
   const add = (k: string, v: any) => {
-    v = typeof v === 'function' ? v() : v;
+    v = typeof v === FUNCTION ? v() : v;
     v = v === null ? '' : v === undefined ? '' : v;
     s[s.length] = encode(k) + '=' + encode(v);
   };
 
-  const buildParams = (prefix: string, obj: any) => {
+  const buildParams = (prefix: string, obj: any, depth = 0) => {
+    // Stop recursion if maximum depth is reached
+    if (depth >= MAX_DEPTH) {
+      return s;
+    }
+
     let i: number, len: number, key: string;
 
     if (prefix) {
@@ -117,11 +158,12 @@ export function appendQueryParams(url: string, params: QueryParams): string {
           buildParams(
             prefix + '[' + (typeof obj[i] === OBJECT && obj[i] ? i : '') + ']',
             obj[i],
+            depth + 1,
           );
         }
-      } else if (typeof obj === OBJECT && obj !== null) {
+      } else if (isObject(obj)) {
         for (key in obj) {
-          buildParams(prefix + '[' + key + ']', obj[key]);
+          buildParams(prefix + '[' + key + ']', obj[key], depth + 1);
         }
       } else {
         add(prefix, obj);
@@ -132,7 +174,7 @@ export function appendQueryParams(url: string, params: QueryParams): string {
       }
     } else {
       for (key in obj) {
-        buildParams(key, obj[key]);
+        buildParams(key, obj[key], depth + 1);
       }
     }
     return s;
@@ -141,6 +183,7 @@ export function appendQueryParams(url: string, params: QueryParams): string {
   const queryStringParts = buildParams('', params).join('&');
 
   // Encode special characters as per RFC 3986, https://datatracker.ietf.org/doc/html/rfc3986
+  // This is for compatibility with server frameworks that expect the literal notation
   const encodedQueryString = queryStringParts.replace(/%5B%5D/g, '[]'); // Keep '[]' for arrays
 
   return appendQueryStringToUrl(url, encodedQueryString);
@@ -167,7 +210,9 @@ export function replaceUrlPathParams(
     const word = str.substring(1);
 
     if ((urlPathParams as DefaultUrlParams)[word]) {
-      return String((urlPathParams as DefaultUrlParams)[word]);
+      return encodeURIComponent(
+        String((urlPathParams as DefaultUrlParams)[word]),
+      );
     }
 
     return str;
@@ -213,16 +258,16 @@ export function isJSONSerializable(value: any): boolean {
     return false;
   }
 
-  if (t === OBJECT) {
+  if (isObject(value)) {
     const proto = Object.getPrototypeOf(value);
 
-    // Check if the prototype is `Object.prototype` or `null` (plain object)
-    if (proto === Object.prototype || proto === null) {
+    // Check if the prototype is `Object.prototype` (plain object)
+    if (proto === Object.prototype) {
       return true;
     }
 
     // Check if the object has a toJSON method
-    if (typeof value.toJSON === 'function') {
+    if (typeof value.toJSON === FUNCTION) {
       return true;
     }
   }
@@ -247,14 +292,18 @@ export async function delayInvocation(ms: number): Promise<boolean> {
  * @param {any} data - The data to be flattened. Can be of any type, including objects, arrays, or primitives.
  * @returns {any} - The flattened data if the criteria are met; otherwise, the original `data`.
  */
-export function flattenData(data: any): any {
+export function flattenData(data: any, depth = 0): any {
+  if (depth >= MAX_DEPTH) {
+    return data;
+  }
+
   if (
     data &&
-    typeof data === OBJECT &&
+    isObject(data) &&
     typeof data.data !== UNDEFINED &&
     Object.keys(data).length === 1
   ) {
-    return flattenData(data.data);
+    return flattenData(data.data, depth + 1);
   }
 
   return data;
@@ -284,7 +333,7 @@ export function processHeaders(
     headers.forEach((value, key) => {
       headersObject[key] = value;
     });
-  } else if (typeof headers === OBJECT && headers !== null) {
+  } else if (isObject(headers)) {
     // Handle plain object
     for (const [key, value] of Object.entries(headers)) {
       // Normalize keys to lowercase as per RFC 2616 4.2
