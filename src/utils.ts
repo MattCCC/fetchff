@@ -258,7 +258,7 @@ export function isJSONSerializable(value: any): boolean {
     return false;
   }
 
-  if (isObject(t)) {
+  if (isObject(value)) {
     const proto = Object.getPrototypeOf(value);
 
     // Check if the prototype is `Object.prototype` (plain object)
