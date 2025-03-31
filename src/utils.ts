@@ -161,7 +161,7 @@ export function appendQueryParams(url: string, params: QueryParams): string {
             depth + 1,
           );
         }
-      } else if (typeof obj === OBJECT && obj !== null) {
+      } else if (isObject(obj)) {
         for (key in obj) {
           buildParams(prefix + '[' + key + ']', obj[key], depth + 1);
         }
@@ -258,11 +258,11 @@ export function isJSONSerializable(value: any): boolean {
     return false;
   }
 
-  if (t === OBJECT) {
+  if (isObject(t)) {
     const proto = Object.getPrototypeOf(value);
 
-    // Check if the prototype is `Object.prototype` or `null` (plain object)
-    if (proto === Object.prototype || proto === null) {
+    // Check if the prototype is `Object.prototype` (plain object)
+    if (proto === Object.prototype) {
       return true;
     }
 
@@ -299,7 +299,7 @@ export function flattenData(data: any, depth = 0): any {
 
   if (
     data &&
-    typeof data === OBJECT &&
+    isObject(data) &&
     typeof data.data !== UNDEFINED &&
     Object.keys(data).length === 1
   ) {
@@ -333,7 +333,7 @@ export function processHeaders(
     headers.forEach((value, key) => {
       headersObject[key] = value;
     });
-  } else if (typeof headers === OBJECT && headers !== null) {
+  } else if (isObject(headers)) {
     // Handle plain object
     for (const [key, value] of Object.entries(headers)) {
       // Normalize keys to lowercase as per RFC 2616 4.2
