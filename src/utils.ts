@@ -7,6 +7,8 @@ import type {
   UrlPathParams,
 } from './types';
 
+const dangerousProps = ['__proto__', 'constructor', 'prototype'];
+
 export function isSearchParams(data: unknown): boolean {
   return data instanceof URLSearchParams;
 }
@@ -41,6 +43,31 @@ export function shallowSerialize(obj: Record<string, any>): string {
 }
 
 /**
+ * Removes properties that could lead to prototype pollution from an object.
+ *
+ * This function creates a shallow copy of the input object with dangerous
+ * properties like '__proto__', 'constructor', and 'prototype' removed.
+ *
+ * @param obj - The object to sanitize
+ * @returns A new object without dangerous properties
+ */
+export function sanitizeObject<T extends Record<string, any>>(
+  obj: T,
+): Partial<T> {
+  if (!obj || typeof obj !== OBJECT || Array.isArray(obj)) {
+    return obj;
+  }
+
+  const safeObj = { ...obj };
+
+  dangerousProps.forEach((prop) => {
+    delete safeObj[prop];
+  });
+
+  return safeObj;
+}
+
+/**
  * Sorts the keys of an object and returns a new object with sorted keys.
  *
  * This function is optimized for performance by minimizing the number of object operations
@@ -59,7 +86,7 @@ export function sortObject(obj: Record<string, any>): object {
     const key = keys[i];
 
     // Skip dangerous property names to prevent prototype pollution
-    if (['__proto__', 'constructor', 'prototype'].includes(key)) {
+    if (dangerousProps.includes(key)) {
       continue;
     }
 

@@ -30,6 +30,7 @@ import {
   flattenData,
   processHeaders,
   isSearchParams,
+  sanitizeObject,
 } from './utils';
 import { addRequest, removeRequest } from './queue-manager';
 import {
@@ -88,7 +89,7 @@ export function createRequestHandler(
 ): RequestHandlerReturnType {
   const handlerConfig: RequestHandlerConfig = {
     ...defaultConfig,
-    ...config,
+    ...sanitizeObject(config),
   };
 
   /**
@@ -108,7 +109,7 @@ export function createRequestHandler(
     if (newConfig[property]) {
       targetConfig[property] = {
         ...baseConfig[property],
-        ...newConfig[property],
+        ...sanitizeObject(newConfig[property]),
       };
     }
   };
@@ -390,7 +391,7 @@ export function createRequestHandler(
       RequestBody
     > | null = null,
   ): Promise<FetchResponse<ResponseData, RequestBody>> => {
-    const _reqConfig = reqConfig || {};
+    const _reqConfig = sanitizeObject(reqConfig || {});
     const mergedConfig = {
       ...handlerConfig,
       ..._reqConfig,

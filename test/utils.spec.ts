@@ -5,6 +5,7 @@ import {
   delayInvocation,
   processHeaders,
   sortObject,
+  sanitizeObject,
 } from '../src/utils';
 
 describe('Utils', () => {
@@ -12,6 +13,100 @@ describe('Utils', () => {
 
   afterEach((done) => {
     done();
+  });
+
+  describe('sanitizeObject()', () => {
+    it('should remove dangerous properties from objects', () => {
+      const input = {
+        safe: 'value',
+        __proto__: { polluted: true },
+        constructor: 'unsafe',
+        prototype: 'danger',
+      };
+      const output = sanitizeObject(input);
+
+      expect(output).toEqual({ safe: 'value' });
+      expect(Object.prototype.hasOwnProperty.call(output, '__proto__')).toBe(
+        false,
+      );
+      expect(Object.prototype.hasOwnProperty.call(output, 'constructor')).toBe(
+        false,
+      );
+      expect(Object.prototype.hasOwnProperty.call(output, 'prototype')).toBe(
+        false,
+      );
+    });
+
+    it('should return a new object reference', () => {
+      const input = { a: 1, b: 2 };
+      const output = sanitizeObject(input);
+
+      expect(output).not.toBe(input); // Different reference
+      expect(output).toEqual(input); // Same content
+    });
+
+    it('should handle null and undefined inputs', () => {
+      // @ts-expect-error Null and undefined are not objects
+      expect(sanitizeObject(null)).toBeNull();
+      // @ts-expect-error Null and undefined are not objects
+      expect(sanitizeObject(undefined)).toBeUndefined();
+    });
+
+    it('should handle array inputs without modification', () => {
+      const input = [1, 2, 3];
+      expect(sanitizeObject(input)).toEqual(input);
+    });
+
+    it('should handle primitive inputs without modification', () => {
+      // @ts-expect-error String, number, and boolean are not objects
+      expect(sanitizeObject('string')).toBe('string');
+      // @ts-expect-error String, number, and boolean are not objects
+      expect(sanitizeObject(123)).toBe(123);
+      // @ts-expect-error String, number, and boolean are not objects
+      expect(sanitizeObject(true)).toBe(true);
+    });
+
+    it('should preserve all safe properties', () => {
+      const date = new Date();
+      const input = {
+        string: 'text',
+        number: 42,
+        boolean: true,
+        array: [1, 2, 3],
+        object: { nested: 'value' },
+        date: date,
+        nullValue: null,
+        undefinedValue: undefined,
+      };
+
+      const output = sanitizeObject(input);
+      expect(output).toEqual(input);
+    });
+
+    it('should handle empty objects', () => {
+      expect(sanitizeObject({})).toEqual({});
+    });
+
+    it('should not modify nested objects', () => {
+      const input = {
+        safe: 'value',
+        nested: {
+          __proto__: { polluted: true },
+          safe: 'nested value',
+        },
+      };
+
+      const output = sanitizeObject(input);
+
+      // The top-level object is sanitized, but nested objects are not recursively sanitized
+      expect(output).toEqual({
+        safe: 'value',
+        nested: {
+          __proto__: { polluted: true },
+          safe: 'nested value',
+        },
+      });
+    });
   });
 
   describe('sortObject()', () => {
