@@ -46,10 +46,8 @@ export async function parseResponseData<ResponseData = DefaultResponse>(
       data = await response.text(); // Parse as text
     } else {
       try {
-        const responseClone = response.clone();
-
         // Handle edge case of no content type being provided... We assume JSON here.
-        data = await responseClone.json();
+        data = await response.json();
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
       } catch (_e) {
         // Handle streams
