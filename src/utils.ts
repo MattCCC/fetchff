@@ -7,6 +7,9 @@ import type {
   UrlPathParams,
 } from './types';
 
+// Prevent stack overflow with recursion depth limit
+const MAX_DEPTH = 10;
+
 const dangerousProps = ['__proto__', 'constructor', 'prototype'];
 
 export function isSearchParams(data: unknown): boolean {
@@ -141,7 +144,12 @@ export function appendQueryParams(url: string, params: QueryParams): string {
     s[s.length] = encode(k) + '=' + encode(v);
   };
 
-  const buildParams = (prefix: string, obj: any) => {
+  const buildParams = (prefix: string, obj: any, depth = 0) => {
+    // Stop recursion if maximum depth is reached
+    if (depth >= MAX_DEPTH) {
+      return s;
+    }
+
     let i: number, len: number, key: string;
 
     if (prefix) {
@@ -150,11 +158,12 @@ export function appendQueryParams(url: string, params: QueryParams): string {
           buildParams(
             prefix + '[' + (typeof obj[i] === OBJECT && obj[i] ? i : '') + ']',
             obj[i],
+            depth + 1,
           );
         }
       } else if (typeof obj === OBJECT && obj !== null) {
         for (key in obj) {
-          buildParams(prefix + '[' + key + ']', obj[key]);
+          buildParams(prefix + '[' + key + ']', obj[key], depth + 1);
         }
       } else {
         add(prefix, obj);
@@ -165,7 +174,7 @@ export function appendQueryParams(url: string, params: QueryParams): string {
       }
     } else {
       for (key in obj) {
-        buildParams(key, obj[key]);
+        buildParams(key, obj[key], depth + 1);
       }
     }
     return s;
@@ -283,9 +292,6 @@ export async function delayInvocation(ms: number): Promise<boolean> {
  * @returns {any} - The flattened data if the criteria are met; otherwise, the original `data`.
  */
 export function flattenData(data: any, depth = 0): any {
-  const MAX_DEPTH = 10;
-
-  // Prevent stack overflow with recursion depth limit
   if (depth >= MAX_DEPTH) {
     return data;
   }
@@ -296,7 +302,7 @@ export function flattenData(data: any, depth = 0): any {
     typeof data.data !== UNDEFINED &&
     Object.keys(data).length === 1
   ) {
-    return flattenData(data.data);
+    return flattenData(data.data, depth + 1);
   }
 
   return data;
