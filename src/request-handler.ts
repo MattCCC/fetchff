@@ -39,6 +39,7 @@ import {
   CANCELLED_ERROR,
   CHARSET_UTF_8,
   CONTENT_TYPE,
+  FUNCTION,
   GET,
   HEAD,
   OBJECT,
@@ -482,7 +483,11 @@ export function createRequestHandler(
         // Global interceptors
         await applyInterceptor(requestConfig, handlerConfig?.onRequest);
 
-        if (customFetcher !== null && requestInstance !== null) {
+        if (
+          customFetcher !== null &&
+          requestInstance !== null &&
+          typeof requestInstance.request === FUNCTION
+        ) {
           response = await requestInstance.request(requestConfig);
         } else {
           response = (await fetch(

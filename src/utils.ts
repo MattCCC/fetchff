@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { OBJECT, STRING, UNDEFINED } from './constants';
+import { FUNCTION, OBJECT, STRING, UNDEFINED } from './constants';
 import type {
   DefaultUrlParams,
   HeadersObject,
@@ -139,7 +139,7 @@ export function appendQueryParams(url: string, params: QueryParams): string {
   const s: string[] = [];
   const encode = encodeURIComponent;
   const add = (k: string, v: any) => {
-    v = typeof v === 'function' ? v() : v;
+    v = typeof v === FUNCTION ? v() : v;
     v = v === null ? '' : v === undefined ? '' : v;
     s[s.length] = encode(k) + '=' + encode(v);
   };
@@ -267,7 +267,7 @@ export function isJSONSerializable(value: any): boolean {
     }
 
     // Check if the object has a toJSON method
-    if (typeof value.toJSON === 'function') {
+    if (typeof value.toJSON === FUNCTION) {
       return true;
     }
   }
