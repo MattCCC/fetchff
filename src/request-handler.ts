@@ -88,9 +88,10 @@ const defaultConfig: RequestHandlerConfig = {
 export function createRequestHandler(
   config: RequestHandlerConfig,
 ): RequestHandlerReturnType {
+  const sanitizedConfig = sanitizeObject(config);
   const handlerConfig: RequestHandlerConfig = {
     ...defaultConfig,
-    ...sanitizeObject(config),
+    ...sanitizedConfig,
   };
 
   /**
@@ -110,13 +111,13 @@ export function createRequestHandler(
     if (newConfig[property]) {
       targetConfig[property] = {
         ...baseConfig[property],
-        ...sanitizeObject(newConfig[property]),
+        ...newConfig[property],
       };
     }
   };
 
-  mergeConfig('retry', handlerConfig, defaultConfig, config);
-  mergeConfig('headers', handlerConfig, defaultConfig, config);
+  mergeConfig('retry', handlerConfig, defaultConfig, sanitizedConfig);
+  mergeConfig('headers', handlerConfig, defaultConfig, sanitizedConfig);
 
   /**
    * Gets a configuration value from `reqConfig`, defaulting to `handlerConfig` if not present.
@@ -137,7 +138,7 @@ export function createRequestHandler(
   /**
    * Immediately create instance of custom fetcher if it is defined
    */
-  const customFetcher = getConfig<FetcherInstance>(config, 'fetcher');
+  const customFetcher = getConfig<FetcherInstance>(sanitizedConfig, 'fetcher');
   const requestInstance = customFetcher?.create(handlerConfig) || null;
 
   /**
@@ -708,7 +709,7 @@ export function createRequestHandler(
   return {
     getInstance,
     buildConfig,
-    config,
+    config: handlerConfig,
     request,
   };
 }
