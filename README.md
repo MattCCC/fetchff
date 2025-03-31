@@ -20,6 +20,8 @@ Managing multitude of API connections in large Frontend Application can be compl
 
 ✅ **Small:** Minimal code footprint of ~3KB gzipped for managing extensive APIs.
 
+✅ **Secure:** Secure by default rather than "permissive by default" like other libs e.g. Axios.
+
 ✅ **Immutable:** Every request has its own instance.
 
 ✅ **Isomorphic:** Compatible with Node.js, Deno and modern browsers.

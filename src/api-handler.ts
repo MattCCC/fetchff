@@ -124,7 +124,12 @@ function createApiFetcher<
     // Use global per-endpoint settings
     const endpointConfig =
       endpoints[endpointName] ||
-      ({ url: endpointName as string } as RequestConfigUrlRequired);
+      ({ url: String(endpointName) } as RequestConfigUrlRequired);
+
+    // Block Protocol-relative URLs as they could lead to SSRF (Server-Side Request Forgery)
+    if (endpointConfig.url.startsWith('//')) {
+      throw new Error('Protocol-relative URLs are not allowed.');
+    }
 
     const responseData = await requestHandler.request<
       FinalResponse<ResponseData, DefaultResponse>,
