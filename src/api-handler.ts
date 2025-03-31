@@ -17,6 +17,7 @@ import type {
   UrlPathParams,
 } from './types/api-handler';
 import { createRequestHandler } from './request-handler';
+import { fetchf } from '.';
 
 /**
  * Creates an instance of API Handler.
@@ -124,14 +125,28 @@ function createApiFetcher<
     // Use global per-endpoint settings
     const endpointConfig =
       endpoints[endpointName] ||
-      ({ url: endpointName as string } as RequestConfigUrlRequired);
+      ({ url: String(endpointName) } as RequestConfigUrlRequired);
+    const url = endpointConfig.url;
+
+    // Block Protocol-relative URLs as they could lead to SSRF (Server-Side Request Forgery)
+    if (url.startsWith('//')) {
+      throw new Error('Protocol-relative URLs are not allowed.');
+    }
+
+    // Prevent potential Server-Side Request Forgery attack and leakage of credentials when same instance is used for external requests
+    const isAbsoluteUrl = url.includes('://');
+
+    if (isAbsoluteUrl) {
+      // Retrigger fetch to ensure completely new instance of handler being triggered for external URLs
+      return await fetchf(url, requestConfig);
+    }
 
     const responseData = await requestHandler.request<
       FinalResponse<ResponseData, DefaultResponse>,
       FinalParams<ResponseData, QueryParams_, QueryParams>,
       FinalParams<ResponseData, UrlParams, UrlParams>,
       FallbackValue<ResponseData, DefaultPayload, RequestBody>
-    >(endpointConfig.url, {
+    >(url, {
       ...endpointConfig,
       ...requestConfig,
     });

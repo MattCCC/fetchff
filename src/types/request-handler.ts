@@ -451,5 +451,6 @@ export interface RequestHandlerReturnType {
       PathParams,
       RequestBody
     > | null,
+    shouldMerge?: boolean,
   ) => Promise<FetchResponse<ResponseData, RequestBody>>;
 }

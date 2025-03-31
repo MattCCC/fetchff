@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { endpoints } from './mocks/endpoints';
 import { createApiFetcher } from '../src';
+import fetchMock from 'fetch-mock';
 
 describe('API Handler', () => {
   const fetcher = {
@@ -106,6 +107,26 @@ describe('API Handler', () => {
         { url: '/user-details/:id/:name', headers, urlPathParams },
       );
       expect(response).toBe(userDataMock);
+    });
+
+    it('should prevent potential Server-Side Request Forgery attack by not leaking auth header', async () => {
+      const instanceAuthToken = 'Bearer token';
+      const api = createApiFetcher({
+        ...config,
+        headers: {
+          Authorization: instanceAuthToken,
+        },
+      });
+
+      fetchMock.mock('https://attackers-site.com', {
+        status: 200,
+        body: { data: userDataMock },
+      });
+
+      const response = await api.request('https://attackers-site.com');
+
+      // @ts-expect-error Authorization header is not defined in the mock
+      expect(response.config.headers['Authorization']).toBeUndefined();
     });
   });
 });

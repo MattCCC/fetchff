@@ -30,6 +30,7 @@ import {
   flattenData,
   processHeaders,
   isSearchParams,
+  sanitizeObject,
 } from './utils';
 import { addRequest, removeRequest } from './queue-manager';
 import {
@@ -38,6 +39,7 @@ import {
   CANCELLED_ERROR,
   CHARSET_UTF_8,
   CONTENT_TYPE,
+  FUNCTION,
   GET,
   HEAD,
   OBJECT,
@@ -86,9 +88,10 @@ const defaultConfig: RequestHandlerConfig = {
 export function createRequestHandler(
   config: RequestHandlerConfig,
 ): RequestHandlerReturnType {
+  const sanitizedConfig = sanitizeObject(config);
   const handlerConfig: RequestHandlerConfig = {
     ...defaultConfig,
-    ...config,
+    ...sanitizedConfig,
   };
 
   /**
@@ -113,8 +116,8 @@ export function createRequestHandler(
     }
   };
 
-  mergeConfig('retry', handlerConfig, defaultConfig, config);
-  mergeConfig('headers', handlerConfig, defaultConfig, config);
+  mergeConfig('retry', handlerConfig, defaultConfig, sanitizedConfig);
+  mergeConfig('headers', handlerConfig, defaultConfig, sanitizedConfig);
 
   /**
    * Gets a configuration value from `reqConfig`, defaulting to `handlerConfig` if not present.
@@ -135,7 +138,7 @@ export function createRequestHandler(
   /**
    * Immediately create instance of custom fetcher if it is defined
    */
-  const customFetcher = getConfig<FetcherInstance>(config, 'fetcher');
+  const customFetcher = getConfig<FetcherInstance>(sanitizedConfig, 'fetcher');
   const requestInstance = customFetcher?.create(handlerConfig) || null;
 
   /**
@@ -165,11 +168,14 @@ export function createRequestHandler(
   };
 
   /**
-   * Sets the Content-Type header to 'application/json;charset=utf-8' if needed based on the method and body.
+   * Ensures the `Content-Type` header is set to `application/json; charset=utf-8`
+   * if it is not already present and the request method and body meet specific conditions.
    *
-   * @param headers - The headers object where Content-Type will be set.
-   * @param method - The HTTP method (e.g., GET, POST, PUT, DELETE).
-   * @param body - Optional request body to determine if Content-Type is needed.
+   * @param headers - The headers object to modify. Can be an instance of `Headers`
+   *                  or a plain object conforming to `HeadersInit`.
+   * @param method - The HTTP method of the request (e.g., 'PUT', 'DELETE', etc.).
+   * @param body - The optional body of the request. If no body is provided and the
+   *               method is 'PUT' or 'DELETE', the function exits without modifying headers.
    */
   const setContentTypeIfNeeded = (
     headers: HeadersInit,
@@ -178,23 +184,21 @@ export function createRequestHandler(
   ): void => {
     if (!body && ['PUT', 'DELETE'].includes(method)) {
       return;
-    } else {
-      const contentTypeValue = APPLICATION_JSON + ';' + CHARSET_UTF_8;
-
-      if (headers instanceof Headers) {
-        if (!headers.has(CONTENT_TYPE)) {
-          headers.set(CONTENT_TYPE, contentTypeValue);
-        }
-      } else if (
-        typeof headers === OBJECT &&
-        !Array.isArray(headers) &&
-        !headers[CONTENT_TYPE]
-      ) {
-        headers[CONTENT_TYPE] = contentTypeValue;
-      }
     }
 
-    return;
+    const contentTypeValue = APPLICATION_JSON + ';' + CHARSET_UTF_8;
+
+    if (headers instanceof Headers) {
+      if (!headers.has(CONTENT_TYPE)) {
+        headers.set(CONTENT_TYPE, contentTypeValue);
+      }
+    } else if (
+      typeof headers === OBJECT &&
+      !Array.isArray(headers) &&
+      !headers[CONTENT_TYPE]
+    ) {
+      headers[CONTENT_TYPE] = contentTypeValue;
+    }
   };
 
   /**
@@ -372,7 +376,7 @@ export function createRequestHandler(
    * Handle Request depending on used strategy
    *
    * @param {string} url - Request url
-   * @param {RequestConfig} reqConfig - Request config
+   * @param {RequestConfig} reqConfig - Request config passed when making the request
    * @throws {ResponseError}
    * @returns {Promise<FetchResponse<ResponseData>>} Response Data
    */
@@ -390,11 +394,11 @@ export function createRequestHandler(
       RequestBody
     > | null = null,
   ): Promise<FetchResponse<ResponseData, RequestBody>> => {
-    const _reqConfig = reqConfig || {};
+    const _reqConfig = sanitizeObject(reqConfig || {});
     const mergedConfig = {
       ...handlerConfig,
       ..._reqConfig,
-    } as RequestConfig;
+    };
 
     mergeConfig('retry', mergedConfig, handlerConfig, _reqConfig);
     mergeConfig('headers', mergedConfig, handlerConfig, _reqConfig);
@@ -477,7 +481,11 @@ export function createRequestHandler(
         // Global interceptors
         await applyInterceptor(requestConfig, handlerConfig?.onRequest);
 
-        if (customFetcher !== null && requestInstance !== null) {
+        if (
+          customFetcher !== null &&
+          requestInstance !== null &&
+          typeof requestInstance.request === FUNCTION
+        ) {
           response = await requestInstance.request(requestConfig);
         } else {
           response = (await fetch(
@@ -674,7 +682,6 @@ export function createRequestHandler(
     return {
       body: response.body,
       bodyUsed: response.bodyUsed,
-      formData: response.formData,
       ok: response.ok,
       redirected: response.redirected,
       type: response.type,
@@ -682,11 +689,14 @@ export function createRequestHandler(
       status: response.status,
       statusText: response.statusText,
 
-      blob: response.blob.bind(response),
-      json: response.json.bind(response),
-      text: response.text.bind(response),
-      clone: response.clone.bind(response),
-      arrayBuffer: response.arrayBuffer.bind(response),
+      // Convert methods to use arrow functions to preserve correct return types
+      blob: () => response.blob(),
+      json: () => response.json(),
+      text: () => response.text(),
+      clone: () => response.clone(),
+      arrayBuffer: () => response.arrayBuffer(),
+      formData: () => response.formData(),
+      bytes: () => response.bytes(),
 
       // Enhance the response with extra information
       error,
@@ -699,7 +709,7 @@ export function createRequestHandler(
   return {
     getInstance,
     buildConfig,
-    config,
+    config: handlerConfig,
     request,
   };
 }

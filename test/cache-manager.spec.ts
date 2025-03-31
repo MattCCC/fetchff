@@ -33,7 +33,9 @@ describe('Cache Manager', () => {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
       });
-      expect(key).toContain('GEThttps://api.example.com/datacorsinclude');
+      expect(key).toContain(
+        'GEThttpsapiexamplecomdatacorsincludedefaultfollowContent-Typeapplicationjson0',
+      );
     });
 
     it('should generate a cache key for basic GET request with empty url', () => {
@@ -60,7 +62,9 @@ describe('Cache Manager', () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       });
-      expect(key).toContain('POSThttps://api.example.com/datacorsinclude');
+      expect(key).toContain(
+        'POSThttpsapiexamplecomdatacorsincludedefaultfollowContent-Typeapplicationjson0',
+      );
       expect(shallowSerialize).toHaveBeenCalledWith({
         'Content-Type': 'application/json',
       });
@@ -98,7 +102,9 @@ describe('Cache Manager', () => {
         method: 'POST',
         body: blob,
       });
-      expect(key).toContain('BF4text/plain');
+      expect(key).toContain(
+        'POSThttpsapiexamplecomdatacorsincludedefaultfollowBF4textplain',
+      );
     });
 
     it('should handle ArrayBuffer body', () => {

@@ -20,6 +20,8 @@ Managing multitude of API connections in large Frontend Application can be compl
 
 ✅ **Small:** Minimal code footprint of ~3KB gzipped for managing extensive APIs.
 
+✅ **Secure:** Secure by default rather than "permissive by default"
+
 ✅ **Immutable:** Every request has its own instance.
 
 ✅ **Isomorphic:** Compatible with Node.js, Deno and modern browsers.
@@ -926,6 +928,85 @@ For a complete list of types and their definitions, refer to the [request-handle
 
 </details>
 
+## 🔒 Sanitization
+
+<details>
+  <summary><span style="cursor:pointer">Click to expand</span></summary>
+  <br>
+
+FetchFF includes robust built-in sanitization mechanisms that protect your application from common security vulnerabilities. These safeguards are automatically applied without requiring any additional configuration.
+
+### Prototype Pollution Prevention
+
+The library implements automatic protection against prototype pollution attacks by:
+
+- Removing dangerous properties like `__proto__`, `constructor`, and `prototype` from objects
+- Sanitizing all user-provided data before processing it
+
+```typescript
+// Example of protection against prototype pollution
+const userInput = {
+  id: 123,
+  __proto__: { malicious: true },
+};
+
+// The sanitization happens automatically
+const response = await fetchf('/api/users', {
+  params: userInput, // The __proto__ property will be removed
+});
+```
+
+### Input Sanitization Features
+
+1. **Object Sanitization**
+
+   - All incoming objects are sanitized via the `sanitizeObject` utility
+   - Creates shallow copies of input objects with dangerous properties removed
+   - Applied automatically to request configurations, headers, and other objects
+
+2. **URL Parameter Safety**
+
+   - Path parameters are properly encoded using `encodeURIComponent`
+   - Query parameters are safely serialized and encoded
+   - Prevents URL injection attacks and ensures valid URL formatting
+
+3. **Data Validation**
+
+   - Checks for JSON serializability of request bodies
+   - Detects circular references that could cause issues
+   - Properly handles different data types (strings, arrays, objects, etc.)
+
+4. **Depth Control**
+   - Prevents excessive recursion with depth limitations
+   - Mitigates stack overflow attacks through query parameter manipulation
+   - Maximum depth is controlled by `MAX_DEPTH` constant (default: 10)
+
+### Implementation Details
+
+The sanitization process is applied at multiple levels:
+
+- During request configuration building
+- When processing URL path parameters
+- When serializing query parameters
+- When handling request and response interceptors
+- During retry and polling operations
+
+This multi-layered approach ensures that all data passing through the library is properly sanitized, significantly reducing the risk of injection attacks and other security vulnerabilities.
+
+```typescript
+// Example of safe URL path parameter handling
+const { data } = await api.getUser({
+  urlPathParams: {
+    id: 'user-id with spaces & special chars',
+  },
+  // Automatically encoded to: /users/user-id%20with%20spaces%20%26%20special%20chars
+});
+```
+
+Security is a core design principle of FetchFF, with sanitization mechanisms running automatically to provide protection without adding complexity to your code.
+
+</details>
+
 ## Comparison with another libraries
 
 | Feature                                            | fetchff     | ofetch       | wretch       | axios        | native fetch() |
@@ -954,6 +1035,8 @@ For a complete list of types and their definitions, refer to the [request-handle
 | **Multiple Fetching Strategies**                   | ✅          | --           | --           | --           | --             |
 | **Dynamic URLs**                                   | ✅          | --           | ✅           | --           | --             |
 | **Automatic Retry on Failure**                     | ✅          | ✅           | --           | ✅           | --             |
+| **Built-in Input Sanitization**                    | ✅          | --           | --           | --           | --             |
+| **Prototype Pollution Protection**                 | ✅          | --           | --           | --           | --             |
 | **Server-Side Rendering (SSR) Support**            | ✅          | ✅           | --           | --           | --             |
 | **Minimal Installation Size**                      | 🟢 (3.3 KB) | 🟡 (6.41 KB) | 🟢 (2.21 KB) | 🔴 (13.7 KB) | 🟢 (0 KB)      |
 
