@@ -724,7 +724,7 @@ const { data } = await fetchf('https://api.example.com/', {
     retries: 3,
     delay: 100,
     maxDelay: 5000,
-    resetTimeout: true,
+    resetTimeout: true, // Resets the timeout for each retry attempt
     backoff: 1.5,
     retryOn: [500, 503],
     shouldRetry(error, attempt) {
@@ -759,6 +759,11 @@ The retry mechanism is configured via the `retry` option when instantiating the 
   Factor by which the delay is multiplied after each retry. For example, a `backoff` factor of `1.5` means each retry delay is 1.5 times the previous delay.  
   _Default:_ `1.5`.
 
+- **`resetTimeout`**:  
+  Type: `boolean`  
+  If set to `true`, the timeout for the request is reset for each retry attempt. This ensures that the timeout applies to each individual retry rather than the entire request lifecycle.  
+  _Default:_ `true`.
+
 - **`retryOn`**:  
   Type: `number[]`  
   Array of HTTP status codes that should trigger a retry. By default, retries are triggered for the following status codes:
@@ -785,6 +790,7 @@ The retry mechanism is configured via the `retry` option when instantiating the 
 
    - The request is retried up to the specified number of attempts (`retries`).
    - Each retry waits for a delay before making the next attempt. The delay starts at the initial `delay` value and increases exponentially based on the `backoff` factor, but will not exceed the `maxDelay`.
+   - If `resetTimeout` is enabled, the timeout is reset for each retry attempt.
 
 3. **Logging**: During retries, the mechanism logs warnings indicating the retry attempts and the delay before the next attempt, which helps in debugging and understanding the retry behavior.
 
