@@ -696,7 +696,6 @@ export function createRequestHandler(
       clone: () => response.clone(),
       arrayBuffer: () => response.arrayBuffer(),
       formData: () => response.formData(),
-      // @ts-expect-error 2025
       bytes: () => response.bytes(),
 
       // Enhance the response with extra information
