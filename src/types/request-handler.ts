@@ -110,7 +110,7 @@ export type RetryFunction = <
 >(
   error: ResponseError<ResponseData, QueryParams, PathParams, RequestBody>,
   attempts: number,
-) => Promise<boolean>;
+) => Promise<boolean> | boolean;
 
 export type PollingFunction<
   ResponseData = DefaultResponse,
