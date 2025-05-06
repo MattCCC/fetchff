@@ -449,7 +449,9 @@ export function createRequestHandler(
       shouldRetry,
       maxDelay,
       resetTimeout,
-    } = mergedConfig.retry as Required<RetryOptions>;
+    } = mergedConfig.retry as Required<
+      RetryOptions<ResponseData, QueryParams, PathParams, RequestBody>
+    >;
 
     let attempt = 0;
     let pollingAttempt = 0;
@@ -522,6 +524,27 @@ export function createRequestHandler(
 
         removeRequest(fetcherConfig);
 
+        if (
+          shouldRetry &&
+          attempt < retries &&
+          (await shouldRetry(
+            { config: fetcherConfig, request: fetcherConfig, response },
+            attempt,
+          ))
+        ) {
+          logger(
+            mergedConfig,
+            `Attempt ${attempt + 1} failed response data check. Retry in ${waitTime}ms.`,
+          );
+
+          await delayInvocation(waitTime);
+
+          waitTime *= backoff;
+          waitTime = Math.min(waitTime, maxDelay);
+          attempt++;
+          continue; // Retry the request
+        }
+
         // Polling logic
         if (
           pollingInterval &&
@@ -570,9 +593,11 @@ export function createRequestHandler(
         error.response = response;
 
         if (
-          attempt === retries ||
-          !(!shouldRetry || (await shouldRetry(error, attempt))) ||
-          !retryOn?.includes(error.status)
+          // We check retries provided regardless of the shouldRetry being provided so to avoid infinite loops.
+          // It is a fail-safe so to prevent excessive retry attempts even if custom retry logic suggests a retry.
+          attempt === retries || // Stop if the maximum retries have been reached
+          !retryOn?.includes(error.status) || // Check if the error status is retryable
+          !(await shouldRetry?.(error, attempt)) // If shouldRetry is defined, evaluate it
         ) {
           await processError<
             ResponseData,

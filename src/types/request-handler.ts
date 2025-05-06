@@ -102,15 +102,31 @@ export interface ResponseError<
   response: FetchResponse<ResponseData, RequestBody> | null;
 }
 
-export type RetryFunction = <
+export type RetryFunction<
   ResponseData = DefaultResponse,
   QueryParams = DefaultParams,
   PathParams = DefaultUrlParams,
   RequestBody = DefaultPayload,
->(
-  error: ResponseError<ResponseData, QueryParams, PathParams, RequestBody>,
+> = (
+  error:
+    | ResponseError<ResponseData, QueryParams, PathParams, RequestBody>
+    | {
+        config: RequestConfig<
+          ResponseData,
+          QueryParams,
+          PathParams,
+          RequestBody
+        >;
+        request: RequestConfig<
+          ResponseData,
+          QueryParams,
+          PathParams,
+          RequestBody
+        >;
+        response: FetchResponse<ResponseData, RequestBody> | null;
+      },
   attempts: number,
-) => Promise<boolean>;
+) => Promise<boolean> | boolean;
 
 export type PollingFunction<
   ResponseData = DefaultResponse,
@@ -135,7 +151,12 @@ export type CacheSkipFunction = <ResponseData = any, RequestBody = any>(
 /**
  * Configuration object for retry related options
  */
-export interface RetryOptions {
+export interface RetryOptions<
+  ResponseData,
+  QueryParams,
+  PathParams,
+  RequestBody,
+> {
   /**
    * Maximum number of retry attempts.
    * @default 0
@@ -185,7 +206,12 @@ export interface RetryOptions {
   /**
    * A function to determine whether to retry based on the error and attempt number.
    */
-  shouldRetry?: RetryFunction;
+  shouldRetry?: RetryFunction<
+    ResponseData,
+    QueryParams,
+    PathParams,
+    RequestBody
+  >;
 }
 
 /**
@@ -280,7 +306,7 @@ export interface ExtendedRequestConfig<
   /**
    * Configuration options for retrying failed requests.
    */
-  retry?: RetryOptions;
+  retry?: RetryOptions<ResponseData, QueryParams_, PathParams, RequestBody>;
 
   /**
    * The URL of the request. This can be a full URL or a relative path combined with `baseURL`.
@@ -352,8 +378,8 @@ export interface ExtendedRequestConfig<
    * A function to handle errors that occur during the request or response processing.
    */
   onError?:
-    | ErrorInterceptor<ResponseData, RequestBody>
-    | ErrorInterceptor<ResponseData, RequestBody>[];
+    | ErrorInterceptor<ResponseData, QueryParams_, PathParams, RequestBody>
+    | ErrorInterceptor<ResponseData, QueryParams_, PathParams, RequestBody>[];
 
   /**
    * The maximum time (in milliseconds) the request can take before automatically being aborted.
@@ -378,7 +404,12 @@ export interface ExtendedRequestConfig<
    * @param response - The response data.
    * @returns `true` to stop polling, `false` to continue.
    */
-  shouldStopPolling?: PollingFunction<ResponseData, RequestBody>;
+  shouldStopPolling?: PollingFunction<
+    ResponseData,
+    QueryParams_,
+    PathParams,
+    RequestBody
+  >;
 
   /**
    * A custom fetcher instance to handle requests instead of the default implementation.

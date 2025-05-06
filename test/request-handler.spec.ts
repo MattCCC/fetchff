@@ -641,7 +641,9 @@ describe('Request Handler', () => {
         maxDelay: 50000, // Maximum delay in ms
         backoff: 1.5, // Backoff factor
         retryOn: [500], // HTTP status codes to retry on
-        shouldRetry: jest.fn(() => Promise.resolve(true)), // Always retry
+        shouldRetry: jest.fn((error) => {
+          return Promise.resolve(error.status === 500);
+        }), // Always retry
       };
 
       // Initialize RequestHandler with mock configuration
@@ -850,6 +852,167 @@ describe('Request Handler', () => {
       });
 
       expect(globalThis.fetch).toHaveBeenCalledTimes(1); // No retries
+    });
+
+    it('should retry if onResponse throws an error and shouldRetry returns true based on custom response data conditional check', async () => {
+      // Setup retry configuration
+      const retryConfig = {
+        retries: 3, // Number of retry attempts
+        delay: 100, // Initial delay in ms
+        backoff: 1.5, // Backoff factor
+        retryOn: [200, 500], // HTTP status codes to retry on
+        shouldRetry: jest.fn((error) => {
+          // Retry only if error.response.bookId === 'none'
+          return error.response?.data?.bookId === 'none';
+        }),
+      };
+
+      // Initialize RequestHandler with mock configuration
+      const requestHandler = createRequestHandler({
+        baseURL,
+        retry: retryConfig,
+        logger: mockLogger,
+        onError: jest.fn(),
+        onResponse: jest.fn(() => {
+          // Simulate throwing an error in onResponse
+          throw new Error('Simulated error in onResponse');
+        }),
+      });
+
+      fetchMock.mock(
+        'https://api.example.com/endpoint',
+        () =>
+          new Response(JSON.stringify({ bookId: 'none' }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }),
+      );
+
+      const mockDelayInvocation = delayInvocation as jest.MockedFunction<
+        typeof delayInvocation
+      >;
+
+      mockDelayInvocation.mockResolvedValue(true);
+
+      // Make the request
+      await expect(requestHandler.request('/endpoint')).rejects.toThrow(
+        'Simulated error in onResponse',
+      );
+
+      // Advance timers to cover the delay period
+      const totalDelay =
+        retryConfig.delay +
+        retryConfig.delay * retryConfig.backoff +
+        retryConfig.delay * Math.pow(retryConfig.backoff, 2);
+      jest.advanceTimersByTime(totalDelay);
+
+      // Check fetch call count (should be retries + 1)
+      expect(fetchMock.calls()).toHaveLength(retryConfig.retries + 1);
+
+      // Ensure delay function was called for each retry attempt
+      expect(mockDelayInvocation).toHaveBeenCalledTimes(retryConfig.retries);
+
+      // Ensure shouldRetry was called with the correct error
+      expect(retryConfig.shouldRetry).toHaveBeenCalledTimes(
+        retryConfig.retries,
+      );
+
+      for (let i = 1; i <= retryConfig.retries; i++) {
+        expect(retryConfig.shouldRetry).toHaveBeenNthCalledWith(
+          i,
+          expect.objectContaining({
+            message: 'Simulated error in onResponse',
+          }),
+          i - 1, // Retry attempt count
+        );
+      }
+    });
+
+    it('should retry if shouldRetry returns true based on custom response data conditional check', async () => {
+      // Setup retry configuration
+      const retryConfig = {
+        retries: 3, // Number of retry attempts
+        delay: 100, // Initial delay in ms
+        backoff: 1.5, // Backoff factor
+        retryOn: [200, 500], // HTTP status codes to retry on
+        shouldRetry: jest.fn((error) => {
+          // Retry only if error.response.bookId === 'none'
+          return error.response?.data?.bookId === 'none';
+        }),
+      };
+
+      // Initialize RequestHandler with mock configuration
+      const requestHandler = createRequestHandler({
+        baseURL,
+        retry: retryConfig,
+        logger: mockLogger,
+        onError: jest.fn(),
+      });
+
+      // Mock fetch to return a response with bookId: 'none' for retries
+      let callCount = 0;
+      (globalThis.fetch as jest.Mock).mockImplementation(() => {
+        callCount++;
+        if (callCount <= retryConfig.retries) {
+          return Promise.resolve(
+            new Response(JSON.stringify({ bookId: 'none' }), {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' },
+            }),
+          );
+        }
+        // Final successful response
+        return Promise.resolve(
+          new Response(JSON.stringify({ bookId: 'success' }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        );
+      });
+
+      const mockDelayInvocation = delayInvocation as jest.MockedFunction<
+        typeof delayInvocation
+      >;
+
+      mockDelayInvocation.mockResolvedValue(true);
+
+      // Make the request
+      const response = await requestHandler.request('/endpoint');
+
+      // Advance timers to cover the delay period
+      const totalDelay =
+        retryConfig.delay +
+        retryConfig.delay * retryConfig.backoff +
+        retryConfig.delay * Math.pow(retryConfig.backoff, 2);
+      jest.advanceTimersByTime(totalDelay);
+
+      // Check fetch call count (should be retries + 1)
+      expect(globalThis.fetch).toHaveBeenCalledTimes(retryConfig.retries + 1);
+
+      // Ensure delay function was called for each retry attempt
+      expect(mockDelayInvocation).toHaveBeenCalledTimes(retryConfig.retries);
+
+      // Ensure shouldRetry was called with the correct response
+      expect(retryConfig.shouldRetry).toHaveBeenCalledTimes(
+        retryConfig.retries,
+      );
+
+      for (let i = 1; i <= retryConfig.retries; i++) {
+        expect(retryConfig.shouldRetry).toHaveBeenNthCalledWith(
+          i,
+          expect.objectContaining({
+            response: expect.objectContaining({
+              data: { bookId: 'none' },
+            }),
+          }),
+          i - 1, // Retry attempt count
+        );
+      }
+
+      // Ensure the final response is successful
+      expect(response).toMatchObject({
+        data: { bookId: 'success' },
+      });
     });
   });
 

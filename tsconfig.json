@@ -3,7 +3,7 @@
   "compilerOptions": {
     "experimentalDecorators": true,
     "module": "esnext",
-    "lib": ["dom", "esnext"],
+    "lib": ["dom", "esnext", "es2021"],
     "importHelpers": true,
     "declaration": true,
     "sourceMap": true,
