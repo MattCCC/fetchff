@@ -920,7 +920,9 @@ describe('Request Handler', () => {
       for (let i = 1; i <= retryConfig.retries; i++) {
         expect(retryConfig.shouldRetry).toHaveBeenNthCalledWith(
           i,
-          new Error('Simulated error in onResponse'),
+          expect.objectContaining({
+            message: 'Simulated error in onResponse',
+          }),
           i - 1, // Retry attempt count
         );
       }
