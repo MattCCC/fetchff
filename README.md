@@ -3,6 +3,7 @@
 
 <h4 align="center">Fast, lightweight (~3 KB gzipped) and reusable data fetching</h4>
 
+<i>The last fetch wrapper you will ever need.</i>
 <i>"fetchff" stands for "fetch fast & flexibly"</i>
 
 [npm-url]: https://npmjs.org/package/fetchff
@@ -14,7 +15,9 @@
 
 ## Why?
 
-Managing multitude of API connections in large Frontend Application can be complex, time-consuming and hard to scale. `fetchff` simplifies the process by offering a simple, declarative approach to API handling using Repository Pattern. It reduces the need for extensive setup, middlewares, retries, custom caching, and heavy plugins, and lets developers focus on data handling and application logic.
+To extend native fetch() responsibly, wrap and reuse common patterns and functionalities in a simple and declarative manner.
+
+Also, managing multitude of API connections in large applications can be complex, time-consuming and hard to scale. `fetchff` simplifies the process by offering a simple, declarative approach to API handling using Repository Pattern. It reduces the need for extensive setup, middlewares, retries, custom caching, and heavy plugins, and lets developers focus on data handling and application logic.
 
 **Key Benefits:**
 
