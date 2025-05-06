@@ -449,7 +449,9 @@ export function createRequestHandler(
       shouldRetry,
       maxDelay,
       resetTimeout,
-    } = mergedConfig.retry as Required<RetryOptions>;
+    } = mergedConfig.retry as Required<
+      RetryOptions<ResponseData, QueryParams, PathParams, RequestBody>
+    >;
 
     let attempt = 0;
     let pollingAttempt = 0;

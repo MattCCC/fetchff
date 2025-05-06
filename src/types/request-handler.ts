@@ -102,12 +102,12 @@ export interface ResponseError<
   response: FetchResponse<ResponseData, RequestBody> | null;
 }
 
-export type RetryFunction = <
+export type RetryFunction<
   ResponseData = DefaultResponse,
   QueryParams = DefaultParams,
   PathParams = DefaultUrlParams,
   RequestBody = DefaultPayload,
->(
+> = (
   error: ResponseError<ResponseData, QueryParams, PathParams, RequestBody>,
   attempts: number,
 ) => Promise<boolean> | boolean;
@@ -135,7 +135,12 @@ export type CacheSkipFunction = <ResponseData = any, RequestBody = any>(
 /**
  * Configuration object for retry related options
  */
-export interface RetryOptions {
+export interface RetryOptions<
+  ResponseData,
+  QueryParams,
+  PathParams,
+  RequestBody,
+> {
   /**
    * Maximum number of retry attempts.
    * @default 0
@@ -185,7 +190,12 @@ export interface RetryOptions {
   /**
    * A function to determine whether to retry based on the error and attempt number.
    */
-  shouldRetry?: RetryFunction;
+  shouldRetry?: RetryFunction<
+    ResponseData,
+    QueryParams,
+    PathParams,
+    RequestBody
+  >;
 }
 
 /**
@@ -280,7 +290,7 @@ export interface ExtendedRequestConfig<
   /**
    * Configuration options for retrying failed requests.
    */
-  retry?: RetryOptions;
+  retry?: RetryOptions<ResponseData, QueryParams_, PathParams, RequestBody>;
 
   /**
    * The URL of the request. This can be a full URL or a relative path combined with `baseURL`.
