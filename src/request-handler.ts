@@ -524,6 +524,27 @@ export function createRequestHandler(
 
         removeRequest(fetcherConfig);
 
+        if (
+          shouldRetry &&
+          attempt < retries &&
+          (await shouldRetry(
+            { config: fetcherConfig, request: fetcherConfig, response },
+            attempt,
+          ))
+        ) {
+          logger(
+            mergedConfig,
+            `Attempt ${attempt + 1} failed response data check. Retry in ${waitTime}ms.`,
+          );
+
+          await delayInvocation(waitTime);
+
+          waitTime *= backoff;
+          waitTime = Math.min(waitTime, maxDelay);
+          attempt++;
+          continue; // Retry the request
+        }
+
         // Polling logic
         if (
           pollingInterval &&

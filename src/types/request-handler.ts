@@ -108,7 +108,23 @@ export type RetryFunction<
   PathParams = DefaultUrlParams,
   RequestBody = DefaultPayload,
 > = (
-  error: ResponseError<ResponseData, QueryParams, PathParams, RequestBody>,
+  error:
+    | ResponseError<ResponseData, QueryParams, PathParams, RequestBody>
+    | {
+        config: RequestConfig<
+          ResponseData,
+          QueryParams,
+          PathParams,
+          RequestBody
+        >;
+        request: RequestConfig<
+          ResponseData,
+          QueryParams,
+          PathParams,
+          RequestBody
+        >;
+        response: FetchResponse<ResponseData, RequestBody> | null;
+      },
   attempts: number,
 ) => Promise<boolean> | boolean;
 
