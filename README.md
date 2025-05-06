@@ -15,9 +15,9 @@
 
 ## Why?
 
-To extend native fetch() responsibly, wrap and reuse common patterns and functionalities in a simple and declarative manner.
+To extend native fetch() with no overhead, wrap and reuse common patterns and functionalities in a simple and declarative manner.
 
-Also, managing multitude of API connections in large applications can be complex, time-consuming and hard to scale. `fetchff` simplifies the process by offering a simple, declarative approach to API handling using Repository Pattern. It reduces the need for extensive setup, middlewares, retries, custom caching, and heavy plugins, and lets developers focus on data handling and application logic.
+Managing multitude of API connections in large applications can be complex, time-consuming and hard to scale. `fetchff` simplifies the process by offering a simple, declarative approach to API handling using Repository Pattern. It reduces the need for extensive setup, middlewares, retries, custom caching, and heavy plugins, and lets developers focus on data handling and application logic.
 
 **Key Benefits:**
 
