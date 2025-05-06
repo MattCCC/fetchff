@@ -362,8 +362,8 @@ export interface ExtendedRequestConfig<
    * A function to handle errors that occur during the request or response processing.
    */
   onError?:
-    | ErrorInterceptor<ResponseData, RequestBody>
-    | ErrorInterceptor<ResponseData, RequestBody>[];
+    | ErrorInterceptor<ResponseData, QueryParams_, PathParams, RequestBody>
+    | ErrorInterceptor<ResponseData, QueryParams_, PathParams, RequestBody>[];
 
   /**
    * The maximum time (in milliseconds) the request can take before automatically being aborted.
@@ -388,7 +388,12 @@ export interface ExtendedRequestConfig<
    * @param response - The response data.
    * @returns `true` to stop polling, `false` to continue.
    */
-  shouldStopPolling?: PollingFunction<ResponseData, RequestBody>;
+  shouldStopPolling?: PollingFunction<
+    ResponseData,
+    QueryParams_,
+    PathParams,
+    RequestBody
+  >;
 
   /**
    * A custom fetcher instance to handle requests instead of the default implementation.
