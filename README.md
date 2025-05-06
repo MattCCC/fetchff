@@ -721,7 +721,7 @@ The retry mechanism can be used to handle transient errors and improve the relia
 ```typescript
 const { data } = await fetchf('https://api.example.com/', {
   retry: {
-    retries: 3,
+    retries: 5,
     delay: 100,
     maxDelay: 5000,
     resetTimeout: true, // Resets the timeout for each retry attempt
@@ -729,11 +729,21 @@ const { data } = await fetchf('https://api.example.com/', {
     retryOn: [500, 503],
     shouldRetry(error, attempt) {
       // Retry on specific errors or based on custom logic
-      return attempt < 3; // Retry up to 3 times
+      // Use `error.response` to access full response from the fetch()
+      const data = error.response?.data;
+
+      // Let's say your backend returns bookId as "none". You can force retry by returning "true".
+      if (data?.bookId == 'none') {
+        return true;
+      }
+
+      return attempt < 3; // Retry up to 3 times.
     },
   },
 });
 ```
+
+In this example we retry only on 500 and 503 error codes from BE response. The timeout is also reset for each retry attempt (`resetTimeout`). A custom function (`shouldRetry`) adds extra logic: If the server response contains `{"bookId": "none"}`, it forces a retry. Otherwise, it retries only if the attempt count is less than 3. The `retries` setting is still respected firstly but since it's `5` and attempt check is lower, the request will run up to 3 times: first run + 2 retries = 3.
 
 ### Configuration
 
@@ -756,7 +766,7 @@ The retry mechanism is configured via the `retry` option when instantiating the 
 
 - **`backoff`**:  
   Type: `number`  
-  Factor by which the delay is multiplied after each retry. For example, a `backoff` factor of `1.5` means each retry delay is 1.5 times the previous delay.  
+  Factor by which the delay is multiplied after each retry. For example, a `backoff` factor of `1.5` means each retry delay is 1.5 times the previous delay. It means that after the first failure, wait for x seconds. After the second failure, wait for x _ 1.5 seconds. After the third failure, wait for x _ 1.5^2 seconds, and so on.
   _Default:_ `1.5`.
 
 - **`resetTimeout`**:  
