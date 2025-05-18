@@ -210,10 +210,10 @@ export function createRequestHandler(
         };
 
         // Local interceptors
-        await applyInterceptor(requestConfig, _reqConfig?.onRequest);
+        await applyInterceptor(requestConfig, _reqConfig.onRequest);
 
         // Global interceptors
-        await applyInterceptor(requestConfig, handlerConfig?.onRequest);
+        await applyInterceptor(requestConfig, handlerConfig.onRequest);
 
         response = requestInstance?.request
           ? await requestInstance.request(requestConfig)
@@ -229,12 +229,7 @@ export function createRequestHandler(
 
           // Check if the response status is not outside the range 200-299 and if so, output error
           if (!response.ok) {
-            throw new ResponseError<
-              ResponseData,
-              QueryParams,
-              PathParams,
-              RequestBody
-            >(
+            throw new ResponseError(
               `${requestConfig.method} to ${requestConfig.url} failed! Status: ${response.status || null}`,
               requestConfig,
               response,
@@ -243,10 +238,10 @@ export function createRequestHandler(
         }
 
         // Local interceptors
-        await applyInterceptor(response, _reqConfig?.onResponse);
+        await applyInterceptor(response, _reqConfig.onResponse);
 
         // Global interceptors
-        await applyInterceptor(response, handlerConfig?.onResponse);
+        await applyInterceptor(response, handlerConfig.onResponse);
 
         removeRequestFromQueue(fetcherConfig);
 
@@ -323,17 +318,18 @@ export function createRequestHandler(
           // It is a fail-safe so to prevent excessive retry attempts even if custom retry logic suggests a retry.
           attempt === retries || // Stop if the maximum retries have been reached
           !retryOn?.includes(error.status) || // Check if the error status is retryable
-          !(await shouldRetry?.(error, attempt)) // If shouldRetry is defined, evaluate it
+          !shouldRetry ||
+          !(await shouldRetry(error, attempt)) // If shouldRetry is defined, evaluate it
         ) {
           if (!isRequestCancelled(error as ResponseError)) {
             logger(mergedConfig, 'API ERROR', error as ResponseError);
           }
 
           // Local interceptors
-          await applyInterceptor(error, _reqConfig?.onError);
+          await applyInterceptor(error, _reqConfig.onError);
 
           // Global interceptors
-          await applyInterceptor(error, handlerConfig?.onError);
+          await applyInterceptor(error, handlerConfig.onError);
 
           removeRequestFromQueue(fetcherConfig);
 
@@ -393,7 +389,7 @@ const logger = (
 ): void => {
   const logger = reqConfig.logger;
 
-  if (logger?.warn) {
+  if (logger && logger.warn) {
     logger.warn(...args);
   }
 };
