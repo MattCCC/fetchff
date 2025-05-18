@@ -199,11 +199,11 @@ export function deleteCache(key: string): void {
  * @param cacheTime - The maximum time to cache entry.
  */
 export function pruneCache(cacheTime: number) {
-  for (const [key, entry] of cache.entries()) {
+  cache.forEach((entry, key) => {
     if (isCacheExpired(entry.timestamp, cacheTime)) {
       cache.delete(key);
     }
-  }
+  });
 }
 
 /**
