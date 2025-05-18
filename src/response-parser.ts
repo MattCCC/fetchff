@@ -15,34 +15,38 @@ import type { DefaultResponse, FetchResponse } from './types/request-handler';
 export async function parseResponseData<ResponseData = DefaultResponse>(
   response: FetchResponse<ResponseData>,
 ): Promise<any> {
-  // Bail early when body is empty
+  // Bail early for HEAD requests or status codes, or any requests that never have a body
   if (!response?.body) {
     return null;
   }
 
-  const contentType = String(
-    (response as Response).headers?.get(CONTENT_TYPE) || '',
-  ).split(';')[0]; // Correctly handle charset
+  // Get the content-type header once
+  let contentType = (response as Response).headers?.get(CONTENT_TYPE);
+
+  if (contentType) {
+    // Lowercase and trim for consistent matching
+    contentType = contentType.toLowerCase().trim();
+  } else {
+    contentType = '';
+  }
+
+  // Split for mime type without charset
+  const mimeType = contentType.split(';', 1)[0];
 
   let data;
 
   try {
-    if (
-      contentType.includes(APPLICATION_JSON) ||
-      contentType.includes('+json')
-    ) {
+    if (mimeType.includes(APPLICATION_JSON) || mimeType.includes('+json')) {
       data = await response.json(); // Parse JSON response
-    } else if (contentType.includes('multipart/form-data')) {
+    } else if (mimeType.includes('multipart/form-data')) {
       data = await response.formData(); // Parse as FormData
-    } else if (
-      contentType.includes(APPLICATION_CONTENT_TYPE + 'octet-stream')
-    ) {
+    } else if (mimeType.includes(APPLICATION_CONTENT_TYPE + 'octet-stream')) {
       data = await response.blob(); // Parse as blob
     } else if (
-      contentType.includes(APPLICATION_CONTENT_TYPE + 'x-www-form-urlencoded')
+      mimeType.includes(APPLICATION_CONTENT_TYPE + 'x-www-form-urlencoded')
     ) {
       data = await response.formData(); // Handle URL-encoded forms
-    } else if (contentType.includes('text/')) {
+    } else if (mimeType.startsWith('text/')) {
       data = await response.text(); // Parse as text
     } else {
       try {
