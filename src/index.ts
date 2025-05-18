@@ -17,8 +17,9 @@ export async function fetchf<ResponseData = DefaultResponse>(
   url: string,
   config: RequestHandlerConfig<ResponseData> = {},
 ): Promise<FetchResponse<ResponseData>> {
-  return createRequestHandler(config).request<ResponseData>(url, config);
+  return createRequestHandler(config).request<ResponseData>(url);
 }
 
+export { createApiFetcher } from './api-handler';
+
 export * from './types';
-export * from './api-handler';
