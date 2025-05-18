@@ -223,18 +223,18 @@ export function createRequestHandler(
       getConfig(requestConfig, 'urlPathParams'),
     );
 
-    // The explicitly passed "params"
+    // The explicitly passed query params
     const explicitParams = getConfig<QueryParams>(requestConfig, 'params');
-
-    // The explicitly passed "body" or "data"
-    const explicitBodyData: BodyPayload =
-      getConfig(requestConfig, 'body') || getConfig(requestConfig, 'data');
 
     // Final body data
     let body: RequestConfig['data'];
 
     // Only applicable for request methods 'PUT', 'POST', 'DELETE', and 'PATCH'
     if (!isGetAlikeMethod) {
+      // The explicitly passed "body" or "data"
+      const explicitBodyData: BodyPayload =
+        getConfig(requestConfig, 'body') || getConfig(requestConfig, 'data');
+
       body = explicitBodyData;
     }
 
