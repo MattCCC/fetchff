@@ -202,20 +202,27 @@ export function replaceUrlPathParams(
   url: string,
   urlPathParams: UrlPathParams,
 ): string {
-  if (!urlPathParams) {
+  if (!urlPathParams || url.indexOf(':') === -1) {
     return url;
   }
 
-  return url.replace(/:\w+/g, (str): string => {
-    const word = str.substring(1);
+  // Use a single RegExp and avoid unnecessary casts and function calls
+  // Precompute keys for faster lookup
+  const params = urlPathParams as DefaultUrlParams;
 
-    if ((urlPathParams as DefaultUrlParams)[word]) {
-      return encodeURIComponent(
-        String((urlPathParams as DefaultUrlParams)[word]),
-      );
+  // Use a replacer function that avoids extra work
+  return url.replace(/:([a-zA-Z0-9_]+)/g, (match, key) => {
+    // Use hasOwnProperty for strict key existence check
+    if (Object.prototype.hasOwnProperty.call(params, key)) {
+      const value = params[key];
+
+      // Only replace if value is not undefined or null
+      if (value !== undefined && value !== null) {
+        return encodeURIComponent(String(value));
+      }
     }
 
-    return str;
+    return match;
   });
 }
 
@@ -343,4 +350,49 @@ export function processHeaders(
   }
 
   return headersObject;
+}
+
+export interface RetryOptions {
+  retries: number; // Number of retry attempts
+  delay: number; // Initial delay between retries (in milliseconds)
+  backoff?: number; // Backoff multiplier for exponential delay
+  shouldRetry?: (error: any) => boolean; // Function to determine if retry is needed
+}
+
+export async function withRetry<T>(
+  operation: () => Promise<T>,
+  options: RetryOptions,
+): Promise<T> {
+  const { retries, delay, backoff = 1, shouldRetry } = options;
+
+  let attempt = 0;
+  let currentDelay = delay;
+
+  while (attempt <= retries) {
+    try {
+      // Attempt the operation
+      return await operation();
+    } catch (error) {
+      attempt++;
+
+      // Check if we should retry
+      if (attempt > retries || (shouldRetry && !shouldRetry(error))) {
+        throw error; // Rethrow the error if retries are exhausted or not retryable
+      }
+
+      // Log the retry attempt
+      console.warn(
+        `Retry attempt ${attempt} failed. Retrying in ${currentDelay}ms...`,
+        error,
+      );
+
+      // Wait for the specified delay before retrying
+      await new Promise((resolve) => setTimeout(resolve, currentDelay));
+
+      // Apply backoff for the next attempt
+      currentDelay *= backoff;
+    }
+  }
+
+  throw new Error('Operation failed after maximum retries.');
 }
