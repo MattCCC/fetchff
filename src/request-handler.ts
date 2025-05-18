@@ -417,26 +417,27 @@ export function createRequestHandler(
     } = mergedConfig;
 
     // Prevent performance overhead of cache access
-    let _cacheKey: string;
+    let _cacheKey: string | null = null;
 
-    if (cacheKey) {
-      _cacheKey = cacheKey(fetcherConfig);
-    } else {
-      _cacheKey = generateCacheKey(fetcherConfig);
-    }
+    if (cacheTime) {
+      _cacheKey = cacheKey
+        ? cacheKey(fetcherConfig)
+        : generateCacheKey(fetcherConfig);
 
-    if (cacheTime && _cacheKey) {
-      const cacheBuster = mergedConfig.cacheBuster;
+      if (_cacheKey) {
+        const cacheBuster = mergedConfig.cacheBuster;
+        const shouldBust = cacheBuster && cacheBuster(fetcherConfig);
 
-      if (!cacheBuster || !cacheBuster(fetcherConfig)) {
-        const cachedEntry = getCache<FetchResponse<ResponseData>>(
-          _cacheKey,
-          cacheTime,
-        );
+        if (!shouldBust) {
+          const cachedEntry = getCache<FetchResponse<ResponseData>>(
+            _cacheKey,
+            cacheTime,
+          );
 
-        if (cachedEntry) {
-          // Serve stale data from cache
-          return cachedEntry.data;
+          if (cachedEntry) {
+            // Serve stale data from cache
+            return cachedEntry.data;
+          }
         }
       }
     }
