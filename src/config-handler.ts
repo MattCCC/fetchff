@@ -7,7 +7,6 @@ import {
   CONTENT_TYPE,
   OBJECT,
 } from './constants';
-import type { BodyPayload } from './types';
 import type {
   FetcherConfig,
   HeadersObject,
@@ -65,30 +64,26 @@ export const buildConfig = (
 ): FetcherConfig => {
   const method = (requestConfig.method ?? GET).toUpperCase() as Method;
   const isGetAlikeMethod = method === GET || method === HEAD;
-
   const dynamicUrl = replaceUrlPathParams(url, requestConfig.urlPathParams);
 
-  // The explicitly passed query params
-  const explicitParams = requestConfig.params;
-
-  // Final body data
-  let body: RequestConfig['data'];
+  let body: RequestConfig['data'] | undefined;
 
   // Only applicable for request methods 'PUT', 'POST', 'DELETE', and 'PATCH'
   if (!isGetAlikeMethod) {
-    // The explicitly passed "body" or "data"
-    const explicitBodyData: BodyPayload =
-      requestConfig.body ?? requestConfig.data;
-
-    body = explicitBodyData;
+    body = requestConfig.body ?? requestConfig.data;
   }
 
-  setContentTypeIfNeeded(method, requestConfig.headers as HeadersInit, body);
+  const headers = requestConfig.headers as HeadersInit | HeadersObject;
+
+  setContentTypeIfNeeded(method, headers, body);
 
   // Native fetch compatible settings
-  const isWithCredentials = requestConfig.withCredentials;
+  const credentials = requestConfig.withCredentials
+    ? 'include'
+    : requestConfig.credentials;
 
-  const credentials = isWithCredentials ? 'include' : requestConfig.credentials;
+  // The explicitly passed query params
+  const explicitParams = requestConfig.params;
 
   const urlPath = explicitParams
     ? appendQueryParams(dynamicUrl, explicitParams)
@@ -110,10 +105,10 @@ export const buildConfig = (
 
   return {
     ...requestConfig,
+    url: baseURL + urlPath,
+    method,
     credentials,
     body,
-    method,
-    url: baseURL + urlPath,
   };
 };
 
