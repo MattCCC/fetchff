@@ -425,8 +425,7 @@ export function createRequestHandler(
         : generateCacheKey(fetcherConfig);
 
       if (_cacheKey) {
-        const cacheBuster = mergedConfig.cacheBuster;
-        const shouldBust = cacheBuster && cacheBuster(fetcherConfig);
+        const shouldBust = mergedConfig.cacheBuster?.(fetcherConfig);
 
         if (!shouldBust) {
           const cachedEntry = getCache<FetchResponse<ResponseData>>(
@@ -569,12 +568,12 @@ export function createRequestHandler(
           RequestBody
         >(response, requestConfig);
 
-        if (cacheTime && _cacheKey) {
-          const skipCache = requestConfig.skipCache;
-
-          if (!skipCache || !skipCache(output, requestConfig)) {
-            setCache(_cacheKey, output);
-          }
+        if (
+          cacheTime &&
+          _cacheKey &&
+          !requestConfig.skipCache?.(output, requestConfig)
+        ) {
+          setCache(_cacheKey, output);
         }
 
         return output;
