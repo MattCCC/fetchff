@@ -509,7 +509,7 @@ export function createRequestHandler(
               PathParams,
               RequestBody
             >(
-              `${requestConfig.url} failed! Status: ${response.status || null}`,
+              `${requestConfig.method} to ${requestConfig.url} failed! Status: ${response.status || null}`,
               requestConfig,
               response,
             );
