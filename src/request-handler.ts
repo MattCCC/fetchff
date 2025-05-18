@@ -60,38 +60,6 @@ export function createRequestHandler(
   };
 
   /**
-   * Process global Request Error
-   *
-   * @param {ResponseError<ResponseData, QueryParams, PathParams, RequestBody>} error      Error instance
-   * @param {RequestConfig<ResponseData, QueryParams, PathParams, RequestBody>} requestConfig   Per endpoint request config
-   * @returns {Promise<void>}
-   */
-  const processError = async <
-    ResponseData = DefaultResponse,
-    QueryParams = DefaultParams,
-    PathParams = DefaultUrlParams,
-    RequestBody = DefaultPayload,
-  >(
-    error: ResponseError<ResponseData, QueryParams, PathParams, RequestBody>,
-    requestConfig: RequestConfig<
-      ResponseData,
-      QueryParams,
-      PathParams,
-      RequestBody
-    >,
-  ): Promise<void> => {
-    if (!isRequestCancelled(error as ResponseError)) {
-      logger(requestConfig, 'API ERROR', error as ResponseError);
-    }
-
-    // Local interceptors
-    await applyInterceptor(error, requestConfig?.onError);
-
-    // Global interceptors
-    await applyInterceptor(error, handlerConfig?.onError);
-  };
-
-  /**
    * Output default response in case of an error, depending on chosen strategy
    *
    * @param {ResponseError<ResponseData, QueryParams, PathParams, RequestBody>} error - Error instance
@@ -114,7 +82,6 @@ export function createRequestHandler(
       RequestBody
     >,
   ): Promise<any> => {
-    // By default cancelled requests aren't rejected (softFail strategy)
     // Only handle the error if the request was not cancelled,
     // or if it was cancelled and rejectCancelled is true
     const isCancelled = isRequestCancelled(error as ResponseError);
@@ -132,6 +99,7 @@ export function createRequestHandler(
       }
     }
 
+    // SoftFail strategy: output full response object with error and data defaulting to "defaultResponse"
     return outputResponse<ResponseData, QueryParams, PathParams, RequestBody>(
       response,
       requestConfig,
@@ -360,12 +328,15 @@ export function createRequestHandler(
           !retryOn?.includes(error.status) || // Check if the error status is retryable
           !(await shouldRetry?.(error, attempt)) // If shouldRetry is defined, evaluate it
         ) {
-          await processError<
-            ResponseData,
-            QueryParams,
-            PathParams,
-            RequestBody
-          >(error, fetcherConfig);
+          if (!isRequestCancelled(error as ResponseError)) {
+            logger(mergedConfig, 'API ERROR', error as ResponseError);
+          }
+
+          // Local interceptors
+          await applyInterceptor(error, _reqConfig?.onError);
+
+          // Global interceptors
+          await applyInterceptor(error, handlerConfig?.onError);
 
           removeRequestFromQueue(fetcherConfig);
 
