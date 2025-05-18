@@ -1112,7 +1112,7 @@ describe('Request Handler', () => {
     });
   });
 
-  describe('outputResponse()', () => {
+  describe('Response output', () => {
     it('should show nested data object if flattening is off', async () => {
       const requestHandler = createRequestHandler({
         fetcher,

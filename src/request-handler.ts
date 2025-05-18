@@ -15,15 +15,10 @@ import type {
 } from './types/api-handler';
 import { applyInterceptor } from './interceptor-manager';
 import { ResponseError } from './errors/response-error';
-import {
-  delayInvocation,
-  flattenData,
-  processHeaders,
-  sanitizeObject,
-} from './utils';
+import { delayInvocation, sanitizeObject } from './utils';
 import { queueRequest, removeRequestFromQueue } from './queue-manager';
-import { ABORT_ERROR, CANCELLED_ERROR, OBJECT } from './constants';
-import { parseResponseData } from './response-parser';
+import { ABORT_ERROR, CANCELLED_ERROR } from './constants';
+import { prepareResponse, parseResponseData } from './response-parser';
 import { generateCacheKey, getCache, setCache } from './cache-manager';
 import { buildConfig, defaultConfig, mergeConfig } from './config-handler';
 
@@ -100,7 +95,7 @@ export function createRequestHandler(
     }
 
     // SoftFail strategy: output full response object with error and data defaulting to "defaultResponse"
-    return outputResponse<ResponseData, QueryParams, PathParams, RequestBody>(
+    return prepareResponse<ResponseData, QueryParams, PathParams, RequestBody>(
       response,
       requestConfig,
       error,
@@ -292,7 +287,7 @@ export function createRequestHandler(
         }
 
         // If polling is not required, or polling attempts are exhausted
-        const output = outputResponse<
+        const output = prepareResponse<
           ResponseData,
           QueryParams,
           PathParams,
@@ -363,100 +358,10 @@ export function createRequestHandler(
       }
     }
 
-    return outputResponse<ResponseData, QueryParams, PathParams, RequestBody>(
+    return prepareResponse<ResponseData, QueryParams, PathParams, RequestBody>(
       response,
       fetcherConfig,
     );
-  };
-
-  /**
-   * Output response
-   *
-   * @param Response. It may be "null" in case of request being aborted.
-   * @param {RequestConfig} requestConfig - Request config
-   * @param error - whether the response is erroneous
-   * @returns {FetchResponse<ResponseData>} Response data
-   */
-  const outputResponse = <
-    ResponseData = DefaultResponse,
-    QueryParams = DefaultParams,
-    PathParams = DefaultUrlParams,
-    RequestBody = DefaultPayload,
-  >(
-    response: FetchResponse<ResponseData, RequestBody> | null,
-    requestConfig: RequestConfig<
-      ResponseData,
-      QueryParams,
-      PathParams,
-      RequestBody
-    >,
-    error: ResponseError<
-      ResponseData,
-      QueryParams,
-      PathParams,
-      RequestBody
-    > | null = null,
-  ): FetchResponse<ResponseData, RequestBody> => {
-    const defaultResponse = requestConfig.defaultResponse ?? null;
-
-    // This may happen when request is cancelled.
-    if (!response) {
-      return {
-        ok: false,
-        // Enhance the response with extra information
-        error,
-        data: defaultResponse,
-        headers: null,
-        config: requestConfig,
-      } as unknown as FetchResponse<ResponseData>;
-    }
-
-    let data = response?.data;
-
-    // Set the default response if the provided data is an empty object
-    if (
-      data === undefined ||
-      data === null ||
-      (typeof data === OBJECT && Object.keys(data).length === 0)
-    ) {
-      data = defaultResponse;
-    }
-
-    if (requestConfig.flattenResponse) {
-      response.data = flattenData(data);
-    }
-
-    // If it's a custom fetcher, and it does not return any Response instance, it may have its own internal handler
-    if (!(response instanceof Response)) {
-      return response;
-    }
-
-    // Native fetch Response extended by extra information
-    return {
-      body: response.body,
-      bodyUsed: response.bodyUsed,
-      ok: response.ok,
-      redirected: response.redirected,
-      type: response.type,
-      url: response.url,
-      status: response.status,
-      statusText: response.statusText,
-
-      // Convert methods to use arrow functions to preserve correct return types
-      blob: () => response.blob(),
-      json: () => response.json(),
-      text: () => response.text(),
-      clone: () => response.clone(),
-      arrayBuffer: () => response.arrayBuffer(),
-      formData: () => response.formData(),
-      bytes: () => response.bytes(),
-
-      // Enhance the response with extra information
-      error,
-      data,
-      headers: processHeaders(response.headers),
-      config: requestConfig,
-    };
   };
 
   return {

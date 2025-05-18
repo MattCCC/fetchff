@@ -3,8 +3,18 @@ import {
   APPLICATION_CONTENT_TYPE,
   APPLICATION_JSON,
   CONTENT_TYPE,
+  OBJECT,
 } from './constants';
-import type { DefaultResponse, FetchResponse } from './types/request-handler';
+import {
+  DefaultResponse,
+  FetchResponse,
+  RequestConfig,
+  ResponseError,
+  DefaultParams,
+  DefaultUrlParams,
+  DefaultPayload,
+} from './types';
+import { flattenData, processHeaders } from './utils';
 
 /**
  * Parses the response data based on the Content-Type header.
@@ -68,3 +78,93 @@ export async function parseResponseData<ResponseData = DefaultResponse>(
 
   return data;
 }
+
+/**
+ * Prepare response object with additional information.
+ *
+ * @param Response. It may be "null" in case of request being aborted.
+ * @param {RequestConfig} requestConfig - Request config
+ * @param error - whether the response is erroneous
+ * @returns {FetchResponse<ResponseData>} Response data
+ */
+export const prepareResponse = <
+  ResponseData = DefaultResponse,
+  QueryParams = DefaultParams,
+  PathParams = DefaultUrlParams,
+  RequestBody = DefaultPayload,
+>(
+  response: FetchResponse<ResponseData, RequestBody> | null,
+  requestConfig: RequestConfig<
+    ResponseData,
+    QueryParams,
+    PathParams,
+    RequestBody
+  >,
+  error: ResponseError<
+    ResponseData,
+    QueryParams,
+    PathParams,
+    RequestBody
+  > | null = null,
+): FetchResponse<ResponseData, RequestBody> => {
+  const defaultResponse = requestConfig.defaultResponse ?? null;
+
+  // This may happen when request is cancelled.
+  if (!response) {
+    return {
+      ok: false,
+      // Enhance the response with extra information
+      error,
+      data: defaultResponse,
+      headers: null,
+      config: requestConfig,
+    } as unknown as FetchResponse<ResponseData>;
+  }
+
+  let data = response?.data;
+
+  // Set the default response if the provided data is an empty object
+  if (
+    data === undefined ||
+    data === null ||
+    (typeof data === OBJECT && Object.keys(data).length === 0)
+  ) {
+    data = defaultResponse;
+  }
+
+  if (requestConfig.flattenResponse) {
+    response.data = flattenData(data);
+  }
+
+  // If it's a custom fetcher, and it does not return any Response instance, it may have its own internal handler
+  if (!(response instanceof Response)) {
+    return response;
+  }
+
+  // Native fetch Response extended by extra information
+  return {
+    body: response.body,
+    bodyUsed: response.bodyUsed,
+    ok: response.ok,
+    redirected: response.redirected,
+    type: response.type,
+    url: response.url,
+    status: response.status,
+    statusText: response.statusText,
+
+    // Convert methods to use arrow functions to preserve correct return types
+    blob: () => response.blob(),
+    json: () => response.json(),
+    text: () => response.text(),
+    clone: () => response.clone(),
+    arrayBuffer: () => response.arrayBuffer(),
+    formData: () => response.formData(),
+    bytes: () => response.bytes(),
+
+    // Enhance the response with extra information
+    error,
+    data,
+    headers: processHeaders(response.headers),
+    config: requestConfig,
+  };
+};
