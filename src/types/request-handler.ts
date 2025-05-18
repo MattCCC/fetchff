@@ -468,7 +468,6 @@ export type FetcherConfig<
 export interface RequestHandlerReturnType {
   config: RequestHandlerConfig;
   getInstance: () => CreatedCustomFetcherInstance | null;
-  buildConfig: (url: string, config: RequestConfig) => RequestConfig;
   request: <
     ResponseData = DefaultResponse,
     QueryParams = DefaultParams,

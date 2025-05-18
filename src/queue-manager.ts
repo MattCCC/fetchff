@@ -22,7 +22,7 @@ const queue: RequestsQueue = new Map<RequestConfig, QueueItem>();
  * @param {boolean} isTimeoutEnabled - Whether timeout is enabled.
  * @returns {Promise<AbortController>} - A promise that resolves to an AbortController.
  */
-export async function addRequest(
+export async function queueRequest(
   config: RequestConfig,
   timeout: number | undefined,
   dedupeTime: number = 0,
@@ -66,7 +66,7 @@ export async function addRequest(
           TIMEOUT_ERROR,
         );
 
-        removeRequest(config, error);
+        removeRequestFromQueue(config, error);
       }, timeout)
     : null;
 
@@ -81,7 +81,7 @@ export async function addRequest(
  * @param config - The request configuration.
  * @param {boolean} error - Error payload so to force the request to abort.
  */
-export async function removeRequest(
+export async function removeRequestFromQueue(
   config: RequestConfig,
   error: DOMException | null | string = null,
 ): Promise<void> {
