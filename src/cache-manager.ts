@@ -195,6 +195,18 @@ export function deleteCache(key: string): void {
 }
 
 /**
+ * Prunes the cache by removing entries that have expired based on the provided cache time.
+ * @param cacheTime - The maximum time to cache entry.
+ */
+export function pruneCache(cacheTime: number) {
+  for (const [key, entry] of cache.entries()) {
+    if (isCacheExpired(entry.timestamp, cacheTime)) {
+      cache.delete(key);
+    }
+  }
+}
+
+/**
  * Mutates a cache entry with new data and optionally revalidates it.
  *
  * @param {string} key Cache key to utilize

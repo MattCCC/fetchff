@@ -130,6 +130,8 @@ export function createRequestHandler(
     > | null = null,
   ): Promise<FetchResponse<ResponseData, RequestBody>> => {
     const _reqConfig = reqConfig ? sanitizeObject(reqConfig) : {};
+
+    // Ensure immutability
     const mergedConfig = {
       ...handlerConfig,
       ..._reqConfig,
