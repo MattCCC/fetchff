@@ -86,9 +86,9 @@ const defaultConfig: RequestHandlerConfig = {
  * @returns {Object} An object with methods for handling requests
  */
 export function createRequestHandler(
-  config: RequestHandlerConfig,
+  config: RequestHandlerConfig | null,
 ): RequestHandlerReturnType {
-  const sanitizedConfig = sanitizeObject(config);
+  const sanitizedConfig = config ? sanitizeObject(config) : {};
   const handlerConfig: RequestHandlerConfig = {
     ...defaultConfig,
     ...sanitizedConfig,
@@ -394,7 +394,7 @@ export function createRequestHandler(
       RequestBody
     > | null = null,
   ): Promise<FetchResponse<ResponseData, RequestBody>> => {
-    const _reqConfig = sanitizeObject(reqConfig || {});
+    const _reqConfig = reqConfig ? sanitizeObject(reqConfig) : {};
     const mergedConfig = {
       ...handlerConfig,
       ..._reqConfig,
