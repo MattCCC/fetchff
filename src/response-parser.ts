@@ -3,8 +3,18 @@ import {
   APPLICATION_CONTENT_TYPE,
   APPLICATION_JSON,
   CONTENT_TYPE,
+  OBJECT,
 } from './constants';
-import type { DefaultResponse, FetchResponse } from './types/request-handler';
+import {
+  DefaultResponse,
+  FetchResponse,
+  RequestConfig,
+  ResponseError,
+  DefaultParams,
+  DefaultUrlParams,
+  DefaultPayload,
+} from './types';
+import { flattenData, processHeaders } from './utils';
 
 /**
  * Parses the response data based on the Content-Type header.
@@ -15,34 +25,38 @@ import type { DefaultResponse, FetchResponse } from './types/request-handler';
 export async function parseResponseData<ResponseData = DefaultResponse>(
   response: FetchResponse<ResponseData>,
 ): Promise<any> {
-  // Bail early when body is empty
+  // Bail early for HEAD requests or status codes, or any requests that never have a body
   if (!response?.body) {
     return null;
   }
 
-  const contentType = String(
-    (response as Response).headers?.get(CONTENT_TYPE) || '',
-  ).split(';')[0]; // Correctly handle charset
+  // Get the content-type header once
+  let contentType = (response as Response).headers?.get(CONTENT_TYPE);
+
+  if (contentType) {
+    // Lowercase and trim for consistent matching
+    contentType = contentType.toLowerCase().trim();
+  } else {
+    contentType = '';
+  }
+
+  // Split for mime type without charset
+  const mimeType = contentType.split(';', 1)[0];
 
   let data;
 
   try {
-    if (
-      contentType.includes(APPLICATION_JSON) ||
-      contentType.includes('+json')
-    ) {
+    if (mimeType.includes(APPLICATION_JSON) || mimeType.includes('+json')) {
       data = await response.json(); // Parse JSON response
-    } else if (contentType.includes('multipart/form-data')) {
+    } else if (mimeType.includes('multipart/form-data')) {
       data = await response.formData(); // Parse as FormData
-    } else if (
-      contentType.includes(APPLICATION_CONTENT_TYPE + 'octet-stream')
-    ) {
+    } else if (mimeType.includes(APPLICATION_CONTENT_TYPE + 'octet-stream')) {
       data = await response.blob(); // Parse as blob
     } else if (
-      contentType.includes(APPLICATION_CONTENT_TYPE + 'x-www-form-urlencoded')
+      mimeType.includes(APPLICATION_CONTENT_TYPE + 'x-www-form-urlencoded')
     ) {
       data = await response.formData(); // Handle URL-encoded forms
-    } else if (contentType.includes('text/')) {
+    } else if (mimeType.startsWith('text/')) {
       data = await response.text(); // Parse as text
     } else {
       try {
@@ -64,3 +78,93 @@ export async function parseResponseData<ResponseData = DefaultResponse>(
 
   return data;
 }
+
+/**
+ * Prepare response object with additional information.
+ *
+ * @param Response. It may be "null" in case of request being aborted.
+ * @param {RequestConfig} requestConfig - Request config
+ * @param error - whether the response is erroneous
+ * @returns {FetchResponse<ResponseData>} Response data
+ */
+export const prepareResponse = <
+  ResponseData = DefaultResponse,
+  QueryParams = DefaultParams,
+  PathParams = DefaultUrlParams,
+  RequestBody = DefaultPayload,
+>(
+  response: FetchResponse<ResponseData, RequestBody> | null,
+  requestConfig: RequestConfig<
+    ResponseData,
+    QueryParams,
+    PathParams,
+    RequestBody
+  >,
+  error: ResponseError<
+    ResponseData,
+    QueryParams,
+    PathParams,
+    RequestBody
+  > | null = null,
+): FetchResponse<ResponseData, RequestBody> => {
+  const defaultResponse = requestConfig.defaultResponse ?? null;
+
+  // This may happen when request is cancelled.
+  if (!response) {
+    return {
+      ok: false,
+      // Enhance the response with extra information
+      error,
+      data: defaultResponse,
+      headers: null,
+      config: requestConfig,
+    } as unknown as FetchResponse<ResponseData>;
+  }
+
+  let data = response?.data;
+
+  // Set the default response if the provided data is an empty object
+  if (
+    data === undefined ||
+    data === null ||
+    (typeof data === OBJECT && Object.keys(data).length === 0)
+  ) {
+    data = defaultResponse;
+  }
+
+  if (requestConfig.flattenResponse) {
+    response.data = flattenData(data);
+  }
+
+  // If it's a custom fetcher, and it does not return any Response instance, it may have its own internal handler
+  if (!(response instanceof Response)) {
+    return response;
+  }
+
+  // Native fetch Response extended by extra information
+  return {
+    body: response.body,
+    bodyUsed: response.bodyUsed,
+    ok: response.ok,
+    redirected: response.redirected,
+    type: response.type,
+    url: response.url,
+    status: response.status,
+    statusText: response.statusText,
+
+    // Convert methods to use arrow functions to preserve correct return types
+    blob: () => response.blob(),
+    json: () => response.json(),
+    text: () => response.text(),
+    clone: () => response.clone(),
+    arrayBuffer: () => response.arrayBuffer(),
+    formData: () => response.formData(),
+    bytes: () => response.bytes(),
+
+    // Enhance the response with extra information
+    error,
+    data,
+    headers: processHeaders(response.headers),
+    config: requestConfig,
+  };
+};

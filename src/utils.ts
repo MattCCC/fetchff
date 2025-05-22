@@ -202,20 +202,27 @@ export function replaceUrlPathParams(
   url: string,
   urlPathParams: UrlPathParams,
 ): string {
-  if (!urlPathParams) {
+  if (!urlPathParams || url.indexOf(':') === -1) {
     return url;
   }
 
-  return url.replace(/:\w+/g, (str): string => {
-    const word = str.substring(1);
+  // Use a single RegExp and avoid unnecessary casts and function calls
+  // Precompute keys for faster lookup
+  const params = urlPathParams as DefaultUrlParams;
 
-    if ((urlPathParams as DefaultUrlParams)[word]) {
-      return encodeURIComponent(
-        String((urlPathParams as DefaultUrlParams)[word]),
-      );
+  // Use a replacer function that avoids extra work
+  return url.replace(/:([a-zA-Z0-9_]+)/g, (match, key) => {
+    // Use hasOwnProperty for strict key existence check
+    if (Object.prototype.hasOwnProperty.call(params, key)) {
+      const value = params[key];
+
+      // Only replace if value is not undefined or null
+      if (value !== undefined && value !== null) {
+        return encodeURIComponent(String(value));
+      }
     }
 
-    return str;
+    return match;
   });
 }
 
