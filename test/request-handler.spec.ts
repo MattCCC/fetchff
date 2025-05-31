@@ -24,6 +24,8 @@ const fetcher = {
   create: jest.fn().mockReturnValue({ request: jest.fn() }),
 };
 
+fetchMock.mockGlobal();
+
 describe('Request Handler', () => {
   const apiUrl = 'http://example.com/api/';
   const responseMock = {
@@ -600,7 +602,11 @@ describe('Request Handler', () => {
         }),
       });
 
-      fetchMock.mock(
+      const fm = fetchMock.createInstance();
+
+      fm.mockGlobal();
+
+      fm.route(
         'https://api.example.com/endpoint',
         () =>
           new Response(JSON.stringify({ bookId: 'none' }), {
@@ -628,7 +634,7 @@ describe('Request Handler', () => {
       jest.advanceTimersByTime(totalDelay);
 
       // Check fetch call count (should be retries + 1)
-      expect(fetchMock.calls()).toHaveLength(retryConfig.retries + 1);
+      expect(fm.callHistory.calls()).toHaveLength(retryConfig.retries + 1);
 
       // Ensure delay function was called for each retry attempt
       expect(mockDelayInvocation).toHaveBeenCalledTimes(retryConfig.retries);
@@ -742,6 +748,8 @@ describe('Request Handler', () => {
     let requestHandler: RequestHandlerReturnType;
     const spy = jest.spyOn(interceptorManager, 'applyInterceptor');
 
+    jest.useFakeTimers();
+
     beforeEach(() => {
       requestHandler = createRequestHandler({
         baseURL: 'https://api.example.com',
@@ -753,17 +761,18 @@ describe('Request Handler', () => {
         onError: () => {},
       });
 
-      jest.useFakeTimers();
-      fetchMock.reset();
+      fetchMock.clearHistory();
+      fetchMock.removeRoutes();
       spy.mockClear();
+      fetchMock.mockGlobal();
     });
 
-    afterEach(() => {
+    afterAll(() => {
       jest.useRealTimers();
     });
 
     it('should apply interceptors correctly', async () => {
-      fetchMock.mock('https://api.example.com/test-endpoint?key=value', {
+      fetchMock.route('https://api.example.com/test-endpoint?key=value', {
         status: 200,
         body: { data: 'response from second request' },
       });
@@ -777,7 +786,7 @@ describe('Request Handler', () => {
     });
 
     it('should handle modified config in interceptRequest', async () => {
-      fetchMock.mock('https://api.example.com/test-endpoint?key=value', {
+      fetchMock.route('https://api.example.com/test-endpoint?key=value', {
         status: 200,
         body: { data: 'response with modified config' },
       });
@@ -786,22 +795,26 @@ describe('Request Handler', () => {
       const params = { key: 'value' };
       const config = {
         onRequest(config) {
-          config.headers = { 'Modified-Header': 'ModifiedValue' };
+          const headers = new Headers();
+          headers.set('Modified-Header', 'ModifiedValue');
+          config.headers = headers;
         },
       } as RequestConfig;
 
       await requestHandler.request(url, { ...config, params });
 
       expect(spy).toHaveBeenCalledTimes(4);
-      expect(fetchMock.lastOptions()).toMatchObject({
-        headers: { 'Modified-Header': 'ModifiedValue' },
+      const lastCall = fetchMock.callHistory.lastCall();
+
+      expect(lastCall?.options?.headers).toMatchObject({
+        'modified-header': 'ModifiedValue',
       });
     });
 
     it('should handle modified response in applyInterceptor', async () => {
       const modifiedUrl = 'https://api.example.com/test-endpoint?key=value';
 
-      fetchMock.mock(
+      fetchMock.route(
         modifiedUrl,
         new Response(JSON.stringify({ username: 'original response' }), {
           status: 200,
@@ -827,7 +840,7 @@ describe('Request Handler', () => {
     });
 
     it('should handle request failure with interceptors', async () => {
-      fetchMock.mock('https://api.example.com/test-endpoint?key=value', {
+      fetchMock.route('https://api.example.com/test-endpoint?key=value', {
         status: 500,
         body: { error: 'Server error' },
       });
@@ -847,7 +860,7 @@ describe('Request Handler', () => {
     });
 
     it('should handle request with different response status', async () => {
-      fetchMock.mock('https://api.example.com/test-endpoint?key=value', {
+      fetchMock.route('https://api.example.com/test-endpoint?key=value', {
         status: 404,
         body: { error: 'Not found' },
       });
@@ -943,39 +956,37 @@ describe('Request Handler', () => {
 
   describe('Request cancellation', () => {
     beforeEach(() => {
-      globalThis.fetch = jest.fn();
+      fetchMock.mockGlobal();
+    });
+
+    afterEach(() => {
+      fetchMock.clearHistory();
+      fetchMock.removeRoutes();
     });
 
     it('should cancel previous request when fetchf() is used', async () => {
       const url = 'https://example.com/api/post/send';
 
-      // Reset fetchMock before each test
-      fetchMock.reset();
-
       let requestCounter = 0;
 
       // Mock the endpoint with a conditional response
-      fetchMock.mock(
-        url,
-        () => {
-          // Increment the counter for each request
-          requestCounter++;
+      fetchMock.route(url, () => {
+        // Increment the counter for each request
+        requestCounter++;
 
-          if (requestCounter === 1) {
-            // Simulate successful response for the first request
-            return {
-              status: 200,
-              body: { message: 'This response is mocked once' },
-            };
-          } else {
-            // Simulate aborted request for subsequent requests
-            return Promise.reject(
-              new DOMException('The operation was aborted.', 'AbortError'),
-            );
-          }
-        },
-        { overwriteRoutes: true },
-      );
+        if (requestCounter === 1) {
+          // Simulate successful response for the first request
+          return {
+            status: 200,
+            body: { message: 'This response is mocked once' },
+          };
+        } else {
+          // Simulate aborted request for subsequent requests
+          return Promise.reject(
+            new DOMException('The operation was aborted.', 'AbortError'),
+          );
+        }
+      });
 
       // Create an API fetcher with cancellable requests enabled
       const sendPost = () =>
@@ -1009,22 +1020,20 @@ describe('Request Handler', () => {
     });
 
     it('should cancel previous request and pass a different successive request', async () => {
-      fetchMock.reset();
-
       const requestHandler = createRequestHandler({
         cancellable: true,
         rejectCancelled: true,
         flattenResponse: true,
       });
 
-      fetchMock.mock(
+      fetchMock.route(
         'https://example.com/first',
         new Promise((_resolve, reject) => {
           reject(new DOMException('The operation was aborted.', ABORT_ERROR));
         }),
       );
 
-      fetchMock.mock('https://example.com/second', {
+      fetchMock.route('https://example.com/second', {
         status: 200,
         body: { username: 'response from second request' },
       });
@@ -1041,8 +1050,6 @@ describe('Request Handler', () => {
     });
 
     it('should not cancel previous request when cancellable is set to false', async () => {
-      fetchMock.reset();
-
       const requestHandler = createRequestHandler({
         cancellable: false, // No request cancellation
         rejectCancelled: true,
@@ -1050,13 +1057,13 @@ describe('Request Handler', () => {
       });
 
       // Mock the first request
-      fetchMock.mock('https://example.com/first', {
+      fetchMock.route('https://example.com/first', {
         status: 200,
         body: { data: { message: 'response from first request' } },
       });
 
       // Mock the second request
-      fetchMock.mock('https://example.com/second', {
+      fetchMock.route('https://example.com/second', {
         status: 200,
         body: { data: { message: 'response from second request' } },
       });
@@ -1076,21 +1083,19 @@ describe('Request Handler', () => {
     });
 
     it('should cancel first request without throwing when successive request is made through fetchf() and rejectCancelled is false', async () => {
-      fetchMock.reset();
-
       const abortedError = new DOMException(
         'The operation was aborted.',
         ABORT_ERROR,
       );
 
-      fetchMock.mock(
+      fetchMock.route(
         'https://example.com/first',
         new Promise((_resolve, reject) => {
           reject(abortedError);
         }),
       );
 
-      fetchMock.mock('https://example.com/second', {
+      fetchMock.route('https://example.com/second', {
         status: 200,
         body: { username: 'response from second request' },
       });
