@@ -33,18 +33,18 @@ export async function queueRequest(
   const item = queue.get(config);
 
   if (item) {
-    const isCancellable = item[3];
+    const prevIsCancellable = item[3];
     const previousController = item[0];
     const timeoutId = item[1];
 
     // If the request is already in the queue and within the dedupeTime, reuse the existing controller
-    if (!isCancellable && now - item[2] < dedupeTime) {
+    if (!prevIsCancellable && now - item[2] < dedupeTime) {
       return previousController;
     }
 
     // If the request is too old, remove it and proceed to add a new one
     // Abort previous request, if applicable, and continue as usual
-    if (isCancellable) {
+    if (prevIsCancellable) {
       previousController.abort(
         new DOMException('Aborted due to new request', ABORT_ERROR),
       );
