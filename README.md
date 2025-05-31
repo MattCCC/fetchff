@@ -127,7 +127,7 @@ To address these challenges, the `fetchf()` provides several enhancements:
 2. **Enhanced Retry Mechanism:**
 
    - **Retry Configuration:** You can configure the number of retries, delay between retries, and exponential backoff for failed requests. This helps to handle transient errors effectively.
-   - **Custom Retry Logic:** The `shouldRetry` asynchronous function allows for custom retry logic based on the error and attempt count, providing flexibility to handle different types of failures.
+   - **Custom Retry Logic:** The `shouldRetry` asynchronous function allows for custom retry logic based on the error from `response.error` and attempt count, providing flexibility to handle different types of failures.
    - **Retry Conditions:** Errors are only retried based on configurable retry conditions, such as specific HTTP status codes or error types.
 
 3. **Improved Error Visibility:**
@@ -813,7 +813,7 @@ The retry mechanism is configured via the `retry` option when instantiating the 
 
 - **`shouldRetry(response, currentAttempt)`**:  
   Type: `RetryFunction`  
-  Function that determines whether a retry should be attempted <b>based on the error</b> or <b>response</b>, and the current attempt number. This function receives the error object and the attempt number as arguments.  
+  Function that determines whether a retry should be attempted <b>based on the error</b> from <b>response</b> object (accessed by: <b>response.error</b>), and the current attempt number. This function receives the error object and the attempt number as arguments.  
   _Default:_ Retry up to the number of specified attempts.
 
 ### How It Works

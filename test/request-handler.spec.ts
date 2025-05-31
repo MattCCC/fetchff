@@ -659,7 +659,8 @@ describe('Request Handler', () => {
         backoff: 1.5, // Backoff factor
         retryOn: [200, 500], // HTTP status codes to retry on
         shouldRetry: jest.fn((response) => {
-          // Retry only if response.error.bookId === 'none'
+          // Retry only if response.data.bookId === 'none'
+          // You can also access response.error if needed
           return response?.data?.bookId === 'none';
         }),
       };
