@@ -93,7 +93,12 @@ export const prepareResponse = <
   PathParams = DefaultUrlParams,
   RequestBody = DefaultPayload,
 >(
-  response: FetchResponse<ResponseData, RequestBody> | null,
+  response: FetchResponse<
+    ResponseData,
+    RequestBody,
+    QueryParams,
+    PathParams
+  > | null,
   requestConfig: RequestConfig<
     ResponseData,
     QueryParams,
@@ -106,7 +111,7 @@ export const prepareResponse = <
     PathParams,
     RequestBody
   > | null = null,
-): FetchResponse<ResponseData, RequestBody> => {
+): FetchResponse<ResponseData, RequestBody, QueryParams, PathParams> => {
   const defaultResponse = requestConfig.defaultResponse ?? null;
 
   // This may happen when request is cancelled.
@@ -118,7 +123,12 @@ export const prepareResponse = <
       data: defaultResponse,
       headers: null,
       config: requestConfig,
-    } as unknown as FetchResponse<ResponseData>;
+    } as unknown as FetchResponse<
+      ResponseData,
+      RequestBody,
+      QueryParams,
+      PathParams
+    >;
   }
 
   let data = response?.data;

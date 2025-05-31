@@ -730,13 +730,18 @@ const { data } = await fetchf('https://api.example.com/', {
     resetTimeout: true, // Resets the timeout for each retry attempt
     backoff: 1.5,
     retryOn: [500, 503],
-    shouldRetry(error, attempt) {
-      // Retry on specific errors or based on custom logic
-      // Use `error.response` to access full response from the fetch()
-      const data = error.response?.data;
+    // Retry on specific errors or based on custom logic
+    shouldRetry(response, attempt) {
+      // Retry if the status text is Not Found (404)
+      if (response.error && response.error.statusText === 'Not Found') {
+        return true;
+      }
+
+      // Use `response.data` to access any data from fetch() response
+      const data = response.data;
 
       // Let's say your backend returns bookId as "none". You can force retry by returning "true".
-      if (data?.bookId == 'none') {
+      if (data?.bookId === 'none') {
         return true;
       }
 
@@ -746,7 +751,23 @@ const { data } = await fetchf('https://api.example.com/', {
 });
 ```
 
-In this example we retry only on 500 and 503 error codes from BE response. The timeout is also reset for each retry attempt (`resetTimeout`). A custom function (`shouldRetry`) adds extra logic: If the server response contains `{"bookId": "none"}`, it forces a retry. Otherwise, it retries only if the attempt count is less than 3. The `retries` setting is still respected firstly but since it's `5` and attempt check is lower, the request will run up to 3 times: first run + 2 retries = 3.
+In this example, the request will retry only on HTTP status codes 500 and 503, as specified in the `retryOn` array. The `resetTimeout` option ensures that the timeout is restarted for each retry attempt. The custom `shouldRetry` function adds further logic: if the server response contains `{"bookId": "none"}`, a retry is forced. Otherwise, the request will retry only if the current attempt number is less than 3. Although the `retries` option is set to 5, the `shouldRetry` function limits the maximum attempts to 3 (the initial request plus 2 retries).
+
+Additionally, you can handle "Not Found" (404) responses or other specific status codes in your retry logic. For example, you might want to retry when the status text is "Not Found":
+
+```typescript
+shouldRetry(response, attempt) {
+  // Retry if the status text is Not Found (404)
+  if (response.error && response.error.statusText === 'Not Found') {
+    return true;
+  }
+  // ...other logic
+}
+```
+
+This allows you to customize retry behavior for cases where a resource might become available after a short delay, or when you want to handle transient 404 errors gracefully.
+
+The whole Error object is under `response.error` generally.
 
 ### Configuration
 
@@ -790,9 +811,9 @@ The retry mechanism is configured via the `retry` option when instantiating the 
   - `503` - Service Unavailable
   - `504` - Gateway Timeout
 
-- **`shouldRetry`**:  
+- **`shouldRetry(response, currentAttempt)`**:  
   Type: `RetryFunction`  
-  Function that determines whether a retry should be attempted based on the error and the current attempt number. This function receives the error object and the attempt number as arguments.  
+  Function that determines whether a retry should be attempted <b>based on the error</b> or <b>response</b>, and the current attempt number. This function receives the error object and the attempt number as arguments.  
   _Default:_ Retry up to the number of specified attempts.
 
 ### How It Works
@@ -1127,11 +1148,11 @@ const api = createApiFetcher({
     maxDelay: 30000, // Maximum delay between retries in milliseconds.
     resetTimeout: true, // Reset the timeout when retrying requests.
     retryOn: [408, 409, 425, 429, 500, 502, 503, 504], // HTTP status codes to retry on.
-    shouldRetry: async (error, attempts) => {
+    shouldRetry: async (response, attempts) => {
       // Custom retry logic.
       return (
         attempts < 3 &&
-        [408, 500, 502, 503, 504].includes(error.response.status)
+        [408, 500, 502, 503, 504].includes(response.error.status)
       );
     },
   },

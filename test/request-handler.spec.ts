@@ -362,8 +362,8 @@ describe('Request Handler', () => {
         maxDelay: 50000, // Maximum delay in ms
         backoff: 1.5, // Backoff factor
         retryOn: [500], // HTTP status codes to retry on
-        shouldRetry: jest.fn((error) => {
-          return Promise.resolve(error.status === 500);
+        shouldRetry: jest.fn((response) => {
+          return Promise.resolve(response.error.status === 500);
         }), // Always retry
       };
 
@@ -582,9 +582,9 @@ describe('Request Handler', () => {
         delay: 100, // Initial delay in ms
         backoff: 1.5, // Backoff factor
         retryOn: [200, 500], // HTTP status codes to retry on
-        shouldRetry: jest.fn((error) => {
-          // Retry only if error.response.bookId === 'none'
-          return error.response?.data?.bookId === 'none';
+        shouldRetry: jest.fn((response) => {
+          // Retry only if response.data.bookId === 'none'
+          return response.data?.bookId === 'none';
         }),
       };
 
@@ -642,7 +642,9 @@ describe('Request Handler', () => {
         expect(retryConfig.shouldRetry).toHaveBeenNthCalledWith(
           i,
           expect.objectContaining({
-            message: 'Simulated error in onResponse',
+            error: expect.objectContaining({
+              message: 'Simulated error in onResponse',
+            }),
           }),
           i - 1, // Retry attempt count
         );
@@ -656,9 +658,9 @@ describe('Request Handler', () => {
         delay: 100, // Initial delay in ms
         backoff: 1.5, // Backoff factor
         retryOn: [200, 500], // HTTP status codes to retry on
-        shouldRetry: jest.fn((error) => {
-          // Retry only if error.response.bookId === 'none'
-          return error.response?.data?.bookId === 'none';
+        shouldRetry: jest.fn((response) => {
+          // Retry only if response.error.bookId === 'none'
+          return response?.data?.bookId === 'none';
         }),
       };
 
@@ -722,9 +724,7 @@ describe('Request Handler', () => {
         expect(retryConfig.shouldRetry).toHaveBeenNthCalledWith(
           i,
           expect.objectContaining({
-            response: expect.objectContaining({
-              data: { bookId: 'none' },
-            }),
+            data: { bookId: 'none' },
           }),
           i - 1, // Retry attempt count
         );
