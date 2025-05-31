@@ -668,8 +668,6 @@ document.getElementById('message')?.addEventListener('keydown', sendRequest);
 
 ### Example
 
-Here's an example of how to configure polling:
-
 ```typescript
 const { data } = await fetchf('https://api.example.com/', {
   pollingInterval: 5000, // Poll every 5 seconds
@@ -829,6 +827,38 @@ The retry mechanism is configured via the `retry` option when instantiating the 
 3. **Logging**: During retries, the mechanism logs warnings indicating the retry attempts and the delay before the next attempt, which helps in debugging and understanding the retry behavior.
 
 4. **Final Outcome**: If all retry attempts fail, the request will throw an error, and the final failure is processed according to the configured error handling logic.
+
+### 429 Retry-After Handling
+
+When a request receives a **429 Too Many Requests** response, `fetchff` will automatically check for the `Retry-After` header and use its value to determine the delay before the next retry attempt. This works for both seconds and HTTP-date formats, and falls back to your configured delay if the header is missing or invalid.
+
+**How it works:**
+
+- If the server responds with 429 and a `Retry-After` header, the delay for the next retry will be set to the value from that header (in ms).
+- If the header is missing or invalid, the default retry delay is used.
+
+**Example:**
+
+```typescript
+const { data } = await fetchf('https://api.example.com/', {
+  retry: {
+    retries: 2,
+    delay: 1000, // fallback if Retry-After is missing
+    retryOn: [429], // 429 is already checked by default so it is not necessary to add it
+  },
+});
+```
+
+If the server responds with:
+
+```
+HTTP/1.1 429 Too Many Requests
+Retry-After: 5
+```
+
+The next retry will wait 5000ms before attempting again.
+
+If the header is an HTTP-date, the delay will be calculated as the difference between the date and the current time.
 
 </details>
 
