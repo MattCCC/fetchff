@@ -1105,6 +1105,7 @@ Security is a core design principle of FetchFF, with sanitization mechanisms run
 | **Multiple Fetching Strategies**                   | ✅          | --           | --           | --           | --             |
 | **Dynamic URLs**                                   | ✅          | --           | ✅           | --           | --             |
 | **Automatic Retry on Failure**                     | ✅          | ✅           | --           | ✅           | --             |
+| **Automatically handle 429 Retry-After headers**   | ✅          | --           | --           | --           | --             |
 | **Built-in Input Sanitization**                    | ✅          | --           | --           | --           | --             |
 | **Prototype Pollution Protection**                 | ✅          | --           | --           | --           | --             |
 | **Server-Side Rendering (SSR) Support**            | ✅          | ✅           | --           | --           | --             |
