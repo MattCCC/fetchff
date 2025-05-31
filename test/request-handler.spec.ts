@@ -744,6 +744,138 @@ describe('Request Handler', () => {
     });
   });
 
+  describe('request() 429 Retry-After handling', () => {
+    const baseURL = 'https://api.example.com';
+    const mockLogger = { warn: jest.fn() };
+    let mockDelayInvocation: jest.MockedFunction<typeof delayInvocation>;
+
+    beforeEach(() => {
+      jest.useFakeTimers();
+      jest.clearAllMocks();
+      fetchMock.mockGlobal();
+      mockDelayInvocation = delayInvocation as jest.MockedFunction<
+        typeof delayInvocation
+      >;
+      mockDelayInvocation.mockResolvedValue(true);
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+      fetchMock.clearHistory();
+      fetchMock.removeRoutes();
+    });
+
+    it('should respect Retry-After header in seconds for 429', async () => {
+      let callCount = 0;
+      fetchMock.route(baseURL + '/endpoint', () => {
+        callCount++;
+        if (callCount === 1) {
+          return {
+            status: 429,
+            headers: new Headers({ 'Retry-After': '2' }),
+            body: {},
+          };
+        }
+        return { status: 200, body: {} };
+      });
+      await fetchf(baseURL + '/endpoint', {
+        retry: {
+          retries: 1,
+          delay: 100,
+          maxDelay: 5000,
+          backoff: 1.5,
+          retryOn: [429],
+          shouldRetry: () => Promise.resolve(true),
+        },
+        logger: mockLogger,
+        onError: jest.fn(),
+      });
+      expect(mockDelayInvocation).toHaveBeenCalledWith(2000);
+    });
+
+    it('should respect Retry-After header as HTTP-date for 429', async () => {
+      let callCount = 0;
+      const futureDate = new Date(Date.now() + 3000).toUTCString();
+      fetchMock.route(baseURL + '/endpoint', () => {
+        callCount++;
+        if (callCount === 1) {
+          return {
+            status: 429,
+            headers: { 'Retry-After': futureDate },
+            body: {},
+          };
+        }
+        return { status: 200, body: {} };
+      });
+      await fetchf(baseURL + '/endpoint', {
+        retry: {
+          retries: 1,
+          delay: 100,
+          maxDelay: 5000,
+          backoff: 1.5,
+          retryOn: [429],
+          shouldRetry: () => Promise.resolve(true),
+        },
+        logger: mockLogger,
+        onError: jest.fn(),
+      });
+      expect(mockDelayInvocation.mock.calls[0][0]).toBeGreaterThanOrEqual(0);
+      expect(mockDelayInvocation.mock.calls[0][0]).toBeLessThanOrEqual(3000);
+    });
+
+    it('should use default delay if Retry-After header is missing', async () => {
+      let callCount = 0;
+      fetchMock.route(baseURL + '/endpoint', () => {
+        callCount++;
+        if (callCount === 1) {
+          return { status: 429, headers: {}, body: {} };
+        }
+        return { status: 200, body: {} };
+      });
+      await fetchf(baseURL + '/endpoint', {
+        retry: {
+          retries: 1,
+          delay: 1234,
+          maxDelay: 5000,
+          backoff: 1.5,
+          retryOn: [429],
+          shouldRetry: () => Promise.resolve(true),
+        },
+        logger: mockLogger,
+        onError: jest.fn(),
+      });
+      expect(mockDelayInvocation).toHaveBeenCalledWith(1234);
+    });
+
+    it('should use default delay if Retry-After header is invalid', async () => {
+      let callCount = 0;
+      fetchMock.route(baseURL + '/endpoint', () => {
+        callCount++;
+        if (callCount === 1) {
+          return {
+            status: 429,
+            headers: { 'Retry-After': 'not-a-date' },
+            body: {},
+          };
+        }
+        return { status: 200, body: {} };
+      });
+      await fetchf(baseURL + '/endpoint', {
+        retry: {
+          retries: 1,
+          delay: 4321,
+          maxDelay: 5000,
+          backoff: 1.5,
+          retryOn: [429],
+          shouldRetry: () => Promise.resolve(true),
+        },
+        logger: mockLogger,
+        onError: jest.fn(),
+      });
+      expect(mockDelayInvocation).toHaveBeenCalledWith(4321);
+    });
+  });
+
   describe('request() with interceptors', () => {
     let requestHandler: RequestHandlerReturnType;
     const spy = jest.spyOn(interceptorManager, 'applyInterceptor');

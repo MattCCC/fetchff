@@ -21,6 +21,7 @@ import { ABORT_ERROR, CANCELLED_ERROR } from './constants';
 import { prepareResponse, parseResponseData } from './response-parser';
 import { generateCacheKey, getCache, setCache } from './cache-manager';
 import { buildConfig, defaultConfig, mergeConfig } from './config-handler';
+import { getRetryAfterMs } from './retry-handler';
 
 /**
  * Create Request Handler
@@ -197,7 +198,6 @@ export function createRequestHandler(
 
         removeRequestFromQueue(fetcherConfig);
 
-        // If polling is not required, or polling attempts are exhausted
         const output = prepareResponse<
           ResponseData,
           QueryParams,
@@ -205,6 +205,7 @@ export function createRequestHandler(
           RequestBody
         >(response, requestConfig);
 
+        // Retry on response logic
         if (
           shouldRetry &&
           attempt < retries &&
@@ -220,12 +221,14 @@ export function createRequestHandler(
           waitTime *= backoff;
           waitTime = Math.min(waitTime, maxDelay);
           attempt++;
+
           continue; // Retry the request
         }
 
         // Polling logic
         if (
           pollingInterval &&
+          // If polling is not required, or polling attempts are exhausted
           (!shouldStopPolling || !shouldStopPolling(output, pollingAttempt))
         ) {
           // Restart the main retry loop
@@ -311,6 +314,17 @@ export function createRequestHandler(
           }
 
           return output;
+        }
+
+        // If the error status is 429 (Too Many Requests), handle rate limiting
+        if (error.status === 429) {
+          // Try to extract the "Retry-After" value from the response headers
+          const retryAfterMs = getRetryAfterMs(output);
+
+          // If a valid retry-after value is found, override the wait time before next retry
+          if (retryAfterMs !== null) {
+            waitTime = retryAfterMs;
+          }
         }
 
         logger(
