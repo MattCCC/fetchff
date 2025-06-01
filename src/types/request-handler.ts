@@ -71,12 +71,21 @@ export interface HeadersObject {
   [key: string]: string;
 }
 
-export interface ExtendedResponse<ResponseData = any, RequestBody = any>
-  extends Omit<Response, 'headers'> {
+export interface ExtendedResponse<
+  ResponseData = DefaultResponse,
+  RequestBody = DefaultPayload,
+  QueryParams = DefaultParams,
+  PathParams = DefaultUrlParams,
+> extends Omit<Response, 'headers'> {
   data: ResponseData extends [unknown] ? any : ResponseData;
-  error: ResponseError<ResponseData, any, any, RequestBody> | null;
+  error: ResponseError<
+    ResponseData,
+    QueryParams,
+    PathParams,
+    RequestBody
+  > | null;
   headers: HeadersObject & HeadersInit;
-  config: RequestConfig<ResponseData, any, any, RequestBody>;
+  config: RequestConfig<ResponseData, QueryParams, PathParams, RequestBody>;
 }
 
 /**
@@ -87,7 +96,9 @@ export interface ExtendedResponse<ResponseData = any, RequestBody = any>
 export type FetchResponse<
   ResponseData = any,
   RequestBody = any,
-> = ExtendedResponse<ResponseData, RequestBody>;
+  QueryParams = DefaultParams,
+  PathParams = DefaultUrlParams,
+> = ExtendedResponse<ResponseData, RequestBody, QueryParams, PathParams>;
 
 export interface ResponseError<
   ResponseData = DefaultResponse,
@@ -108,24 +119,13 @@ export type RetryFunction<
   PathParams = DefaultUrlParams,
   RequestBody = DefaultPayload,
 > = (
-  error:
-    | ResponseError<ResponseData, QueryParams, PathParams, RequestBody>
-    | {
-        config: RequestConfig<
-          ResponseData,
-          QueryParams,
-          PathParams,
-          RequestBody
-        >;
-        request: RequestConfig<
-          ResponseData,
-          QueryParams,
-          PathParams,
-          RequestBody
-        >;
-        response: FetchResponse<ResponseData, RequestBody> | null;
-      },
-  attempts: number,
+  response: ExtendedResponse<
+    ResponseData,
+    RequestBody,
+    QueryParams,
+    PathParams
+  >,
+  attempt: number,
 ) => Promise<boolean> | boolean;
 
 export type PollingFunction<

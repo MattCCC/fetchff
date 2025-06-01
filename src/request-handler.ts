@@ -21,6 +21,7 @@ import { ABORT_ERROR, CANCELLED_ERROR } from './constants';
 import { prepareResponse, parseResponseData } from './response-parser';
 import { generateCacheKey, getCache, setCache } from './cache-manager';
 import { buildConfig, defaultConfig, mergeConfig } from './config-handler';
+import { getRetryAfterMs } from './retry-handler';
 
 /**
  * Create Request Handler
@@ -52,54 +53,6 @@ export function createRequestHandler(
    */
   const getInstance = (): CreatedCustomFetcherInstance | null => {
     return requestInstance || null;
-  };
-
-  /**
-   * Output default response in case of an error, depending on chosen strategy
-   *
-   * @param {ResponseError<ResponseData, QueryParams, PathParams, RequestBody>} error - Error instance
-   * @param {FetchResponse<ResponseData, RequestBody> | null} response - Response. It may be "null" in case of request being aborted.
-   * @param {RequestConfig<ResponseData, QueryParams, PathParams, RequestBody>} requestConfig - Per endpoint request config
-   * @returns {FetchResponse<ResponseData, RequestBody>} Response together with the error object
-   */
-  const outputErrorResponse = async <
-    ResponseData = DefaultResponse,
-    QueryParams = DefaultParams,
-    PathParams = DefaultUrlParams,
-    RequestBody = DefaultPayload,
-  >(
-    error: ResponseError<ResponseData, QueryParams, PathParams, RequestBody>,
-    response: FetchResponse<ResponseData, RequestBody> | null,
-    requestConfig: RequestConfig<
-      ResponseData,
-      QueryParams,
-      PathParams,
-      RequestBody
-    >,
-  ): Promise<any> => {
-    // Only handle the error if the request was not cancelled,
-    // or if it was cancelled and rejectCancelled is true
-    const isCancelled = isRequestCancelled(error as ResponseError);
-    const shouldHandleError = !isCancelled || requestConfig.rejectCancelled;
-
-    if (shouldHandleError) {
-      const errorHandlingStrategy = requestConfig.strategy;
-
-      // Reject the promise
-      if (errorHandlingStrategy === 'reject') {
-        return Promise.reject(error);
-      } // Hang the promise
-      else if (errorHandlingStrategy === 'silent') {
-        await new Promise(() => null);
-      }
-    }
-
-    // SoftFail strategy: output full response object with error and data defaulting to "defaultResponse"
-    return prepareResponse<ResponseData, QueryParams, PathParams, RequestBody>(
-      response,
-      requestConfig,
-      error,
-    );
   };
 
   /**
@@ -245,13 +198,18 @@ export function createRequestHandler(
 
         removeRequestFromQueue(fetcherConfig);
 
+        const output = prepareResponse<
+          ResponseData,
+          QueryParams,
+          PathParams,
+          RequestBody
+        >(response, requestConfig);
+
+        // Retry on response logic
         if (
           shouldRetry &&
           attempt < retries &&
-          (await shouldRetry(
-            { config: fetcherConfig, request: fetcherConfig, response },
-            attempt,
-          ))
+          (await shouldRetry(output, attempt))
         ) {
           logger(
             mergedConfig,
@@ -263,13 +221,15 @@ export function createRequestHandler(
           waitTime *= backoff;
           waitTime = Math.min(waitTime, maxDelay);
           attempt++;
+
           continue; // Retry the request
         }
 
         // Polling logic
         if (
           pollingInterval &&
-          (!shouldStopPolling || !shouldStopPolling(response, pollingAttempt))
+          // If polling is not required, or polling attempts are exhausted
+          (!shouldStopPolling || !shouldStopPolling(output, pollingAttempt))
         ) {
           // Restart the main retry loop
           pollingAttempt++;
@@ -280,14 +240,6 @@ export function createRequestHandler(
 
           continue;
         }
-
-        // If polling is not required, or polling attempts are exhausted
-        const output = prepareResponse<
-          ResponseData,
-          QueryParams,
-          PathParams,
-          RequestBody
-        >(response, requestConfig);
 
         if (
           cacheTime &&
@@ -314,16 +266,24 @@ export function createRequestHandler(
         error.request = fetcherConfig;
         error.response = response;
 
+        // Prepare Extended Response
+        const output = prepareResponse<
+          ResponseData,
+          QueryParams,
+          PathParams,
+          RequestBody
+        >(response, fetcherConfig, error);
+
         if (
           // We check retries provided regardless of the shouldRetry being provided so to avoid infinite loops.
           // It is a fail-safe so to prevent excessive retry attempts even if custom retry logic suggests a retry.
           attempt === retries || // Stop if the maximum retries have been reached
           !retryOn?.includes(error.status) || // Check if the error status is retryable
           !shouldRetry ||
-          !(await shouldRetry(error, attempt)) // If shouldRetry is defined, evaluate it
+          !(await shouldRetry(output, attempt)) // If shouldRetry is defined, evaluate it
         ) {
           if (!isRequestCancelled(error as ResponseError)) {
-            logger(mergedConfig, 'API ERROR', error as ResponseError);
+            logger(mergedConfig, 'FETCH ERROR', error as ResponseError);
           }
 
           // Local interceptors
@@ -332,14 +292,39 @@ export function createRequestHandler(
           // Global interceptors
           await applyInterceptor(error, handlerConfig.onError);
 
+          // Remove the request from the queue
           removeRequestFromQueue(fetcherConfig);
 
-          return outputErrorResponse<
-            ResponseData,
-            QueryParams,
-            PathParams,
-            RequestBody
-          >(error, response, fetcherConfig);
+          // Only handle the error if the request was not cancelled,
+          // or if it was cancelled and rejectCancelled is true
+          const isCancelled = isRequestCancelled(error as ResponseError);
+          const shouldHandleError =
+            !isCancelled || mergedConfig.rejectCancelled;
+
+          if (shouldHandleError) {
+            const errorHandlingStrategy = mergedConfig.strategy;
+
+            // Reject the promise
+            if (errorHandlingStrategy === 'reject') {
+              return Promise.reject(error);
+            } // Hang the promise
+            else if (errorHandlingStrategy === 'silent') {
+              await new Promise(() => null);
+            }
+          }
+
+          return output;
+        }
+
+        // If the error status is 429 (Too Many Requests), handle rate limiting
+        if (error.status === 429) {
+          // Try to extract the "Retry-After" value from the response headers
+          const retryAfterMs = getRetryAfterMs(output);
+
+          // If a valid retry-after value is found, override the wait time before next retry
+          if (retryAfterMs !== null) {
+            waitTime = retryAfterMs;
+          }
         }
 
         logger(

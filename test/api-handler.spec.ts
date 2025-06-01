@@ -4,6 +4,8 @@ import { createApiFetcher } from '../src';
 import fetchMock from 'fetch-mock';
 
 describe('API Handler', () => {
+  fetchMock.mockGlobal();
+
   const fetcher = {
     create: jest.fn().mockReturnValue({ request: jest.fn() }),
   };
@@ -118,7 +120,7 @@ describe('API Handler', () => {
         },
       });
 
-      fetchMock.mock('https://attackers-site.com', {
+      fetchMock.route('https://attackers-site.com', {
         status: 200,
         body: { data: userDataMock },
       });

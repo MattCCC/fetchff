@@ -15,9 +15,9 @@
 
 ## Why?
 
-To extend native fetch() with no overhead, wrap and reuse common patterns and functionalities in a simple and declarative manner.
+This is a high level library to extend the functionality of native fetch() with everything necessary and no overhead, so to wrap and reuse common patterns and functionalities in a simple and declarative manner.
 
-Managing multitude of API connections in large applications can be complex, time-consuming and hard to scale. `fetchff` simplifies the process by offering a simple, declarative approach to API handling using Repository Pattern. It reduces the need for extensive setup, middlewares, retries, custom caching, and heavy plugins, and lets developers focus on data handling and application logic.
+Also, managing multitude of API connections in large applications can be complex, time-consuming and hard to scale. `fetchff` simplifies the process by offering a simple, declarative approach to API handling using Repository Pattern. It reduces the need for extensive setup, middlewares, retries, custom caching, and heavy plugins, and lets developers focus on data handling and application logic.
 
 **Key Benefits:**
 
@@ -127,7 +127,7 @@ To address these challenges, the `fetchf()` provides several enhancements:
 2. **Enhanced Retry Mechanism:**
 
    - **Retry Configuration:** You can configure the number of retries, delay between retries, and exponential backoff for failed requests. This helps to handle transient errors effectively.
-   - **Custom Retry Logic:** The `shouldRetry` asynchronous function allows for custom retry logic based on the error and attempt count, providing flexibility to handle different types of failures.
+   - **Custom Retry Logic:** The `shouldRetry` asynchronous function allows for custom retry logic based on the error from `response.error` and attempt count, providing flexibility to handle different types of failures.
    - **Retry Conditions:** Errors are only retried based on configurable retry conditions, such as specific HTTP status codes or error types.
 
 3. **Improved Error Visibility:**
@@ -668,8 +668,6 @@ document.getElementById('message')?.addEventListener('keydown', sendRequest);
 
 ### Example
 
-Here's an example of how to configure polling:
-
 ```typescript
 const { data } = await fetchf('https://api.example.com/', {
   pollingInterval: 5000, // Poll every 5 seconds
@@ -730,13 +728,18 @@ const { data } = await fetchf('https://api.example.com/', {
     resetTimeout: true, // Resets the timeout for each retry attempt
     backoff: 1.5,
     retryOn: [500, 503],
-    shouldRetry(error, attempt) {
-      // Retry on specific errors or based on custom logic
-      // Use `error.response` to access full response from the fetch()
-      const data = error.response?.data;
+    // Retry on specific errors or based on custom logic
+    shouldRetry(response, attempt) {
+      // Retry if the status text is Not Found (404)
+      if (response.error && response.error.statusText === 'Not Found') {
+        return true;
+      }
+
+      // Use `response.data` to access any data from fetch() response
+      const data = response.data;
 
       // Let's say your backend returns bookId as "none". You can force retry by returning "true".
-      if (data?.bookId == 'none') {
+      if (data?.bookId === 'none') {
         return true;
       }
 
@@ -746,7 +749,23 @@ const { data } = await fetchf('https://api.example.com/', {
 });
 ```
 
-In this example we retry only on 500 and 503 error codes from BE response. The timeout is also reset for each retry attempt (`resetTimeout`). A custom function (`shouldRetry`) adds extra logic: If the server response contains `{"bookId": "none"}`, it forces a retry. Otherwise, it retries only if the attempt count is less than 3. The `retries` setting is still respected firstly but since it's `5` and attempt check is lower, the request will run up to 3 times: first run + 2 retries = 3.
+In this example, the request will retry only on HTTP status codes 500 and 503, as specified in the `retryOn` array. The `resetTimeout` option ensures that the timeout is restarted for each retry attempt. The custom `shouldRetry` function adds further logic: if the server response contains `{"bookId": "none"}`, a retry is forced. Otherwise, the request will retry only if the current attempt number is less than 3. Although the `retries` option is set to 5, the `shouldRetry` function limits the maximum attempts to 3 (the initial request plus 2 retries).
+
+Additionally, you can handle "Not Found" (404) responses or other specific status codes in your retry logic. For example, you might want to retry when the status text is "Not Found":
+
+```typescript
+shouldRetry(response, attempt) {
+  // Retry if the status text is Not Found (404)
+  if (response.error && response.error.statusText === 'Not Found') {
+    return true;
+  }
+  // ...other logic
+}
+```
+
+This allows you to customize retry behavior for cases where a resource might become available after a short delay, or when you want to handle transient 404 errors gracefully.
+
+The whole Error object is under `response.error` generally.
 
 ### Configuration
 
@@ -790,9 +809,9 @@ The retry mechanism is configured via the `retry` option when instantiating the 
   - `503` - Service Unavailable
   - `504` - Gateway Timeout
 
-- **`shouldRetry`**:  
+- **`shouldRetry(response, currentAttempt)`**:  
   Type: `RetryFunction`  
-  Function that determines whether a retry should be attempted based on the error and the current attempt number. This function receives the error object and the attempt number as arguments.  
+  Function that determines whether a retry should be attempted <b>based on the error</b> from <b>response</b> object (accessed by: <b>response.error</b>), and the current attempt number. This function receives the error object and the attempt number as arguments.  
   _Default:_ Retry up to the number of specified attempts.
 
 ### How It Works
@@ -808,6 +827,38 @@ The retry mechanism is configured via the `retry` option when instantiating the 
 3. **Logging**: During retries, the mechanism logs warnings indicating the retry attempts and the delay before the next attempt, which helps in debugging and understanding the retry behavior.
 
 4. **Final Outcome**: If all retry attempts fail, the request will throw an error, and the final failure is processed according to the configured error handling logic.
+
+### 429 Retry-After Handling
+
+When a request receives a **429 Too Many Requests** response, `fetchff` will automatically check for the `Retry-After` header and use its value to determine the delay before the next retry attempt. This works for both seconds and HTTP-date formats, and falls back to your configured delay if the header is missing or invalid.
+
+**How it works:**
+
+- If the server responds with 429 and a `Retry-After` header, the delay for the next retry will be set to the value from that header (in ms).
+- If the header is missing or invalid, the default retry delay is used.
+
+**Example:**
+
+```typescript
+const { data } = await fetchf('https://api.example.com/', {
+  retry: {
+    retries: 2,
+    delay: 1000, // fallback if Retry-After is missing
+    retryOn: [429], // 429 is already checked by default so it is not necessary to add it
+  },
+});
+```
+
+If the server responds with:
+
+```
+HTTP/1.1 429 Too Many Requests
+Retry-After: 5
+```
+
+The next retry will wait 5000ms before attempting again.
+
+If the header is an HTTP-date, the delay will be calculated as the difference between the date and the current time.
 
 </details>
 
@@ -1054,6 +1105,7 @@ Security is a core design principle of FetchFF, with sanitization mechanisms run
 | **Multiple Fetching Strategies**                   | ✅          | --           | --           | --           | --             |
 | **Dynamic URLs**                                   | ✅          | --           | ✅           | --           | --             |
 | **Automatic Retry on Failure**                     | ✅          | ✅           | --           | ✅           | --             |
+| **Automatically handle 429 Retry-After headers**   | ✅          | --           | --           | --           | --             |
 | **Built-in Input Sanitization**                    | ✅          | --           | --           | --           | --             |
 | **Prototype Pollution Protection**                 | ✅          | --           | --           | --           | --             |
 | **Server-Side Rendering (SSR) Support**            | ✅          | ✅           | --           | --           | --             |
@@ -1127,11 +1179,11 @@ const api = createApiFetcher({
     maxDelay: 30000, // Maximum delay between retries in milliseconds.
     resetTimeout: true, // Reset the timeout when retrying requests.
     retryOn: [408, 409, 425, 429, 500, 502, 503, 504], // HTTP status codes to retry on.
-    shouldRetry: async (error, attempts) => {
+    shouldRetry: async (response, attempts) => {
       // Custom retry logic.
       return (
         attempts < 3 &&
-        [408, 500, 502, 503, 504].includes(error.response.status)
+        [408, 500, 502, 503, 504].includes(response.error.status)
       );
     },
   },

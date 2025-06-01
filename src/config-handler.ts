@@ -73,9 +73,7 @@ export const buildConfig = (
     body = requestConfig.body ?? requestConfig.data;
   }
 
-  const headers = requestConfig.headers as HeadersInit | HeadersObject;
-
-  setContentTypeIfNeeded(method, headers, body);
+  setContentTypeIfNeeded(method, requestConfig.headers, body);
 
   // Native fetch compatible settings
   const credentials = requestConfig.withCredentials
@@ -124,10 +122,10 @@ export const buildConfig = (
  */
 const setContentTypeIfNeeded = (
   method: string,
-  headers: HeadersInit | HeadersObject,
+  headers?: HeadersInit | HeadersObject,
   body?: unknown,
 ): void => {
-  if (!body && ['PUT', 'DELETE'].includes(method)) {
+  if (!headers || (!body && ['PUT', 'DELETE'].includes(method))) {
     return;
   }
 
