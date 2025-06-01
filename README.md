@@ -921,6 +921,16 @@ Each request returns the following Response Object of type <b>FetchResponse&lt;R
   - **Type**: `RequestConfig`
   - The configuration object with all settings used for the request, including URL, method, headers, and query parameters.
 
+- **`status`**:
+
+  - **Type**: `number`
+  - The HTTP status code of the response (e.g., 404, 500).
+
+- **`statusText`**:
+
+  - **Type**: `string`
+  - The HTTP status text of the response (e.g., 'Not Found', 'Internal Server Error').
+
 - **`headers`**:
 
   - **Type**: `HeadersObject`

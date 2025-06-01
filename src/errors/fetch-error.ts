@@ -31,7 +31,6 @@ export class FetchError<
 
     this.name = 'FetchError';
 
-    this.message = message;
     this.status = response?.status || 0;
     this.statusText = response?.statusText || '';
     this.request = request;
