@@ -61,7 +61,7 @@ describe('Cache Manager', () => {
       } as never);
 
       expect(key).toContain(
-        'accept-encodinggzipdeflatebrcontent-typeapplicationjso',
+        'accept-encodinggzipdeflatebrcontent-typeapplicationjson',
       );
     });
 
