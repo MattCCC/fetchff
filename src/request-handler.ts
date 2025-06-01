@@ -251,8 +251,8 @@ export function createRequestHandler(
         if (
           cacheTime &&
           _cacheKey &&
-          requestConfig.skipCache &&
-          !requestConfig.skipCache(output, requestConfig)
+          (!requestConfig.skipCache ||
+            !requestConfig.skipCache(output, requestConfig))
         ) {
           setCache(_cacheKey, output);
         }

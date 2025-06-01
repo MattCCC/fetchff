@@ -10,6 +10,7 @@ import type {
 import { fetchf } from '../src';
 import type { ResponseError } from '../src/errors/response-error';
 import { ABORT_ERROR } from '../src/constants';
+import { pruneCache } from '../src/cache-manager';
 
 jest.mock('../src/utils', () => {
   const originalModule = jest.requireActual('../src/utils');
@@ -1300,6 +1301,101 @@ describe('Request Handler', () => {
       expect(
         await requestHandler.request(apiUrl, { method: 'head' }),
       ).toMatchObject({ data: null });
+    });
+  });
+
+  describe('request() cache', () => {
+    const apiUrl = 'http://example.com/api/cache-test';
+    let requestHandler: RequestHandlerReturnType;
+
+    beforeEach(() => {
+      jest.useFakeTimers();
+      fetchMock.clearHistory();
+      fetchMock.removeRoutes();
+      fetchMock.mockGlobal();
+      requestHandler = createRequestHandler({
+        cacheTime: 60,
+      });
+    });
+
+    afterEach(() => {
+      fetchMock.clearHistory();
+      fetchMock.removeRoutes();
+      pruneCache(0.001);
+      jest.useRealTimers();
+    });
+
+    it('should cache the response and return cached data on subsequent requests', async () => {
+      let callCount = 0;
+      fetchMock.get(apiUrl, () => {
+        callCount++;
+        return { status: 200, body: { value: 'cached' } };
+      });
+
+      // First request - should hit the network
+      const firstResponse = await requestHandler.request(apiUrl);
+      expect(firstResponse.data).toEqual({ value: 'cached' });
+      expect(callCount).toBe(1);
+
+      // Second request - should return cached data, not hit the network
+      const secondResponse = await requestHandler.request(apiUrl);
+      expect(secondResponse.data).toEqual({ value: 'cached' });
+      expect(callCount).toBe(1);
+    });
+
+    it('should bypass cache if cacheTime is 0', async () => {
+      let callCount = 0;
+      fetchMock.get(apiUrl, () => {
+        callCount++;
+        return { status: 200, body: { value: 'no-cache' } };
+      });
+
+      const handlerNoCache = createRequestHandler({ cacheTime: 0 });
+      await handlerNoCache.request(apiUrl);
+      await handlerNoCache.request(apiUrl);
+      expect(callCount).toBe(2);
+    });
+
+    it('should cache different responses for different URLs', async () => {
+      let callCountA = 0;
+      let callCountB = 0;
+      fetchMock.get('http://example.com/api/a', () => {
+        callCountA++;
+        return { status: 200, body: { value: 'A' } };
+      });
+      fetchMock.get('http://example.com/api/b', () => {
+        callCountB++;
+        return { status: 200, body: { value: 'B' } };
+      });
+
+      const handler = createRequestHandler({ cacheTime: 60 });
+      const respA1 = await handler.request('http://example.com/api/a');
+      const respA2 = await handler.request('http://example.com/api/a');
+      const respB1 = await handler.request('http://example.com/api/b');
+      const respB2 = await handler.request('http://example.com/api/b');
+      expect(respA1.data).toEqual({ value: 'A' });
+      expect(respA2.data).toEqual({ value: 'A' });
+      expect(respB1.data).toEqual({ value: 'B' });
+      expect(respB2.data).toEqual({ value: 'B' });
+      expect(callCountA).toBe(1);
+      expect(callCountB).toBe(1);
+    });
+
+    it('should not return cached data if cache is expired', async () => {
+      let callCount = 0;
+      fetchMock.get(apiUrl, () => {
+        callCount++;
+        return { status: 200, body: { value: 'expire' } };
+      });
+      // Use 1 second for cacheTime to avoid timing issues
+      const handler = createRequestHandler({ cacheTime: 1 });
+      const resp1 = await handler.request(apiUrl);
+      expect(resp1.data).toEqual({ value: 'expire' });
+      // Simulate cache expiration (advance by 1100ms > 1s)
+      jest.advanceTimersByTime(1100);
+      const resp2 = await handler.request(apiUrl);
+      expect(resp2.data).toEqual({ value: 'expire' });
+      expect(callCount).toBe(2);
     });
   });
 });
