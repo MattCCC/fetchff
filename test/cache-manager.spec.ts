@@ -5,6 +5,7 @@ import {
   revalidate,
   deleteCache,
   mutate,
+  getCachedResponse,
 } from '../src/cache-manager';
 import { fetchf } from '../src/index';
 import * as hashM from '../src/hash';
@@ -359,6 +360,80 @@ describe('Cache Manager', () => {
         false,
       );
       expect(fetchf).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getCachedResponse', () => {
+    const cacheKey = 'test-key';
+    const fetcherConfig = { url: 'https://api.example.com' };
+    const cacheTime = 60;
+    const responseObj = { data: 'cachedData' };
+
+    afterEach(() => {
+      deleteCache(cacheKey);
+    });
+
+    it('should return cached response if available and not expired', () => {
+      setCache(cacheKey, responseObj);
+      const result = getCachedResponse(
+        cacheKey,
+        cacheTime,
+        undefined,
+        fetcherConfig,
+      );
+      expect(result).toEqual(responseObj);
+    });
+
+    it('should return null if cacheKey is null', () => {
+      setCache(cacheKey, responseObj);
+      const result = getCachedResponse(
+        null,
+        cacheTime,
+        undefined,
+        fetcherConfig,
+      );
+      expect(result).toBeNull();
+    });
+
+    it('should return null if cacheTime is undefined', () => {
+      setCache(cacheKey, responseObj);
+      const result = getCachedResponse(
+        cacheKey,
+        undefined,
+        undefined,
+        fetcherConfig,
+      );
+      expect(result).toBeNull();
+    });
+
+    it('should return null if cache is expired', () => {
+      setCache(cacheKey, responseObj);
+      // Simulate expiration by using negative cacheTime
+      const result = getCachedResponse(cacheKey, -1, undefined, fetcherConfig);
+      expect(result).toBeNull();
+    });
+
+    it('should return null if cacheBuster returns true', () => {
+      setCache(cacheKey, responseObj);
+      const cacheBuster = jest.fn().mockReturnValue(true);
+      const result = getCachedResponse(
+        cacheKey,
+        cacheTime,
+        cacheBuster,
+        fetcherConfig,
+      );
+      expect(result).toBeNull();
+      expect(cacheBuster).toHaveBeenCalledWith(fetcherConfig);
+    });
+
+    it('should return null if no cache entry exists', () => {
+      const result = getCachedResponse(
+        'non-existent-key',
+        cacheTime,
+        undefined,
+        fetcherConfig,
+      );
+      expect(result).toBeNull();
     });
   });
 });

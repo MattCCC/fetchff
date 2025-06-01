@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { hash } from './hash';
 import { fetchf } from './index';
-import type { FetcherConfig } from './types/request-handler';
+import type { FetcherConfig, FetchResponse } from './types/request-handler';
 import type { CacheEntry } from './types/cache-manager';
 import { GET, OBJECT, UNDEFINED } from './constants';
 import { shallowSerialize, sortObject } from './utils';
@@ -246,4 +246,52 @@ export function mutate<T>(
   if (revalidateAfter) {
     revalidate(key, config);
   }
+}
+
+/**
+ * Retrieves a cached response if available and valid, otherwise returns null.
+ *
+ * @template ResponseData - The type of the response data.
+ * @template RequestBody - The type of the request body.
+ * @template QueryParams - The type of the query parameters.
+ * @template PathParams - The type of the path parameters.
+ * @param {string | null} cacheKey - The cache key to look up.
+ * @param {number | undefined} cacheTime - The maximum time to cache entry.
+ * @param {(cfg: any) => boolean | undefined} cacheBuster - Optional function to determine if cache should be bypassed.
+ * @param {FetcherConfig<ResponseData, QueryParams, PathParams, RequestBody>} fetcherConfig - The fetcher configuration.
+ * @returns {FetchResponse<ResponseData, RequestBody, QueryParams, PathParams> | null} - The cached response or null.
+ */
+export function getCachedResponse<
+  ResponseData,
+  RequestBody,
+  QueryParams,
+  PathParams,
+>(
+  cacheKey: string | null,
+  cacheTime: number | undefined,
+  cacheBuster: ((cfg: any) => boolean) | undefined,
+  fetcherConfig: FetcherConfig<
+    ResponseData,
+    QueryParams,
+    PathParams,
+    RequestBody
+  >,
+): FetchResponse<ResponseData, RequestBody, QueryParams, PathParams> | null {
+  // If cache key or time is not provided, return null
+  if (!cacheTime || !cacheKey) {
+    return null;
+  }
+
+  // Check if cache should be bypassed
+  if (cacheBuster?.(fetcherConfig)) {
+    return null;
+  }
+
+  // Retrieve the cached entry
+  const cachedEntry = getCache<
+    FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>
+  >(cacheKey, cacheTime);
+
+  // If no cached entry or it is expired, return null
+  return cachedEntry ? cachedEntry.data : null;
 }
