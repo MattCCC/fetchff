@@ -37,7 +37,7 @@ describe('Cache Manager', () => {
         },
       });
       expect(key).toContain(
-        'GEThttpsapiexamplecomdatacorsincludedefaultfollowAccept-EncodinggzipdeflatebrContent-Typeapplicationjson',
+        'GET|httpsapiexamplecomdata|corssame-origindefaultfollowaboutclient|Accept-EncodinggzipdeflatebrContent-Typeapplicationjson|',
       );
     });
 
@@ -74,7 +74,9 @@ describe('Cache Manager', () => {
         }),
       } as never);
 
-      expect(key).toContain('GETcorsincludedefaultfollow1910039066');
+      expect(key).toContain(
+        'GET||corssame-origindefaultfollowaboutclient|1910039066|',
+      );
     });
 
     it('should return an empty string if cache is reload', () => {
@@ -94,7 +96,7 @@ describe('Cache Manager', () => {
         headers: { 'Content-Type': 'application/json' },
       });
       expect(key).toContain(
-        'POSThttpsapiexamplecomdatacorsincludedefaultfollowContent-Typeapplicationjson',
+        'POST|httpsapiexamplecomdata|corssame-origindefaultfollowaboutclient|Content-Typeapplicationjson|',
       );
       expect(shallowSerialize).toHaveBeenCalledWith({
         'Content-Type': 'application/json',
@@ -111,7 +113,7 @@ describe('Cache Manager', () => {
       });
       expect(spy).toHaveBeenCalled();
       expect(key).toContain(
-        'POSThttpsapiexamplecomdatacorsincludedefaultfollow655859486',
+        'POST|httpsapiexamplecomdata|corssame-origindefaultfollowaboutclient||655859486',
       );
     });
 
@@ -125,7 +127,7 @@ describe('Cache Manager', () => {
       });
       expect(spy).toHaveBeenCalled();
       expect(key).toContain(
-        'POSThttpsapiexamplecomdatacorsincludedefaultfollow-1171129837',
+        'POST|httpsapiexamplecomdata|corssame-origindefaultfollowaboutclient||-1171129837',
       );
     });
 
@@ -139,7 +141,7 @@ describe('Cache Manager', () => {
       });
       expect(spy).not.toHaveBeenCalled();
       expect(key).toContain(
-        'POSThttpsapiexamplecomdatacorsincludedefaultfollownameAlice',
+        'POST|httpsapiexamplecomdata|corssame-origindefaultfollowaboutclient||nameAlice',
       );
     });
 
@@ -153,7 +155,7 @@ describe('Cache Manager', () => {
         body: formData,
       });
       expect(key).toContain(
-        'POSThttpsapiexamplecomdatacorsincludedefaultfollow1870802307',
+        'POST|httpsapiexamplecomdata|corssame-origindefaultfollowaboutclient||1870802307',
       );
     });
 
@@ -165,7 +167,7 @@ describe('Cache Manager', () => {
         body: blob,
       });
       expect(key).toContain(
-        'POSThttpsapiexamplecomdatacorsincludedefaultfollowBF4textplain',
+        'POST|httpsapiexamplecomdata|corssame-origindefaultfollowaboutclient||BF4textplain',
       );
     });
 
@@ -186,7 +188,7 @@ describe('Cache Manager', () => {
         body: 10,
       });
       expect(key).toContain(
-        'POSThttpsapiexamplecomdatacorsincludedefaultfollow10',
+        'POST|httpsapiexamplecomdata|corssame-origindefaultfollowaboutclient||10',
       );
     });
 
@@ -198,7 +200,7 @@ describe('Cache Manager', () => {
         body: arrayBody,
       });
       expect(key).toContain(
-        'POSThttpsapiexamplecomdatacorsincludedefaultfollow011223',
+        'POST|httpsapiexamplecomdata|corssame-origindefaultfollowaboutclient||011223',
       );
     });
 
@@ -211,7 +213,7 @@ describe('Cache Manager', () => {
       });
 
       expect(key).toContain(
-        'POSThttpsapiexamplecomdatacorsincludedefaultfollowa1b2',
+        'POST|httpsapiexamplecomdata|corssame-origindefaultfollowaboutclient||a1b2',
       );
     });
   });

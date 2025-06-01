@@ -7,9 +7,11 @@ import { GET, OBJECT, UNDEFINED } from './constants';
 import { shallowSerialize, sortObject } from './utils';
 
 const cache = new Map<string, CacheEntry<any>>();
+const DELIMITER = '|';
+const MIN_LENGTH_TO_HASH = 64;
 
 /**
- * Generates a cache key for a given URL and fetch options, ensuring that key factors
+ * Generates a unique cache key for a given URL and fetch options, ensuring that key factors
  * like method, headers, body, and other options are included in the cache key.
  * Headers and other objects are sorted by key to ensure consistent cache keys.
  *
@@ -41,12 +43,12 @@ export function generateCacheKey(options: FetcherConfig): string {
     url = '',
     method = GET,
     headers = null,
-    body = '',
+    body = undefined,
     mode = 'cors',
-    credentials = 'include',
+    credentials = 'same-origin',
     cache = 'default',
     redirect = 'follow',
-    referrer = '',
+    referrer = 'about:client',
     integrity = '',
   } = options;
 
@@ -64,7 +66,7 @@ export function generateCacheKey(options: FetcherConfig): string {
         ? Object.fromEntries((headers as any).entries())
         : headers;
     headersString = shallowSerialize(sortObject(obj));
-    if (headersString.length > 64) {
+    if (headersString.length > MIN_LENGTH_TO_HASH) {
       headersString = hash(headersString);
     }
   }
@@ -72,14 +74,14 @@ export function generateCacheKey(options: FetcherConfig): string {
   let bodyString = '';
   if (body) {
     if (typeof body === 'string') {
-      bodyString = body.length < 64 ? body : hash(body); // hash only if large
+      bodyString = body.length < MIN_LENGTH_TO_HASH ? body : hash(body); // hash only if large
     } else if (body instanceof FormData) {
       body.forEach((value, key) => {
         // Append key=value and '&' directly to the result
         bodyString += key + '=' + value + '&';
       });
 
-      if (bodyString.length > 64) {
+      if (bodyString.length > MIN_LENGTH_TO_HASH) {
         bodyString = hash(bodyString);
       }
     } else if (
@@ -95,7 +97,7 @@ export function generateCacheKey(options: FetcherConfig): string {
           ? JSON.stringify(sortObject(body))
           : String(body);
 
-      bodyString = o.length > 64 ? hash(o) : o;
+      bodyString = o.length > MIN_LENGTH_TO_HASH ? hash(o) : o;
     }
   }
 
@@ -103,16 +105,20 @@ export function generateCacheKey(options: FetcherConfig): string {
   // Template literals are apparently slower
   return (
     method +
+    DELIMITER +
     url +
+    DELIMITER +
     mode +
     credentials +
     cache +
     redirect +
     referrer +
     integrity +
+    DELIMITER +
     headersString +
+    DELIMITER +
     bodyString
-  ).replace(/[^\w-_]/g, ''); // Prevent cache poisoning by removal of anything that isn't letters, numbers, - or _
+  ).replace(/[^\w\-_|]/g, ''); // Prevent cache poisoning by removal of anything that isn't letters, numbers, -, _, or |
 }
 
 /**
