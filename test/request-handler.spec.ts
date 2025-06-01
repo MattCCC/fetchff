@@ -825,6 +825,89 @@ describe('Request Handler', () => {
       expect(res2.data).toEqual({ value: 'no dedupe' });
       expect(callCount).toBe(2);
     });
+
+    it('should deduplicate requests with different params as different keys', async () => {
+      let callCount = 0;
+      fetchMock.get(
+        (call) => call.url.startsWith(baseURL + '/dedupe-params'),
+        () => {
+          callCount++;
+          return { status: 200, body: { value: 'deduped-params' } };
+        },
+      );
+      const req1 = fetchf(baseURL + '/dedupe-params', {
+        params: { a: 1 },
+        dedupeTime: 1000,
+      });
+      const req2 = fetchf(baseURL + '/dedupe-params', {
+        params: { a: 2 },
+        dedupeTime: 1000,
+      });
+      const [res1, res2] = await Promise.all([req1, req2]);
+      expect(res1.data).toEqual({ value: 'deduped-params' });
+      expect(res2.data).toEqual({ value: 'deduped-params' });
+      expect(callCount).toBe(2);
+    });
+
+    it('should deduplicate requests with same key but different dedupeTime windows', async () => {
+      let callCount = 0;
+      fetchMock.get(baseURL + '/dedupe-window', () => {
+        callCount++;
+        return { status: 200, body: { value: 'window' } };
+      });
+      const req1 = fetchf(baseURL + '/dedupe-window', { dedupeTime: 100 });
+      const req2 = fetchf(baseURL + '/dedupe-window', { dedupeTime: 100 });
+      const [res1, res2] = await Promise.all([req1, req2]);
+      expect(res1.data).toEqual({ value: 'window' });
+      expect(res2.data).toEqual({ value: 'window' });
+      expect(callCount).toBe(1);
+      jest.advanceTimersByTime(200);
+      const res3 = await fetchf(baseURL + '/dedupe-window', {
+        dedupeTime: 100,
+      });
+      expect(res3.data).toEqual({ value: 'window' });
+      expect(callCount).toBe(2);
+    });
+
+    it('should not deduplicate if dedupeTime is negative', async () => {
+      let callCount = 0;
+      fetchMock.get(baseURL + '/dedupe-negative', () => {
+        callCount++;
+        return { status: 200, body: { value: 'negative' } };
+      });
+      const req1 = fetchf(baseURL + '/dedupe-negative', { dedupeTime: -1 });
+      const req2 = fetchf(baseURL + '/dedupe-negative', { dedupeTime: -1 });
+      const [res1, res2] = await Promise.all([req1, req2]);
+      expect(res1.data).toEqual({ value: 'negative' });
+      expect(res2.data).toEqual({ value: 'negative' });
+      expect(callCount).toBe(2);
+    });
+
+    it('should deduplicate requests even if one fails and the other succeeds', async () => {
+      let callCount = 0;
+      let shouldFail = true;
+      fetchMock.get(baseURL + '/dedupe-fail', () => {
+        callCount++;
+        if (shouldFail) {
+          shouldFail = false;
+          return { status: 500, body: { error: 'fail' } };
+        }
+        return { status: 200, body: { value: 'success' } };
+      });
+      const req1 = fetchf(baseURL + '/dedupe-fail', { dedupeTime: 1000 });
+      const req2 = fetchf(baseURL + '/dedupe-fail', { dedupeTime: 1000 });
+      try {
+        await Promise.all([req1, req2]);
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      } catch (_e) {
+        // One or both may fail, but callCount should be 1
+        expect(callCount).toBe(1);
+      }
+      // Next request should succeed and not be deduped
+      const res3 = await fetchf(baseURL + '/dedupe-fail', { dedupeTime: 1000 });
+      expect(res3.data).toEqual({ value: 'success' });
+      expect(callCount).toBe(2);
+    });
   });
 
   describe('request() 429 Retry-After handling', () => {
