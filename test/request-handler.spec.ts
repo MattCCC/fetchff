@@ -8,7 +8,6 @@ import type {
   RequestHandlerReturnType,
 } from '../src/types/request-handler';
 import { fetchf } from '../src';
-import type { ResponseError } from '../src/errors/response-error';
 import { ABORT_ERROR } from '../src/constants';
 import { pruneCache } from '../src/cache-manager';
 
@@ -745,6 +744,89 @@ describe('Request Handler', () => {
     });
   });
 
+  describe('request() request deduplication', () => {
+    const baseURL = 'https://api.example.com';
+    let callCount: number;
+
+    beforeEach(() => {
+      callCount = 0;
+      fetchMock.mockGlobal();
+      fetchMock.clearHistory();
+      fetchMock.removeRoutes();
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      fetchMock.clearHistory();
+      fetchMock.removeRoutes();
+      jest.useRealTimers();
+    });
+
+    it('should deduplicate requests within dedupeTime and reuse the same response', async () => {
+      fetchMock.route(baseURL + '/dedupe', () => {
+        callCount++;
+        return {
+          status: 200,
+          body: { value: 'deduped' },
+        };
+      });
+
+      // Fire two requests with the same config in quick succession
+      const req1 = fetchf(baseURL + '/dedupe', { dedupeTime: 1000 });
+      const req2 = fetchf(baseURL + '/dedupe', { dedupeTime: 1000 });
+
+      // Both should resolve to the same response and only one network call should be made
+      const [res1, res2] = await Promise.all([req1, req2]);
+      expect(res1.data).toEqual({ value: 'deduped' });
+      expect(res2.data).toEqual({ value: 'deduped' });
+      expect(callCount).toBe(1);
+    });
+
+    it('should not deduplicate requests if dedupeTime has passed', async () => {
+      fetchMock.route(baseURL + '/dedupe-expire', () => {
+        callCount++;
+        return {
+          status: 200,
+          body: { value: 'not deduped' },
+        };
+      });
+
+      // First request
+      const res1 = await fetchf(baseURL + '/dedupe-expire', {
+        dedupeTime: 100,
+      });
+      // Advance time past dedupeTime
+      jest.advanceTimersByTime(200);
+
+      // Second request after dedupeTime
+      const res2 = await fetchf(baseURL + '/dedupe-expire', {
+        dedupeTime: 100,
+      });
+
+      expect(res1.data).toEqual({ value: 'not deduped' });
+      expect(res2.data).toEqual({ value: 'not deduped' });
+      expect(callCount).toBe(2);
+    });
+
+    it('should not deduplicate if dedupeTime is 0', async () => {
+      fetchMock.route(baseURL + '/dedupe-zero', () => {
+        callCount++;
+        return {
+          status: 200,
+          body: { value: 'no dedupe' },
+        };
+      });
+
+      const req1 = fetchf(baseURL + '/dedupe-zero', { dedupeTime: 0 });
+      const req2 = fetchf(baseURL + '/dedupe-zero', { dedupeTime: 0 });
+
+      const [res1, res2] = await Promise.all([req1, req2]);
+      expect(res1.data).toEqual({ value: 'no dedupe' });
+      expect(res2.data).toEqual({ value: 'no dedupe' });
+      expect(callCount).toBe(2);
+    });
+  });
+
   describe('request() 429 Retry-After handling', () => {
     const baseURL = 'https://api.example.com';
     const mockLogger = { warn: jest.fn() };
@@ -1100,56 +1182,41 @@ describe('Request Handler', () => {
     it('should cancel previous request when fetchf() is used', async () => {
       const url = 'https://example.com/api/post/send';
 
-      let requestCounter = 0;
-
-      // Mock the endpoint with a conditional response
       fetchMock.route(url, () => {
-        // Increment the counter for each request
-        requestCounter++;
-
-        if (requestCounter === 1) {
-          // Simulate successful response for the first request
-          return {
-            status: 200,
-            body: { message: 'This response is mocked once' },
-          };
-        } else {
-          // Simulate aborted request for subsequent requests
-          return Promise.reject(
-            new DOMException('The operation was aborted.', 'AbortError'),
-          );
-        }
+        return {
+          status: 200,
+          body: { message: 'This response is mocked once' },
+        };
       });
 
-      // Create an API fetcher with cancellable requests enabled
       const sendPost = () =>
         fetchf(url, {
           cancellable: true,
           rejectCancelled: true,
         });
 
-      async function sendData() {
-        const firstRequest = sendPost();
-        const secondRequest = sendPost();
+      const firstRequest = sendPost();
+      const secondRequest = sendPost();
 
-        try {
-          const secondResponse = await secondRequest;
-          expect(secondResponse).toMatchObject({
-            message: 'This response is mocked once',
-          });
+      // Wait for both to settle to avoid unhandled rejection
+      const [firstResult, secondResult] = await Promise.allSettled([
+        firstRequest,
+        secondRequest,
+      ]);
 
-          await expect(firstRequest).rejects.toThrow(
-            'The operation was aborted.',
-          );
-        } catch (error) {
-          const err = error as ResponseError;
+      // Check the results
+      expect(firstResult.status).toBe('rejected');
+      expect((firstResult as any).reason).toBeInstanceOf(DOMException);
+      expect((firstResult as any).reason.message).toBe(
+        'The operation was aborted.',
+      );
 
-          expect(err.message).toBe('The operation was aborted.');
-        }
-      }
-
-      // Execute the sendData function and await its completion
-      await sendData();
+      expect(secondResult.status).toBe('fulfilled');
+      expect((secondResult as any).value).toMatchObject({
+        data: {
+          message: 'This response is mocked once',
+        },
+      });
     });
 
     it('should cancel previous request and pass a different successive request', async () => {

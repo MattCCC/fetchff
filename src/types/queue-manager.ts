@@ -6,4 +6,10 @@ type timeoutId = NodeJS.Timeout | null;
 type timestamp = number;
 type isCancellable = boolean;
 
-export type QueueItem = [AbortController, timeoutId, timestamp, isCancellable];
+export type QueueItem = [
+  AbortController,
+  timeoutId,
+  timestamp,
+  isCancellable,
+  Promise<unknown>?,
+];

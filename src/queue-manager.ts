@@ -1,6 +1,6 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { ABORT_ERROR, TIMEOUT_ERROR } from './constants';
-import type { RequestConfig } from './types';
-import type { QueueItem, RequestsQueue } from './types/queue-manager';
+import type { QueueItem } from './types/queue-manager';
 
 /**
  * Queue Manager is responsible for managing and controlling the flow of concurrent or sequential requests. It handles:
@@ -10,12 +10,13 @@ import type { QueueItem, RequestsQueue } from './types/queue-manager';
  * - Concurrency Control and Locking
  * - Request Lifecycle Management
  */
-const queue: RequestsQueue = new Map<RequestConfig, QueueItem>();
+const queue: Map<string, QueueItem> = new Map();
 
 /**
  * Adds a request to the queue if it's not already being processed within the dedupeTime interval.
  *
- * @param {RequestConfig} config - The request configuration object.
+ * @param {string | null} key - Unique key for the request (e.g. cache key).
+ * @param {string} url - The request URL (for error messages/timeouts).
  * @param {number} timeout - Timeout in milliseconds for the request.
  * @param {number} dedupeTime - Deduplication time in milliseconds.
  * @param {boolean} isCancellable - If true, then the previous request with same configuration should be aborted.
@@ -23,14 +24,19 @@ const queue: RequestsQueue = new Map<RequestConfig, QueueItem>();
  * @returns {Promise<AbortController>} - A promise that resolves to an AbortController.
  */
 export async function queueRequest(
-  config: RequestConfig,
+  key: string | null,
+  url: string,
   timeout: number | undefined,
   dedupeTime: number = 0,
   isCancellable: boolean = false,
   isTimeoutEnabled: boolean = true,
 ): Promise<AbortController> {
+  if (!key) {
+    return new AbortController();
+  }
+
   const now = Date.now();
-  const item = queue.get(config);
+  const item = queue.get(key);
 
   if (item) {
     const prevIsCancellable = item[3];
@@ -54,7 +60,7 @@ export async function queueRequest(
       clearTimeout(timeoutId);
     }
 
-    queue.delete(config);
+    queue.delete(key);
   }
 
   const controller = new AbortController();
@@ -62,15 +68,15 @@ export async function queueRequest(
   const timeoutId = isTimeoutEnabled
     ? setTimeout(() => {
         const error = new DOMException(
-          `${config.url} aborted due to timeout`,
+          `${url} aborted due to timeout`,
           TIMEOUT_ERROR,
         );
 
-        removeRequestFromQueue(config, error);
+        removeRequestFromQueue(key, error);
       }, timeout)
     : null;
 
-  queue.set(config, [controller, timeoutId, now, isCancellable]);
+  queue.set(key, [controller, timeoutId, now, isCancellable]);
 
   return controller;
 }
@@ -78,14 +84,19 @@ export async function queueRequest(
 /**
  * Removes a request from the queue and clears its timeout.
  *
- * @param config - The request configuration.
+ * @param key - Unique key for the request.
  * @param {boolean} error - Error payload so to force the request to abort.
  */
 export async function removeRequestFromQueue(
-  config: RequestConfig,
+  key: string | null,
   error: DOMException | null | string = null,
 ): Promise<void> {
-  const item = queue.get(config);
+  // If the key is not in the queue, there's nothing to remove
+  if (!key) {
+    return;
+  }
+
+  const item = queue.get(key);
 
   if (item) {
     const controller = item[0];
@@ -100,20 +111,56 @@ export async function removeRequestFromQueue(
       clearTimeout(timeoutId);
     }
 
-    queue.delete(config);
+    queue.delete(key);
   }
 }
 
 /**
- * Gets the AbortController for a request configuration.
+ * Gets the AbortController for a request key.
  *
- * @param config - The request configuration.
+ * @param key - Unique key for the request.
  * @returns {AbortController | undefined} - The AbortController or undefined.
  */
 export async function getController(
-  config: RequestConfig,
+  key: string,
 ): Promise<AbortController | undefined> {
-  const item = queue.get(config);
+  const item = queue.get(key);
 
   return item?.[0];
+}
+
+/**
+ * Adds helpers for in-flight promise deduplication.
+ *
+ * @param key - Unique key for the request.
+ * @param promise - The promise to store.
+ */
+export function setInFlightPromise(key: string, promise: Promise<any>) {
+  const item = queue.get(key);
+  if (item) {
+    // store the promise at index 4
+    item[4] = promise;
+
+    queue.set(key, item);
+  }
+}
+
+/**
+ * Retrieves the in-flight promise for a request key if it exists and is within the dedupeTime interval.
+ *
+ * @param key - Unique key for the request.
+ * @param dedupeTime - Deduplication time in milliseconds.
+ * @returns {Promise<unknown> | null} - The in-flight promise or undefined.
+ */
+export function getInFlightPromise(
+  key: string,
+  dedupeTime: number,
+): Promise<unknown> | null {
+  const item = queue.get(key);
+
+  if (item && item[4] && Date.now() - item[2] < dedupeTime) {
+    return item[4];
+  }
+
+  return null;
 }

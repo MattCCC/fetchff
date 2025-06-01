@@ -899,13 +899,13 @@ Each request returns the following Response Object of type <b>FetchResponse&lt;R
 
 - **`data`**:
 
-  - **Type**: `ResponseData` (or your custom type passed through generic)
+  - **Type**: `ResponseData | null` (or your custom type passed through generic)
 
   - Contains the actual data returned from the API request, `null` or value of `defaultResponse` setting, if nothing is found.
 
 - **`error`**:
 
-  - **Type**: `ResponseError<ResponseData, QueryParams, PathParams, RequestBody>`
+  - **Type**: `ResponseError<ResponseData, QueryParams, PathParams, RequestBody> | null`
 
   - An object with details about any error that occurred or `null` otherwise.
   - **`name`**: The name of the error, that is `ResponseError`.
@@ -920,21 +920,6 @@ Each request returns the following Response Object of type <b>FetchResponse&lt;R
 
   - **Type**: `RequestConfig`
   - The configuration object with all settings used for the request, including URL, method, headers, and query parameters.
-
-- **`status`**:
-
-  - **Type**: `number`
-  - The HTTP status code of the response (e.g., 404, 500).
-
-- **`statusText`**:
-
-  - **Type**: `string`
-  - The HTTP status text of the response (e.g., 'Not Found', 'Internal Server Error').
-
-- **`request`**:
-
-  - **Type**: `RequestConfig`
-  - An alias for `config`.
 
 - **`headers`**:
 
@@ -1141,13 +1126,13 @@ const api = createApiFetcher({
   defaultResponse: null, // Default response when there is no data or endpoint fails.
   withCredentials: true, // Pass cookies to all requests.
   timeout: 30000, // Request timeout in milliseconds.
-  dedupeTime: 1000, // Time window, in milliseconds, during which identical requests are deduplicated (treated as single request).
+  dedupeTime: 0, // Time window, in milliseconds, during which identical requests are deduplicated (treated as single request).
   pollingInterval: 5000, // Interval in milliseconds between polling attempts. Setting 0 disables polling.
   shouldStopPolling: (response, error, attempt) => false, // Function to determine if polling should stop based on the response. Returns true to stop polling, false to continue.
   method: 'get', // Default request method.
   params: {}, // Default params added to all requests.
   data: {}, // Alias for 'body'. Default data passed to POST, PUT, DELETE and PATCH requests.
-  cacheTime: 300, // Cache is valid for 5 minutes
+  cacheTime: 300, // Cache time in seconds. In this case it is valid for 5 minutes (300 seconds)
   cacheKey: (config) => `${config.url}-${config.method}`, // Custom cache key based on URL and method
   cacheBuster: (config) => config.method === 'POST', // Bust cache for POST requests
   skipCache: (response, config) => response.status !== 200, // Skip caching on non-200 responses
