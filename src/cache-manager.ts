@@ -154,7 +154,7 @@ export function getCache<T>(
       return entry;
     }
 
-    cache.delete(key);
+    deleteCache(key);
   }
 
   return null;

@@ -1321,7 +1321,11 @@ describe('Request Handler', () => {
     afterEach(() => {
       fetchMock.clearHistory();
       fetchMock.removeRoutes();
-      pruneCache(0.001);
+
+      // Advance time to ensure cache expiration
+      jest.advanceTimersByTime(61000); // 61 seconds > cacheTime of 60 seconds
+
+      pruneCache(0.0000001);
       jest.useRealTimers();
     });
 
@@ -1393,8 +1397,151 @@ describe('Request Handler', () => {
       expect(resp1.data).toEqual({ value: 'expire' });
       // Simulate cache expiration (advance by 1100ms > 1s)
       jest.advanceTimersByTime(1100);
-      const resp2 = await handler.request(apiUrl);
+      const resp2 = await handler.request(apiUrl, {
+        // Skip setting cache in the 2nd request
+        skipCache: () => true,
+      });
       expect(resp2.data).toEqual({ value: 'expire' });
+      expect(callCount).toBe(2);
+    });
+
+    it('should not cache if skipCache returns true', async () => {
+      let callCount = 0;
+      fetchMock.get(apiUrl, () => {
+        callCount++;
+        return { status: 200, body: { value: 'skip' } };
+      });
+
+      const handler = createRequestHandler({
+        cacheTime: 60,
+      });
+
+      // Provide skipCache that always returns true
+      const resp1 = await handler.request(apiUrl, {
+        skipCache: () => true,
+      });
+      expect(resp1.data).toEqual({ value: 'skip' });
+      expect(callCount).toBe(1);
+
+      // Second request should hit the network again (no cache set)
+      const resp2 = await handler.request(apiUrl, {
+        skipCache: () => false, // now allow caching
+      });
+      expect(resp2.data).toEqual({ value: 'skip' });
+      expect(callCount).toBe(2);
+
+      // Third request should return cached data (cache was set on previous call)
+      const resp3 = await handler.request(apiUrl, {
+        skipCache: () => false,
+      });
+      expect(resp3.data).toEqual({ value: 'skip' });
+      expect(callCount).toBe(2);
+    });
+
+    it('should cache if skipCache returns false', async () => {
+      let callCount = 0;
+      fetchMock.get(apiUrl, () => {
+        callCount++;
+        return { status: 200, body: { value: 'cache' } };
+      });
+
+      const handler = createRequestHandler({
+        cacheTime: 60,
+      });
+
+      // Provide skipCache that always returns false
+      const resp1 = await handler.request(apiUrl, {
+        skipCache: () => false,
+      });
+      expect(resp1.data).toEqual({ value: 'cache' });
+      expect(callCount).toBe(1);
+
+      // Second request should return cached data
+      const resp2 = await handler.request(apiUrl, {
+        skipCache: () => false,
+      });
+      expect(resp2.data).toEqual({ value: 'cache' });
+      expect(callCount).toBe(1);
+
+      // Third request should return cached data
+      const resp3 = await handler.request(apiUrl, {
+        skipCache: () => false,
+      });
+      expect(resp3.data).toEqual({ value: 'cache' });
+      expect(callCount).toBe(1);
+    });
+
+    it('should cache if skipCache is not provided', async () => {
+      let callCount = 0;
+      fetchMock.get(apiUrl, () => {
+        callCount++;
+        return { status: 200, body: { value: 'default' } };
+      });
+
+      const handler = createRequestHandler({
+        cacheTime: 60,
+      });
+
+      const resp1 = await handler.request(apiUrl);
+      expect(resp1.data).toEqual({ value: 'default' });
+      expect(callCount).toBe(1);
+
+      const resp2 = await handler.request(apiUrl);
+      expect(resp2.data).toEqual({ value: 'default' });
+      expect(callCount).toBe(1);
+    });
+
+    it('should use custom cacheKey function for caching', async () => {
+      let callCount = 0;
+      fetchMock.get(apiUrl, () => {
+        callCount++;
+        return { status: 200, body: { value: 'custom-key' } };
+      });
+
+      const customKey = 'my-custom-key';
+      const handler = createRequestHandler({
+        cacheTime: 60,
+        cacheKey: () => customKey,
+      });
+
+      // First request - should hit the network
+      const resp1 = await handler.request(apiUrl);
+      expect(resp1.data).toEqual({ value: 'custom-key' });
+      expect(callCount).toBe(1);
+
+      // Second request - should return cached data using custom key
+      const resp2 = await handler.request(apiUrl);
+      expect(resp2.data).toEqual({ value: 'custom-key' });
+      expect(callCount).toBe(1);
+    });
+
+    it('should cache separately for different custom cacheKey values', async () => {
+      let callCount = 0;
+      fetchMock.get(
+        (call) => call.url.startsWith(apiUrl),
+        () => {
+          callCount++;
+          return { status: 200, body: { value: 'custom-key-multi' } };
+        },
+      );
+      const handler = createRequestHandler({
+        cacheTime: 60,
+        cacheKey: (cfg) => cfg.url + '-custom',
+      });
+
+      // First request with one key
+      const resp1 = await handler.request(apiUrl);
+      expect(resp1.data).toEqual({ value: 'custom-key-multi' });
+      expect(callCount).toBe(1);
+
+      // Second request with a different key (simulate different url)
+      const resp2 = await handler.request(apiUrl + '?v=2');
+      expect(resp2.data).toEqual({ value: 'custom-key-multi' });
+      expect(callCount).toBe(2);
+
+      // Third request with first key again (should be cached)
+      const resp3 = await handler.request(apiUrl);
+      expect(resp3.data).toEqual({ value: 'custom-key-multi' });
       expect(callCount).toBe(2);
     });
   });
