@@ -131,7 +131,7 @@ export const prepareResponse = <
     >;
   }
 
-  let data = response?.data;
+  let data = response.data;
 
   // Set the default response if the provided data is an empty object
   if (
