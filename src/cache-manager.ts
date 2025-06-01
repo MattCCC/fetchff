@@ -140,7 +140,7 @@ function isCacheExpired(timestamp: number, maxStaleTime: number): boolean {
  * Retrieves a cache entry if it exists and is not expired.
  *
  * @param {string} key Cache key to utilize
- * @param {FetcherConfig} cacheTime - Maximum time to cache entry in seconds.
+ * @param {number} cacheTime - Maximum time to cache entry in seconds.
  * @returns {CacheEntry<T> | null} - The cache entry if it exists and is not expired, null otherwise.
  */
 export function getCache<T>(
