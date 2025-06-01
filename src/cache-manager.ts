@@ -40,7 +40,7 @@ export function generateCacheKey(options: FetcherConfig): string {
   const {
     url = '',
     method = GET,
-    headers = {},
+    headers = null,
     body = '',
     mode = 'cors',
     credentials = 'include',
