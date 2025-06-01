@@ -88,7 +88,12 @@ export function createRequestHandler(
     mergeConfig('retry', mergedConfig, handlerConfig, _reqConfig);
     mergeConfig('headers', mergedConfig, handlerConfig, _reqConfig);
 
-    let response: FetchResponse<ResponseData> | null = null;
+    let response: FetchResponse<
+      ResponseData,
+      RequestBody,
+      QueryParams,
+      PathParams
+    > | null = null;
     const fetcherConfig = buildConfig(url, mergedConfig);
 
     const {
@@ -113,10 +118,9 @@ export function createRequestHandler(
         const shouldBust = mergedConfig.cacheBuster?.(fetcherConfig);
 
         if (!shouldBust) {
-          const cachedEntry = getCache<FetchResponse<ResponseData>>(
-            _cacheKey,
-            cacheTime,
-          );
+          const cachedEntry = getCache<
+            FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>
+          >(_cacheKey, cacheTime);
 
           if (cachedEntry) {
             // Serve stale data from cache
