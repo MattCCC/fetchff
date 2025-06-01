@@ -34,7 +34,7 @@ describe('Cache Manager', () => {
         headers: { 'Content-Type': 'application/json' },
       });
       expect(key).toContain(
-        'GEThttpsapiexamplecomdatacorsincludedefaultfollowContent-Typeapplicationjson0',
+        'GEThttpsapiexamplecomdatacorsincludedefaultfollowContent-Typeapplicationjson',
       );
     });
 
@@ -63,15 +63,28 @@ describe('Cache Manager', () => {
         headers: { 'Content-Type': 'application/json' },
       });
       expect(key).toContain(
-        'POSThttpsapiexamplecomdatacorsincludedefaultfollowContent-Typeapplicationjson0',
+        'POSThttpsapiexamplecomdatacorsincludedefaultfollowContent-Typeapplicationjson',
       );
       expect(shallowSerialize).toHaveBeenCalledWith({
         'Content-Type': 'application/json',
       });
     });
 
-    it('should hash the body if provided', () => {
-      //   (hash as jest.Mock).mockReturnValue('hashedBody');
+    it('should hash the longer body if provided', () => {
+      const spy = jest.spyOn(hashM, 'hash');
+
+      const key = generateCacheKey({
+        url,
+        method: 'POST',
+        body: JSON.stringify({ name: 'Alice' }).repeat(10),
+      });
+      expect(spy).toHaveBeenCalled();
+      expect(key).toContain(
+        'POSThttpsapiexamplecomdatacorsincludedefaultfollow655859486',
+      );
+    });
+
+    it('should not hash shorter body if provided', () => {
       const spy = jest.spyOn(hashM, 'hash');
 
       const key = generateCacheKey({
@@ -79,20 +92,24 @@ describe('Cache Manager', () => {
         method: 'POST',
         body: JSON.stringify({ name: 'Alice' }),
       });
-      expect(spy).toHaveBeenCalled();
-      expect(key).toContain('1008044925');
+      expect(spy).not.toHaveBeenCalled();
+      expect(key).toContain(
+        'POSThttpsapiexamplecomdatacorsincludedefaultfollownameAlice',
+      );
     });
 
     it('should convert FormData body to string', () => {
       const formData = new FormData();
-      formData.set('something', '1');
+      formData.set('something', '1'.repeat(64));
 
       const key = generateCacheKey({
         url,
         method: 'POST',
         body: formData,
       });
-      expect(key).toContain('-818489256');
+      expect(key).toContain(
+        'POSThttpsapiexamplecomdatacorsincludedefaultfollow1870802307',
+      );
     });
 
     it('should handle Blob body', () => {
@@ -123,7 +140,9 @@ describe('Cache Manager', () => {
         method: 'POST',
         body: 10,
       });
-      expect(key).toContain('1061505');
+      expect(key).toContain(
+        'POSThttpsapiexamplecomdatacorsincludedefaultfollow10',
+      );
     });
 
     it('should handle Array body', () => {
@@ -133,7 +152,9 @@ describe('Cache Manager', () => {
         method: 'POST',
         body: arrayBody,
       });
-      expect(key).toContain('1004020241');
+      expect(key).toContain(
+        'POSThttpsapiexamplecomdatacorsincludedefaultfollow011223',
+      );
     });
 
     it('should handle Object body and sort properties', () => {
@@ -144,7 +165,9 @@ describe('Cache Manager', () => {
         body: objectBody,
       });
 
-      expect(key).toContain('1268505936');
+      expect(key).toContain(
+        'POSThttpsapiexamplecomdatacorsincludedefaultfollowa1b2',
+      );
     });
   });
 

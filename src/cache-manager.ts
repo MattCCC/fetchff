@@ -60,17 +60,18 @@ export function generateCacheKey(options: FetcherConfig): string {
   const headersString = shallowSerialize(sortObject(headers));
 
   let bodyString = '';
-
-  // In majority of cases we do not cache body
-  if (body !== null) {
+  if (body) {
     if (typeof body === 'string') {
-      bodyString = hash(body);
+      bodyString = body.length < 64 ? body : hash(body); // hash only if large
     } else if (body instanceof FormData) {
       body.forEach((value, key) => {
         // Append key=value and '&' directly to the result
         bodyString += key + '=' + value + '&';
       });
-      bodyString = hash(bodyString);
+
+      if (bodyString.length > 64) {
+        bodyString = hash(bodyString);
+      }
     } else if (
       (typeof Blob !== UNDEFINED && body instanceof Blob) ||
       (typeof File !== UNDEFINED && body instanceof File)
@@ -79,8 +80,12 @@ export function generateCacheKey(options: FetcherConfig): string {
     } else if (body instanceof ArrayBuffer || ArrayBuffer.isView(body)) {
       bodyString = 'AB' + body.byteLength;
     } else {
-      const o = typeof body === OBJECT ? sortObject(body) : String(body);
-      bodyString = hash(JSON.stringify(o));
+      const o =
+        typeof body === OBJECT
+          ? JSON.stringify(sortObject(body))
+          : String(body);
+
+      bodyString = o.length > 64 ? hash(o) : o;
     }
   }
 
