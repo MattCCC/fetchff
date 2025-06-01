@@ -65,6 +65,8 @@ export function generateCacheKey(options: FetcherConfig): string {
     });
   } else if (headers && typeof headers === 'object') {
     headersString = shallowSerialize(sortObject(headers));
+    headersString =
+      headersString.length > 64 ? hash(headersString) : headersString;
   }
 
   let bodyString = '';

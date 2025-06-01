@@ -31,10 +31,13 @@ describe('Cache Manager', () => {
       const key = generateCacheKey({
         url,
         method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept-Encoding': 'gzip, deflate, br',
+        },
       });
       expect(key).toContain(
-        'GEThttpsapiexamplecomdatacorsincludedefaultfollowContent-Typeapplicationjson',
+        'GEThttpsapiexamplecomdatacorsincludedefaultfollowAccept-EncodinggzipdeflatebrContent-Typeapplicationjson',
       );
     });
 
