@@ -44,9 +44,37 @@ describe('Cache Manager', () => {
     it('should generate a cache key for basic GET request with empty url', () => {
       const key = generateCacheKey({
         method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
+        headers: new Headers({ 'Content-Type': 'application/json' }),
       } as never);
+
       expect(key).not.toContain('http');
+    });
+
+    it('should generate a cache key for basic GET request with sorted headers', () => {
+      const key = generateCacheKey({
+        method: 'GET',
+        headers: new Headers({
+          'Content-Type': 'application/json',
+          'Accept-Encoding': 'gzip, deflate, br',
+        }),
+      } as never);
+
+      expect(key).toContain(
+        'accept-encodinggzipdeflatebrcontent-typeapplicationjso',
+      );
+    });
+
+    it('should generate a cache key for basic GET request with sorted hashed headers', () => {
+      const key = generateCacheKey({
+        method: 'GET',
+        headers: new Headers({
+          'Content-Type': 'application/json',
+          'Accept-Encoding': 'gzip, deflate, br',
+          'X-Custom-Header': 'customValue'.repeat(10),
+        }),
+      } as never);
+
+      expect(key).toContain('GETcorsincludedefaultfollow1910039066');
     });
 
     it('should return an empty string if cache is reload', () => {
@@ -73,7 +101,7 @@ describe('Cache Manager', () => {
       });
     });
 
-    it('should hash the longer body if provided', () => {
+    it('should hash the longer stringified body if provided', () => {
       const spy = jest.spyOn(hashM, 'hash');
 
       const key = generateCacheKey({
@@ -84,6 +112,20 @@ describe('Cache Manager', () => {
       expect(spy).toHaveBeenCalled();
       expect(key).toContain(
         'POSThttpsapiexamplecomdatacorsincludedefaultfollow655859486',
+      );
+    });
+
+    it('should hash the longer non-stringified body if provided', () => {
+      const spy = jest.spyOn(hashM, 'hash');
+
+      const key = generateCacheKey({
+        url,
+        method: 'POST',
+        body: { name: 'Alice'.repeat(100) },
+      });
+      expect(spy).toHaveBeenCalled();
+      expect(key).toContain(
+        'POSThttpsapiexamplecomdatacorsincludedefaultfollow-1171129837',
       );
     });
 

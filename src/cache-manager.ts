@@ -58,22 +58,15 @@ export function generateCacheKey(options: FetcherConfig): string {
   // Sort headers and body + convert sorted to strings for hashing purposes
   // Native serializer is on avg. 3.5x faster than a Fast Hash or FNV-1a
   let headersString = '';
-  if (headers instanceof Headers) {
-    const headersArr: [string, string][] = [];
-
-    headers.forEach((value, key) => {
-      headersArr.push([key, value]);
-    });
-
-    headersArr
-      .sort(([a], [b]) => a.localeCompare(b))
-      .forEach(([key, value]) => {
-        headersString += key + ':' + value + ';';
-      });
-  } else if (headers && typeof headers === 'object') {
-    headersString = shallowSerialize(sortObject(headers));
-    headersString =
-      headersString.length > 64 ? hash(headersString) : headersString;
+  if (headers) {
+    const obj =
+      headers instanceof Headers
+        ? Object.fromEntries((headers as any).entries())
+        : headers;
+    headersString = shallowSerialize(sortObject(obj));
+    if (headersString.length > 64) {
+      headersString = hash(headersString);
+    }
   }
 
   let bodyString = '';
