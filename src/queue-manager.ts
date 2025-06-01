@@ -150,7 +150,7 @@ export function setInFlightPromise(key: string, promise: Promise<any>) {
  *
  * @param key - Unique key for the request.
  * @param dedupeTime - Deduplication time in milliseconds.
- * @returns {Promise<unknown> | null} - The in-flight promise or undefined.
+ * @returns {Promise<unknown> | null} - The in-flight promise or null.
  */
 export function getInFlightPromise(
   key: string,
