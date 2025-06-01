@@ -5,6 +5,7 @@ import {
   revalidate,
   deleteCache,
   mutate,
+  getCachedResponse,
 } from '../src/cache-manager';
 import { fetchf } from '../src/index';
 import * as hashM from '../src/hash';
@@ -31,19 +32,52 @@ describe('Cache Manager', () => {
       const key = generateCacheKey({
         url,
         method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept-Encoding': 'gzip, deflate, br',
+        },
       });
       expect(key).toContain(
-        'GEThttpsapiexamplecomdatacorsincludedefaultfollowContent-Typeapplicationjson0',
+        'GET|httpsapiexamplecomdata|corssame-origindefaultfollowaboutclient|Accept-EncodinggzipdeflatebrContent-Typeapplicationjson|',
       );
     });
 
     it('should generate a cache key for basic GET request with empty url', () => {
       const key = generateCacheKey({
         method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
+        headers: new Headers({ 'Content-Type': 'application/json' }),
       } as never);
+
       expect(key).not.toContain('http');
+    });
+
+    it('should generate a cache key for basic GET request with sorted headers', () => {
+      const key = generateCacheKey({
+        method: 'GET',
+        headers: new Headers({
+          'Content-Type': 'application/json',
+          'Accept-Encoding': 'gzip, deflate, br',
+        }),
+      } as never);
+
+      expect(key).toContain(
+        'accept-encodinggzipdeflatebrcontent-typeapplicationjson',
+      );
+    });
+
+    it('should generate a cache key for basic GET request with sorted hashed headers', () => {
+      const key = generateCacheKey({
+        method: 'GET',
+        headers: new Headers({
+          'Content-Type': 'application/json',
+          'Accept-Encoding': 'gzip, deflate, br',
+          'X-Custom-Header': 'customValue'.repeat(10),
+        }),
+      } as never);
+
+      expect(key).toContain(
+        'GET||corssame-origindefaultfollowaboutclient|1910039066|',
+      );
     });
 
     it('should return an empty string if cache is reload', () => {
@@ -63,15 +97,42 @@ describe('Cache Manager', () => {
         headers: { 'Content-Type': 'application/json' },
       });
       expect(key).toContain(
-        'POSThttpsapiexamplecomdatacorsincludedefaultfollowContent-Typeapplicationjson0',
+        'POST|httpsapiexamplecomdata|corssame-origindefaultfollowaboutclient|Content-Typeapplicationjson|',
       );
       expect(shallowSerialize).toHaveBeenCalledWith({
         'Content-Type': 'application/json',
       });
     });
 
-    it('should hash the body if provided', () => {
-      //   (hash as jest.Mock).mockReturnValue('hashedBody');
+    it('should hash the longer stringified body if provided', () => {
+      const spy = jest.spyOn(hashM, 'hash');
+
+      const key = generateCacheKey({
+        url,
+        method: 'POST',
+        body: JSON.stringify({ name: 'Alice' }).repeat(10),
+      });
+      expect(spy).toHaveBeenCalled();
+      expect(key).toContain(
+        'POST|httpsapiexamplecomdata|corssame-origindefaultfollowaboutclient||655859486',
+      );
+    });
+
+    it('should hash the longer non-stringified body if provided', () => {
+      const spy = jest.spyOn(hashM, 'hash');
+
+      const key = generateCacheKey({
+        url,
+        method: 'POST',
+        body: { name: 'Alice'.repeat(100) },
+      });
+      expect(spy).toHaveBeenCalled();
+      expect(key).toContain(
+        'POST|httpsapiexamplecomdata|corssame-origindefaultfollowaboutclient||-1171129837',
+      );
+    });
+
+    it('should not hash shorter body if provided', () => {
       const spy = jest.spyOn(hashM, 'hash');
 
       const key = generateCacheKey({
@@ -79,20 +140,24 @@ describe('Cache Manager', () => {
         method: 'POST',
         body: JSON.stringify({ name: 'Alice' }),
       });
-      expect(spy).toHaveBeenCalled();
-      expect(key).toContain('1008044925');
+      expect(spy).not.toHaveBeenCalled();
+      expect(key).toContain(
+        'POST|httpsapiexamplecomdata|corssame-origindefaultfollowaboutclient||nameAlice',
+      );
     });
 
     it('should convert FormData body to string', () => {
       const formData = new FormData();
-      formData.set('something', '1');
+      formData.set('something', '1'.repeat(64));
 
       const key = generateCacheKey({
         url,
         method: 'POST',
         body: formData,
       });
-      expect(key).toContain('-818489256');
+      expect(key).toContain(
+        'POST|httpsapiexamplecomdata|corssame-origindefaultfollowaboutclient||1870802307',
+      );
     });
 
     it('should handle Blob body', () => {
@@ -103,7 +168,7 @@ describe('Cache Manager', () => {
         body: blob,
       });
       expect(key).toContain(
-        'POSThttpsapiexamplecomdatacorsincludedefaultfollowBF4textplain',
+        'POST|httpsapiexamplecomdata|corssame-origindefaultfollowaboutclient||BF4textplain',
       );
     });
 
@@ -123,7 +188,9 @@ describe('Cache Manager', () => {
         method: 'POST',
         body: 10,
       });
-      expect(key).toContain('1061505');
+      expect(key).toContain(
+        'POST|httpsapiexamplecomdata|corssame-origindefaultfollowaboutclient||10',
+      );
     });
 
     it('should handle Array body', () => {
@@ -133,7 +200,9 @@ describe('Cache Manager', () => {
         method: 'POST',
         body: arrayBody,
       });
-      expect(key).toContain('1004020241');
+      expect(key).toContain(
+        'POST|httpsapiexamplecomdata|corssame-origindefaultfollowaboutclient||011223',
+      );
     });
 
     it('should handle Object body and sort properties', () => {
@@ -144,7 +213,9 @@ describe('Cache Manager', () => {
         body: objectBody,
       });
 
-      expect(key).toContain('1268505936');
+      expect(key).toContain(
+        'POST|httpsapiexamplecomdata|corssame-origindefaultfollowaboutclient||a1b2',
+      );
     });
   });
 
@@ -289,6 +360,80 @@ describe('Cache Manager', () => {
         false,
       );
       expect(fetchf).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getCachedResponse', () => {
+    const cacheKey = 'test-key';
+    const fetcherConfig = { url: 'https://api.example.com' };
+    const cacheTime = 60;
+    const responseObj = { data: 'cachedData' };
+
+    afterEach(() => {
+      deleteCache(cacheKey);
+    });
+
+    it('should return cached response if available and not expired', () => {
+      setCache(cacheKey, responseObj);
+      const result = getCachedResponse(
+        cacheKey,
+        cacheTime,
+        undefined,
+        fetcherConfig,
+      );
+      expect(result).toEqual(responseObj);
+    });
+
+    it('should return null if cacheKey is null', () => {
+      setCache(cacheKey, responseObj);
+      const result = getCachedResponse(
+        null,
+        cacheTime,
+        undefined,
+        fetcherConfig,
+      );
+      expect(result).toBeNull();
+    });
+
+    it('should return null if cacheTime is undefined', () => {
+      setCache(cacheKey, responseObj);
+      const result = getCachedResponse(
+        cacheKey,
+        undefined,
+        undefined,
+        fetcherConfig,
+      );
+      expect(result).toBeNull();
+    });
+
+    it('should return null if cache is expired', () => {
+      setCache(cacheKey, responseObj);
+      // Simulate expiration by using negative cacheTime
+      const result = getCachedResponse(cacheKey, -1, undefined, fetcherConfig);
+      expect(result).toBeNull();
+    });
+
+    it('should return null if cacheBuster returns true', () => {
+      setCache(cacheKey, responseObj);
+      const cacheBuster = jest.fn().mockReturnValue(true);
+      const result = getCachedResponse(
+        cacheKey,
+        cacheTime,
+        cacheBuster,
+        fetcherConfig,
+      );
+      expect(result).toBeNull();
+      expect(cacheBuster).toHaveBeenCalledWith(fetcherConfig);
+    });
+
+    it('should return null if no cache entry exists', () => {
+      const result = getCachedResponse(
+        'non-existent-key',
+        cacheTime,
+        undefined,
+        fetcherConfig,
+      );
+      expect(result).toBeNull();
     });
   });
 });

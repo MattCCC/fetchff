@@ -96,8 +96,8 @@ export interface ExtendedResponse<
 export type FetchResponse<
   ResponseData = any,
   RequestBody = any,
-  QueryParams = DefaultParams,
-  PathParams = DefaultUrlParams,
+  QueryParams = any,
+  PathParams = any,
 > = ExtendedResponse<ResponseData, RequestBody, QueryParams, PathParams>;
 
 export interface ResponseError<

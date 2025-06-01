@@ -1,15 +1,17 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { hash } from './hash';
 import { fetchf } from './index';
-import type { FetcherConfig } from './types/request-handler';
+import type { FetcherConfig, FetchResponse } from './types/request-handler';
 import type { CacheEntry } from './types/cache-manager';
 import { GET, OBJECT, UNDEFINED } from './constants';
 import { shallowSerialize, sortObject } from './utils';
 
 const cache = new Map<string, CacheEntry<any>>();
+const DELIMITER = '|';
+const MIN_LENGTH_TO_HASH = 64;
 
 /**
- * Generates a cache key for a given URL and fetch options, ensuring that key factors
+ * Generates a unique cache key for a given URL and fetch options, ensuring that key factors
  * like method, headers, body, and other options are included in the cache key.
  * Headers and other objects are sorted by key to ensure consistent cache keys.
  *
@@ -40,13 +42,13 @@ export function generateCacheKey(options: FetcherConfig): string {
   const {
     url = '',
     method = GET,
-    headers = {},
-    body = '',
+    headers = null,
+    body = undefined,
     mode = 'cors',
-    credentials = 'include',
+    credentials = 'same-origin',
     cache = 'default',
     redirect = 'follow',
-    referrer = '',
+    referrer = 'about:client',
     integrity = '',
   } = options;
 
@@ -57,20 +59,31 @@ export function generateCacheKey(options: FetcherConfig): string {
 
   // Sort headers and body + convert sorted to strings for hashing purposes
   // Native serializer is on avg. 3.5x faster than a Fast Hash or FNV-1a
-  const headersString = shallowSerialize(sortObject(headers));
+  let headersString = '';
+  if (headers) {
+    const obj =
+      headers instanceof Headers
+        ? Object.fromEntries((headers as any).entries())
+        : headers;
+    headersString = shallowSerialize(sortObject(obj));
+    if (headersString.length > MIN_LENGTH_TO_HASH) {
+      headersString = hash(headersString);
+    }
+  }
 
   let bodyString = '';
-
-  // In majority of cases we do not cache body
-  if (body !== null) {
+  if (body) {
     if (typeof body === 'string') {
-      bodyString = hash(body);
+      bodyString = body.length < MIN_LENGTH_TO_HASH ? body : hash(body); // hash only if large
     } else if (body instanceof FormData) {
       body.forEach((value, key) => {
         // Append key=value and '&' directly to the result
         bodyString += key + '=' + value + '&';
       });
-      bodyString = hash(bodyString);
+
+      if (bodyString.length > MIN_LENGTH_TO_HASH) {
+        bodyString = hash(bodyString);
+      }
     } else if (
       (typeof Blob !== UNDEFINED && body instanceof Blob) ||
       (typeof File !== UNDEFINED && body instanceof File)
@@ -79,8 +92,12 @@ export function generateCacheKey(options: FetcherConfig): string {
     } else if (body instanceof ArrayBuffer || ArrayBuffer.isView(body)) {
       bodyString = 'AB' + body.byteLength;
     } else {
-      const o = typeof body === OBJECT ? sortObject(body) : String(body);
-      bodyString = hash(JSON.stringify(o));
+      const o =
+        typeof body === OBJECT
+          ? JSON.stringify(sortObject(body))
+          : String(body);
+
+      bodyString = o.length > MIN_LENGTH_TO_HASH ? hash(o) : o;
     }
   }
 
@@ -88,16 +105,20 @@ export function generateCacheKey(options: FetcherConfig): string {
   // Template literals are apparently slower
   return (
     method +
+    DELIMITER +
     url +
+    DELIMITER +
     mode +
     credentials +
     cache +
     redirect +
     referrer +
     integrity +
+    DELIMITER +
     headersString +
+    DELIMITER +
     bodyString
-  ).replace(/[^\w-_]/g, ''); // Prevent cache poisoning by removal of anything that isn't letters, numbers, - or _
+  ).replace(/[^\w\-_|]/g, ''); // Prevent cache poisoning by removal of anything that isn't letters, numbers, -, _, or |
 }
 
 /**
@@ -119,7 +140,7 @@ function isCacheExpired(timestamp: number, maxStaleTime: number): boolean {
  * Retrieves a cache entry if it exists and is not expired.
  *
  * @param {string} key Cache key to utilize
- * @param {FetcherConfig} cacheTime - Maximum time to cache entry.
+ * @param {number} cacheTime - Maximum time to cache entry in seconds.
  * @returns {CacheEntry<T> | null} - The cache entry if it exists and is not expired, null otherwise.
  */
 export function getCache<T>(
@@ -133,7 +154,7 @@ export function getCache<T>(
       return entry;
     }
 
-    cache.delete(key);
+    deleteCache(key);
   }
 
   return null;
@@ -225,4 +246,52 @@ export function mutate<T>(
   if (revalidateAfter) {
     revalidate(key, config);
   }
+}
+
+/**
+ * Retrieves a cached response if available and valid, otherwise returns null.
+ *
+ * @template ResponseData - The type of the response data.
+ * @template RequestBody - The type of the request body.
+ * @template QueryParams - The type of the query parameters.
+ * @template PathParams - The type of the path parameters.
+ * @param {string | null} cacheKey - The cache key to look up.
+ * @param {number | undefined} cacheTime - The maximum time to cache entry.
+ * @param {(cfg: any) => boolean | undefined} cacheBuster - Optional function to determine if cache should be bypassed.
+ * @param {FetcherConfig<ResponseData, QueryParams, PathParams, RequestBody>} fetcherConfig - The fetcher configuration.
+ * @returns {FetchResponse<ResponseData, RequestBody, QueryParams, PathParams> | null} - The cached response or null.
+ */
+export function getCachedResponse<
+  ResponseData,
+  RequestBody,
+  QueryParams,
+  PathParams,
+>(
+  cacheKey: string | null,
+  cacheTime: number | undefined,
+  cacheBuster: ((cfg: any) => boolean) | undefined,
+  fetcherConfig: FetcherConfig<
+    ResponseData,
+    QueryParams,
+    PathParams,
+    RequestBody
+  >,
+): FetchResponse<ResponseData, RequestBody, QueryParams, PathParams> | null {
+  // If cache key or time is not provided, return null
+  if (!cacheTime || !cacheKey) {
+    return null;
+  }
+
+  // Check if cache should be bypassed
+  if (cacheBuster?.(fetcherConfig)) {
+    return null;
+  }
+
+  // Retrieve the cached entry
+  const cachedEntry = getCache<
+    FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>
+  >(cacheKey, cacheTime);
+
+  // If no cached entry or it is expired, return null
+  return cachedEntry ? cachedEntry.data : null;
 }

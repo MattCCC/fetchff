@@ -19,7 +19,7 @@ import { delayInvocation, sanitizeObject } from './utils';
 import { queueRequest, removeRequestFromQueue } from './queue-manager';
 import { ABORT_ERROR, CANCELLED_ERROR } from './constants';
 import { prepareResponse, parseResponseData } from './response-parser';
-import { generateCacheKey, getCache, setCache } from './cache-manager';
+import { generateCacheKey, getCachedResponse, setCache } from './cache-manager';
 import { buildConfig, defaultConfig, mergeConfig } from './config-handler';
 import { getRetryAfterMs } from './retry-handler';
 
@@ -56,12 +56,12 @@ export function createRequestHandler(
   };
 
   /**
-   * Handle Request depending on used strategy
+   * Request function to make HTTP requests with the provided URL and configuration.
    *
-   * @param {string} url - Request url
+   * @param {string} url - Request URL
    * @param {RequestConfig} reqConfig - Request config passed when making the request
-   * @throws {ResponseError}
-   * @returns {Promise<FetchResponse<ResponseData>>} Response Data
+   * @throws {ResponseError} If the request fails or is cancelled
+   * @returns {Promise<FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>>} Response Data
    */
   const request = async <
     ResponseData = DefaultResponse,
@@ -76,7 +76,9 @@ export function createRequestHandler(
       PathParams,
       RequestBody
     > | null = null,
-  ): Promise<FetchResponse<ResponseData, RequestBody>> => {
+  ): Promise<
+    FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>
+  > => {
     const _reqConfig = reqConfig ? sanitizeObject(reqConfig) : {};
 
     // Ensure immutability
@@ -88,7 +90,12 @@ export function createRequestHandler(
     mergeConfig('retry', mergedConfig, handlerConfig, _reqConfig);
     mergeConfig('headers', mergedConfig, handlerConfig, _reqConfig);
 
-    let response: FetchResponse<ResponseData> | null = null;
+    let response: FetchResponse<
+      ResponseData,
+      RequestBody,
+      QueryParams,
+      PathParams
+    > | null = null;
     const fetcherConfig = buildConfig(url, mergedConfig);
 
     const {
@@ -109,20 +116,15 @@ export function createRequestHandler(
         ? cacheKey(fetcherConfig)
         : generateCacheKey(fetcherConfig);
 
-      if (_cacheKey) {
-        const shouldBust = mergedConfig.cacheBuster?.(fetcherConfig);
+      const cached = getCachedResponse<
+        ResponseData,
+        RequestBody,
+        QueryParams,
+        PathParams
+      >(_cacheKey, cacheTime, mergedConfig.cacheBuster, fetcherConfig);
 
-        if (!shouldBust) {
-          const cachedEntry = getCache<FetchResponse<ResponseData>>(
-            _cacheKey,
-            cacheTime,
-          );
-
-          if (cachedEntry) {
-            // Serve stale data from cache
-            return cachedEntry.data;
-          }
-        }
+      if (cached) {
+        return cached;
       }
     }
 
@@ -173,7 +175,12 @@ export function createRequestHandler(
           : ((await fetch(
               requestConfig.url as string,
               requestConfig as RequestInit,
-            )) as unknown as FetchResponse<ResponseData, RequestBody>);
+            )) as unknown as FetchResponse<
+              ResponseData,
+              RequestBody,
+              QueryParams,
+              PathParams
+            >);
 
         // Add more information to response object
         if (response instanceof Response) {
@@ -244,8 +251,8 @@ export function createRequestHandler(
         if (
           cacheTime &&
           _cacheKey &&
-          requestConfig.skipCache &&
-          !requestConfig.skipCache(output, requestConfig)
+          (!requestConfig.skipCache ||
+            !requestConfig.skipCache(output, requestConfig))
         ) {
           setCache(_cacheKey, output);
         }
