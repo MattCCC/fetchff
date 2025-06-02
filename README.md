@@ -1156,7 +1156,7 @@ const api = createApiFetcher({
   timeout: 30000, // Request timeout in milliseconds.
   dedupeTime: 0, // Time window, in milliseconds, during which identical requests are deduplicated (treated as single request).
   pollingInterval: 5000, // Interval in milliseconds between polling attempts. Setting 0 disables polling.
-  pollingDelay: 1000, // Wait 1 second before to begin each polling attempt
+  pollingDelay: 1000, // Wait 1 second before beginning each polling attempt
   maxPollingAttempts: 10, // Stop polling after 10 attempts
   shouldStopPolling: (response, attempt) => false, // Function to determine if polling should stop based on the response. Return true to stop polling, or false to continue.
   method: 'get', // Default request method.
