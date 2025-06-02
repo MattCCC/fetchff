@@ -130,5 +130,33 @@ describe('API Handler', () => {
       // @ts-expect-error Authorization header is not defined in the mock
       expect(response.config.headers['Authorization']).toBeUndefined();
     });
+
+    it('should merge headers from config, endpoint, and request', async () => {
+      fetchMock.getOnce('http://example.com/api/getHeaders', () => {
+        return { status: 200, body: 'nothing' };
+      });
+
+      const handler = createApiFetcher({
+        apiUrl: 'http://example.com/api',
+        headers: { 'X-Global': 'global' },
+        endpoints: {
+          getHeaders: {
+            url: '/getHeaders',
+            headers: { 'X-Endpoint': 'endpoint' },
+          },
+        },
+      });
+
+      const result = await handler.request('getHeaders', {
+        headers: { 'X-Request': 'request' },
+      });
+
+      const headers = result?.config?.headers as
+        | Record<string, string>
+        | undefined;
+      expect(headers?.['X-Request']).toBe('request');
+      expect(headers?.['X-Endpoint']).toBe('endpoint');
+      expect(headers?.['X-Global']).toBe('global');
+    });
   });
 });
