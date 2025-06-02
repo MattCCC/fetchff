@@ -237,8 +237,8 @@ describe('Request Handler', () => {
       const pollingConfig = {
         pollingInterval: 100,
         shouldStopPolling: jest.fn((_response, pollingAttempt) => {
-          // Stop polling after 3 attempts
-          return pollingAttempt >= 3;
+          // Stop polling at 3 attempts
+          return pollingAttempt === 3;
         }),
       };
 
@@ -271,11 +271,12 @@ describe('Request Handler', () => {
       jest.advanceTimersByTime(300); // pollingInterval * 3
 
       // Ensure polling stopped after 3 attempts
-      expect(pollingConfig.shouldStopPolling).toHaveBeenCalledTimes(4);
-      expect(fetchMock.callHistory.calls(baseURL + '/endpoint').length).toBe(4); // 1 initial + 3 polls
+      expect(pollingConfig.shouldStopPolling).toHaveBeenCalledTimes(3);
+      expect(fetchMock.callHistory.calls(baseURL + '/endpoint').length).toBe(3); // 3 polls
 
       // Ensure delay function was called for each polling attempt
-      expect(mockDelayInvocation).toHaveBeenCalledTimes(3);
+      // 2 delays after the first request, as last one does not require a delay
+      expect(mockDelayInvocation).toHaveBeenCalledTimes(2);
       expect(mockDelayInvocation).toHaveBeenCalledWith(
         pollingConfig.pollingInterval,
       );
@@ -345,22 +346,17 @@ describe('Request Handler', () => {
       expect(mockLogger.warn).toHaveBeenCalled();
     });
 
-    it('should log polling attempts and delays', async () => {
-      // Setup polling configuration
-      const pollingConfig = {
-        pollingInterval: 100,
-        shouldStopPolling: jest.fn((_response, pollingAttempt) => {
-          // Stop polling after 3 attempts
-          return pollingAttempt >= 3;
-        }),
-      };
-
+    it('should call delay invocation correct number of times', async () => {
       const requestHandler = createRequestHandler({
         baseURL,
         retry: {
           retries: 0, // No retries for this test
         },
-        ...pollingConfig,
+        pollingInterval: 100,
+        shouldStopPolling: jest.fn((_response, pollingAttempt) => {
+          // Stop polling after 3 attempts
+          return pollingAttempt === 3;
+        }),
         logger: mockLogger,
       });
 
@@ -375,7 +371,8 @@ describe('Request Handler', () => {
       // Advance timers to cover polling interval
       jest.advanceTimersByTime(300); // pollingInterval * 3
 
-      expect(delayInvocation).toHaveBeenCalledTimes(3);
+      // 2 delays after the first request, as last one does not require a delay
+      expect(delayInvocation).toHaveBeenCalledTimes(2);
     });
 
     it('should not poll if shouldStopPolling returns true immediately', async () => {

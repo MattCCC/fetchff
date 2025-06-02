@@ -365,6 +365,38 @@ async function example8() {
   }
 }
 
+// fetchf() - polling example
+async function example9() {
+  interface SuccessResponseData {
+    bookId: string;
+    bookText: string;
+  }
+
+  interface ErrorResponseData {
+    errorCode: number;
+    errorText: string;
+  }
+
+  const { data, error } = await fetchf<SuccessResponseData | ErrorResponseData>(
+    'https://example.com/api/custom-endpoint',
+    {
+      pollingInterval: 1000, // Poll every second
+      shouldStopPolling(response, attempt) {
+        // Stop polling after 5 attempts or if the response contains an error
+        return attempt >= 5 || 'errorCode' in response.data;
+      },
+    },
+  );
+
+  if (error) {
+    const errorData = data as ErrorResponseData;
+
+    console.log('Example 9 Error', errorData.errorCode);
+  } else {
+    console.log('Example 9 Success', data);
+  }
+}
+
 example1();
 example2();
 example3();
@@ -373,3 +405,4 @@ example5();
 example6();
 example7();
 example8();
+example9();

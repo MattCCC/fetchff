@@ -705,9 +705,9 @@ The following options are available for configuring polling in the `RequestHandl
   _Default:_ `0` (unlimited).
 
 - **`shouldStopPolling`**:  
-  Type: `(response: any, error: any, attempt: number) => boolean`  
-  A function to determine if polling should stop based on the response, error, or the current polling attempt number. Return `true` to stop polling, and `false` to continue polling. This allows for custom logic to decide when to stop polling based on the conditions of the response or error.  
-  _Default:_ `(response, error, attempt) => false` (polling continues indefinitely unless manually stopped).
+  Type: `(response: any, attempt: number) => boolean`  
+  A function to determine if polling should stop based on the response, error, or the current polling attempt number (attempt starts with `1`). Return `true` to stop polling, and `false` to continue polling. This allows for custom logic to decide when to stop polling based on the conditions of the response or error.  
+  _Default:_ `(response, attempt) => false` (polling continues indefinitely unless manually stopped).
 
 ### How It Works
 

@@ -10,6 +10,7 @@ import { delayInvocation } from './utils';
  * @param pollingInterval - Interval in ms between polling attempts.
  * @param shouldStopPolling - Function to determine if polling should stop.
  * @param maxAttempts - Maximum number of polling attempts, default: 0 (unlimited).
+ * @param pollingDelay - Delay in ms before each polling attempt, default: 0.
  * @returns The final output from the last request.
  */
 export async function withPolling<
@@ -24,14 +25,22 @@ export async function withPolling<
   pollingInterval?: ExtendedRequestConfig['pollingInterval'],
   shouldStopPolling?: ExtendedRequestConfig['shouldStopPolling'],
   maxAttempts = 0,
+  pollingDelay = 0,
 ): Promise<Output> {
   let pollingAttempt = 0;
   let output: Output;
 
   while (maxAttempts === 0 || pollingAttempt < maxAttempts) {
+    if (pollingDelay > 0) {
+      await delayInvocation(pollingDelay);
+    }
+
     output = await doRequestOnce();
 
+    pollingAttempt++;
+
     if (
+      (maxAttempts > 0 && pollingAttempt >= maxAttempts) ||
       !pollingInterval ||
       (shouldStopPolling && shouldStopPolling(output, pollingAttempt))
     ) {
@@ -39,14 +48,6 @@ export async function withPolling<
     }
 
     await delayInvocation(pollingInterval);
-
-    pollingAttempt++;
-  }
-
-  if (maxAttempts > 0 && pollingAttempt >= maxAttempts) {
-    throw new Error(
-      `Polling exceeded max attempts (${maxAttempts}). Check shouldStopPolling logic.`,
-    );
   }
 
   return output!;
