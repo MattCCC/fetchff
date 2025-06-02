@@ -330,8 +330,8 @@ export function createRequestHandler(
             // Remove the request from the queue
             removeRequestFromQueue(_cacheKey);
 
-            // Only handle the error if the request was not cancelled,
-            // or if it was cancelled and rejectCancelled is true
+            // Timeouts and request cancellations using AbortController do not throw any errors unless rejectCancelled is true.
+            // Only handle the error if the request was not cancelled, or if it was cancelled and rejectCancelled is true.
             const isCancelled = isRequestCancelled(error as ResponseError);
             const shouldHandleError =
               !isCancelled || mergedConfig.rejectCancelled;

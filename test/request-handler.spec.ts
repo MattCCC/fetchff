@@ -53,22 +53,21 @@ describe('Request Handler', () => {
     done();
   });
 
-  it('should get request instance', () => {
-    const requestHandler = createRequestHandler({ fetcher });
-
-    const response = requestHandler.getInstance();
-
-    expect(response).toBeTruthy();
-  });
-
   describe('request()', () => {
-    beforeEach(() => {
-      jest.useFakeTimers();
-      globalThis.fetch = jest.fn();
-    });
+    fetchMock.mockGlobal();
 
     afterEach(() => {
+      fetchMock.clearHistory();
+      fetchMock.removeRoutes();
       jest.useRealTimers();
+    });
+
+    it('should get request instance', () => {
+      const requestHandler = createRequestHandler({ fetcher });
+
+      const response = requestHandler.getInstance();
+
+      expect(response).toBeTruthy();
     });
 
     it('should properly hang promise when using Silent strategy', async () => {
@@ -136,6 +135,48 @@ describe('Request Handler', () => {
         expect(typeof error).toBe('object');
       }
     });
+
+    it('should use custom fetcher instance if provided', async () => {
+      const customFetcher = {
+        create: jest.fn().mockReturnValue({
+          request: jest.fn().mockResolvedValue({ data: { foo: 'bar' } }),
+        }),
+      };
+      const handler = createRequestHandler({ fetcher: customFetcher });
+      const result = await handler.request('http://example.com/api/custom');
+      expect(customFetcher.create).toHaveBeenCalled();
+      expect(result.data).toEqual({ foo: 'bar' });
+    });
+
+    it('should abort request on timeout', async () => {
+      const handler = createRequestHandler({
+        timeout: 1000,
+        rejectCancelled: true,
+      });
+      fetchMock.get(
+        'http://example.com/api/timeout',
+        () => new Promise(() => {}),
+      ); // never resolves
+
+      const promise = handler.request('http://example.com/api/timeout');
+      jest.advanceTimersByTime(1100); // advance enough for timeout to trigger
+      await expect(promise).rejects.toThrow();
+    });
+
+    it('should not cache if cacheBuster returns true', async () => {
+      let callCount = 0;
+      fetchMock.get('http://example.com/api/cache-buster', () => {
+        callCount++;
+        return { status: 200, body: { foo: 'bar' } };
+      });
+      const handler = createRequestHandler({
+        cacheTime: 60,
+        cacheBuster: () => true,
+      });
+      await handler.request('http://example.com/api/cache-buster');
+      await handler.request('http://example.com/api/cache-buster');
+      expect(callCount).toBe(2);
+    });
   });
 
   describe('request() Polling Mechanism', () => {
@@ -145,10 +186,14 @@ describe('Request Handler', () => {
     beforeEach(() => {
       jest.useFakeTimers();
       jest.clearAllMocks();
-      globalThis.fetch = jest.fn();
+      fetchMock.mockGlobal();
+      fetchMock.clearHistory();
+      fetchMock.removeRoutes();
     });
 
     afterEach(() => {
+      fetchMock.clearHistory();
+      fetchMock.removeRoutes();
       jest.useRealTimers();
     });
 
@@ -172,11 +217,10 @@ describe('Request Handler', () => {
         logger: mockLogger,
       });
 
-      // Mock fetch to return a successful response every time
-      (globalThis.fetch as jest.Mock).mockResolvedValue({
-        ok: true,
-        clone: jest.fn().mockReturnValue({}),
-        json: jest.fn().mockResolvedValue({}),
+      // Mock fetch to return a successful response every time using fetch-mock
+      fetchMock.get(baseURL + '/endpoint', {
+        status: 200,
+        body: {},
       });
 
       const mockDelayInvocation = delayInvocation as jest.MockedFunction<
@@ -193,7 +237,7 @@ describe('Request Handler', () => {
 
       // Ensure polling stopped after 3 attempts
       expect(pollingConfig.shouldStopPolling).toHaveBeenCalledTimes(4);
-      expect(globalThis.fetch).toHaveBeenCalledTimes(4); // 1 initial + 3 polls
+      expect(fetchMock.callHistory.calls(baseURL + '/endpoint').length).toBe(4); // 1 initial + 3 polls
 
       // Ensure delay function was called for each polling attempt
       expect(mockDelayInvocation).toHaveBeenCalledTimes(3);
@@ -213,42 +257,35 @@ describe('Request Handler', () => {
         logger: mockLogger,
       });
 
-      // Mock fetch to return a successful response
-      (globalThis.fetch as jest.Mock).mockResolvedValue({
-        ok: true,
-        clone: jest.fn().mockReturnValue({}),
-        json: jest.fn().mockResolvedValue({}),
+      fetchMock.getOnce(baseURL + '/endpoint', {
+        status: 200,
+        body: {},
       });
 
       await requestHandler.request('/endpoint');
 
       // Ensure fetch was only called once
-      expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+      expect(fetchMock.callHistory.calls(baseURL + '/endpoint').length).toBe(1);
 
       // Ensure polling was not attempted
       expect(mockLogger.warn).not.toHaveBeenCalled();
     });
 
     it('should stop polling on error and not proceed with polling attempts', async () => {
-      // Setup polling configuration
-      const pollingConfig = {
-        pollingInterval: 100,
-        shouldStopPolling: jest.fn(() => false), // Always continue polling if no errors
-      };
-
       const requestHandler = createRequestHandler({
         baseURL,
         retry: {
           retries: 0, // No retries for this test
         },
-        ...pollingConfig,
+        pollingInterval: 100,
+        shouldStopPolling: jest.fn(() => false), // Always continue polling if no errors
         logger: mockLogger,
       });
 
-      // Mock fetch to fail
-      (globalThis.fetch as jest.Mock).mockRejectedValue({
+      // Mock fetch to fail using fetch-mock
+      fetchMock.getOnce(baseURL + '/endpoint', {
         status: 500,
-        json: jest.fn().mockResolvedValue({}),
+        body: 'fail',
       });
 
       const mockDelayInvocation = delayInvocation as jest.MockedFunction<
@@ -257,13 +294,14 @@ describe('Request Handler', () => {
 
       mockDelayInvocation.mockResolvedValue(true);
 
-      await expect(requestHandler.request('/endpoint')).rejects.toMatchObject({
+      await expect(
+        requestHandler.request(baseURL + '/endpoint'),
+      ).rejects.toMatchObject({
         status: 500,
-        json: expect.any(Function),
       });
 
       // Ensure fetch was called once (no polling due to error)
-      expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+      expect(fetchMock.callHistory.calls(baseURL + '/endpoint').length).toBe(1);
 
       // Ensure polling was not attempted after failure
       expect(mockDelayInvocation).toHaveBeenCalledTimes(0);
@@ -291,11 +329,10 @@ describe('Request Handler', () => {
         logger: mockLogger,
       });
 
-      // Mock fetch to return a successful response
-      (globalThis.fetch as jest.Mock).mockResolvedValue({
-        ok: true,
-        clone: jest.fn().mockReturnValue({}),
-        json: jest.fn().mockResolvedValue({}),
+      // Use fetch-mock to return a successful response
+      fetchMock.get(baseURL + '/endpoint', {
+        status: 200,
+        body: {},
       });
 
       await requestHandler.request('/endpoint');
@@ -310,7 +347,6 @@ describe('Request Handler', () => {
     });
 
     it('should not poll if shouldStopPolling returns true immediately', async () => {
-      // Setup polling configuration
       const pollingConfig = {
         pollingInterval: 100,
         shouldStopPolling: jest.fn(() => true), // Stop immediately
@@ -318,26 +354,16 @@ describe('Request Handler', () => {
 
       const requestHandler = createRequestHandler({
         baseURL,
-        retry: {
-          retries: 0, // No retries for this test
-        },
+        retry: { retries: 0 },
         ...pollingConfig,
         logger: mockLogger,
       });
 
-      // Mock fetch to return a successful response
-      (globalThis.fetch as jest.Mock).mockResolvedValue({
-        ok: true,
-        clone: jest.fn().mockReturnValue({}),
-        json: jest.fn().mockResolvedValue({}),
-      });
+      fetchMock.getOnce(baseURL + '/endpoint', { status: 200, body: {} });
 
       await requestHandler.request('/endpoint');
 
-      // Ensure fetch was only called once
-      expect(globalThis.fetch).toHaveBeenCalledTimes(1);
-
-      // Ensure polling was skipped
+      expect(fetchMock.callHistory.calls(baseURL + '/endpoint').length).toBe(1);
       expect(pollingConfig.shouldStopPolling).toHaveBeenCalledTimes(1);
     });
   });
@@ -1069,6 +1095,42 @@ describe('Request Handler', () => {
       jest.useRealTimers();
     });
 
+    it('should propagate error thrown by onRequest interceptor', async () => {
+      const handler = createRequestHandler({
+        onRequest: () => {
+          throw new Error('Interceptor error');
+        },
+      });
+      await expect(
+        handler.request('http://example.com/api/err'),
+      ).rejects.toThrow('Interceptor error');
+    });
+
+    it('should call onError and onResponse hooks', async () => {
+      const onError = jest.fn();
+      const onResponse = jest.fn();
+      const handler = createRequestHandler({
+        onError,
+        onResponse,
+      });
+      fetchMock.getOnce('http://example.com/api/hook', {
+        status: 200,
+        body: { foo: 'bar' },
+      });
+      await handler.request('http://example.com/api/hook');
+      expect(onResponse).toHaveBeenCalled();
+
+      fetchMock.getOnce('http://example.com/api/hook-fail', {
+        status: 500,
+        body: 'fail',
+      });
+
+      await expect(
+        handler.request('http://example.com/api/hook-fail'),
+      ).rejects.toThrow();
+      expect(onError).toHaveBeenCalled();
+    });
+
     it('should apply interceptors correctly', async () => {
       fetchMock.route('https://api.example.com/test-endpoint?key=value', {
         status: 200,
@@ -1402,6 +1464,25 @@ describe('Request Handler', () => {
   });
 
   describe('Response output', () => {
+    beforeEach(() => {
+      fetchMock.mockGlobal();
+    });
+
+    afterEach(() => {
+      fetchMock.clearHistory();
+      fetchMock.removeRoutes();
+    });
+
+    it('should return defaultResponse if response is empty', async () => {
+      const handler = createRequestHandler({ defaultResponse: { foo: 'bar' } });
+      fetchMock.getOnce('http://example.com/api/empty', {
+        status: 200,
+        body: {},
+      });
+      const result = await handler.request('http://example.com/api/empty');
+      expect(result.data).toEqual({ foo: 'bar' });
+    });
+
     it('should show nested data object if flattening is off', async () => {
       const requestHandler = createRequestHandler({
         fetcher,
