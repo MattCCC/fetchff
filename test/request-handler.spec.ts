@@ -184,17 +184,52 @@ describe('Request Handler', () => {
     const mockLogger = { warn: jest.fn() };
 
     beforeEach(() => {
-      jest.useFakeTimers();
       jest.clearAllMocks();
-      fetchMock.mockGlobal();
       fetchMock.clearHistory();
       fetchMock.removeRoutes();
+      fetchMock.mockGlobal();
+      jest.useFakeTimers();
     });
 
     afterEach(() => {
       fetchMock.clearHistory();
       fetchMock.removeRoutes();
       jest.useRealTimers();
+    });
+
+    it('should handle polling with shouldStopPolling always false (infinite loop protection)', async () => {
+      const handler = createRequestHandler({
+        pollingInterval: 10,
+        shouldStopPolling: () => false,
+        retry: { retries: 0 },
+        maxPollingAttempts: 10,
+      });
+
+      let callCount = 0;
+
+      (globalThis.fetch as jest.Mock) = jest.fn().mockImplementation(() => {
+        callCount++;
+
+        return Promise.resolve(
+          new Response(JSON.stringify({}), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        );
+      });
+
+      const promise = handler.request('http://example.com/api/poll');
+
+      // Advance timers in steps and allow microtasks to run
+      for (let i = 0; i < 10; i++) {
+        jest.advanceTimersByTime(10);
+        await Promise.resolve(); // allow scheduled fetches to run
+      }
+
+      // Should have polled at least 10 times
+      await promise.catch(() => {}); // avoid unhandled rejection
+
+      expect(callCount).toBeGreaterThanOrEqual(10);
     });
 
     it('should poll the specified number of times until shouldStopPolling returns true', async () => {
