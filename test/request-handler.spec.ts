@@ -340,10 +340,7 @@ describe('Request Handler', () => {
       // Advance timers to cover polling interval
       jest.advanceTimersByTime(300); // pollingInterval * 3
 
-      // Check if polling was logged properly
-      expect(mockLogger.warn).toHaveBeenCalledWith('Polling attempt 1...');
-      expect(mockLogger.warn).toHaveBeenCalledWith('Polling attempt 2...');
-      expect(mockLogger.warn).toHaveBeenCalledWith('Polling attempt 3...');
+      expect(delayInvocation).toHaveBeenCalledTimes(3);
     });
 
     it('should not poll if shouldStopPolling returns true immediately', async () => {

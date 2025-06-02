@@ -27,6 +27,7 @@ import { prepareResponse, parseResponseData } from './response-parser';
 import { generateCacheKey, getCachedResponse, setCache } from './cache-manager';
 import { buildConfig, defaultConfig, mergeConfig } from './config-handler';
 import { getRetryAfterMs } from './retry-handler';
+import { withPolling } from './polling-handler';
 
 /**
  * Create Request Handler
@@ -107,10 +108,9 @@ export function createRequestHandler(
       timeout,
       cancellable,
       dedupeTime,
-      pollingInterval,
-      shouldStopPolling,
       cacheTime,
       cacheKey,
+      pollingInterval = 0,
     } = mergedConfig;
 
     // Prevent performance overhead of cache access
@@ -151,8 +151,8 @@ export function createRequestHandler(
       }
     }
 
-    // The actual request logic as a promise
-    const doRequest = (async () => {
+    // The actual request logic as a function (one poll attempt, with retries)
+    const doRequestOnce = async () => {
       const {
         retries = 0,
         delay,
@@ -168,7 +168,6 @@ export function createRequestHandler(
         RequestBody
       >;
       let attempt = 0;
-      let pollingAttempt = 0;
       let waitTime: number = delay || 0;
       const _retries = retries > 0 ? retries : 0;
 
@@ -258,22 +257,6 @@ export function createRequestHandler(
             attempt++;
 
             continue; // Retry the request
-          }
-
-          // Polling logic
-          if (
-            pollingInterval &&
-            // If polling is not required, or polling attempts are exhausted
-            (!shouldStopPolling || !shouldStopPolling(output, pollingAttempt))
-          ) {
-            // Restart the main retry loop
-            pollingAttempt++;
-
-            logger(mergedConfig, 'Polling attempt ' + pollingAttempt + '...');
-
-            await delayInvocation(pollingInterval);
-
-            continue;
           }
 
           if (
@@ -381,14 +364,27 @@ export function createRequestHandler(
         PathParams,
         RequestBody
       >(response, fetcherConfig);
-    })();
+    };
 
-    // If deduplication is enabled, store the in-flight promise
+    // If polling is enabled, use withPolling to handle the request
+    const doRequestPromise =
+      pollingInterval > 0
+        ? withPolling<
+            FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>
+          >(
+            doRequestOnce,
+            pollingInterval,
+            mergedConfig.shouldStopPolling,
+            mergedConfig.maxPollingAttempts,
+          )
+        : doRequestOnce();
+
+    // If deduplication is enabled, store the in-flight promise immediately
     if (_cacheKey && dedupeTime) {
-      setInFlightPromise(_cacheKey, doRequest);
+      setInFlightPromise(_cacheKey, doRequestPromise);
     }
 
-    return doRequest;
+    return doRequestPromise;
   };
 
   return {
