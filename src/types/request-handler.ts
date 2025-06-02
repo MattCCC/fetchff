@@ -134,9 +134,8 @@ export type PollingFunction<
   PathParams = DefaultUrlParams,
   RequestBody = DefaultPayload,
 > = (
-  response: FetchResponse<ResponseData, RequestBody>,
+  response: FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>,
   attempts: number,
-  error?: ResponseError<ResponseData, QueryParams, PathParams, RequestBody>,
 ) => boolean;
 
 export type CacheKeyFunction = (config: FetcherConfig) => string;
