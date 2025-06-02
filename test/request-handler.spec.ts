@@ -8,7 +8,6 @@ import type {
   RequestHandlerReturnType,
 } from '../src/types/request-handler';
 import { fetchf } from '../src';
-import type { ResponseError } from '../src/errors/response-error';
 import { ABORT_ERROR } from '../src/constants';
 import { pruneCache } from '../src/cache-manager';
 
@@ -54,22 +53,21 @@ describe('Request Handler', () => {
     done();
   });
 
-  it('should get request instance', () => {
-    const requestHandler = createRequestHandler({ fetcher });
-
-    const response = requestHandler.getInstance();
-
-    expect(response).toBeTruthy();
-  });
-
   describe('request()', () => {
-    beforeEach(() => {
-      jest.useFakeTimers();
-      globalThis.fetch = jest.fn();
-    });
+    fetchMock.mockGlobal();
 
     afterEach(() => {
+      fetchMock.clearHistory();
+      fetchMock.removeRoutes();
       jest.useRealTimers();
+    });
+
+    it('should get request instance', () => {
+      const requestHandler = createRequestHandler({ fetcher });
+
+      const response = requestHandler.getInstance();
+
+      expect(response).toBeTruthy();
     });
 
     it('should properly hang promise when using Silent strategy', async () => {
@@ -137,6 +135,48 @@ describe('Request Handler', () => {
         expect(typeof error).toBe('object');
       }
     });
+
+    it('should use custom fetcher instance if provided', async () => {
+      const customFetcher = {
+        create: jest.fn().mockReturnValue({
+          request: jest.fn().mockResolvedValue({ data: { foo: 'bar' } }),
+        }),
+      };
+      const handler = createRequestHandler({ fetcher: customFetcher });
+      const result = await handler.request('http://example.com/api/custom');
+      expect(customFetcher.create).toHaveBeenCalled();
+      expect(result.data).toEqual({ foo: 'bar' });
+    });
+
+    it('should abort request on timeout', async () => {
+      const handler = createRequestHandler({
+        timeout: 1000,
+        rejectCancelled: true,
+      });
+      fetchMock.get(
+        'http://example.com/api/timeout',
+        () => new Promise(() => {}),
+      ); // never resolves
+
+      const promise = handler.request('http://example.com/api/timeout');
+      jest.advanceTimersByTime(1100); // advance enough for timeout to trigger
+      await expect(promise).rejects.toThrow();
+    });
+
+    it('should not cache if cacheBuster returns true', async () => {
+      let callCount = 0;
+      fetchMock.get('http://example.com/api/cache-buster', () => {
+        callCount++;
+        return { status: 200, body: { foo: 'bar' } };
+      });
+      const handler = createRequestHandler({
+        cacheTime: 60,
+        cacheBuster: () => true,
+      });
+      await handler.request('http://example.com/api/cache-buster');
+      await handler.request('http://example.com/api/cache-buster');
+      expect(callCount).toBe(2);
+    });
   });
 
   describe('request() Polling Mechanism', () => {
@@ -146,10 +186,14 @@ describe('Request Handler', () => {
     beforeEach(() => {
       jest.useFakeTimers();
       jest.clearAllMocks();
-      globalThis.fetch = jest.fn();
+      fetchMock.mockGlobal();
+      fetchMock.clearHistory();
+      fetchMock.removeRoutes();
     });
 
     afterEach(() => {
+      fetchMock.clearHistory();
+      fetchMock.removeRoutes();
       jest.useRealTimers();
     });
 
@@ -173,11 +217,10 @@ describe('Request Handler', () => {
         logger: mockLogger,
       });
 
-      // Mock fetch to return a successful response every time
-      (globalThis.fetch as jest.Mock).mockResolvedValue({
-        ok: true,
-        clone: jest.fn().mockReturnValue({}),
-        json: jest.fn().mockResolvedValue({}),
+      // Mock fetch to return a successful response every time using fetch-mock
+      fetchMock.get(baseURL + '/endpoint', {
+        status: 200,
+        body: {},
       });
 
       const mockDelayInvocation = delayInvocation as jest.MockedFunction<
@@ -194,7 +237,7 @@ describe('Request Handler', () => {
 
       // Ensure polling stopped after 3 attempts
       expect(pollingConfig.shouldStopPolling).toHaveBeenCalledTimes(4);
-      expect(globalThis.fetch).toHaveBeenCalledTimes(4); // 1 initial + 3 polls
+      expect(fetchMock.callHistory.calls(baseURL + '/endpoint').length).toBe(4); // 1 initial + 3 polls
 
       // Ensure delay function was called for each polling attempt
       expect(mockDelayInvocation).toHaveBeenCalledTimes(3);
@@ -214,42 +257,35 @@ describe('Request Handler', () => {
         logger: mockLogger,
       });
 
-      // Mock fetch to return a successful response
-      (globalThis.fetch as jest.Mock).mockResolvedValue({
-        ok: true,
-        clone: jest.fn().mockReturnValue({}),
-        json: jest.fn().mockResolvedValue({}),
+      fetchMock.getOnce(baseURL + '/endpoint', {
+        status: 200,
+        body: {},
       });
 
       await requestHandler.request('/endpoint');
 
       // Ensure fetch was only called once
-      expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+      expect(fetchMock.callHistory.calls(baseURL + '/endpoint').length).toBe(1);
 
       // Ensure polling was not attempted
       expect(mockLogger.warn).not.toHaveBeenCalled();
     });
 
     it('should stop polling on error and not proceed with polling attempts', async () => {
-      // Setup polling configuration
-      const pollingConfig = {
-        pollingInterval: 100,
-        shouldStopPolling: jest.fn(() => false), // Always continue polling if no errors
-      };
-
       const requestHandler = createRequestHandler({
         baseURL,
         retry: {
           retries: 0, // No retries for this test
         },
-        ...pollingConfig,
+        pollingInterval: 100,
+        shouldStopPolling: jest.fn(() => false), // Always continue polling if no errors
         logger: mockLogger,
       });
 
-      // Mock fetch to fail
-      (globalThis.fetch as jest.Mock).mockRejectedValue({
+      // Mock fetch to fail using fetch-mock
+      fetchMock.getOnce(baseURL + '/endpoint', {
         status: 500,
-        json: jest.fn().mockResolvedValue({}),
+        body: 'fail',
       });
 
       const mockDelayInvocation = delayInvocation as jest.MockedFunction<
@@ -258,13 +294,14 @@ describe('Request Handler', () => {
 
       mockDelayInvocation.mockResolvedValue(true);
 
-      await expect(requestHandler.request('/endpoint')).rejects.toMatchObject({
+      await expect(
+        requestHandler.request(baseURL + '/endpoint'),
+      ).rejects.toMatchObject({
         status: 500,
-        json: expect.any(Function),
       });
 
       // Ensure fetch was called once (no polling due to error)
-      expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+      expect(fetchMock.callHistory.calls(baseURL + '/endpoint').length).toBe(1);
 
       // Ensure polling was not attempted after failure
       expect(mockDelayInvocation).toHaveBeenCalledTimes(0);
@@ -292,11 +329,10 @@ describe('Request Handler', () => {
         logger: mockLogger,
       });
 
-      // Mock fetch to return a successful response
-      (globalThis.fetch as jest.Mock).mockResolvedValue({
-        ok: true,
-        clone: jest.fn().mockReturnValue({}),
-        json: jest.fn().mockResolvedValue({}),
+      // Use fetch-mock to return a successful response
+      fetchMock.get(baseURL + '/endpoint', {
+        status: 200,
+        body: {},
       });
 
       await requestHandler.request('/endpoint');
@@ -311,7 +347,6 @@ describe('Request Handler', () => {
     });
 
     it('should not poll if shouldStopPolling returns true immediately', async () => {
-      // Setup polling configuration
       const pollingConfig = {
         pollingInterval: 100,
         shouldStopPolling: jest.fn(() => true), // Stop immediately
@@ -319,26 +354,16 @@ describe('Request Handler', () => {
 
       const requestHandler = createRequestHandler({
         baseURL,
-        retry: {
-          retries: 0, // No retries for this test
-        },
+        retry: { retries: 0 },
         ...pollingConfig,
         logger: mockLogger,
       });
 
-      // Mock fetch to return a successful response
-      (globalThis.fetch as jest.Mock).mockResolvedValue({
-        ok: true,
-        clone: jest.fn().mockReturnValue({}),
-        json: jest.fn().mockResolvedValue({}),
-      });
+      fetchMock.getOnce(baseURL + '/endpoint', { status: 200, body: {} });
 
       await requestHandler.request('/endpoint');
 
-      // Ensure fetch was only called once
-      expect(globalThis.fetch).toHaveBeenCalledTimes(1);
-
-      // Ensure polling was skipped
+      expect(fetchMock.callHistory.calls(baseURL + '/endpoint').length).toBe(1);
       expect(pollingConfig.shouldStopPolling).toHaveBeenCalledTimes(1);
     });
   });
@@ -745,6 +770,172 @@ describe('Request Handler', () => {
     });
   });
 
+  describe('request() request deduplication', () => {
+    const baseURL = 'https://api.example.com';
+    let callCount: number;
+
+    beforeEach(() => {
+      callCount = 0;
+      fetchMock.mockGlobal();
+      fetchMock.clearHistory();
+      fetchMock.removeRoutes();
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      fetchMock.clearHistory();
+      fetchMock.removeRoutes();
+      jest.useRealTimers();
+    });
+
+    it('should deduplicate requests within dedupeTime and reuse the same response', async () => {
+      fetchMock.route(baseURL + '/dedupe', () => {
+        callCount++;
+        return {
+          status: 200,
+          body: { value: 'deduped' },
+        };
+      });
+
+      // Fire two requests with the same config in quick succession
+      const req1 = fetchf(baseURL + '/dedupe', { dedupeTime: 1000 });
+      const req2 = fetchf(baseURL + '/dedupe', { dedupeTime: 1000 });
+
+      // Both should resolve to the same response and only one network call should be made
+      const [res1, res2] = await Promise.all([req1, req2]);
+      expect(res1.data).toEqual({ value: 'deduped' });
+      expect(res2.data).toEqual({ value: 'deduped' });
+      expect(callCount).toBe(1);
+    });
+
+    it('should not deduplicate requests if dedupeTime has passed', async () => {
+      fetchMock.route(baseURL + '/dedupe-expire', () => {
+        callCount++;
+        return {
+          status: 200,
+          body: { value: 'not deduped' },
+        };
+      });
+
+      // First request
+      const res1 = await fetchf(baseURL + '/dedupe-expire', {
+        dedupeTime: 100,
+      });
+      // Advance time past dedupeTime
+      jest.advanceTimersByTime(200);
+
+      // Second request after dedupeTime
+      const res2 = await fetchf(baseURL + '/dedupe-expire', {
+        dedupeTime: 100,
+      });
+
+      expect(res1.data).toEqual({ value: 'not deduped' });
+      expect(res2.data).toEqual({ value: 'not deduped' });
+      expect(callCount).toBe(2);
+    });
+
+    it('should not deduplicate if dedupeTime is 0', async () => {
+      fetchMock.route(baseURL + '/dedupe-zero', () => {
+        callCount++;
+        return {
+          status: 200,
+          body: { value: 'no dedupe' },
+        };
+      });
+
+      const req1 = fetchf(baseURL + '/dedupe-zero', { dedupeTime: 0 });
+      const req2 = fetchf(baseURL + '/dedupe-zero', { dedupeTime: 0 });
+
+      const [res1, res2] = await Promise.all([req1, req2]);
+      expect(res1.data).toEqual({ value: 'no dedupe' });
+      expect(res2.data).toEqual({ value: 'no dedupe' });
+      expect(callCount).toBe(2);
+    });
+
+    it('should deduplicate requests with different params as different keys', async () => {
+      let callCount = 0;
+      fetchMock.get(
+        (call) => call.url.startsWith(baseURL + '/dedupe-params'),
+        () => {
+          callCount++;
+          return { status: 200, body: { value: 'deduped-params' } };
+        },
+      );
+      const req1 = fetchf(baseURL + '/dedupe-params', {
+        params: { a: 1 },
+        dedupeTime: 1000,
+      });
+      const req2 = fetchf(baseURL + '/dedupe-params', {
+        params: { a: 2 },
+        dedupeTime: 1000,
+      });
+      const [res1, res2] = await Promise.all([req1, req2]);
+      expect(res1.data).toEqual({ value: 'deduped-params' });
+      expect(res2.data).toEqual({ value: 'deduped-params' });
+      expect(callCount).toBe(2);
+    });
+
+    it('should deduplicate requests with same key but different dedupeTime windows', async () => {
+      let callCount = 0;
+      fetchMock.get(baseURL + '/dedupe-window', () => {
+        callCount++;
+        return { status: 200, body: { value: 'window' } };
+      });
+      const req1 = fetchf(baseURL + '/dedupe-window', { dedupeTime: 100 });
+      const req2 = fetchf(baseURL + '/dedupe-window', { dedupeTime: 100 });
+      const [res1, res2] = await Promise.all([req1, req2]);
+      expect(res1.data).toEqual({ value: 'window' });
+      expect(res2.data).toEqual({ value: 'window' });
+      expect(callCount).toBe(1);
+      jest.advanceTimersByTime(200);
+      const res3 = await fetchf(baseURL + '/dedupe-window', {
+        dedupeTime: 100,
+      });
+      expect(res3.data).toEqual({ value: 'window' });
+      expect(callCount).toBe(2);
+    });
+
+    it('should not deduplicate if dedupeTime is negative', async () => {
+      let callCount = 0;
+      fetchMock.get(baseURL + '/dedupe-negative', () => {
+        callCount++;
+        return { status: 200, body: { value: 'negative' } };
+      });
+      const req1 = fetchf(baseURL + '/dedupe-negative', { dedupeTime: -1 });
+      const req2 = fetchf(baseURL + '/dedupe-negative', { dedupeTime: -1 });
+      const [res1, res2] = await Promise.all([req1, req2]);
+      expect(res1.data).toEqual({ value: 'negative' });
+      expect(res2.data).toEqual({ value: 'negative' });
+      expect(callCount).toBe(2);
+    });
+
+    it('should deduplicate requests even if one fails and the other succeeds', async () => {
+      let callCount = 0;
+      let shouldFail = true;
+      fetchMock.get(baseURL + '/dedupe-fail', () => {
+        callCount++;
+        if (shouldFail) {
+          shouldFail = false;
+          return { status: 500, body: { error: 'fail' } };
+        }
+        return { status: 200, body: { value: 'success' } };
+      });
+      const req1 = fetchf(baseURL + '/dedupe-fail', { dedupeTime: 1000 });
+      const req2 = fetchf(baseURL + '/dedupe-fail', { dedupeTime: 1000 });
+      try {
+        await Promise.all([req1, req2]);
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      } catch (_e) {
+        // One or both may fail, but callCount should be 1
+        expect(callCount).toBe(1);
+      }
+      // Next request should succeed and not be deduped
+      const res3 = await fetchf(baseURL + '/dedupe-fail', { dedupeTime: 1000 });
+      expect(res3.data).toEqual({ value: 'success' });
+      expect(callCount).toBe(2);
+    });
+  });
+
   describe('request() 429 Retry-After handling', () => {
     const baseURL = 'https://api.example.com';
     const mockLogger = { warn: jest.fn() };
@@ -902,6 +1093,42 @@ describe('Request Handler', () => {
 
     afterAll(() => {
       jest.useRealTimers();
+    });
+
+    it('should propagate error thrown by onRequest interceptor', async () => {
+      const handler = createRequestHandler({
+        onRequest: () => {
+          throw new Error('Interceptor error');
+        },
+      });
+      await expect(
+        handler.request('http://example.com/api/err'),
+      ).rejects.toThrow('Interceptor error');
+    });
+
+    it('should call onError and onResponse hooks', async () => {
+      const onError = jest.fn();
+      const onResponse = jest.fn();
+      const handler = createRequestHandler({
+        onError,
+        onResponse,
+      });
+      fetchMock.getOnce('http://example.com/api/hook', {
+        status: 200,
+        body: { foo: 'bar' },
+      });
+      await handler.request('http://example.com/api/hook');
+      expect(onResponse).toHaveBeenCalled();
+
+      fetchMock.getOnce('http://example.com/api/hook-fail', {
+        status: 500,
+        body: 'fail',
+      });
+
+      await expect(
+        handler.request('http://example.com/api/hook-fail'),
+      ).rejects.toThrow();
+      expect(onError).toHaveBeenCalled();
     });
 
     it('should apply interceptors correctly', async () => {
@@ -1100,56 +1327,41 @@ describe('Request Handler', () => {
     it('should cancel previous request when fetchf() is used', async () => {
       const url = 'https://example.com/api/post/send';
 
-      let requestCounter = 0;
-
-      // Mock the endpoint with a conditional response
       fetchMock.route(url, () => {
-        // Increment the counter for each request
-        requestCounter++;
-
-        if (requestCounter === 1) {
-          // Simulate successful response for the first request
-          return {
-            status: 200,
-            body: { message: 'This response is mocked once' },
-          };
-        } else {
-          // Simulate aborted request for subsequent requests
-          return Promise.reject(
-            new DOMException('The operation was aborted.', 'AbortError'),
-          );
-        }
+        return {
+          status: 200,
+          body: { message: 'This response is mocked once' },
+        };
       });
 
-      // Create an API fetcher with cancellable requests enabled
       const sendPost = () =>
         fetchf(url, {
           cancellable: true,
           rejectCancelled: true,
         });
 
-      async function sendData() {
-        const firstRequest = sendPost();
-        const secondRequest = sendPost();
+      const firstRequest = sendPost();
+      const secondRequest = sendPost();
 
-        try {
-          const secondResponse = await secondRequest;
-          expect(secondResponse).toMatchObject({
-            message: 'This response is mocked once',
-          });
+      // Wait for both to settle to avoid unhandled rejection
+      const [firstResult, secondResult] = await Promise.allSettled([
+        firstRequest,
+        secondRequest,
+      ]);
 
-          await expect(firstRequest).rejects.toThrow(
-            'The operation was aborted.',
-          );
-        } catch (error) {
-          const err = error as ResponseError;
+      // Check the results
+      expect(firstResult.status).toBe('rejected');
+      expect((firstResult as any).reason).toBeInstanceOf(DOMException);
+      expect((firstResult as any).reason.message).toBe(
+        'The operation was aborted.',
+      );
 
-          expect(err.message).toBe('The operation was aborted.');
-        }
-      }
-
-      // Execute the sendData function and await its completion
-      await sendData();
+      expect(secondResult.status).toBe('fulfilled');
+      expect((secondResult as any).value).toMatchObject({
+        data: {
+          message: 'This response is mocked once',
+        },
+      });
     });
 
     it('should cancel previous request and pass a different successive request', async () => {
@@ -1252,6 +1464,25 @@ describe('Request Handler', () => {
   });
 
   describe('Response output', () => {
+    beforeEach(() => {
+      fetchMock.mockGlobal();
+    });
+
+    afterEach(() => {
+      fetchMock.clearHistory();
+      fetchMock.removeRoutes();
+    });
+
+    it('should return defaultResponse if response is empty', async () => {
+      const handler = createRequestHandler({ defaultResponse: { foo: 'bar' } });
+      fetchMock.getOnce('http://example.com/api/empty', {
+        status: 200,
+        body: {},
+      });
+      const result = await handler.request('http://example.com/api/empty');
+      expect(result.data).toEqual({ foo: 'bar' });
+    });
+
     it('should show nested data object if flattening is off', async () => {
       const requestHandler = createRequestHandler({
         fetcher,

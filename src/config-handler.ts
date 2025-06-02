@@ -25,7 +25,7 @@ export const defaultConfig: RequestHandlerConfig = {
   method: GET,
   strategy: 'reject',
   timeout: 30000,
-  dedupeTime: 1000,
+  dedupeTime: 0,
   defaultResponse: null,
   headers: {
     Accept: APPLICATION_JSON + ', text/plain, */*',

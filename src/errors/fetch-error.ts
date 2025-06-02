@@ -18,24 +18,28 @@ export class FetchError<
 > extends Error {
   status: number;
   statusText: string;
-  request: RequestConfig<ResponseData, QueryParams, PathParams, RequestBody>;
   config: RequestConfig<ResponseData, QueryParams, PathParams, RequestBody>;
-  response: FetchResponse<ResponseData, RequestBody> | null;
 
   constructor(
     message: string,
-    request: RequestConfig<ResponseData, QueryParams, PathParams, RequestBody>,
-    response: FetchResponse<ResponseData, RequestBody> | null,
+    public request: RequestConfig<
+      ResponseData,
+      QueryParams,
+      PathParams,
+      RequestBody
+    >,
+    public response: FetchResponse<
+      ResponseData,
+      RequestBody,
+      QueryParams,
+      PathParams
+    > | null,
   ) {
     super(message);
 
     this.name = 'FetchError';
-
-    this.message = message;
     this.status = response?.status || 0;
     this.statusText = response?.statusText || '';
-    this.request = request;
     this.config = request;
-    this.response = response;
   }
 }

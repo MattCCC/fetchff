@@ -7,7 +7,7 @@
 <i>"fetchff" stands for "fetch fast & flexibly"</i>
 
 [npm-url]: https://npmjs.org/package/fetchff
-[npm-image]: http://img.shields.io/npm/v/fetchff.svg
+[npm-image]: https://img.shields.io/npm/v/fetchff.svg
 
 [![NPM version][npm-image]][npm-url] [![Blazing Fast](https://badgen.now.sh/badge/speed/blazing%20%F0%9F%94%A5/green)](https://github.com/MattCCC/fetchff) [![Code Coverage](https://img.shields.io/badge/coverage-96.81-green)](https://github.com/MattCCC/fetchff) [![npm downloads](https://img.shields.io/npm/dm/fetchff.svg?color=lightblue)](http://npm-stat.com/charts.html?package=fetchff) [![gzip size](https://img.shields.io/bundlephobia/minzip/fetchff)](https://bundlephobia.com/result?p=fetchff) [![snyk](https://snyk.io/test/github/MattCCC/fetchff/badge.svg)](https://security.snyk.io/package/npm/fetchff)
 
@@ -53,7 +53,7 @@ Also, managing multitude of API connections in large applications can be complex
 - **Customizable**: Fully compatible with a wide range of HTTP request configuration options, allowing for flexible and detailed request customization.
 - **Lightweight**: Minimal footprint, only a few KBs when gzipped, ensuring quick load times.
 - **Framework Independent**: Pure JavaScript solution, compatible with any framework or library.
-- **Cross-Framework compatible**: Makes it easy to integration with Frameworks and Libraries, both Client Side and Server Side.
+- **Cross-Framework compatible**: Makes it easy to integrate with frameworks and libraries, both client side and server side.
 - **Browser and Node.js 18+ Compatible**: Works flawlessly in both modern browsers and Node.js environments.
 - **Fully TypeScript Compatible**: Enjoy full TypeScript support for better development experience and type safety.
 - **Custom Interceptors**: Includes `onRequest`, `onResponse`, and `onError` interceptors for flexible request and response handling.
@@ -238,15 +238,15 @@ const { data, error } = await api.request('https://example.com/api/user', {
 
 #### `api.config`
 
-You can access `api.config` property directly, so to modify global headers, and other settings on fly. Please mind it is a property, not a function.
+You can access `api.config` property directly to modify global headers and other settings on the fly. This is a property, not a function.
 
 #### `api.endpoints`
 
-You can access `api.endpoints` property directly, so to modify endpoints list. It can be useful if you want to append or remove global endpoints. Please mind it is a property, not a function.
+You can access `api.endpoints` property directly to modify the endpoints list. This can be useful if you want to append or remove global endpoints. This is a property, not a function.
 
 #### `api.getInstance()`
 
-If you initialize API handler with your custom `fetcher`, then this function will return the instance is created using `fetcher.create()` function. Your fetcher can include anything. It will be triggering `fetcher.request()` instead of native fetch() that is available by default. It gives you ultimate flexibility on how you want your requests to be made.
+If you initialize API handler with your custom `fetcher`, then this function will return the instance created using `fetcher.create()` function. Your fetcher can include anything. It will be triggering `fetcher.request()` instead of native fetch() that is available by default. It gives you ultimate flexibility on how you want your requests to be made.
 
 </details>
 
@@ -268,7 +268,7 @@ You can pass the settings:
 - per-endpoint basis defined under `endpoints` in global config when calling `createApiFetcher()`
 - per-request basis when calling `fetchf()` (second argument of the function) or in the `api.yourEndpoint()` (third argument)
 
-You can also use all native `fetch()` settings.
+You can also use all native [`fetch()` settings](https://developer.mozilla.org/en-US/docs/Web/API/fetch#parameters).
 
 |                            | Type                                                                                                   | Default | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | -------------------------- | ------------------------------------------------------------------------------------------------------ | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -899,13 +899,13 @@ Each request returns the following Response Object of type <b>FetchResponse&lt;R
 
 - **`data`**:
 
-  - **Type**: `ResponseData` (or your custom type passed through generic)
+  - **Type**: `ResponseData | null` (or your custom type passed through generic)
 
   - Contains the actual data returned from the API request, `null` or value of `defaultResponse` setting, if nothing is found.
 
 - **`error`**:
 
-  - **Type**: `ResponseError<ResponseData, QueryParams, PathParams, RequestBody>`
+  - **Type**: `ResponseError<ResponseData, QueryParams, PathParams, RequestBody> | null`
 
   - An object with details about any error that occurred or `null` otherwise.
   - **`name`**: The name of the error, that is `ResponseError`.
@@ -930,11 +930,6 @@ Each request returns the following Response Object of type <b>FetchResponse&lt;R
 
   - **Type**: `string`
   - The HTTP status text of the response (e.g., 'Not Found', 'Internal Server Error').
-
-- **`request`**:
-
-  - **Type**: `RequestConfig`
-  - An alias for `config`.
 
 - **`headers`**:
 
@@ -1077,7 +1072,7 @@ Security is a core design principle of FetchFF, with sanitization mechanisms run
 
 </details>
 
-## Comparison with another libraries
+## Comparison with other libraries
 
 | Feature                                            | fetchff     | ofetch       | wretch       | axios        | native fetch() |
 | -------------------------------------------------- | ----------- | ------------ | ------------ | ------------ | -------------- |
@@ -1100,7 +1095,7 @@ Security is a core design principle of FetchFF, with sanitization mechanisms run
 | **Built-in AbortController Support**               | ✅          | --           | --           | --           | --             |
 | **Request Interceptors**                           | ✅          | ✅           | ✅           | ✅           | --             |
 | **Request and Response Transformation**            | ✅          | ✅           | ✅           | ✅           | --             |
-| **Integration with Libraries**                     | ✅          | ✅           | ✅           | ✅           | --             |
+| **Integration with libraries**                     | ✅          | ✅           | ✅           | ✅           | --             |
 | **Request Queuing**                                | ✅          | --           | --           | --           | --             |
 | **Multiple Fetching Strategies**                   | ✅          | --           | --           | --           | --             |
 | **Dynamic URLs**                                   | ✅          | --           | ✅           | --           | --             |
@@ -1141,13 +1136,13 @@ const api = createApiFetcher({
   defaultResponse: null, // Default response when there is no data or endpoint fails.
   withCredentials: true, // Pass cookies to all requests.
   timeout: 30000, // Request timeout in milliseconds.
-  dedupeTime: 1000, // Time window, in milliseconds, during which identical requests are deduplicated (treated as single request).
+  dedupeTime: 0, // Time window, in milliseconds, during which identical requests are deduplicated (treated as single request).
   pollingInterval: 5000, // Interval in milliseconds between polling attempts. Setting 0 disables polling.
   shouldStopPolling: (response, error, attempt) => false, // Function to determine if polling should stop based on the response. Returns true to stop polling, false to continue.
   method: 'get', // Default request method.
   params: {}, // Default params added to all requests.
   data: {}, // Alias for 'body'. Default data passed to POST, PUT, DELETE and PATCH requests.
-  cacheTime: 300, // Cache is valid for 5 minutes
+  cacheTime: 300, // Cache time in seconds. In this case it is valid for 5 minutes (300 seconds)
   cacheKey: (config) => `${config.url}-${config.method}`, // Custom cache key based on URL and method
   cacheBuster: (config) => config.method === 'POST', // Bust cache for POST requests
   skipCache: (response, config) => response.status !== 200, // Skip caching on non-200 responses
@@ -1223,7 +1218,7 @@ const api = createApiFetcher({
     },
     getMessage: {
       url: '/get-message/',
-      // Change baseURL to external for this endpoint onyl
+      // Change baseURL to external for this endpoint only
       baseURL: 'https://externalprovider.com/api/v2',
     },
   },
@@ -1253,7 +1248,7 @@ sendAndGetMessage();
   <summary><span style="cursor:pointer">Click to expand</span></summary>
   <br>
 
-The library includes all necessary [TypeScript](http://typescriptlang.org) definitions bringing full TypeScript support to your API Handler. The package ships interfaces with responsible defaults making it easier to add new endpoints.
+The library includes all necessary [TypeScript](http://typescriptlang.org) definitions bringing full TypeScript support to your API Handler. The package ships interfaces with sensible defaults making it easier to add new endpoints.
 
 ```typescript
 // books.d.ts

@@ -18,6 +18,7 @@ import type {
 } from './types/api-handler';
 import { createRequestHandler } from './request-handler';
 import { fetchf } from '.';
+import { mergeConfig } from './config-handler';
 
 /**
  * Creates an instance of API Handler.
@@ -141,15 +142,20 @@ function createApiFetcher<
       return await fetchf(url, requestConfig);
     }
 
+    const mergedConfig = {
+      ...endpointConfig,
+      ...requestConfig,
+    };
+
+    mergeConfig('retry', mergedConfig, endpointConfig, requestConfig);
+    mergeConfig('headers', mergedConfig, endpointConfig, requestConfig);
+
     const responseData = await requestHandler.request<
       FinalResponse<ResponseData, DefaultResponse>,
       FinalParams<ResponseData, QueryParams_, QueryParams>,
       FinalParams<ResponseData, UrlParams, UrlParams>,
       FallbackValue<ResponseData, DefaultPayload, RequestBody>
-    >(url, {
-      ...endpointConfig,
-      ...requestConfig,
-    });
+    >(url, mergedConfig);
 
     return responseData;
   }
