@@ -382,12 +382,13 @@ export interface ExtendedRequestConfig<
 
   /**
    * The maximum time (in milliseconds) the request can take before automatically being aborted.
+   * @default 0 (0 seconds means no timeout)
    */
   timeout?: number;
 
   /**
    * Time window, in miliseconds, during which identical requests are deduplicated (treated as single request).
-   * @default 1000 (1 second)
+   * @default 0 (0 milliseconds means no deduplication)
    */
   dedupeTime?: number;
 
