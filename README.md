@@ -15,7 +15,7 @@
 
 ## Why?
 
-This is a high level library to extend the functionality of native fetch() with everything necessary and no overhead, so to wrap and reuse common patterns and functionalities in a simple and declarative manner.
+This is a high level library to extend the functionality of native fetch() with everything necessary and no overhead, so to wrap and reuse common patterns and functionalities in a simple and declarative manner. It is designed to be used in high-throughput, high-performance applications.
 
 Also, managing multitude of API connections in large applications can be complex, time-consuming and hard to scale. `fetchff` simplifies the process by offering a simple, declarative approach to API handling using Repository Pattern. It reduces the need for extensive setup, middlewares, retries, custom caching, and heavy plugins, and lets developers focus on data handling and application logic.
 
@@ -56,7 +56,7 @@ To address these challenges, the `fetchf()` provides several enhancements:
 
 ## ✔️ Benefits
 
-✅ **Lightweight:** Minimal code footprint of ~3KB gzipped for managing extensive APIs.
+✅ **Lightweight:** Minimal code footprint of ~4KB gzipped for managing extensive APIs.
 
 ✅ **High-Performance**: Optimized for speed and efficiency, ensuring fast and reliable API interactions.
 
@@ -73,6 +73,8 @@ To address these challenges, the `fetchf()` provides several enhancements:
 ✅ **Tested:** Battle tested in large projects, fully covered by unit tests.
 
 ✅ **Customizable:** Fully compatible with a wide range configuration options, allowing for flexible and detailed request customization.
+
+✅ **Responsible Defaults:** All settings are opt-in.
 
 ✅ **Framework Independent**: Pure JavaScript solution, compatible with any framework or library, both client and server side.
 
@@ -261,6 +263,10 @@ If you initialize API handler with your custom `fetcher`, then this function wil
 
 ## ⚙️ Basic Settings
 
+<details>
+  <summary><span style="cursor:pointer">Click to expand</span></summary>
+  <br>
+
 You can pass the settings:
 
 - globally for all requests when calling `createApiFetcher()`
@@ -279,10 +285,12 @@ You can also use all native [`fetch()` settings](https://developer.mozilla.org/e
 | urlPathParams              | `object`                                                                                               | `{}`    | It lets you dynamically replace segments of your URL with specific values in a clear and declarative manner. This feature is especially handy for constructing URLs with variable components or identifiers.<br><br>For example, suppose you need to update user details and have a URL template like `/user-details/update/:userId`. With `urlPathParams`, you can replace `:userId` with a real user ID, such as `123`, resulting in the URL `/user-details/update/123`.                                                                                                                                                                                  |
 | flattenResponse            | `boolean`                                                                                              | `false` | When set to `true`, this option flattens the nested response data. This means you can access the data directly without having to use `response.data.data`. It works only if the response structure includes a single `data` property.                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | defaultResponse            | `any`                                                                                                  | `null`  | Default response when there is no data or when endpoint fails depending on the chosen `strategy`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| withCredentials            | `boolean`                                                                                              | `false` | Indicates whether credentials (such as cookies) should be included with the request.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| timeout                    | `number`                                                                                               | `0`     | You can set a request timeout for all requests or particular in milliseconds.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| withCredentials            | `boolean`                                                                                              | `false` | Indicates whether credentials (such as cookies) should be included with the request. This equals to `credentials: "include"` in native `fetch()`. In Node.js, cookies are not managed automatically. Use a fetch polyfill or library that supports cookies if needed.                                                                                                                                                                                                                                                                                                                                                                                       |
+| timeout                    | `number`                                                                                               | `0`     | You can set a request timeout in milliseconds. The timeout option applies to each individual request attempt including retries and polling. `0` means that the timeout is disabled.                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | logger                     | `Logger`                                                                                               | `null`  | You can additionally specify logger object with your custom logger to automatically log the errors to the console. It should contain at least `error` and `warn` functions.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | fetcher                    | `FetcherInstance`                                                                                      |         | A custom adapter (an instance / object) that exposes `create()` function so to create instance of API Fetcher. The `create()` should return `request()` function that would be used when making the requests. The native `fetch()` is used if the fetcher is not provided.                                                                                                                                                                                                                                                                                                                                                                                  |
+
+</details>
 
 ## 🏷️ Headers
 
@@ -343,6 +351,9 @@ The `fetchff` plugin automatically injects a set of default headers into every r
 
 - **`Accept-Encoding`**: `gzip, deflate, br`
   Specifies the content encoding that the client can understand, including gzip, deflate, and Brotli compression.
+
+> ⚠️ **Accept-Encoding in Node.js:**  
+> In Node.js, decompression is handled by the fetch implementation, and users should ensure their environment supports the encodings.
 
 </details>
 
@@ -414,6 +425,10 @@ The following options are available for configuring interceptors in the `Request
   <summary><span style="cursor:pointer">Click to expand</span></summary>
   <br>
   The caching mechanism in <b>fetchf()</b> and <b>createApiFetcher()</b> enhances performance by reducing redundant network requests and reusing previously fetched data when appropriate. This system ensures that cached responses are managed efficiently and only used when considered "fresh". Below is a breakdown of the key parameters that control caching behavior and their default values.
+<br><br>
+
+> ⚠️ **When using in Node.js:**  
+> Cache and deduplication are in-memory and per-process. For distributed or serverless environments, consider external caching if persistence is needed.
 
 ### Example
 
@@ -476,6 +491,9 @@ The caching system can be fine-tuned using the following options when configurin
   <br>
 
 `fetchff` automatically deduplicates identical requests that are made within a configurable time window, ensuring that only one network request is sent for the same endpoint and parameters. This is especially useful for scenarios where multiple components or users might trigger the same request simultaneously (e.g., rapid user input, concurrent UI updates).
+
+> ⚠️ **When using in Node.js:**  
+> Request queueing and deduplication are per-process. In multi-process or serverless environments, requests are not deduplicated across instances.
 
 ### How Deduplication Works
 
@@ -800,6 +818,9 @@ If the `Content-Type` header is missing or not recognized, the plugin defaults t
 
 This approach ensures that the `fetchff` plugin can handle a variety of response formats, providing a flexible and reliable method for processing data from API requests.
 
+> ⚠️ **When using in Node.js:**  
+> In Node.js, using FormData, Blob, or ReadableStream may require additional polyfills or will not work unless your fetch polyfill supports them.
+
 ### `onResponse` Interceptor
 
 You can use the `onResponse` interceptor to customize how the response is handled before it reaches your application. This interceptor gives you access to the raw `Response` object, allowing you to transform the data or modify the response behavior based on your needs.
@@ -903,6 +924,10 @@ try {
 **`softFail`**:  
  Returns a response object with additional property of `error` when an error occurs and does not throw any error. This approach helps you to handle error information directly within the response's `error` object without the need for `try/catch` blocks.
 
+> ⚠️ **Always Check the error Property:**  
+> When using the softFail or defaultResponse strategies, the promise will not throw on error.
+> You must always check the error property in the response object to detect and handle errors.
+
 ```typescript
 const { data, error } = await fetchf('https://api.example.com/', {
   strategy: 'softFail',
@@ -918,6 +943,10 @@ Check `Response Object` section below to see how `error` object is structured.
 **`defaultResponse`**:  
  Returns a default response specified in case of an error. The promise will not be rejected. This can be used in conjunction with `flattenResponse` and `defaultResponse: {}` to provide sensible defaults.
 
+> ⚠️ **Always Check the error Property:**  
+> When using the softFail or defaultResponse strategies, the promise will not throw on error.
+> You must always check the error property in the response object to detect and handle errors.
+
 ```typescript
 const { data, error } = await fetchf('https://api.example.com/', {
   strategy: 'defaultResponse',
@@ -931,6 +960,9 @@ if (error) {
 
 **`silent`**:  
  Hangs the promise silently on error, useful for fire-and-forget requests without the need for `try/catch`. In case of an error, the promise will never be resolved or rejected, and any code after will never be executed. This strategy is useful for dispatching requests within asynchronous wrapper functions that do not need to be awaited. It prevents excessive usage of `try/catch` or additional response data checks everywhere. It can be used in combination with `onError` to handle errors separately.
+
+> ⚠️ **When using in Node.js:**  
+> The 'silent' strategy will hang the promise forever. Use with caution, especially in backend/server environments.
 
 ```typescript
 async function myLoadingProcess() {
@@ -1748,6 +1780,28 @@ fetchUserAndCreatePost(1, { title: 'New Post', content: 'This is a new post.' })
 
 </details>
 
+### Example Usage in Node.js
+
+#### Using with Express.js / Fastify
+
+<details>
+  <summary><span style="cursor:pointer">Click to expand</span></summary>
+  <br>
+
+```ts
+import { fetchf } from 'fetchff';
+
+app.get('/api/proxy', async (req, res) => {
+  const { data, error } = await fetchf('https://external.api/resource');
+  if (error) {
+    return res.status(error.status).json({ error: error.message });
+  }
+  res.json(data);
+});
+```
+
+</details>
+
 ### Example Usage with Frameworks and Libraries
 
 `fetchff` is designed to seamlessly integrate with any popular frameworks like Next.js, libraries like React, Vue, React Query and SWR. It is written in pure JS so you can effortlessly manage API requests with minimal setup, and without any dependencies.
@@ -2017,6 +2071,22 @@ For environments that do not support modern JavaScript features or APIs, you mig
 - **Fetch Polyfill**: For environments that do not support the native `fetch` API. You can use libraries like [whatwg-fetch](https://github.com/github/fetch) to provide a fetch implementation.
 - **Promise Polyfill**: For older browsers that do not support Promises. Libraries like [es6-promise](https://github.com/stefanpenner/es6-promise) can be used.
 - **AbortController Polyfill**: For environments that do not support the `AbortController` API used for aborting fetch requests. You can use the [abort-controller](https://github.com/mysticatea/abort-controller) polyfill.
+
+### Using `node-fetch` for Node.js < 18
+
+If you need to support Node.js versions below 18 (not officially supported), you can use the [`node-fetch`](https://www.npmjs.com/package/node-fetch) package to polyfill the `fetch` API. Install it with:
+
+```bash
+npm install node-fetch
+```
+
+Then, at the entry point of your application, add:
+
+```js
+globalThis.fetch = require('node-fetch');
+```
+
+> **Note:** Official support is for Node.js 18 and above. Using older Node.js versions is discouraged and may result in unexpected issues.
 
 </details>
 
