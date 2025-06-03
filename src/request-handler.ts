@@ -376,6 +376,7 @@ export function createRequestHandler(
             pollingInterval,
             mergedConfig.shouldStopPolling,
             mergedConfig.maxPollingAttempts,
+            mergedConfig.pollingDelay,
           )
         : doRequestOnce();
 

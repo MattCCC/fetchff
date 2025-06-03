@@ -671,7 +671,7 @@ document.getElementById('message')?.addEventListener('keydown', sendRequest);
 ```typescript
 const { data } = await fetchf('https://api.example.com/', {
   pollingInterval: 5000, // Poll every 5 seconds (useful for regular polling at intervals)
-  pollingDelay: 1000, // Wait 1 second before to begin each polling attempt
+  pollingDelay: 1000, // Wait 1 second before each polling attempt begins
   maxPollingAttempts: 10, // Stop polling after 10 attempts
   shouldStopPolling(response, attempt) {
     if (response && response.status === 200) {
