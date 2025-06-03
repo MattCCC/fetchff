@@ -611,6 +611,48 @@ The caching system can be fine-tuned using the following options when configurin
 
 </details>
 
+## 🔁 Deduplication & In-Flight Requests
+
+<details>
+  <summary><span style="cursor:pointer">Click to expand</span></summary>
+  <br>
+
+`fetchff` automatically deduplicates identical requests that are made within a configurable time window, ensuring that only one network request is sent for the same endpoint and parameters. This is especially useful for scenarios where multiple components or users might trigger the same request simultaneously (e.g., rapid user input, concurrent UI updates).
+
+### How Deduplication Works
+
+- When a request is made, `fetchff` checks if an identical request (same URL, method, params, and body) is already in progress or was recently completed within the `dedupeTime` window.
+- If such a request exists, the new request will "join" the in-flight request and receive the same response when it completes, rather than triggering a new network call.
+- This mechanism reduces unnecessary network traffic and ensures consistent data across your application.
+
+### Configuration
+
+- **`dedupeTime`**:
+  - Type: `number`
+  - Default: `0` (milliseconds)
+  - Specifies the time window during which identical requests are deduplicated. If set to `0`, deduplication is disabled.
+
+### Example
+
+```typescript
+import { fetchf } from 'fetchff';
+
+// Multiple rapid calls to the same endpoint will be deduplicated
+fetchf('/api/search', { params: { q: 'test' }, dedupeTime: 2000 });
+fetchf('/api/search', { params: { q: 'test' }, dedupeTime: 2000 });
+// Only one network request will be sent within the 2-second window
+```
+
+### Benefits
+
+- Prevents duplicate network requests for the same resource.
+- Reduces backend load and improves frontend performance.
+- Ensures that all consumers receive the same response for identical requests made in quick succession.
+
+This deduplication logic is applied both to standalone `fetchf()` calls and to endpoints created with `createApiFetcher()`.
+
+</details>
+
 ## ✋ Automatic Request Cancellation
 
 <details>
