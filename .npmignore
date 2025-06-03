@@ -11,6 +11,7 @@ SECURITY.md
 
 *.tgz
 *.map
+*.log
 *.ts
 !*.d.ts
 tsconfig.json
