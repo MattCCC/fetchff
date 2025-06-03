@@ -670,8 +670,10 @@ document.getElementById('message')?.addEventListener('keydown', sendRequest);
 
 ```typescript
 const { data } = await fetchf('https://api.example.com/', {
-  pollingInterval: 5000, // Poll every 5 seconds
-  shouldStopPolling: (response, error, attempt) => {
+  pollingInterval: 5000, // Poll every 5 seconds (useful for regular polling at intervals)
+  pollingDelay: 1000, // Wait 1 second before each polling attempt begins
+  maxPollingAttempts: 10, // Stop polling after 10 attempts
+  shouldStopPolling(response, attempt) {
     if (response && response.status === 200) {
       return true; // Stop polling if the response status is 200 (OK)
     }
@@ -689,23 +691,39 @@ The following options are available for configuring polling in the `RequestHandl
 
 - **`pollingInterval`**:  
   Type: `number`  
-  Interval in milliseconds between polling attempts. If set to `0`, polling is disabled. This allows you to control the frequency of requests when polling is enabled.  
+  Interval in milliseconds between polling attempts. If set to `0`, polling is disabled. This allows you to control the frequency of requests when polling is enabled. It is useful for regular, periodic polling.
   _Default:_ `0` (polling disabled).
 
+- **`pollingDelay`**:  
+   Type: `number`  
+   The time (in milliseconds) to wait before each polling attempt begins. It is useful if you want to throttle or stagger requests, or wait a bit before each poll. It basically adds a delay before each poll is started (including the first one).
+  _Default:_ `0` (no delay).
+
+- **`maxPollingAttempts`**:  
+  Type: `number`  
+  Maximum number of polling attempts before stopping. Set to `< 1` for unlimited attempts.  
+  _Default:_ `0` (unlimited).
+
 - **`shouldStopPolling`**:  
-  Type: `(response: any, error: any, attempt: number) => boolean`  
-  A function to determine if polling should stop based on the response, error, or the current polling attempt number. Return `true` to stop polling, and `false` to continue polling. This allows for custom logic to decide when to stop polling based on the conditions of the response or error.  
-  _Default:_ `(response, error, attempt) => false` (polling continues indefinitely unless manually stopped).
+  Type: `(response: any, attempt: number) => boolean`  
+  A function to determine if polling should stop based on the response, error, or the current polling attempt number (attempt starts with `1`). Return `true` to stop polling, and `false` to continue polling. This allows for custom logic to decide when to stop polling based on the conditions of the response or error.  
+  _Default:_ `(response, attempt) => false` (polling continues indefinitely unless manually stopped).
 
 ### How It Works
 
 1. **Polling Interval**:  
    When `pollingInterval` is set to a non-zero value, polling begins after the initial request. The request is repeated at intervals defined by the `pollingInterval` setting.
 
-2. **Stopping Polling**:  
+2. **Polling Delay**:  
+   The `pollingDelay` setting introduces a delay before each polling attempt, allowing for finer control over the timing of requests.
+
+3. **Maximum Polling Attempts**:  
+   The `maxPollingAttempts` setting limits the number of polling attempts. If the maximum number of attempts is reached, polling stops automatically.
+
+4. **Stopping Polling**:  
    The `shouldStopPolling` function is invoked after each polling attempt. If it returns `true`, polling will stop. Otherwise, polling will continue until the condition to stop is met, or polling is manually stopped.
 
-3. **Custom Logic**:  
+5. **Custom Logic**:  
    The `shouldStopPolling` function provides flexibility to implement custom logic based on the response, error, or the number of attempts. This makes it easy to stop polling when the desired outcome is reached or after a maximum number of attempts.
 
 </details>
@@ -1138,7 +1156,9 @@ const api = createApiFetcher({
   timeout: 30000, // Request timeout in milliseconds.
   dedupeTime: 0, // Time window, in milliseconds, during which identical requests are deduplicated (treated as single request).
   pollingInterval: 5000, // Interval in milliseconds between polling attempts. Setting 0 disables polling.
-  shouldStopPolling: (response, error, attempt) => false, // Function to determine if polling should stop based on the response. Returns true to stop polling, false to continue.
+  pollingDelay: 1000, // Wait 1 second before beginning each polling attempt
+  maxPollingAttempts: 10, // Stop polling after 10 attempts
+  shouldStopPolling: (response, attempt) => false, // Function to determine if polling should stop based on the response. Return true to stop polling, or false to continue.
   method: 'get', // Default request method.
   params: {}, // Default params added to all requests.
   data: {}, // Alias for 'body'. Default data passed to POST, PUT, DELETE and PATCH requests.

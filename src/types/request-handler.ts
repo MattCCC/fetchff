@@ -134,9 +134,8 @@ export type PollingFunction<
   PathParams = DefaultUrlParams,
   RequestBody = DefaultPayload,
 > = (
-  response: FetchResponse<ResponseData, RequestBody>,
+  response: FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>,
   attempts: number,
-  error?: ResponseError<ResponseData, QueryParams, PathParams, RequestBody>,
 ) => boolean;
 
 export type CacheKeyFunction = (config: FetcherConfig) => string;
@@ -393,11 +392,24 @@ export interface ExtendedRequestConfig<
   dedupeTime?: number;
 
   /**
-   * Interval in milliseconds between polling attempts.
-   * Set to < 1 to disable polling.
-   * @default 0 (disabled)
+   * The time (in milliseconds) between the end of one polling attempt and the start of the next.
+   * Set 0 to disable polling.
+   * @default 0 (polling disabled)
    */
   pollingInterval?: number;
+
+  /**
+   * The time (in milliseconds) to wait before each polling attempt begins. Adds a delay before each poll is started (including the first one).
+   * @default 0 (no delay)
+   */
+  pollingDelay?: number;
+
+  /**
+   * Maximum number of polling attempts before stopping.
+   * Set to < 1 for unlimited attempts.
+   * @default 0 (unlimited)
+   */
+  maxPollingAttempts?: number;
 
   /**
    * Function to determine if polling should stop based on the response.
