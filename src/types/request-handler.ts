@@ -381,13 +381,14 @@ export interface ExtendedRequestConfig<
     | ErrorInterceptor<ResponseData, QueryParams_, PathParams, RequestBody>[];
 
   /**
-   * The maximum time (in milliseconds) the request can take before automatically being aborted.
+   * The maximum time (in milliseconds) the request can take before automatically being aborted. 0 seconds disables the timeout.
+   * @default 30000 (30 seconds)
    */
   timeout?: number;
 
   /**
    * Time window, in miliseconds, during which identical requests are deduplicated (treated as single request).
-   * @default 1000 (1 second)
+   * @default 0 (0 milliseconds means no deduplication)
    */
   dedupeTime?: number;
 

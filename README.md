@@ -1,7 +1,7 @@
 <div align="center">
 <img src="./docs/logo.png" alt="logo" width="380"/>
 
-<h4 align="center">Fast, lightweight (~3 KB gzipped) and reusable data fetching</h4>
+<h4 align="center">Fast, lightweight (~4 KB gzipped) and reusable data fetching</h4>
 
 <i>The last fetch wrapper you will ever need.</i>
 <i>"fetchff" stands for "fetch fast & flexibly"</i>
@@ -15,15 +15,52 @@
 
 ## Why?
 
-This is a high level library to extend the functionality of native fetch() with everything necessary and no overhead, so to wrap and reuse common patterns and functionalities in a simple and declarative manner.
+This is a high level library to extend the functionality of native fetch() with everything necessary and no overhead, so to wrap and reuse common patterns and functionalities in a simple and declarative manner. It is designed to be used in high-throughput, high-performance applications.
 
 Also, managing multitude of API connections in large applications can be complex, time-consuming and hard to scale. `fetchff` simplifies the process by offering a simple, declarative approach to API handling using Repository Pattern. It reduces the need for extensive setup, middlewares, retries, custom caching, and heavy plugins, and lets developers focus on data handling and application logic.
 
-**Key Benefits:**
+<details>
+  <summary><span style="cursor:pointer">Click to expand</span></summary>
+  <br>
 
-✅ **Small:** Minimal code footprint of ~3KB gzipped for managing extensive APIs.
+**Some of challenges with Native Fetch that `fetchff` solves:**
 
-✅ **Secure:** Secure by default rather than "permissive by default"
+- **Error Status Handling:** Fetch does not throw errors for HTTP error statuses, making it difficult to distinguish between successful and failed requests based on status codes alone.
+- **Error Visibility:** Error responses with status codes like 404 or 500 are not automatically propagated as exceptions, which can lead to inconsistent error handling.
+- **No Built-in Retry Mechanism:** Native `fetch()` lacks built-in support for retrying requests. Developers need to implement custom retry logic to handle transient errors or intermittent failures, which can be cumbersome and error-prone.
+- **Network Errors Handling:** Native `fetch()` only rejects the Promise for network errors or failure to reach the server. Issues such as timeout errors or server unavailability do not trigger rejection by default, which can complicate error management.
+- **Limited Error Information:** The error information provided by native `fetch()` is minimal, often leaving out details such as the request headers, status codes, or response bodies. This can make debugging more difficult, as there's limited visibility into what went wrong.
+- **Lack of Interceptors:** Native `fetch()` does not provide a built-in mechanism for intercepting requests or responses. Developers need to manually manage request and response processing, which can lead to repetitive code and less maintainable solutions.
+- **No Built-in Caching:** Native `fetch()` does not natively support caching of requests and responses. Implementing caching strategies requires additional code and management, potentially leading to inconsistencies and performance issues.
+
+To address these challenges, the `fetchf()` provides several enhancements:
+
+1. **Consistent Error Handling:**
+
+   - In JavaScript, the native `fetch()` function does not reject the Promise for HTTP error statuses such as 404 (Not Found) or 500 (Internal Server Error). Instead, `fetch()` resolves the Promise with a `Response` object, where the `ok` property indicates the success of the request. If the request encounters a network error or fails due to other issues (e.g., server downtime), `fetch()` will reject the Promise.
+   - The `fetchff` plugin aligns error handling with common practices and makes it easier to manage errors consistently by rejecting erroneous status codes.
+
+2. **Enhanced Retry Mechanism:**
+
+   - **Retry Configuration:** You can configure the number of retries, delay between retries, and exponential backoff for failed requests. This helps to handle transient errors effectively.
+   - **Custom Retry Logic:** The `shouldRetry` asynchronous function allows for custom retry logic based on the error from `response.error` and attempt count, providing flexibility to handle different types of failures.
+   - **Retry Conditions:** Errors are only retried based on configurable retry conditions, such as specific HTTP status codes or error types.
+
+3. **Improved Error Visibility:**
+
+   - **Error Wrapping:** The `createApiFetcher()` and `fetchf()` wrap errors in a custom `ResponseError` class, which provides detailed information about the request and response. This makes debugging easier and improves visibility into what went wrong.
+
+4. **Extended settings:**
+   - Check Settings table for more information about all settings.
+   </details>
+
+## ✔️ Benefits
+
+✅ **Lightweight:** Minimal code footprint of ~4KB gzipped for managing extensive APIs.
+
+✅ **High-Performance**: Optimized for speed and efficiency, ensuring fast and reliable API interactions.
+
+✅ **Secure:** Secure by default rather than "permissive by default", with built-in sanitization mechanisms.
 
 ✅ **Immutable:** Every request has its own instance.
 
@@ -35,32 +72,31 @@ Also, managing multitude of API connections in large applications can be complex
 
 ✅ **Tested:** Battle tested in large projects, fully covered by unit tests.
 
+✅ **Customizable:** Fully compatible with a wide range configuration options, allowing for flexible and detailed request customization.
+
+✅ **Responsible Defaults:** All settings are opt-in.
+
+✅ **Framework Independent**: Pure JavaScript solution, compatible with any framework or library, both client and server side.
+
+✅ **Browser and Node.js 18+ Compatible:** Works flawlessly in both modern browsers and Node.js environments.
+
 ✅ **Maintained:** Since 2021 publicly through Github.
 
 ## ✔️ Features
 
-- **100% Performance-Oriented**: Optimized for speed and efficiency, ensuring fast and reliable API interactions.
 - **Smart Retry Mechanism**: Features exponential backoff for intelligent error handling and retry mechanisms.
-- **Automatic Request Deduplication**: Set the time during which requests are deduplicated (treated as same request).
-- **Smart Cache Management**: Dynamically manage cache with configurable expiration, custom keys, and selective invalidation.
+- **Request Deduplication**: Set the time during which requests are deduplicated (treated as same request).
+- **Cache Management**: Dynamically manage cache with configurable expiration, custom keys, and selective invalidation.
 - **Dynamic URLs Support**: Easily manage routes with dynamic parameters, such as `/user/:userId`.
 - **Error Handling**: Flexible error management at both global and individual request levels.
-- **Automatic Request Cancellation**: Utilizes `AbortController` to cancel previous requests automatically.
+- **Request Cancellation**: Utilizes `AbortController` to cancel previous requests automatically.
 - **Timeouts**: Set timeouts globally or per request to prevent hanging operations.
-- **Multiple Fetching Strategies**: Handle failed requests with various strategies - promise rejection, silent hang, soft fail, or default response.
-- **Multiple Requests Chaining**: Easily chain multiple requests using promises for complex API interactions.
+- **Fetching Strategies**: Handle failed requests with various strategies - promise rejection, silent hang, soft fail, or default response.
+- **Requests Chaining**: Easily chain multiple requests using promises for complex API interactions.
 - **Native `fetch()` Support**: Utilizes the built-in `fetch()` API, providing a modern and native solution for making HTTP requests.
-- **Customizable**: Fully compatible with a wide range of HTTP request configuration options, allowing for flexible and detailed request customization.
-- **Lightweight**: Minimal footprint, only a few KBs when gzipped, ensuring quick load times.
-- **Framework Independent**: Pure JavaScript solution, compatible with any framework or library.
-- **Cross-Framework compatible**: Makes it easy to integrate with frameworks and libraries, both client side and server side.
-- **Browser and Node.js 18+ Compatible**: Works flawlessly in both modern browsers and Node.js environments.
-- **Fully TypeScript Compatible**: Enjoy full TypeScript support for better development experience and type safety.
 - **Custom Interceptors**: Includes `onRequest`, `onResponse`, and `onError` interceptors for flexible request and response handling.
 
-Please open an issue for future requests.
-
-## Install
+## ✔️ Install
 
 [![NPM](https://nodei.co/npm/fetchff.png)](https://npmjs.org/package/fetchff)
 
@@ -103,44 +139,13 @@ const { data, error } = await fetchf('/api/user-details', {
 });
 ```
 
-<details>
-  <summary><span style="cursor:pointer">Click to expand</span></summary>
-  <br>
-
-**Some of challenges with Native Fetch that `fetchff` solves:**
-
-- **Error Status Handling:** Fetch does not throw errors for HTTP error statuses, making it difficult to distinguish between successful and failed requests based on status codes alone.
-- **Error Visibility:** Error responses with status codes like 404 or 500 are not automatically propagated as exceptions, which can lead to inconsistent error handling.
-- **No Built-in Retry Mechanism:** Native `fetch()` lacks built-in support for retrying requests. Developers need to implement custom retry logic to handle transient errors or intermittent failures, which can be cumbersome and error-prone.
-- **Network Errors Handling:** Native `fetch()` only rejects the Promise for network errors or failure to reach the server. Issues such as timeout errors or server unavailability do not trigger rejection by default, which can complicate error management.
-- **Limited Error Information:** The error information provided by native `fetch()` is minimal, often leaving out details such as the request headers, status codes, or response bodies. This can make debugging more difficult, as there's limited visibility into what went wrong.
-- **Lack of Interceptors:** Native `fetch()` does not provide a built-in mechanism for intercepting requests or responses. Developers need to manually manage request and response processing, which can lead to repetitive code and less maintainable solutions.
-- **No Built-in Caching:** Native `fetch()` does not natively support caching of requests and responses. Implementing caching strategies requires additional code and management, potentially leading to inconsistencies and performance issues.
-
-To address these challenges, the `fetchf()` provides several enhancements:
-
-1. **Consistent Error Handling:**
-
-   - In JavaScript, the native `fetch()` function does not reject the Promise for HTTP error statuses such as 404 (Not Found) or 500 (Internal Server Error). Instead, `fetch()` resolves the Promise with a `Response` object, where the `ok` property indicates the success of the request. If the request encounters a network error or fails due to other issues (e.g., server downtime), `fetch()` will reject the Promise.
-   - The `fetchff` plugin aligns error handling with common practices and makes it easier to manage errors consistently by rejecting erroneous status codes.
-
-2. **Enhanced Retry Mechanism:**
-
-   - **Retry Configuration:** You can configure the number of retries, delay between retries, and exponential backoff for failed requests. This helps to handle transient errors effectively.
-   - **Custom Retry Logic:** The `shouldRetry` asynchronous function allows for custom retry logic based on the error from `response.error` and attempt count, providing flexibility to handle different types of failures.
-   - **Retry Conditions:** Errors are only retried based on configurable retry conditions, such as specific HTTP status codes or error types.
-
-3. **Improved Error Visibility:**
-
-   - **Error Wrapping:** The `createApiFetcher()` and `fetchf()` wrap errors in a custom `ResponseError` class, which provides detailed information about the request and response. This makes debugging easier and improves visibility into what went wrong.
-
-4. **Extended settings:**
-   - Check Settings table for more information about all settings.
-   </details>
-
 ### Multiple API Endpoints
 
 #### `createApiFetcher()`
+
+<details>
+  <summary><span style="cursor:pointer">Click to expand</span></summary>
+  <br>
 
 It is a powerful factory function for creating API fetchers with advanced features. It provides a convenient way to configure and manage multiple API endpoints using a declarative approach. This function offers integration with retry mechanisms, error handling improvements, and all the other settings. Unlike traditional methods, `createApiFetcher()` allows you to set up and use API endpoints efficiently with minimal boilerplate code.
 
@@ -175,10 +180,6 @@ const { data, error } = await api.getUser({
 ```
 
 #### Multiple API Specific Settings
-
-<details>
-  <summary><span style="cursor:pointer">Click to expand</span></summary>
-  <br>
 
 All the Request Settings can be directly used in the function as global settings for all endpoints. They can be also used within the `endpoints` property (on per-endpoint basis). The exposed `endpoints` property is as follows:
 
@@ -262,6 +263,10 @@ If you initialize API handler with your custom `fetcher`, then this function wil
 
 ## ⚙️ Basic Settings
 
+<details>
+  <summary><span style="cursor:pointer">Click to expand</span></summary>
+  <br>
+
 You can pass the settings:
 
 - globally for all requests when calling `createApiFetcher()`
@@ -280,11 +285,12 @@ You can also use all native [`fetch()` settings](https://developer.mozilla.org/e
 | urlPathParams              | `object`                                                                                               | `{}`    | It lets you dynamically replace segments of your URL with specific values in a clear and declarative manner. This feature is especially handy for constructing URLs with variable components or identifiers.<br><br>For example, suppose you need to update user details and have a URL template like `/user-details/update/:userId`. With `urlPathParams`, you can replace `:userId` with a real user ID, such as `123`, resulting in the URL `/user-details/update/123`.                                                                                                                                                                                  |
 | flattenResponse            | `boolean`                                                                                              | `false` | When set to `true`, this option flattens the nested response data. This means you can access the data directly without having to use `response.data.data`. It works only if the response structure includes a single `data` property.                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | defaultResponse            | `any`                                                                                                  | `null`  | Default response when there is no data or when endpoint fails depending on the chosen `strategy`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| withCredentials            | `boolean`                                                                                              | `false` | Indicates whether credentials (such as cookies) should be included with the request.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| timeout                    | `number`                                                                                               | `30000` | You can set a request timeout for all requests or particular in milliseconds.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| dedupeTime                 | `number`                                                                                               | `1000`  | Time window, in milliseconds, during which identical requests are deduplicated (treated as single request).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| withCredentials            | `boolean`                                                                                              | `false` | Indicates whether credentials (such as cookies) should be included with the request. This equals to `credentials: "include"` in native `fetch()`. In Node.js, cookies are not managed automatically. Use a fetch polyfill or library that supports cookies if needed.                                                                                                                                                                                                                                                                                                                                                                                       |
+| timeout                    | `number`                                                                                               | `30000` | You can set a request timeout in milliseconds. By default 30 seconds (30000 ms). The timeout option applies to each individual request attempt including retries and polling. `0` means that the timeout is disabled.                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | logger                     | `Logger`                                                                                               | `null`  | You can additionally specify logger object with your custom logger to automatically log the errors to the console. It should contain at least `error` and `warn` functions.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | fetcher                    | `FetcherInstance`                                                                                      |         | A custom adapter (an instance / object) that exposes `create()` function so to create instance of API Fetcher. The `create()` should return `request()` function that would be used when making the requests. The native `fetch()` is used if the fetcher is not provided.                                                                                                                                                                                                                                                                                                                                                                                  |
+
+</details>
 
 ## 🏷️ Headers
 
@@ -345,6 +351,9 @@ The `fetchff` plugin automatically injects a set of default headers into every r
 
 - **`Accept-Encoding`**: `gzip, deflate, br`
   Specifies the content encoding that the client can understand, including gzip, deflate, and Brotli compression.
+
+> ⚠️ **Accept-Encoding in Node.js:**  
+> In Node.js, decompression is handled by the fetch implementation, and users should ensure their environment supports the encodings.
 
 </details>
 
@@ -410,152 +419,16 @@ The following options are available for configuring interceptors in the `Request
 
 </details>
 
-## 🔍 Error Handling
-
-<details>
-  <summary><span style="cursor:pointer">Click to expand</span></summary>
-  <br>
-  Error handling strategies define how to manage errors that occur during requests. You can configure the <b>strategy</b> option to specify what should happen when an error occurs. This affects whether promises are rejected, if errors are handled silently, or if default responses are provided. You can also combine it with <b>onError</b> interceptor for more tailored approach.
-
-  <br>
-  <br>
-
-The native `fetch()` API function doesn't throw exceptions for HTTP errors like `404` or `500` — it only rejects the promise if there is a network-level error (e.g. the request fails due to a DNS error, no internet connection, or CORS issues). The `fetchf()` function brings consistency and lets you align the behavior depending on chosen strategy. By default, all errors are rejected.
-
-### Configuration
-
-#### `strategy`
-
-**`reject`**: (default)
-Promises are rejected, and global error handling is triggered. You must use `try/catch` blocks to handle errors.
-
-```typescript
-try {
-  const { data } = await fetchf('https://api.example.com/', {
-    strategy: 'reject', // It is default so it does not really needs to be specified
-  });
-} catch (error) {
-  console.error(error.status, error.statusText, error.response, error.config);
-}
-```
-
-**`softFail`**:  
- Returns a response object with additional property of `error` when an error occurs and does not throw any error. This approach helps you to handle error information directly within the response's `error` object without the need for `try/catch` blocks.
-
-```typescript
-const { data, error } = await fetchf('https://api.example.com/', {
-  strategy: 'softFail',
-});
-
-if (error) {
-  console.error(error.status, error.statusText, error.response, error.config);
-}
-```
-
-Check `Response Object` section below to see how `error` object is structured.
-
-**`defaultResponse`**:  
- Returns a default response specified in case of an error. The promise will not be rejected. This can be used in conjunction with `flattenResponse` and `defaultResponse: {}` to provide sensible defaults.
-
-```typescript
-const { data, error } = await fetchf('https://api.example.com/', {
-  strategy: 'defaultResponse',
-  defaultResponse: {},
-});
-
-if (error) {
-  console.error('Request failed', data); // "data" will be equal to {} if there is an error
-}
-```
-
-**`silent`**:  
- Hangs the promise silently on error, useful for fire-and-forget requests without the need for `try/catch`. In case of an error, the promise will never be resolved or rejected, and any code after will never be executed. This strategy is useful for dispatching requests within asynchronous wrapper functions that do not need to be awaited. It prevents excessive usage of `try/catch` or additional response data checks everywhere. It can be used in combination with `onError` to handle errors separately.
-
-```typescript
-async function myLoadingProcess() {
-  const { data } = await fetchf('https://api.example.com/', {
-    strategy: 'silent',
-  });
-
-  // In case of an error nothing below will ever be executed.
-  console.log('This console log will not appear.');
-}
-
-myLoadingProcess();
-```
-
-##### How It Works
-
-1. **Reject Strategy**:  
-   When using the `reject` strategy, if an error occurs, the promise is rejected, and global error handling logic is triggered. You must use `try/catch` to handle these errors.
-
-2. **Soft Fail Strategy**:  
-   With `softFail`, the response object includes additional properties that provide details about the error without rejecting the promise. This allows you to handle error information directly within the response.
-
-3. **Default Response Strategy**:  
-   The `defaultResponse` strategy returns a predefined default response when an error occurs. This approach prevents the promise from being rejected, allowing for default values to be used in place of error data.
-
-4. **Silent Strategy**:  
-   The `silent` strategy results in the promise hanging silently on error. The promise will not be resolved or rejected, and any subsequent code will not execute. This is useful for fire-and-forget requests and can be combined with `onError` for separate error handling.
-
-5. **Custom Error Handling**:  
-   Depending on the strategy chosen, you can tailor how errors are managed, either by handling them directly within response objects, using default responses, or managing them silently.
-
-#### `onError`
-
-The `onError` option can be configured to intercept errors:
-
-```typescript
-const { data } = await fetchf('https://api.example.com/', {
-  strategy: 'softFail',
-  onError(error) {
-    // Intercept any error
-    console.error('Request failed', error.status, error.statusText);
-  },
-});
-```
-
-#### Different Error and Success Responses
-
-There might be scenarios when your successful response data structure differs from the one that is on error. In such circumstances you can use union type and assign it depending on if it's an error or not.
-
-```typescript
-interface SuccessResponseData {
-  bookId: string;
-  bookText: string;
-}
-
-interface ErrorResponseData {
-  errorCode: number;
-  errorText: string;
-}
-
-type ResponseData = SuccessResponseData | ErrorResponseData;
-
-const { data, error } = await fetchf<ResponseData>('https://api.example.com/', {
-  strategy: 'softFail',
-});
-
-// Check for error here as 'data' is available for both successful and erroneous responses
-if (error) {
-  const errorData = data as ErrorResponseData;
-
-  console.log('Request failed', errorData.errorCode, errorData.errorText);
-} else {
-  const successData = data as SuccessResponseData;
-
-  console.log('Request successful', successData.bookText);
-}
-```
-
-</details>
-
-## 🗄️ Smart Cache Management
+## 🗄️ Cache Management
 
 <details>
   <summary><span style="cursor:pointer">Click to expand</span></summary>
   <br>
   The caching mechanism in <b>fetchf()</b> and <b>createApiFetcher()</b> enhances performance by reducing redundant network requests and reusing previously fetched data when appropriate. This system ensures that cached responses are managed efficiently and only used when considered "fresh". Below is a breakdown of the key parameters that control caching behavior and their default values.
+<br><br>
+
+> ⚠️ **When using in Node.js:**  
+> Cache and deduplication are in-memory and per-process. For distributed or serverless environments, consider external caching if persistence is needed.
 
 ### Example
 
@@ -611,7 +484,52 @@ The caching system can be fine-tuned using the following options when configurin
 
 </details>
 
-## ✋ Automatic Request Cancellation
+## 🔁 Deduplication & In-Flight Requests
+
+<details>
+  <summary><span style="cursor:pointer">Click to expand</span></summary>
+  <br>
+
+`fetchff` automatically deduplicates identical requests that are made within a configurable time window, ensuring that only one network request is sent for the same endpoint and parameters. This is especially useful for scenarios where multiple components or users might trigger the same request simultaneously (e.g., rapid user input, concurrent UI updates).
+
+> ⚠️ **When using in Node.js:**  
+> Request queueing and deduplication are per-process. In multi-process or serverless environments, requests are not deduplicated across instances.
+
+### How Deduplication Works
+
+- When a request is made, `fetchff` checks if an identical request (same URL, method, params, and body) is already in progress or was recently completed within the `dedupeTime` window.
+- If such a request exists, the new request will "join" the in-flight request and receive the same response when it completes, rather than triggering a new network call.
+- This mechanism reduces unnecessary network traffic and ensures consistent data across your application.
+
+### Configuration
+
+- **`dedupeTime`**:
+  - Type: `number`
+  - Default: `0` (milliseconds)
+  - Specifies the time window during which identical requests are deduplicated. If set to `0`, deduplication is disabled.
+
+### Example
+
+```typescript
+import { fetchf } from 'fetchff';
+
+// Multiple rapid calls to the same endpoint will be deduplicated
+fetchf('/api/search', { params: { q: 'test' }, dedupeTime: 2000 });
+fetchf('/api/search', { params: { q: 'test' }, dedupeTime: 2000 });
+// Only one network request will be sent within the 2-second window
+```
+
+### Benefits
+
+- Prevents duplicate network requests for the same resource.
+- Reduces backend load and improves frontend performance.
+- Ensures that all consumers receive the same response for identical requests made in quick succession.
+
+This deduplication logic is applied both to standalone `fetchf()` calls and to endpoints created with `createApiFetcher()`.
+
+</details>
+
+## ✋ Request Cancellation
 
 <details>
   <summary><span style="cursor:pointer">Click to expand</span></summary>
@@ -900,6 +818,9 @@ If the `Content-Type` header is missing or not recognized, the plugin defaults t
 
 This approach ensures that the `fetchff` plugin can handle a variety of response formats, providing a flexible and reliable method for processing data from API requests.
 
+> ⚠️ **When using in Node.js:**  
+> In Node.js, using FormData, Blob, or ReadableStream may require additional polyfills or will not work unless your fetch polyfill supports them.
+
 ### `onResponse` Interceptor
 
 You can use the `onResponse` interceptor to customize how the response is handled before it reaches your application. This interceptor gives you access to the raw `Response` object, allowing you to transform the data or modify the response behavior based on your needs.
@@ -910,51 +831,215 @@ You can use the `onResponse` interceptor to customize how the response is handle
 
 <details>
   <summary><span style="cursor:pointer">Click to expand</span></summary>
-  <br>
-Each request returns the following Response Object of type <b>FetchResponse&lt;ResponseData&gt;</b> where ResponseData is usually your custom interface or `object`.
+    <br>
+  Every request returns a standardized response object from native <code>fetch()</code> extended by a few handful properties:
 
-### Structure of the Response Object
+### Response Object Structure
 
-- **`data`**:
+```typescript
+interface FetchResponse<
+  ResponseData = any,
+  QueryParams = any,
+  PathParams = any,
+  RequestBody = any,
+> extends Response {
+  data: ResponseData | null; // The parsed response data, or null/defaultResponse if unavailable
+  error: ResponseError<
+    ResponseData,
+    QueryParams,
+    PathParams,
+    RequestBody
+  > | null; // Error details if the request failed, otherwise null
+  config: RequestConfig; // The configuration used for the request
+  status: number; // HTTP status code
+  statusText: string; // HTTP status text
+  headers: HeadersObject; // Response headers as a key-value object
+}
+```
 
-  - **Type**: `ResponseData | null` (or your custom type passed through generic)
+- **`data`**:  
+  The actual data returned from the API, or `null`/`defaultResponse` if not available.
 
-  - Contains the actual data returned from the API request, `null` or value of `defaultResponse` setting, if nothing is found.
+- **`error`**:  
+  An object containing error details if the request failed, or `null` otherwise. Includes properties such as `name`, `message`, `status`, `statusText`, `request`, `config`, and the full `response`.
 
-- **`error`**:
+- **`config`**:  
+  The complete configuration object used for the request, including URL, method, headers, and parameters.
 
-  - **Type**: `ResponseError<ResponseData, QueryParams, PathParams, RequestBody> | null`
+- **`status`**:  
+  The HTTP status code of the response (e.g., 200, 404, 500).
 
-  - An object with details about any error that occurred or `null` otherwise.
-  - **`name`**: The name of the error, that is `ResponseError`.
-  - **`message`**: A descriptive message about the error.
-  - **`status`**: The HTTP status code of the response (e.g., 404, 500).
-  - **`statusText`**: The HTTP status text of the response (e.g., 'Not Found', 'Internal Server Error').
-  - **`request`**: Details about the HTTP request that was sent (e.g., URL, method, headers).
-  - **`config`**: The configuration object used for the request, including URL, method, headers, and query parameters.
-  - **`response`**: The full response object received from the server, including all headers and body.
+- **`statusText`**:  
+  The HTTP status text (e.g., 'OK', 'Not Found', 'Internal Server Error').
 
-- **`config`**:
-
-  - **Type**: `RequestConfig`
-  - The configuration object with all settings used for the request, including URL, method, headers, and query parameters.
-
-- **`status`**:
-
-  - **Type**: `number`
-  - The HTTP status code of the response (e.g., 404, 500).
-
-- **`statusText`**:
-
-  - **Type**: `string`
-  - The HTTP status text of the response (e.g., 'Not Found', 'Internal Server Error').
-
-- **`headers`**:
-
-  - **Type**: `HeadersObject`
-  - The response headers returned by the server, such as content type and caching information returned as simple key-value object.
+- **`headers`**:  
+  The response headers as a plain key-value object.
 
 The whole response of the native `fetch()` is attached as well.
+
+Error object in `error` looks as follows:
+
+- **Type**: `ResponseError<ResponseData, QueryParams, PathParams, RequestBody> | null`
+
+- An object with details about any error that occurred or `null` otherwise.
+- **`name`**: The name of the error, that is `ResponseError`.
+- **`message`**: A descriptive message about the error.
+- **`status`**: The HTTP status code of the response (e.g., 404, 500).
+- **`statusText`**: The HTTP status text of the response (e.g., 'Not Found', 'Internal Server Error').
+- **`request`**: Details about the HTTP request that was sent (e.g., URL, method, headers).
+- **`config`**: The configuration object used for the request, including URL, method, headers, and query parameters.
+- **`response`**: The full response object received from the server, including all headers and body.
+
+</details>
+
+## 🔍 Error Handling
+
+<details>
+  <summary><span style="cursor:pointer">Click to expand</span></summary>
+  <br>
+  Error handling strategies define how to manage errors that occur during requests. You can configure the <b>strategy</b> option to specify what should happen when an error occurs. This affects whether promises are rejected, if errors are handled silently, or if default responses are provided. You can also combine it with <b>onError</b> interceptor for more tailored approach.
+
+  <br>
+  <br>
+
+The native `fetch()` API function doesn't throw exceptions for HTTP errors like `404` or `500` — it only rejects the promise if there is a network-level error (e.g. the request fails due to a DNS error, no internet connection, or CORS issues). The `fetchf()` function brings consistency and lets you align the behavior depending on chosen strategy. By default, all errors are rejected.
+
+### Configuration
+
+#### `strategy`
+
+**`reject`**: (default)
+Promises are rejected, and global error handling is triggered. You must use `try/catch` blocks to handle errors.
+
+```typescript
+try {
+  const { data } = await fetchf('https://api.example.com/', {
+    strategy: 'reject', // It is default so it does not really needs to be specified
+  });
+} catch (error) {
+  console.error(error.status, error.statusText, error.response, error.config);
+}
+```
+
+**`softFail`**:  
+ Returns a response object with additional property of `error` when an error occurs and does not throw any error. This approach helps you to handle error information directly within the response's `error` object without the need for `try/catch` blocks.
+
+> ⚠️ **Always Check the error Property:**  
+> When using the softFail or defaultResponse strategies, the promise will not throw on error.
+> You must always check the error property in the response object to detect and handle errors.
+
+```typescript
+const { data, error } = await fetchf('https://api.example.com/', {
+  strategy: 'softFail',
+});
+
+if (error) {
+  console.error(error.status, error.statusText, error.response, error.config);
+}
+```
+
+Check `Response Object` section below to see how `error` object is structured.
+
+**`defaultResponse`**:  
+ Returns a default response specified in case of an error. The promise will not be rejected. This can be used in conjunction with `flattenResponse` and `defaultResponse: {}` to provide sensible defaults.
+
+> ⚠️ **Always Check the error Property:**  
+> When using the softFail or defaultResponse strategies, the promise will not throw on error.
+> You must always check the error property in the response object to detect and handle errors.
+
+```typescript
+const { data, error } = await fetchf('https://api.example.com/', {
+  strategy: 'defaultResponse',
+  defaultResponse: {},
+});
+
+if (error) {
+  console.error('Request failed', data); // "data" will be equal to {} if there is an error
+}
+```
+
+**`silent`**:  
+ Hangs the promise silently on error, useful for fire-and-forget requests without the need for `try/catch`. In case of an error, the promise will never be resolved or rejected, and any code after will never be executed. This strategy is useful for dispatching requests within asynchronous wrapper functions that do not need to be awaited. It prevents excessive usage of `try/catch` or additional response data checks everywhere. It can be used in combination with `onError` to handle errors separately.
+
+> ⚠️ **When using in Node.js:**  
+> The 'silent' strategy will hang the promise forever. Use with caution, especially in backend/server environments.
+
+```typescript
+async function myLoadingProcess() {
+  const { data } = await fetchf('https://api.example.com/', {
+    strategy: 'silent',
+  });
+
+  // In case of an error nothing below will ever be executed.
+  console.log('This console log will not appear.');
+}
+
+myLoadingProcess();
+```
+
+##### How It Works
+
+1. **Reject Strategy**:  
+   When using the `reject` strategy, if an error occurs, the promise is rejected, and global error handling logic is triggered. You must use `try/catch` to handle these errors.
+
+2. **Soft Fail Strategy**:  
+   With `softFail`, the response object includes additional properties that provide details about the error without rejecting the promise. This allows you to handle error information directly within the response.
+
+3. **Default Response Strategy**:  
+   The `defaultResponse` strategy returns a predefined default response when an error occurs. This approach prevents the promise from being rejected, allowing for default values to be used in place of error data.
+
+4. **Silent Strategy**:  
+   The `silent` strategy results in the promise hanging silently on error. The promise will not be resolved or rejected, and any subsequent code will not execute. This is useful for fire-and-forget requests and can be combined with `onError` for separate error handling.
+
+5. **Custom Error Handling**:  
+   Depending on the strategy chosen, you can tailor how errors are managed, either by handling them directly within response objects, using default responses, or managing them silently.
+
+#### `onError`
+
+The `onError` option can be configured to intercept errors:
+
+```typescript
+const { data } = await fetchf('https://api.example.com/', {
+  strategy: 'softFail',
+  onError(error) {
+    // Intercept any error
+    console.error('Request failed', error.status, error.statusText);
+  },
+});
+```
+
+#### Different Error and Success Responses
+
+There might be scenarios when your successful response data structure differs from the one that is on error. In such circumstances you can use union type and assign it depending on if it's an error or not.
+
+```typescript
+interface SuccessResponseData {
+  bookId: string;
+  bookText: string;
+}
+
+interface ErrorResponseData {
+  errorCode: number;
+  errorText: string;
+}
+
+type ResponseData = SuccessResponseData | ErrorResponseData;
+
+const { data, error } = await fetchf<ResponseData>('https://api.example.com/', {
+  strategy: 'softFail',
+});
+
+// Check for error here as 'data' is available for both successful and erroneous responses
+if (error) {
+  const errorData = data as ErrorResponseData;
+
+  console.log('Request failed', errorData.errorCode, errorData.errorText);
+} else {
+  const successData = data as SuccessResponseData;
+
+  console.log('Request successful', successData.bookText);
+}
+```
 
 </details>
 
@@ -1092,37 +1177,37 @@ Security is a core design principle of FetchFF, with sanitization mechanisms run
 
 ## Comparison with other libraries
 
-| Feature                                            | fetchff     | ofetch       | wretch       | axios        | native fetch() |
-| -------------------------------------------------- | ----------- | ------------ | ------------ | ------------ | -------------- |
-| **Unified API Client**                             | ✅          | --           | --           | --           | --             |
-| **Smart Request Cache**                            | ✅          | --           | --           | --           | --             |
-| **Automatic Request Deduplication**                | ✅          | --           | --           | --           | --             |
-| **Custom Fetching Adapter**                        | ✅          | --           | --           | --           | --             |
-| **Built-in Error Handling**                        | ✅          | --           | ✅           | --           | --             |
-| **Customizable Error Handling**                    | ✅          | --           | ✅           | ✅           | --             |
-| **Retries with exponential backoff**               | ✅          | --           | --           | --           | --             |
-| **Advanced Query Params handling**                 | ✅          | --           | --           | --           | --             |
-| **Custom Retry logic**                             | ✅          | ✅           | ✅           | --           | --             |
-| **Easy Timeouts**                                  | ✅          | ✅           | ✅           | ✅           | --             |
-| **Polling Functionality**                          | ✅          | --           | --           | --           | --             |
-| **Easy Cancellation of stale (previous) requests** | ✅          | --           | --           | --           | --             |
-| **Default Responses**                              | ✅          | --           | --           | --           | --             |
-| **Custom adapters (fetchers)**                     | ✅          | --           | --           | ✅           | --             |
-| **Global Configuration**                           | ✅          | --           | ✅           | ✅           | --             |
-| **TypeScript Support**                             | ✅          | ✅           | ✅           | ✅           | ✅             |
-| **Built-in AbortController Support**               | ✅          | --           | --           | --           | --             |
-| **Request Interceptors**                           | ✅          | ✅           | ✅           | ✅           | --             |
-| **Request and Response Transformation**            | ✅          | ✅           | ✅           | ✅           | --             |
-| **Integration with libraries**                     | ✅          | ✅           | ✅           | ✅           | --             |
-| **Request Queuing**                                | ✅          | --           | --           | --           | --             |
-| **Multiple Fetching Strategies**                   | ✅          | --           | --           | --           | --             |
-| **Dynamic URLs**                                   | ✅          | --           | ✅           | --           | --             |
-| **Automatic Retry on Failure**                     | ✅          | ✅           | --           | ✅           | --             |
-| **Automatically handle 429 Retry-After headers**   | ✅          | --           | --           | --           | --             |
-| **Built-in Input Sanitization**                    | ✅          | --           | --           | --           | --             |
-| **Prototype Pollution Protection**                 | ✅          | --           | --           | --           | --             |
-| **Server-Side Rendering (SSR) Support**            | ✅          | ✅           | --           | --           | --             |
-| **Minimal Installation Size**                      | 🟢 (3.3 KB) | 🟡 (6.41 KB) | 🟢 (2.21 KB) | 🔴 (13.7 KB) | 🟢 (0 KB)      |
+| Feature                                            | fetchff     | ofetch      | wretch       | axios        | native fetch() |
+| -------------------------------------------------- | ----------- | ----------- | ------------ | ------------ | -------------- |
+| **Unified API Client**                             | ✅          | --          | --           | --           | --             |
+| **Smart Request Cache**                            | ✅          | --          | --           | --           | --             |
+| **Automatic Request Deduplication**                | ✅          | --          | --           | --           | --             |
+| **Custom Fetching Adapter**                        | ✅          | --          | --           | --           | --             |
+| **Built-in Error Handling**                        | ✅          | --          | ✅           | --           | --             |
+| **Customizable Error Handling**                    | ✅          | --          | ✅           | ✅           | --             |
+| **Retries with exponential backoff**               | ✅          | --          | --           | --           | --             |
+| **Advanced Query Params handling**                 | ✅          | --          | --           | --           | --             |
+| **Custom Retry logic**                             | ✅          | ✅          | ✅           | --           | --             |
+| **Easy Timeouts**                                  | ✅          | ✅          | ✅           | ✅           | --             |
+| **Polling Functionality**                          | ✅          | --          | --           | --           | --             |
+| **Easy Cancellation of stale (previous) requests** | ✅          | --          | --           | --           | --             |
+| **Default Responses**                              | ✅          | --          | --           | --           | --             |
+| **Custom adapters (fetchers)**                     | ✅          | --          | --           | ✅           | --             |
+| **Global Configuration**                           | ✅          | --          | ✅           | ✅           | --             |
+| **TypeScript Support**                             | ✅          | ✅          | ✅           | ✅           | ✅             |
+| **Built-in AbortController Support**               | ✅          | --          | --           | --           | --             |
+| **Request Interceptors**                           | ✅          | ✅          | ✅           | ✅           | --             |
+| **Request and Response Transformation**            | ✅          | ✅          | ✅           | ✅           | --             |
+| **Integration with libraries**                     | ✅          | ✅          | ✅           | ✅           | --             |
+| **Request Queuing**                                | ✅          | --          | --           | --           | --             |
+| **Multiple Fetching Strategies**                   | ✅          | --          | --           | --           | --             |
+| **Dynamic URLs**                                   | ✅          | --          | ✅           | --           | --             |
+| **Automatic Retry on Failure**                     | ✅          | ✅          | --           | ✅           | --             |
+| **Automatically handle 429 Retry-After headers**   | ✅          | --          | --           | --           | --             |
+| **Built-in Input Sanitization**                    | ✅          | --          | --           | --           | --             |
+| **Prototype Pollution Protection**                 | ✅          | --          | --           | --           | --             |
+| **Server-Side Rendering (SSR) Support**            | ✅          | ✅          | --           | --           | --             |
+| **Minimal Installation Size**                      | 🟢 (4.3 KB) | 🟡 (6.5 KB) | 🟢 (2.21 KB) | 🔴 (13.7 KB) | 🟢 (0 KB)      |
 
 ## ✏️ Examples
 
@@ -1153,7 +1238,7 @@ const api = createApiFetcher({
   flattenResponse: false, // If true, flatten nested response data.
   defaultResponse: null, // Default response when there is no data or endpoint fails.
   withCredentials: true, // Pass cookies to all requests.
-  timeout: 30000, // Request timeout in milliseconds.
+  timeout: 30000, // Request timeout in milliseconds (30s in this example).
   dedupeTime: 0, // Time window, in milliseconds, during which identical requests are deduplicated (treated as single request).
   pollingInterval: 5000, // Interval in milliseconds between polling attempts. Setting 0 disables polling.
   pollingDelay: 1000, // Wait 1 second before beginning each polling attempt
@@ -1695,6 +1780,28 @@ fetchUserAndCreatePost(1, { title: 'New Post', content: 'This is a new post.' })
 
 </details>
 
+### Example Usage in Node.js
+
+#### Using with Express.js / Fastify
+
+<details>
+  <summary><span style="cursor:pointer">Click to expand</span></summary>
+  <br>
+
+```ts
+import { fetchf } from 'fetchff';
+
+app.get('/api/proxy', async (req, res) => {
+  const { data, error } = await fetchf('https://external.api/resource');
+  if (error) {
+    return res.status(error.status).json({ error: error.message });
+  }
+  res.json(data);
+});
+```
+
+</details>
+
 ### Example Usage with Frameworks and Libraries
 
 `fetchff` is designed to seamlessly integrate with any popular frameworks like Next.js, libraries like React, Vue, React Query and SWR. It is written in pure JS so you can effortlessly manage API requests with minimal setup, and without any dependencies.
@@ -1964,6 +2071,22 @@ For environments that do not support modern JavaScript features or APIs, you mig
 - **Fetch Polyfill**: For environments that do not support the native `fetch` API. You can use libraries like [whatwg-fetch](https://github.com/github/fetch) to provide a fetch implementation.
 - **Promise Polyfill**: For older browsers that do not support Promises. Libraries like [es6-promise](https://github.com/stefanpenner/es6-promise) can be used.
 - **AbortController Polyfill**: For environments that do not support the `AbortController` API used for aborting fetch requests. You can use the [abort-controller](https://github.com/mysticatea/abort-controller) polyfill.
+
+### Using `node-fetch` for Node.js < 18
+
+If you need to support Node.js versions below 18 (not officially supported), you can use the [`node-fetch`](https://www.npmjs.com/package/node-fetch) package to polyfill the `fetch` API. Install it with:
+
+```bash
+npm install node-fetch
+```
+
+Then, at the entry point of your application, add:
+
+```js
+globalThis.fetch = require('node-fetch');
+```
+
+> **Note:** Official support is for Node.js 18 and above. Using older Node.js versions is discouraged and may result in unexpected issues.
 
 </details>
 

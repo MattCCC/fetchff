@@ -24,7 +24,7 @@ import {
 export const defaultConfig: RequestHandlerConfig = {
   method: GET,
   strategy: 'reject',
-  timeout: 30000,
+  timeout: 30000, // 30 seconds
   dedupeTime: 0,
   defaultResponse: null,
   headers: {
