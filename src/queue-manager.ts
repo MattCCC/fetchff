@@ -158,7 +158,12 @@ export function getInFlightPromise(
 ): Promise<unknown> | null {
   const item = queue.get(key);
 
-  if (item && item[4] && Date.now() - item[2] < dedupeTime) {
+  if (
+    item &&
+    item[4] &&
+    Date.now() - item[2] < dedupeTime &&
+    !item[0].signal.aborted
+  ) {
     return item[4];
   }
 
