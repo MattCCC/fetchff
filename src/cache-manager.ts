@@ -15,7 +15,7 @@ const MIN_LENGTH_TO_HASH = 64;
  * like method, headers, body, and other options are included in the cache key.
  * Headers and other objects are sorted by key to ensure consistent cache keys.
  *
- * @param options - The fetch options that may affect the request. The most important are:
+ * @param {RequestConfig} options - The fetch options that may affect the request. The most important are:
  *   @property {string} [method="GET"] - The HTTP method (GET, POST, etc.).
  *   @property {HeadersInit} [headers={}] - The request headers.
  *   @property {BodyInit | null} [body=""] - The body of the request (only for methods like POST, PUT).
@@ -38,12 +38,12 @@ const MIN_LENGTH_TO_HASH = 64;
  * });
  * console.log(cacheKey);
  */
-export function generateCacheKey(options: FetcherConfig): string {
+export function generateCacheKey(options: RequestConfig): string {
   const {
     url = '',
     method = GET,
     headers = null,
-    body = undefined,
+    body = UNDEFINED,
     mode = 'cors',
     credentials = 'same-origin',
     cache = 'default',
@@ -51,6 +51,11 @@ export function generateCacheKey(options: FetcherConfig): string {
     referrer = 'about:client',
     integrity = '',
   } = options;
+
+  // For GET requests, return early with just the URL as the cache key
+  if (url && (method ?? GET).toUpperCase() === GET) {
+    return method + DELIMITER + url.replace(/[^\w\-_|]/g, '');
+  }
 
   // Bail early if cache should be burst
   if (cache === 'reload') {
