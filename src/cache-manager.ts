@@ -6,7 +6,7 @@ import type { CacheEntry } from './types/cache-manager';
 import { GET, OBJECT, UNDEFINED } from './constants';
 import { shallowSerialize, sortObject } from './utils';
 
-const cache = new Map<string, CacheEntry<any>>();
+const _cache = new Map<string, CacheEntry<any>>();
 const DELIMITER = '|';
 const MIN_LENGTH_TO_HASH = 64;
 
@@ -130,14 +130,16 @@ export function generateCacheKey(options: RequestConfig): string {
  * Checks if the cache entry is expired based on its timestamp and the maximum stale time.
  *
  * @param {number} timestamp - The timestamp of the cache entry.
- * @param {number} maxStaleTime - The maximum stale time in seconds.
+ * @param {number|undefined} maxStaleTime - The maximum time in seconds that the cache entry is considered valid.
  * @returns {boolean} - Returns true if the cache entry is expired, false otherwise.
  */
-function isCacheExpired(timestamp: number, maxStaleTime: number): boolean {
+function isCacheExpired(timestamp: number, maxStaleTime?: number): boolean {
+  // If maxStaleTime is not provided (undefined, null, or 0), the cache entry is considered not expired.
   if (!maxStaleTime) {
     return false;
   }
 
+  // Check if the current time exceeds the timestamp by more than maxStaleTime seconds
   return Date.now() - timestamp > maxStaleTime * 1000;
 }
 
@@ -145,14 +147,14 @@ function isCacheExpired(timestamp: number, maxStaleTime: number): boolean {
  * Retrieves a cache entry if it exists and is not expired.
  *
  * @param {string} key Cache key to utilize
- * @param {number} cacheTime - Maximum time to cache entry in seconds.
+ * @param {number|undefined} cacheTime - Maximum time to cache entry in seconds.
  * @returns {CacheEntry<T> | null} - The cache entry if it exists and is not expired, null otherwise.
  */
 export function getCache<T>(
   key: string,
-  cacheTime: number,
+  cacheTime?: number,
 ): CacheEntry<T> | null {
-  const entry = cache.get(key);
+  const entry = _cache.get(key);
 
   if (entry) {
     if (!isCacheExpired(entry.timestamp, cacheTime)) {
@@ -169,19 +171,15 @@ export function getCache<T>(
  * Sets a new cache entry or updates an existing one.
  *
  * @param {string} key Cache key to utilize
- * @param {T} data - The data to be cached.
- * @param {boolean} isLoading - Indicates if the data is currently being fetched.
+ * @param {T} response - The data to be cached.
  */
-export function setCache<T = unknown>(
-  key: string,
-  data: T,
-  isLoading: boolean = false,
-): void {
-  cache.set(key, {
-    data,
-    isLoading,
+export function setCache<T = unknown>(key: string, response: T): void {
+  const cacheEntry: CacheEntry<T> = {
+    data: response,
     timestamp: Date.now(),
-  });
+  };
+
+  _cache.set(key, cacheEntry);
 }
 
 /**
@@ -217,17 +215,17 @@ export async function revalidate(
  * @param {string} key Cache key to utilize
  */
 export function deleteCache(key: string): void {
-  cache.delete(key);
+  _cache.delete(key);
 }
 
 /**
  * Prunes the cache by removing entries that have expired based on the provided cache time.
  * @param cacheTime - The maximum time to cache entry.
  */
-export function pruneCache(cacheTime: number) {
-  cache.forEach((entry, key) => {
+export function pruneCache(cacheTime: number = 0): void {
+  _cache.forEach((entry, key) => {
     if (isCacheExpired(entry.timestamp, cacheTime)) {
-      cache.delete(key);
+      deleteCache(key);
     }
   });
 }
@@ -262,8 +260,7 @@ export function mutate<T>(
  * @template PathParams - The type of the path parameters.
  * @param {string | null} cacheKey - The cache key to look up.
  * @param {number | undefined} cacheTime - The maximum time to cache entry.
- * @param {(cfg: any) => boolean | undefined} cacheBuster - Optional function to determine if cache should be bypassed.
- * @param {FetcherConfig<ResponseData, QueryParams, PathParams, RequestBody>} fetcherConfig - The fetcher configuration.
+ * @param {RequestConfig<ResponseData, QueryParams, PathParams, RequestBody>} requestConfig - The fetcher configuration.
  * @returns {FetchResponse<ResponseData, RequestBody, QueryParams, PathParams> | null} - The cached response or null.
  */
 export function getCachedResponse<
@@ -274,8 +271,7 @@ export function getCachedResponse<
 >(
   cacheKey: string | null,
   cacheTime: number | undefined,
-  cacheBuster: ((cfg: any) => boolean) | undefined,
-  fetcherConfig: FetcherConfig<
+  requestConfig: RequestConfig<
     ResponseData,
     QueryParams,
     PathParams,
@@ -283,12 +279,12 @@ export function getCachedResponse<
   >,
 ): FetchResponse<ResponseData, RequestBody, QueryParams, PathParams> | null {
   // If cache key or time is not provided, return null
-  if (!cacheTime || !cacheKey) {
+  if (!cacheKey || typeof cacheTime === UNDEFINED || cacheTime === null) {
     return null;
   }
 
   // Check if cache should be bypassed
-  if (cacheBuster?.(fetcherConfig)) {
+  if (requestConfig?.cacheBuster?.(requestConfig)) {
     return null;
   }
 

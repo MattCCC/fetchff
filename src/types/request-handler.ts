@@ -138,9 +138,9 @@ export type PollingFunction<
   attempts: number,
 ) => boolean;
 
-export type CacheKeyFunction = (config: FetcherConfig) => string;
+export type CacheKeyFunction = (config: RequestConfig) => string;
 
-export type CacheBusterFunction = (config: FetcherConfig) => boolean;
+export type CacheBusterFunction = (config: RequestConfig) => boolean;
 
 export type CacheSkipFunction = <ResponseData = any, RequestBody = any>(
   data: ResponseData,

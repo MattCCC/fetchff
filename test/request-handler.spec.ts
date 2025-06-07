@@ -1585,7 +1585,7 @@ describe('Request Handler', () => {
       // Advance time to ensure cache expiration
       jest.advanceTimersByTime(61000); // 61 seconds > cacheTime of 60 seconds
 
-      pruneCache(0.0000001);
+      pruneCache();
       jest.useRealTimers();
     });
 

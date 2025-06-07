@@ -96,13 +96,14 @@ export function createRequestHandler(
     mergeConfig('retry', mergedConfig, handlerConfig, _reqConfig);
     mergeConfig('headers', mergedConfig, handlerConfig, _reqConfig);
 
+    const fetcherConfig = buildConfig(url, mergedConfig);
+
     let response: FetchResponse<
       ResponseData,
       RequestBody,
       QueryParams,
       PathParams
     > | null = null;
-    const fetcherConfig = buildConfig(url, mergedConfig);
 
     const {
       timeout,
@@ -117,20 +118,20 @@ export function createRequestHandler(
     let _cacheKey: string | null = null;
 
     // Generate cache key if required
-    if (cacheTime || dedupeTime || cancellable || timeout) {
+    if (cacheKey || cacheTime || dedupeTime || cancellable || timeout) {
       _cacheKey = cacheKey
         ? cacheKey(fetcherConfig)
         : generateCacheKey(fetcherConfig);
     }
 
     // Cache handling logic
-    if (cacheTime) {
+    if (_cacheKey && cacheTime) {
       const cached = getCachedResponse<
         ResponseData,
         RequestBody,
         QueryParams,
         PathParams
-      >(_cacheKey, cacheTime, mergedConfig.cacheBuster, fetcherConfig);
+      >(_cacheKey, cacheTime, fetcherConfig);
 
       if (cached) {
         return cached;
