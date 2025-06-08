@@ -241,7 +241,7 @@ export function replaceUrlPathParams(
 export function isJSONSerializable(value: any): boolean {
   const t = typeof value;
 
-  if (t === UNDEFINED || value === null) {
+  if (t === undefined || value === null) {
     return false;
   }
 

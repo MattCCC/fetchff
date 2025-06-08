@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { hash } from './hash';
 import type {
+  CacheKeyFunction,
   DefaultResponse,
   FetchResponse,
   RequestConfig,
@@ -44,6 +45,16 @@ const MIN_LENGTH_TO_HASH = 64;
  * console.log(cacheKey);
  */
 export function generateCacheKey(options: RequestConfig): string {
+  // This is super fast. Effectively a no-op if cacheKey is
+  // a string or a function that returns a string.
+  const key = options.cacheKey;
+
+  if (key) {
+    return typeof key === STRING
+      ? (key as string)
+      : (key as CacheKeyFunction)(options);
+  }
+
   const {
     url = '',
     method = GET,
@@ -63,7 +74,7 @@ export function generateCacheKey(options: RequestConfig): string {
   }
 
   // For GET requests, return early with just the URL as the cache key
-  if (url && (method ?? GET).toUpperCase() === GET) {
+  if (url && method === GET) {
     return method + DELIMITER + url.replace(/[^\w\-_|]/g, '');
   }
 
@@ -272,12 +283,13 @@ export function getCachedResponse<
   >,
 ): FetchResponse<ResponseData, RequestBody, QueryParams, PathParams> | null {
   // If cache key or time is not provided, return null
-  if (!cacheKey || typeof cacheTime === UNDEFINED || cacheTime === null) {
+  if (!cacheKey || cacheTime === undefined || cacheTime === null) {
     return null;
   }
 
   // Check if cache should be bypassed
-  if (requestConfig?.cacheBuster?.(requestConfig)) {
+  const buster = requestConfig.cacheBuster;
+  if (buster && buster(requestConfig)) {
     return null;
   }
 

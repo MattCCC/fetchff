@@ -240,12 +240,12 @@ export interface CacheOptions {
 
   /**
    * Cache key
-   * It provides a way to customize caching behavior dynamically according to different criteria.
-   * @param config - Request configuration.
-   * @default null By default it generates a unique cache key for HTTP requests based on:
-   * Method, URL, Query Params, Dynamic Path Params, mode, credentials, cache, redirect, referrer, integrity, headers and body
+   * Allows customization of the cache key used to identify cache entries for requests.
+   * Can be a function that generates a key from the request config, a string, or null to use the default key generator.
+   * @param config - The request configuration.
+   * @default null Uses the default cache key generator, which considers: method, URL, query params, path params, mode, credentials, cache, redirect, referrer, integrity, headers, and body.
    */
-  cacheKey?: CacheKeyFunction;
+  cacheKey?: CacheKeyFunction | string | null;
 
   /**
    * Cache Buster Function

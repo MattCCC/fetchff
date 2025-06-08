@@ -6,6 +6,7 @@ import {
   CHARSET_UTF_8,
   CONTENT_TYPE,
   OBJECT,
+  REJECT,
 } from './constants';
 import type {
   FetcherConfig,
@@ -23,7 +24,7 @@ import {
 
 export const defaultConfig: RequestHandlerConfig = {
   method: GET,
-  strategy: 'reject',
+  strategy: REJECT,
   timeout: 30000, // 30 seconds
   dedupeTime: 0,
   defaultResponse: null,

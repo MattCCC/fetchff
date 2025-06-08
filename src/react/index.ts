@@ -17,6 +17,7 @@ import { subscribe } from 'fetchff/pubsub-manager';
 import { getInFlightPromise } from 'fetchff/queue-manager';
 import { buildConfig } from 'fetchff/config-handler';
 import { UseFetcherResult } from '../types/react-hooks';
+import { REJECT } from 'fetchff/constants';
 
 const DEFAULT_DEDUPE_TIME_MS = 2000;
 
@@ -72,11 +73,7 @@ export function useFetcher<
   // Efficient cache key generation based on URL and request parameters.
   // Optimized for speed: minimizes unnecessary function calls when possible
   const _cacheKey = useMemo(
-    () =>
-      url === null
-        ? null
-        : (config.cacheKey?.(buildConfig(url, config)) ??
-          generateCacheKey(buildConfig(url, config))),
+    () => (url === null ? null : generateCacheKey(buildConfig(url, config))),
     [
       config.cacheKey,
       url,
@@ -98,6 +95,7 @@ export function useFetcher<
     ],
   );
 
+  // Attempt to get the cached response immediately and if not available, return null
   const getSnapshot = () => getCachedResponse(_cacheKey, 0, config);
 
   const state = useSyncExternalStore<FetchResponse<
@@ -109,7 +107,6 @@ export function useFetcher<
     // Subscribe to cache updates
     (cb) => subscribe(_cacheKey, cb),
     // Client snapshot - pure function, no side effects
-    // Attempt to get the cached response immediately and if not available, return null
     getSnapshot,
     // Server snapshot - consistent with client
     getSnapshot,
@@ -124,7 +121,7 @@ export function useFetcher<
 
     return fetchf(url, {
       dedupeTime,
-      // cacheKey: _cacheKey,
+      cacheKey: _cacheKey,
       strategy: 'softFail',
       ...config,
     });
@@ -154,7 +151,7 @@ export function useFetcher<
   // Handle Suspense outside the snapshot function
   const pendingPromise = getInFlightPromise(_cacheKey, dedupeTime);
 
-  if (!state && pendingPromise && config.strategy === 'reject') {
+  if (!state && pendingPromise && config.strategy === REJECT) {
     throw pendingPromise;
   }
 

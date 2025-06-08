@@ -98,6 +98,7 @@ describe('useFetcher', () => {
       await waitFor(() => {
         expect(mockFetchf).toHaveBeenCalledWith(testUrl, {
           dedupeTime: 2000,
+          cacheKey: testCacheKey,
           strategy: 'softFail',
         });
       });
@@ -111,8 +112,11 @@ describe('useFetcher', () => {
 
       renderHook(() => useFetcher(testUrl, { cacheKey: customCacheKeyFn }));
 
-      expect(customCacheKeyFn).toHaveBeenCalledWith({ url: testUrl });
-      expect(mockGenerateCacheKey).not.toHaveBeenCalled();
+      expect(mockGenerateCacheKey).toHaveBeenCalledWith(
+        expect.objectContaining({
+          url: testUrl,
+        }),
+      );
     });
 
     it('should generate cache key when no custom key provided', () => {
@@ -316,6 +320,7 @@ describe('useFetcher', () => {
         method: 'POST',
         body: { test: true },
         dedupeTime: 5000,
+        cacheKey: testCacheKey,
         strategy: 'softFail',
       });
     });
@@ -348,6 +353,7 @@ describe('useFetcher', () => {
 
       expect(mockFetchf).toHaveBeenCalledWith(testUrl, {
         dedupeTime: 2000,
+        cacheKey: testCacheKey,
         strategy: 'softFail',
       });
     });
@@ -473,8 +479,8 @@ describe('useFetcher', () => {
 
       renderHook(() => useFetcher(testUrl, { cacheKey: emptyCacheKeyFn }));
 
-      expect(emptyCacheKeyFn).toHaveBeenCalledWith({ url: testUrl });
-      expect(mockGenerateCacheKey).not.toHaveBeenCalled();
+      expect(emptyCacheKeyFn).not.toHaveBeenCalled();
+      expect(mockGenerateCacheKey).toHaveBeenCalledTimes(1);
     });
 
     it('should handle config without cacheKey function', () => {

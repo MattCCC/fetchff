@@ -21,7 +21,7 @@ import {
   setInFlightPromise,
   getInFlightPromise,
 } from './queue-manager';
-import { ABORT_ERROR, CANCELLED_ERROR } from './constants';
+import { ABORT_ERROR, CANCELLED_ERROR, REJECT } from './constants';
 import { prepareResponse, parseResponseData } from './response-parser';
 import { generateCacheKey, getCachedResponse, setCache } from './cache-manager';
 import { buildConfig, defaultConfig, mergeConfig } from './config-handler';
@@ -112,17 +112,22 @@ export function createRequestHandler(
       dedupeTime,
       cacheTime,
       cacheKey,
+      revalidateOnFocus,
       pollingInterval = 0,
     } = mergedConfig;
 
-    // Prevent performance overhead of cache access
     let _cacheKey: string | null = null;
 
     // Generate cache key if required
-    if (cacheKey || cacheTime || dedupeTime || cancellable || timeout) {
-      _cacheKey = cacheKey
-        ? cacheKey(fetcherConfig)
-        : generateCacheKey(fetcherConfig);
+    if (
+      cacheKey ||
+      cacheTime ||
+      dedupeTime ||
+      cancellable ||
+      timeout ||
+      revalidateOnFocus
+    ) {
+      _cacheKey = generateCacheKey(fetcherConfig);
     }
 
     // Cache handling logic
@@ -326,7 +331,7 @@ export function createRequestHandler(
               const errorHandlingStrategy = mergedConfig.strategy;
 
               // Reject the promise
-              if (errorHandlingStrategy === 'reject') {
+              if (errorHandlingStrategy === REJECT) {
                 return Promise.reject(error);
               } // Hang the promise
               else if (errorHandlingStrategy === 'silent') {
