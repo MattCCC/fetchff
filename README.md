@@ -451,9 +451,24 @@ The caching system can be fine-tuned using the following options when configurin
   _Default:_ `0` (no caching).
 
 - **`cacheKey`**:  
-  Type: `CacheKeyFunction`  
-  A function used to generate a custom cache key for the request. If not provided, a default key is created by hashing various parts of the request, including `Method`, `URL`, query parameters, and headers.  
-  _Default:_ Auto-generated based on request properties.
+  Type: `CacheKeyFunction | string`  
+  A string or function used to generate a custom cache key for the request cache, deduplication etc. If not provided, a default key is created by hashing various parts of the request, including `Method`, `URL`, query parameters, and headers etc. Providing string can help to greatly improve the performance of the requests, avoid unnecessary request flooding etc.
+
+  You can provide either:
+
+  - A **string**: Used directly as the cache key for all requests using matching string.
+  - A **function**: Receives the full request config as an argument and should return a unique string key. This allows you to include any relevant part of the request (such as URL, method, params, body, or custom logic) in the cache key.
+
+  **Example:**
+
+  ```typescript
+  cacheKey: (config) =>
+    `${config.method}:${config.url}:${JSON.stringify(config.params)}`;
+  ```
+
+  This flexibility ensures you can control cache granularity—whether you want to cache per endpoint, per user, or based on any other criteria.
+
+  _Default:_ Auto-generated based on request properties (see below).
 
 - **`cacheBuster`**:  
   Type: `CacheBusterFunction`  
@@ -481,6 +496,28 @@ The caching system can be fine-tuned using the following options when configurin
 
 5. **Final Outcome**:  
    If no valid cache entry is found, or the cache is skipped or busted, the request proceeds to the network, and the response is cached based on the provided configuration.
+
+### Auto-Generated Cache Key Properties
+
+By default, `fetchff` generates a cache key automatically using a combination of the following request properties:
+
+| Property          | Description                                                                               | Default Value    |
+| ----------------- | ----------------------------------------------------------------------------------------- | ---------------- |
+| `method`          | The HTTP method used for the request (e.g., GET, POST).                                   | `'GET'`          |
+| `url`             | The full request URL, including the base URL and endpoint path.                           | `''`             |
+| `headers`         | Request headers, included as a stringified object.                                        |                  |
+| `body`            | The request payload (for POST, PUT, PATCH, etc.), stringified if it's an object or array. |                  |
+| `mode`            | The mode for the request (e.g., 'cors', 'no-cors', 'same-origin').                        | `'cors'`         |
+| `credentials`     | Indicates whether credentials (cookies) are included in the request.                      | `'same-origin'`  |
+| `cache`           | The cache mode for the request (e.g., 'default', 'reload').                               | `'default'`      |
+| `redirect`        | The redirect mode for the request (e.g., 'follow', 'manual', 'error').                    | `'follow'`       |
+| `referrer`        | The referrer of the request.                                                              | `'about:client'` |
+| `integrity`       | Subresource integrity value for the request.                                              | `''`             |
+| `params`          | Query parameters serialized into the URL (objects, arrays, etc. are stringified).         |                  |
+| `urlPathParams`   | Dynamic URL path parameters (e.g., `/user/:id`), stringified and encoded.                 |                  |
+| `withCredentials` | Whether credentials (cookies) are included in the request.                                |                  |
+
+These properties are combined and hashed to create a unique cache key for each request. This ensures that requests with different parameters, bodies, or headers are cached separately.
 
 </details>
 
