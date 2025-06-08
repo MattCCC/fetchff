@@ -52,14 +52,14 @@ export function generateCacheKey(options: RequestConfig): string {
     integrity = '',
   } = options;
 
-  // For GET requests, return early with just the URL as the cache key
-  if (url && (method ?? GET).toUpperCase() === GET) {
-    return method + DELIMITER + url.replace(/[^\w\-_|]/g, '');
-  }
-
   // Bail early if cache should be burst
   if (cache === 'reload') {
     return '';
+  }
+
+  // For GET requests, return early with just the URL as the cache key
+  if (url && (method ?? GET).toUpperCase() === GET) {
+    return method + DELIMITER + url.replace(/[^\w\-_|]/g, '');
   }
 
   // Sort headers and body + convert sorted to strings for hashing purposes
