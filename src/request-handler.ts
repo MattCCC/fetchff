@@ -28,6 +28,8 @@ import { generateCacheKey, getCachedResponse, setCache } from './cache-manager';
 import { buildConfig, defaultConfig, mergeConfig } from './config-handler';
 import { getRetryAfterMs } from './retry-handler';
 import { withPolling } from './polling-handler';
+import { withInFlight } from './inflight-manager';
+import { notifySubscribers } from './pubsub-manager';
 
 /**
  * Create Request Handler
@@ -269,6 +271,10 @@ export function createRequestHandler(
             setCache(_cacheKey, output);
           }
 
+          if (_cacheKey) {
+            notifySubscribers(_cacheKey, output);
+          }
+
           return output;
         } catch (err) {
           const error = err as ResponseError<
@@ -367,19 +373,19 @@ export function createRequestHandler(
       >(response, fetcherConfig);
     };
 
+    // If cache key is specified, wrap the request with in-flight management
+    const doRequestWithInFlight = _cacheKey
+      ? async () => withInFlight(_cacheKey, doRequestOnce)
+      : doRequestOnce;
+
     // If polling is enabled, use withPolling to handle the request
-    const doRequestPromise =
-      pollingInterval > 0
-        ? withPolling<
-            FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>
-          >(
-            doRequestOnce,
-            pollingInterval,
-            mergedConfig.shouldStopPolling,
-            mergedConfig.maxPollingAttempts,
-            mergedConfig.pollingDelay,
-          )
-        : doRequestOnce();
+    const doRequestPromise = withPolling(
+      doRequestWithInFlight,
+      pollingInterval,
+      mergedConfig.shouldStopPolling,
+      mergedConfig.maxPollingAttempts,
+      mergedConfig.pollingDelay,
+    );
 
     // If deduplication is enabled, store the in-flight promise immediately
     if (_cacheKey && dedupeTime) {

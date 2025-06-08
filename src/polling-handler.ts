@@ -27,6 +27,10 @@ export async function withPolling<
   maxAttempts = 0,
   pollingDelay = 0,
 ): Promise<Output> {
+  if (!pollingInterval) {
+    return doRequestOnce();
+  }
+
   let pollingAttempt = 0;
   let output: Output;
 

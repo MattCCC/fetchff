@@ -176,5 +176,6 @@ export const prepareResponse = <
     data,
     headers: processHeaders(response.headers),
     config: requestConfig,
+    isFetching: false,
   };
 };
