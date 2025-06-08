@@ -1,5 +1,8 @@
 export interface CacheEntry<T> {
   data: T;
   timestamp: number;
-  isLoading: boolean;
+}
+
+export interface MutationSettings {
+  revalidate?: boolean;
 }

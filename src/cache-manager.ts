@@ -1,10 +1,15 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { hash } from './hash';
-import { fetchf } from './index';
-import type { FetcherConfig, FetchResponse } from './types/request-handler';
-import type { CacheEntry } from './types/cache-manager';
+import type {
+  DefaultResponse,
+  FetchResponse,
+  RequestConfig,
+} from './types/request-handler';
+import type { CacheEntry, MutationSettings } from './types/cache-manager';
 import { GET, OBJECT, UNDEFINED } from './constants';
 import { shallowSerialize, sortObject } from './utils';
+import { revalidate } from './revalidator-manager';
+import { notifySubscribers } from './pubsub-manager';
 
 const _cache = new Map<string, CacheEntry<any>>();
 const DELIMITER = '|';
@@ -183,33 +188,6 @@ export function setCache<T = unknown>(key: string, response: T): void {
 }
 
 /**
- * Revalidates a cache entry by fetching fresh data and updating the cache.
- *
- * @param {string} key Cache key to utilize
- * @param {FetcherConfig} config - The request configuration object.
- * @returns {Promise<void>} - A promise that resolves when the revalidation is complete.
- */
-export async function revalidate(
-  key: string,
-  config: FetcherConfig,
-): Promise<void> {
-  try {
-    // Fetch fresh data
-    const newData = await fetchf(config.url, {
-      ...config,
-      cache: 'reload',
-    });
-
-    setCache(key, newData);
-  } catch (error) {
-    console.error(`Error revalidating ${config.url}:`, error);
-
-    // Rethrow the error to forward it
-    throw error;
-  }
-}
-
-/**
  * Invalidates (deletes) a cache entry.
  *
  * @param {string} key Cache key to utilize
@@ -234,20 +212,35 @@ export function pruneCache(cacheTime: number = 0): void {
  * Mutates a cache entry with new data and optionally revalidates it.
  *
  * @param {string} key Cache key to utilize
- * @param {FetcherConfig} config - The request configuration object.
- * @param {T} newData - The new data to be cached.
- * @param {boolean} revalidateAfter - If true, triggers revalidation after mutation.
+ * @param {ResponseData} newData - The new data to be cached.
+ * @param {MutationSettings|undefined} settings - Mutation settings.
  */
-export function mutate<T>(
+export async function mutate<ResponseData = DefaultResponse>(
   key: string,
-  config: FetcherConfig,
-  newData: T,
-  revalidateAfter: boolean = false,
-): void {
-  setCache(key, newData);
+  newData: ResponseData,
+  settings?: MutationSettings,
+): Promise<void> {
+  // If no key is provided, do nothing
+  if (!key) {
+    return;
+  }
 
-  if (revalidateAfter) {
-    revalidate(key, config);
+  const cachedResponse = getCache<ResponseData>(key);
+
+  if (!cachedResponse) {
+    return;
+  }
+
+  const updatedResponse: ResponseData = {
+    ...cachedResponse.data,
+    data: newData,
+  };
+
+  setCache(key, updatedResponse);
+  notifySubscribers(key, updatedResponse);
+
+  if (settings?.revalidate) {
+    await revalidate(key);
   }
 }
 

@@ -298,6 +298,12 @@ export interface ExtendedRequestConfig<
   rejectCancelled?: boolean;
 
   /**
+   * If true, automatically revalidates the request when the window regains focus.
+   * @default false
+   */
+  revalidateOnFocus?: boolean;
+
+  /**
    * An object representing dynamic URL path parameters.
    * For example, `{ userId: 1 }` would replace `:userId` in the URL with `1`.
    */
