@@ -29,6 +29,7 @@ import { getRetryAfterMs } from './retry-handler';
 import { withPolling } from './polling-handler';
 import { withInFlight } from './inflight-manager';
 import { notifySubscribers } from './pubsub-manager';
+import { registerRevalidators } from './revalidator-manager';
 
 /**
  * Create Request Handler
@@ -389,8 +390,16 @@ export function createRequestHandler(
     );
 
     // If deduplication is enabled, store the in-flight promise immediately
-    if (_cacheKey && dedupeTime) {
-      setInFlightPromise(_cacheKey, doRequestPromise);
+    if (_cacheKey) {
+      if (dedupeTime) {
+        setInFlightPromise(_cacheKey, doRequestPromise);
+      }
+
+      registerRevalidators(
+        _cacheKey,
+        doRequestWithInFlight,
+        !!revalidateOnFocus,
+      );
     }
 
     return doRequestPromise;
