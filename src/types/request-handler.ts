@@ -268,7 +268,7 @@ export interface ExtendedRequestConfig<
     CacheOptions {
   /**
    * Custom error handling strategy for the request.
-   * - `'reject'`: Rejects the promise with an error.
+   * - `'reject'`: Rejects the promise with an error (default).
    * - `'silent'`: Silently handles errors without rejecting.
    * - `'defaultResponse'`: Returns a default response in case of an error.
    * - `'softFail'`: Returns a partial response with error details.

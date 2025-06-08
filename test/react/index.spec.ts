@@ -361,16 +361,18 @@ describe('useFetcher', () => {
         result.current.mutate(testData);
       });
 
-      expect(mockMutate).toHaveBeenCalledWith(testCacheKey, testData, {
-        revalidate: false,
-      });
+      expect(mockMutate).toHaveBeenCalledWith(
+        testCacheKey,
+        testData,
+        undefined,
+      );
     });
 
     it('should call globalMutate with revalidate option', () => {
       const { result } = renderHook(() => useFetcher(testUrl));
 
       act(() => {
-        result.current.mutate(testData, true);
+        result.current.mutate(testData, { revalidate: true });
       });
 
       expect(mockMutate).toHaveBeenCalledWith(testCacheKey, testData, {
