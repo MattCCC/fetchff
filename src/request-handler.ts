@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import type {
   DefaultResponse,
   RequestHandlerConfig,
@@ -420,7 +419,7 @@ const isRequestCancelled = (error: ResponseError): boolean => {
  */
 const logger = (
   reqConfig: RequestConfig,
-  ...args: (string | ResponseError<any>)[]
+  ...args: (string | ResponseError)[]
 ): void => {
   const logger = reqConfig.logger;
 

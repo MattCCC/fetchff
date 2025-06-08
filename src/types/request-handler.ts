@@ -58,7 +58,9 @@ export interface CreatedCustomFetcherInstance {
       PathParams,
       RequestBody
     >,
-  ): PromiseLike<FetchResponse<ResponseData>>;
+  ): PromiseLike<
+    FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>
+  >;
 }
 
 export type ErrorHandlingStrategy =
@@ -111,7 +113,12 @@ export interface ResponseError<
   statusText: string;
   request: RequestConfig<ResponseData, QueryParams, PathParams, RequestBody>;
   config: RequestConfig<ResponseData, QueryParams, PathParams, RequestBody>;
-  response: FetchResponse<ResponseData, RequestBody> | null;
+  response: FetchResponse<
+    ResponseData,
+    RequestBody,
+    QueryParams,
+    PathParams
+  > | null;
 }
 
 export type RetryFunction<
@@ -143,19 +150,24 @@ export type CacheKeyFunction = (config: RequestConfig) => string;
 
 export type CacheBusterFunction = (config: RequestConfig) => boolean;
 
-export type CacheSkipFunction = <ResponseData = any, RequestBody = any>(
+export type CacheSkipFunction = <
+  ResponseData = DefaultResponse,
+  QueryParams = DefaultParams,
+  PathParams = DefaultUrlParams,
+  RequestBody = DefaultPayload,
+>(
   data: ResponseData,
-  config: RequestConfig<ResponseData, any, any, RequestBody>,
+  config: RequestConfig<ResponseData, QueryParams, PathParams, RequestBody>,
 ) => boolean;
 
 /**
  * Configuration object for retry related options
  */
 export interface RetryOptions<
-  ResponseData,
-  QueryParams,
-  PathParams,
-  RequestBody,
+  ResponseData = DefaultResponse,
+  QueryParams = DefaultParams,
+  PathParams = DefaultUrlParams,
+  RequestBody = DefaultPayload,
 > {
   /**
    * Maximum number of retry attempts.
@@ -502,5 +514,7 @@ export interface RequestHandlerReturnType {
       RequestBody
     > | null,
     shouldMerge?: boolean,
-  ) => Promise<FetchResponse<ResponseData, RequestBody>>;
+  ) => Promise<
+    FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>
+  >;
 }

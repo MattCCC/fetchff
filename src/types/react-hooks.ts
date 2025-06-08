@@ -73,10 +73,4 @@ export interface UseFetcherResult<
    * @returns {Promise<FetchResponse<ResponseData, RequestBody, QueryParams, PathParams> | null>} The new fetch response or null if no URL is set.
    */
   refetch: RefetchFunction<ResponseData, RequestBody, QueryParams, PathParams>;
-
-  /**
-   * Alias for `refetch` function.
-   * This is provided for compatibility with other libraries or patterns that expect a `trigger` function.
-   */
-  trigger: RefetchFunction<ResponseData, RequestBody, QueryParams, PathParams>;
 }

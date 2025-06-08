@@ -1,11 +1,13 @@
 /**
+ * @module inflight-manager
+ *
  * Manages the "in-flight" state of asynchronous operations identified by a key.
  *
  * Provides utilities to mark a key as in-flight, unmark it, check its state,
  * subscribe to in-flight state changes, and execute functions with automatic
  * in-flight state management to prevent duplicate requests.
- *
- * @module inflight-manager
+ * @remarks
+ * - Polled requests are also marked as "in-flight" to prevent duplicate requests.
  */
 
 import { notifySubscribers } from './pubsub-manager';

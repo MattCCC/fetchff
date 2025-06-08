@@ -144,10 +144,6 @@ export function useFetcher<
     >['mutate']
   >(
     async (data, mutationSettings) => {
-      if (!_cacheKey) {
-        return null;
-      }
-
       return await globalMutate(_cacheKey, data, mutationSettings);
     },
     [_cacheKey],
@@ -172,6 +168,5 @@ export function useFetcher<
     isLoading: !!url && (state?.isFetching ?? !state),
     mutate,
     refetch,
-    trigger: refetch, // Alias for refetch
   };
 }

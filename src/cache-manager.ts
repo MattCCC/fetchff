@@ -211,12 +211,12 @@ export function pruneCache(cacheTime: number = 0): void {
 /**
  * Mutates a cache entry with new data and optionally revalidates it.
  *
- * @param {string} key Cache key to utilize
+ * @param {string | null} key Cache key to utilize. If null, no mutation occurs.
  * @param {ResponseData} newData - The new data to be cached.
  * @param {MutationSettings|undefined} settings - Mutation settings.
  */
 export async function mutate<ResponseData = DefaultResponse>(
-  key: string,
+  key: string | null,
   newData: ResponseData,
   settings?: MutationSettings,
 ): Promise<FetchResponse<ResponseData> | void | null> {
