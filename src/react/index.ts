@@ -8,7 +8,6 @@ import type {
   FetchResponse,
   RequestConfig,
 } from '..';
-import type { MutationSettings } from '../types/cache-manager';
 import {
   generateCacheKey,
   getCachedResponse,
@@ -17,72 +16,7 @@ import {
 import { subscribe } from 'fetchff/pubsub-manager';
 import { getInFlightPromise } from 'fetchff/queue-manager';
 import { buildConfig } from 'fetchff/config-handler';
-
-export interface UseFetchffResult<
-  ResponseData = DefaultResponse,
-  RequestBody = DefaultPayload,
-  QueryParams = DefaultParams,
-  PathParams = DefaultUrlParams,
-> {
-  /**
-   * The fetched data, or null if not yet available.
-   * This will be null if the request is in progress or if no data has been fetched yet.
-   */
-  data:
-    | FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>['data']
-    | null;
-  /**
-   * The error encountered during the fetch operation, if any.
-   * If the request was successful, this will be null.
-   */
-  error: FetchResponse<
-    ResponseData,
-    RequestBody,
-    QueryParams,
-    PathParams
-  >['error'];
-  /**
-   * Indicates if the request is currently validating or fetching data.
-   * This is true when the request is in progress, including revalidations.
-   */
-  isValidating: boolean;
-  /**
-   * Indicates if the request is currently loading data.
-   * This is true when the request is in progress, including initial fetches.
-   * It will be false if the data is already cached and no new fetch is in progress.
-   */
-  isLoading: boolean;
-  /**
-   * Function to mutate the cached data.
-   * It updates the cache with new data and optionally triggers revalidation.
-   *
-   * @param {ResponseData} data - The new data to set in the cache.
-   * @param {MutationSettings} [mutationSettings] - Optional settings for the mutation.
-   *   - `revalidate`: If true, it will trigger a revalidation after mutating the cache.
-   * @returns {Promise<FetchResponse<ResponseData, RequestBody, QueryParams, PathParams> | null>} The updated response or null if no cache key is set.
-   */
-  mutate: (
-    data: FetchResponse<
-      ResponseData,
-      RequestBody,
-      QueryParams,
-      PathParams
-    >['data'],
-    mutationSettings?: MutationSettings,
-  ) => void;
-  /**
-   * Function to refetch the data from the server.
-   * This will trigger a new fetch operation and update the cache with the latest data.
-   *
-   * @returns {Promise<FetchResponse<ResponseData, RequestBody, QueryParams, PathParams> | null>} The new fetch response or null if no URL is set.
-   */
-  refetch: () => Promise<FetchResponse<
-    ResponseData,
-    RequestBody,
-    QueryParams,
-    PathParams
-  > | null>;
-}
+import { UseFetcherResult } from '../types/react-hooks';
 
 const DEFAULT_DEDUPE_TIME_MS = 2000;
 
@@ -100,7 +34,7 @@ const DEFAULT_DEDUPE_TIME_MS = 2000;
  *   If the URL is a full URL, it will be used as is.
  * @param {RequestConfig<ResponseData, QueryParams, PathParams, RequestBody>} [config={}] - fetchff and native fetch compatible configuration.
  *
- * @returns {UseFetchffResult<ResponseData>} An object containing:
+ * @returns {UseFetcherResult<ResponseData>} An object containing:
  *   - `data`: The fetched data or `null` if not yet available.
  *   - `error`: Any error encountered during fetching or `null`.
  *   - `isLoading`: Boolean indicating if the request is in progress.
@@ -134,7 +68,7 @@ export function useFetcher<
     PathParams,
     RequestBody
   > = {},
-): UseFetchffResult<ResponseData, RequestBody, QueryParams, PathParams> {
+): UseFetcherResult<ResponseData, RequestBody, QueryParams, PathParams> {
   // Efficient cache key generation based on URL and request parameters.
   // Optimized for speed: minimizes unnecessary function calls when possible
   const _cacheKey = useMemo(
@@ -164,6 +98,8 @@ export function useFetcher<
     ],
   );
 
+  const getSnapshot = () => getCachedResponse(_cacheKey, 0, config);
+
   const state = useSyncExternalStore<FetchResponse<
     ResponseData,
     RequestBody,
@@ -174,9 +110,9 @@ export function useFetcher<
     (cb) => subscribe(_cacheKey, cb),
     // Client snapshot - pure function, no side effects
     // Attempt to get the cached response immediately and if not available, return null
-    () => (_cacheKey ? getCachedResponse(_cacheKey, 0, config) || null : null),
+    getSnapshot,
     // Server snapshot - consistent with client
-    () => (_cacheKey ? getCachedResponse(_cacheKey, 0, config) || null : null),
+    getSnapshot,
   );
 
   const refetch = useCallback(() => {
@@ -200,7 +136,7 @@ export function useFetcher<
   }, [state?.data, state?.error, state?.isFetching, refetch]);
 
   const mutate = useCallback<
-    UseFetchffResult<
+    UseFetcherResult<
       ResponseData,
       RequestBody,
       QueryParams,
@@ -227,13 +163,15 @@ export function useFetcher<
     throw pendingPromise;
   }
 
-  // Consumers always destructure the return value and use the fields directly, so memoizing the object doesn't change rerender behavior
+  // Consumers always destructure the return value and use the fields directly, so
+  // memoizing the object doesn't change rerender behavior nor improve any performance here
   return {
     data: state?.data ?? null,
     error: state?.error ?? null,
     isValidating: state?.isFetching ?? false,
-    isLoading: !!url && (state?.isFetching ?? !!state),
+    isLoading: !!url && (state?.isFetching ?? !state),
     mutate,
     refetch,
+    trigger: refetch, // Alias for refetch
   };
 }

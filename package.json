@@ -51,7 +51,7 @@
   "sideEffects": false,
   "scripts": {
     "build": "tsup --config tsup.config.ts && npm run build:cleanup",
-    "build:cleanup": "rm -f dist/browser/index.d.mts dist/node/index.d.ts dist/react/index.d.ts dist/react/index.d.mts && mv dist/browser/index.d.ts dist/index.d.ts",
+    "build:cleanup": "rm -f dist/browser/index.d.mts dist/node/index.d.ts && mv dist/browser/index.d.ts dist/index.d.ts",
     "type-check": "tsc --noEmit",
     "test": "jest --forceExit --coverage --detectOpenHandles",
     "lint": "eslint src/**/*.ts test/**/*.spec.ts docs/examples/*.ts",
