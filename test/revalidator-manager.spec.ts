@@ -1,3 +1,6 @@
+/**
+ * @jest-environment jsdom
+ */
 import {
   registerRevalidator,
   unregisterRevalidator,
@@ -5,10 +8,8 @@ import {
   enableFocusRevalidation,
   disableFocusRevalidation,
   initFetchffRevalidationOnFocus,
+  removeFetchffRevalidationOnFocus,
 } from '../src/revalidator-manager';
-
-// Store original window to restore later
-const originalWindow = global.window;
 
 describe('Revalidator Manager', () => {
   let mockRevalidatorFn: jest.Mock;
@@ -168,24 +169,19 @@ describe('Revalidator Manager', () => {
     let mockAddEventListener: jest.Mock;
 
     beforeEach(() => {
+      removeFetchffRevalidationOnFocus();
       mockAddEventListener = jest.fn();
-      Object.defineProperty(global, 'window', {
-        value: {
-          addEventListener: mockAddEventListener,
-          removeEventListener: jest.fn(),
-        },
-        writable: true,
-      });
+      window.addEventListener = mockAddEventListener;
+      window.removeEventListener = jest.fn();
+      // Call the initializer after setting up the mock to ensure the event listener is attached
+      initFetchffRevalidationOnFocus();
     });
 
     afterEach(() => {
-      // Restore original window
-      global.window = originalWindow;
+      jest.restoreAllMocks();
     });
 
     it('should attach focus event listener when initializing', () => {
-      initFetchffRevalidationOnFocus();
-
       expect(mockAddEventListener).toHaveBeenCalledWith(
         'focus',
         expect.any(Function),
@@ -211,18 +207,27 @@ describe('Revalidator Manager', () => {
   });
 
   describe('initFetchffRevalidationOnFocus', () => {
+    let mockAddEventListener: jest.Mock;
+
+    beforeEach(() => {
+      removeFetchffRevalidationOnFocus();
+      mockAddEventListener = jest.fn();
+      window.addEventListener = mockAddEventListener;
+      window.removeEventListener = jest.fn();
+      // Call the initializer after setting up the mock to ensure the event listener is attached
+      initFetchffRevalidationOnFocus();
+    });
+
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
     it('should handle multiple calls gracefully due to guard', () => {
       // Since the function has already been called during module import,
       // subsequent calls should be no-ops due to the hasAttachedFocusHandler guard
-      const mockWindow = {
-        addEventListener: jest.fn(),
-        removeEventListener: jest.fn(),
-      };
-
-      Object.defineProperty(global, 'window', {
-        value: mockWindow,
-        writable: true,
-      });
+      const mockAddEventListener = jest.fn();
+      window.addEventListener = mockAddEventListener;
+      window.removeEventListener = jest.fn();
 
       // Call multiple times - these should be no-ops since the guard is already set
       initFetchffRevalidationOnFocus();
@@ -231,17 +236,19 @@ describe('Revalidator Manager', () => {
 
       // Since the function was already called during module import and has a guard,
       // these subsequent calls should not add any more event listeners
-      expect(mockWindow.addEventListener).toHaveBeenCalledTimes(0);
+      expect(mockAddEventListener).toHaveBeenCalledTimes(0);
     });
 
     it('should not attach focus listener when window is undefined', () => {
-      Object.defineProperty(global, 'window', {
-        value: undefined,
-        writable: true,
-      });
+      // Save the original window
+      const originalWindow = globalThis.window;
+      // @ts-expect-error Removal of window for testing
+      delete globalThis.window;
 
-      // This should not throw even when window is undefined
       expect(() => initFetchffRevalidationOnFocus()).not.toThrow();
+
+      // Restore the original window
+      globalThis.window = originalWindow;
     });
   });
 

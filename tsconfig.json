@@ -17,6 +17,11 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "noEmit": true
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "fetchff/*": ["./src/*"],
+      "fetchff": ["./src/index.ts"]
+    }
   }
 }

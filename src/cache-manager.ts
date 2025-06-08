@@ -6,7 +6,7 @@ import type {
   RequestConfig,
 } from './types/request-handler';
 import type { CacheEntry, MutationSettings } from './types/cache-manager';
-import { GET, OBJECT, UNDEFINED } from './constants';
+import { GET, OBJECT, STRING, UNDEFINED } from './constants';
 import { shallowSerialize, sortObject } from './utils';
 import { revalidate } from './revalidator-manager';
 import { notifySubscribers } from './pubsub-manager';
@@ -83,7 +83,7 @@ export function generateCacheKey(options: RequestConfig): string {
 
   let bodyString = '';
   if (body) {
-    if (typeof body === 'string') {
+    if (typeof body === STRING) {
       bodyString = body.length < MIN_LENGTH_TO_HASH ? body : hash(body); // hash only if large
     } else if (body instanceof FormData) {
       body.forEach((value, key) => {

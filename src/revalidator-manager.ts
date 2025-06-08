@@ -60,4 +60,10 @@ export function initFetchffRevalidationOnFocus() {
   window.addEventListener('focus', revalidateAllOnFocus);
 }
 
-initFetchffRevalidationOnFocus();
+export function removeFetchffRevalidationOnFocus() {
+  if (typeof window === UNDEFINED || !hasAttachedFocusHandler) {
+    return;
+  }
+
+  window.removeEventListener('focus', revalidateAllOnFocus);
+}
