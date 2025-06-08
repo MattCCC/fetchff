@@ -115,13 +115,15 @@ export function useFetcher<
     getSnapshot,
   );
 
+  const dedupeTime = config.dedupeTime ?? DEFAULT_DEDUPE_TIME_MS;
+
   const refetch = useCallback(() => {
     if (!url) {
       return Promise.resolve(null);
     }
 
     return fetchf(url, {
-      dedupeTime: config.dedupeTime ?? DEFAULT_DEDUPE_TIME_MS,
+      dedupeTime,
       // cacheKey: _cacheKey,
       strategy: 'softFail',
       ...config,
@@ -150,10 +152,7 @@ export function useFetcher<
   );
 
   // Handle Suspense outside the snapshot function
-  const pendingPromise = getInFlightPromise(
-    _cacheKey,
-    config.dedupeTime ?? DEFAULT_DEDUPE_TIME_MS,
-  );
+  const pendingPromise = getInFlightPromise(_cacheKey, dedupeTime);
 
   if (!state && pendingPromise && config.strategy === 'reject') {
     throw pendingPromise;
