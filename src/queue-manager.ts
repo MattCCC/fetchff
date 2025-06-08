@@ -153,9 +153,13 @@ export function setInFlightPromise(key: string, promise: Promise<any>) {
  * @returns {Promise<unknown> | null} - The in-flight promise or null.
  */
 export function getInFlightPromise(
-  key: string,
+  key: string | null,
   dedupeTime: number,
 ): Promise<unknown> | null {
+  if (!key) {
+    return null;
+  }
+
   const item = queue.get(key);
 
   if (

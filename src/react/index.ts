@@ -42,9 +42,12 @@ export interface UseFetchffResult<
     >['data'],
     revalidateAfter?: boolean,
   ) => void;
-  refetch: () => Promise<
-    FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>
-  >;
+  refetch: () => Promise<FetchResponse<
+    ResponseData,
+    RequestBody,
+    QueryParams,
+    PathParams
+  > | null>;
 }
 
 const DEFAULT_DEDUPE_TIME_MS = 2000;
@@ -57,7 +60,10 @@ const DEFAULT_DEDUPE_TIME_MS = 2000;
  * @template QueryParams - The query parameters type.
  * @template PathParams - The URL path parameters type.
  *
- * @param {string} url - The endpoint URL to fetch data from.
+ * @param {string|null} url - The endpoint URL to fetch data from. Pass null to skip fetching.
+ *   If the URL is null, the hook will not perform any fetch operation.
+ *   If the URL is an empty string, it will default to the base URL configured in fetchff.
+ *   If the URL is a full URL, it will be used as is.
  * @param {RequestConfig<ResponseData, QueryParams, PathParams, RequestBody>} [config={}] - fetchff and native fetch compatible configuration.
  *
  * @returns {UseFetchffResult<ResponseData>} An object containing:
@@ -87,7 +93,7 @@ export function useFetcher<
   QueryParams = DefaultParams,
   PathParams = DefaultUrlParams,
 >(
-  url: string,
+  url: string | null,
   config: RequestConfig<
     ResponseData,
     QueryParams,
@@ -99,8 +105,10 @@ export function useFetcher<
   // Optimized for speed: minimizes unnecessary function calls when possible
   const _cacheKey = useMemo(
     () =>
-      config.cacheKey?.(buildConfig(url, config)) ??
-      generateCacheKey(buildConfig(url, config)),
+      url === null
+        ? null
+        : (config.cacheKey?.(buildConfig(url, config)) ??
+          generateCacheKey(buildConfig(url, config))),
     [
       config.cacheKey,
       url,
@@ -129,32 +137,26 @@ export function useFetcher<
     PathParams
   > | null>(
     // Subscribe to cache updates
-    (cb) => {
-      const unsubscribe = subscribe(_cacheKey, cb);
-      return () => unsubscribe?.();
-    },
+    (cb) => subscribe(_cacheKey, cb),
     // Client snapshot - pure function, no side effects
-    () => {
-      // Attempt to get the cached response immediately and if not available, return null
-      return getCachedResponse(_cacheKey, 0, config) || null;
-    },
+    // Attempt to get the cached response immediately and if not available, return null
+    () => (_cacheKey ? getCachedResponse(_cacheKey, 0, config) || null : null),
     // Server snapshot - consistent with client
-    () => {
-      // Attempt to get the cached response immediately and if not available, return null
-      return getCachedResponse(_cacheKey, 0, config) || null;
-    },
+    () => (_cacheKey ? getCachedResponse(_cacheKey, 0, config) || null : null),
   );
 
-  const refetch = useCallback(
-    () =>
-      fetchf(url, {
-        dedupeTime: config.dedupeTime ?? DEFAULT_DEDUPE_TIME_MS,
-        // cacheKey: _cacheKey,
-        strategy: 'softFail',
-        ...config,
-      }),
-    [url, _cacheKey],
-  );
+  const refetch = useCallback(() => {
+    if (!url) {
+      return Promise.resolve(null);
+    }
+
+    return fetchf(url, {
+      dedupeTime: config.dedupeTime ?? DEFAULT_DEDUPE_TIME_MS,
+      // cacheKey: _cacheKey,
+      strategy: 'softFail',
+      ...config,
+    });
+  }, [url, _cacheKey]);
 
   useEffect(() => {
     // Load the initial data if not already cached and not currently fetching
@@ -171,8 +173,15 @@ export function useFetcher<
       PathParams
     >['mutate']
   >(
-    (data, revalidateAfter = false) =>
-      globalMutate(_cacheKey, data, { revalidate: revalidateAfter }),
+    async (data, revalidateAfter = false) => {
+      if (!_cacheKey) {
+        return null;
+      }
+
+      return await globalMutate(_cacheKey, data, {
+        revalidate: revalidateAfter,
+      });
+    },
     [_cacheKey],
   );
 

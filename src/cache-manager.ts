@@ -219,10 +219,10 @@ export async function mutate<ResponseData = DefaultResponse>(
   key: string,
   newData: ResponseData,
   settings?: MutationSettings,
-): Promise<void> {
+): Promise<FetchResponse<ResponseData> | void | null> {
   // If no key is provided, do nothing
   if (!key) {
-    return;
+    return null;
   }
 
   const cachedResponse = getCache<ResponseData>(key);
@@ -240,7 +240,7 @@ export async function mutate<ResponseData = DefaultResponse>(
   notifySubscribers(key, updatedResponse);
 
   if (settings?.revalidate) {
-    await revalidate(key);
+    return await revalidate(key);
   }
 }
 

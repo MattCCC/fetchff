@@ -53,7 +53,12 @@ export function notifySubscribers<T>(key: string, response: T) {
   }
 }
 
-export function subscribe<T>(key: string, fn: (response: T) => void) {
+export function subscribe<T>(key: string | null, fn: (response: T) => void) {
+  if (!key) {
+    // No op if no key is provided
+    return () => {};
+  }
+
   const set = addListener<T>(key, fn);
 
   // Return an unsubscribe function

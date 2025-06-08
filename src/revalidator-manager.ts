@@ -15,9 +15,11 @@ export function unregisterRevalidator(key: string) {
  * Revalidates a cache entry by executing the registered revalidation function.
  *
  * @param {string} key Cache key to utilize
- * @returns {Promise<void | null>} - A promise that resolves when the revalidation is complete or null if no revalidator is found.
+ * @returns {Promise<T | void | null>} - A promise that resolves when the revalidation is complete or null if no revalidator is found.
  */
-export async function revalidate(key: string): Promise<void | null> {
+export async function revalidate<T = unknown>(
+  key: string,
+): Promise<T | void | null> {
   const fn = revalidators.get(key);
 
   if (fn) {

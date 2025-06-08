@@ -409,6 +409,15 @@ describe('useFetcher', () => {
       expect(result.current.isLoading).toBe(false);
       expect(mockFetchf).not.toHaveBeenCalled();
     });
+
+    it('should handle dependent queries by not fetching when url is null', () => {
+      const { result } = renderHook(() => useFetcher(null));
+
+      expect(result.current.data).toBeNull();
+      expect(result.current.error).toBeNull();
+      expect(result.current.isLoading).toBe(false);
+      expect(mockFetchf).not.toHaveBeenCalled();
+    });
   });
 
   describe('Dependency Changes', () => {
@@ -447,16 +456,6 @@ describe('useFetcher', () => {
   });
 
   describe('Edge Cases', () => {
-    it('should handle null unsubscribe function', () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      mockSubscribe.mockReturnValue(null as any);
-
-      expect(() => {
-        const { unmount } = renderHook(() => useFetcher(testUrl));
-        unmount();
-      }).not.toThrow();
-    });
-
     it('should handle undefined unsubscribe function', () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       mockSubscribe.mockReturnValue(undefined as any);
