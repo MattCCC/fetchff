@@ -141,15 +141,12 @@ export function createRequestHandler(
 
     // Deduplication logic
     if (_cacheKey && dedupeTime) {
-      const inflight = getInFlightPromise(_cacheKey, dedupeTime);
+      const inflight = getInFlightPromise<
+        FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>
+      >(_cacheKey, dedupeTime);
 
       if (inflight) {
-        return (await inflight) as FetchResponse<
-          ResponseData,
-          RequestBody,
-          QueryParams,
-          PathParams
-        >;
+        return await inflight;
       }
     }
 

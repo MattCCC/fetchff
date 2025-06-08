@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { ABORT_ERROR, TIMEOUT_ERROR } from './constants';
 import type { QueueItem } from './types/queue-manager';
 
@@ -135,7 +134,10 @@ export async function getController(
  * @param key - Unique key for the request.
  * @param promise - The promise to store.
  */
-export function setInFlightPromise(key: string, promise: Promise<any>) {
+export function setInFlightPromise(
+  key: string,
+  promise: Promise<unknown>,
+): void {
   const item = queue.get(key);
   if (item) {
     // store the promise at index 4
@@ -150,12 +152,12 @@ export function setInFlightPromise(key: string, promise: Promise<any>) {
  *
  * @param key - Unique key for the request.
  * @param dedupeTime - Deduplication time in milliseconds.
- * @returns {Promise<unknown> | null} - The in-flight promise or null.
+ * @returns {Promise<T> | null} - The in-flight promise or null.
  */
-export function getInFlightPromise(
+export function getInFlightPromise<T = unknown>(
   key: string | null,
   dedupeTime: number,
-): Promise<unknown> | null {
+): Promise<T> | null {
   if (!key) {
     return null;
   }
@@ -166,9 +168,10 @@ export function getInFlightPromise(
     item &&
     item[4] &&
     Date.now() - item[2] < dedupeTime &&
+    // If one request is cancelled, ALL deduped requests get cancelled
     !item[0].signal.aborted
   ) {
-    return item[4];
+    return item[4] as Promise<T>;
   }
 
   return null;
