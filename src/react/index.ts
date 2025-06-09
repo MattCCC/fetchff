@@ -22,7 +22,7 @@ import { REJECT } from 'fetchff/constants';
 const DEFAULT_DEDUPE_TIME_MS = 2000;
 
 /**
- * High-performance React hook for fetching data with caching, deduplication, and revalidation.
+ * High-performance React hook for fetching data with caching, deduplication, revalidation etc.
  *
  * @template ResponseData - The expected response data type.
  * @template RequestBody - The request payload type.

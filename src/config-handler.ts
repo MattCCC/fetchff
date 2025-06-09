@@ -90,7 +90,7 @@ export const buildConfig = (
   const isFullUrl = urlPath.includes('://');
   const baseURL = isFullUrl
     ? ''
-    : (requestConfig.baseURL ?? requestConfig.apiUrl);
+    : (requestConfig.baseURL ?? requestConfig.apiUrl ?? '');
 
   // Automatically stringify request body, if possible and when not dealing with strings
   if (
