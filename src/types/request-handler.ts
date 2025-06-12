@@ -151,15 +151,15 @@ export type CacheKeyFunction = (config: RequestConfig) => string;
 export type CacheBusterFunction = (config: RequestConfig) => boolean;
 
 export type CacheSkipFunction<
-  ResponseData = DefaultResponse,
-  RequestBody = DefaultPayload,
-  QueryParams = DefaultParams,
-  PathParams = DefaultUrlParams,
+  _ResponseData = DefaultResponse,
+  _RequestBody = DefaultPayload,
+  _QueryParams = DefaultParams,
+  _PathParams = DefaultUrlParams,
 > = <
-  ResponseData = DefaultResponse,
-  RequestBody = DefaultPayload,
-  QueryParams = DefaultParams,
-  PathParams = DefaultUrlParams,
+  ResponseData = _ResponseData,
+  RequestBody = _RequestBody,
+  QueryParams = _QueryParams,
+  PathParams = _PathParams,
 >(
   response: FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>,
   config: RequestConfig<ResponseData, QueryParams, PathParams, RequestBody>,
