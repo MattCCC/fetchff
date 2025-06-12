@@ -19,6 +19,8 @@
     "forceConsistentCasingInFileNames": true,
     "noEmit": true,
     "baseUrl": ".",
+    "jsx": "react-jsx",
+    "types": ["node", "jest", "@testing-library/jest-dom"],
     "paths": {
       "fetchff/*": ["./src/*"],
       "fetchff": ["./src/index.ts"]
