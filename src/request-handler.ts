@@ -310,8 +310,7 @@ export function createRequestHandler(
             // It is a fail-safe so to prevent excessive retry attempts even if custom retry logic suggests a retry.
             attempt === _retries || // Stop if the maximum retries have been reached
             !retryOn?.includes(error.status) || // Check if the error status is retryable
-            !shouldRetry ||
-            !(await shouldRetry(output, attempt)) // If shouldRetry is defined, evaluate it
+            (shouldRetry !== undefined && !(await shouldRetry(output, attempt))) // If shouldRetry is defined, evaluate it
           ) {
             if (!isRequestCancelled(error as ResponseError)) {
               logger(mergedConfig, 'FETCH ERROR', error as ResponseError);
