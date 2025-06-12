@@ -264,16 +264,20 @@ export function createRequestHandler(
             continue; // Retry the request
           }
 
-          if (
-            cacheTime &&
-            _cacheKey &&
-            (!requestConfig.skipCache ||
-              !requestConfig.skipCache(output, requestConfig))
-          ) {
-            setCache(_cacheKey, output);
-          }
-
           if (_cacheKey) {
+            if (
+              cacheTime &&
+              (!requestConfig.skipCache ||
+                !requestConfig.skipCache<
+                  ResponseData,
+                  RequestBody,
+                  QueryParams,
+                  PathParams
+                >(output, requestConfig))
+            ) {
+              setCache(_cacheKey, output);
+            }
+
             notifySubscribers(_cacheKey, output);
           }
 

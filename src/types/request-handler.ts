@@ -150,13 +150,18 @@ export type CacheKeyFunction = (config: RequestConfig) => string;
 
 export type CacheBusterFunction = (config: RequestConfig) => boolean;
 
-export type CacheSkipFunction = <
+export type CacheSkipFunction<
   ResponseData = DefaultResponse,
+  RequestBody = DefaultPayload,
   QueryParams = DefaultParams,
   PathParams = DefaultUrlParams,
+> = <
+  ResponseData = DefaultResponse,
   RequestBody = DefaultPayload,
+  QueryParams = DefaultParams,
+  PathParams = DefaultUrlParams,
 >(
-  data: ResponseData,
+  response: FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>,
   config: RequestConfig<ResponseData, QueryParams, PathParams, RequestBody>,
 ) => boolean;
 
@@ -229,7 +234,12 @@ export interface RetryOptions<
 /**
  * Configuration object for cache related options
  */
-export interface CacheOptions {
+export interface CacheOptions<
+  ResponseData = DefaultResponse,
+  QueryParams = DefaultParams,
+  PathParams = DefaultUrlParams,
+  RequestBody = DefaultPayload,
+> {
   /**
    * Maximum time, in seconds, a cache entry is considered fresh (valid).
    * After this time, the entry may be considered stale (expired).
@@ -262,7 +272,12 @@ export interface CacheOptions {
    * @param config - Request configuration.
    * @default (response,config)=>false Bypassing cache is disabled by default. Return true to skip cache
    */
-  skipCache?: CacheSkipFunction;
+  skipCache?: CacheSkipFunction<
+    ResponseData,
+    RequestBody,
+    QueryParams,
+    PathParams
+  >;
 }
 
 /**
