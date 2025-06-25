@@ -8,6 +8,7 @@
  * in-flight state management to prevent duplicate requests.
  * @remarks
  * - Polled requests are also marked as "in-flight" to prevent duplicate requests.
+ * - We use a Set and the isInFlight() check to track in-flight requests, instead of updating the cache directly with setCache(), to avoid affecting the cache's persistent data.
  */
 
 import { notifySubscribers } from './pubsub-manager';

@@ -33,8 +33,9 @@ function ensureListenerSet(key: string) {
   return listeners.get(key)!;
 }
 
-export function addListener<T>(key: string, fn: Listener<T>): Set<Listener<T>> {
-  return ensureListenerSet(key).add(fn);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function addListener<T = any>(key: string, fn: Listener<T>): void {
+  ensureListenerSet(key).add(fn);
 }
 
 export function removeListener<T>(key: string, fn: Listener<T>) {
@@ -42,6 +43,11 @@ export function removeListener<T>(key: string, fn: Listener<T>) {
 
   if (set) {
     set.delete(fn);
+
+    // If the set is empty, remove the key from the listeners map
+    if (set.size === 0) {
+      listeners.delete(key);
+    }
   }
 }
 
@@ -59,15 +65,10 @@ export function subscribe<T>(key: string | null, fn: (response: T) => void) {
     return () => {};
   }
 
-  const set = addListener<T>(key, fn);
+  addListener<T>(key, fn);
 
   // Return an unsubscribe function
   return () => {
-    set.delete(fn);
-
-    // If the set is empty, remove the key from the listeners map
-    if (set.size === 0) {
-      listeners.delete(key);
-    }
+    removeListener(key, fn);
   };
 }

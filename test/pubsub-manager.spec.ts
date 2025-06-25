@@ -33,61 +33,87 @@ describe('PubSub Manager', () => {
     it('should add a listener for a key', () => {
       const result = addListener(testKey, mockListener1);
 
-      expect(result).toBeInstanceOf(Set);
-      expect(result.has(mockListener1)).toBe(true);
+      expect(result).toBeUndefined();
+
+      // Verify the listener was added by testing notification
+      notifySubscribers(testKey, testData);
+      expect(mockListener1).toHaveBeenCalledWith(testData);
     });
 
     it('should add multiple listeners for the same key', () => {
       addListener(testKey, mockListener1);
       const result = addListener(testKey, mockListener2);
 
-      expect(result.has(mockListener1)).toBe(true);
-      expect(result.has(mockListener2)).toBe(true);
-      expect(result.size).toBe(2);
+      expect(result).toBeUndefined();
+
+      // Verify both listeners were added
+      notifySubscribers(testKey, testData);
+      expect(mockListener1).toHaveBeenCalledWith(testData);
+      expect(mockListener2).toHaveBeenCalledWith(testData);
     });
 
     it('should add the same listener only once', () => {
-      const result1 = addListener(testKey, mockListener1);
-      const result2 = addListener(testKey, mockListener1);
+      addListener(testKey, mockListener1);
+      addListener(testKey, mockListener1); // Add same listener again
 
-      expect(result1).toBe(result2);
-      expect(result1.size).toBe(1);
+      // Verify listener is only called once even though added twice
+      notifySubscribers(testKey, testData);
+      expect(mockListener1).toHaveBeenCalledTimes(1);
     });
 
     it('should handle different keys independently', () => {
-      const set1 = addListener(testKey, mockListener1);
-      const set2 = addListener(testKey2, mockListener2);
+      addListener(testKey, mockListener1);
+      addListener(testKey2, mockListener2);
 
-      expect(set1).not.toBe(set2);
-      expect(set1.has(mockListener1)).toBe(true);
-      expect(set1.has(mockListener2)).toBe(false);
-      expect(set2.has(mockListener2)).toBe(true);
-      expect(set2.has(mockListener1)).toBe(false);
+      // Notify first key
+      notifySubscribers(testKey, testData);
+      expect(mockListener1).toHaveBeenCalledWith(testData);
+      expect(mockListener2).not.toHaveBeenCalled();
+
+      // Notify second key
+      notifySubscribers(testKey2, testData);
+      expect(mockListener2).toHaveBeenCalledWith(testData);
+      expect(mockListener1).toHaveBeenCalledTimes(1); // Still only called once
     });
 
     it('should handle empty string as key', () => {
       const result = addListener('', mockListener1);
 
-      expect(result).toBeInstanceOf(Set);
-      expect(result.has(mockListener1)).toBe(true);
+      expect(result).toBeUndefined();
+
+      // Verify it works with empty string key
+      notifySubscribers('', testData);
+      expect(mockListener1).toHaveBeenCalledWith(testData);
     });
   });
 
   describe('removeListener', () => {
     it('should remove a listener from a key', () => {
-      const set = addListener(testKey, mockListener1);
+      addListener(testKey, mockListener1);
       addListener(testKey, mockListener2);
 
+      // Verify both listeners work initially
+      notifySubscribers(testKey, testData);
+      expect(mockListener1).toHaveBeenCalledTimes(1);
+      expect(mockListener2).toHaveBeenCalledTimes(1);
+
+      // Remove one listener
       removeListener(testKey, mockListener1);
 
-      expect(set.has(mockListener1)).toBe(false);
-      expect(set.has(mockListener2)).toBe(true);
+      // Verify only the remaining listener is called
+      notifySubscribers(testKey, testData);
+      expect(mockListener1).toHaveBeenCalledTimes(1); // No change
+      expect(mockListener2).toHaveBeenCalledTimes(2); // Called again
     });
 
     it('should handle removing non-existent listener gracefully', () => {
       addListener(testKey, mockListener1);
 
       expect(() => removeListener(testKey, mockListener2)).not.toThrow();
+
+      // Verify original listener still works
+      notifySubscribers(testKey, testData);
+      expect(mockListener1).toHaveBeenCalledWith(testData);
     });
 
     it('should handle removing from non-existent key gracefully', () => {
@@ -100,6 +126,10 @@ describe('PubSub Manager', () => {
       addListener('', mockListener1);
 
       expect(() => removeListener('', mockListener1)).not.toThrow();
+
+      // Verify listener was removed
+      notifySubscribers('', testData);
+      expect(mockListener1).not.toHaveBeenCalled();
     });
   });
 
@@ -243,6 +273,19 @@ describe('PubSub Manager', () => {
       expect(() => unsubscribe()).not.toThrow();
       expect(() => unsubscribe()).not.toThrow();
     });
+
+    it('should handle null key gracefully', () => {
+      const unsubscribe = subscribe(null, mockListener1);
+
+      expect(typeof unsubscribe).toBe('function');
+
+      // Should not throw when called
+      expect(() => unsubscribe()).not.toThrow();
+
+      // Listener should not be called for any notifications
+      notifySubscribers('any-key', testData);
+      expect(mockListener1).not.toHaveBeenCalled();
+    });
   });
 
   describe('integration scenarios', () => {
@@ -275,7 +318,7 @@ describe('PubSub Manager', () => {
     });
 
     it('should handle edge case with empty data', () => {
-      subscribe(testKey, mockListener1);
+      const unsubscribe = subscribe(testKey, mockListener1);
 
       notifySubscribers(testKey, null);
       notifySubscribers(testKey, undefined);
@@ -289,6 +332,8 @@ describe('PubSub Manager', () => {
       expect(mockListener1).toHaveBeenNthCalledWith(4, 0);
       expect(mockListener1).toHaveBeenNthCalledWith(5, false);
       expect(mockListener1).toHaveBeenCalledTimes(5);
+
+      unsubscribe();
     });
   });
 });
