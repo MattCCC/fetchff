@@ -4,6 +4,7 @@ module.exports = {
   testEnvironment: 'node',
   workerThreads: true,
   coverageReporters: ['lcov', 'text', 'html'],
+  coveragePathIgnorePatterns: ['/node_modules/', '/test/utils/', '/dist/'],
   moduleNameMapper: {
     '^fetchff$': '<rootDir>/src/index.ts',
     '^fetchff/(.*)$': '<rootDir>/src/$1.ts',
