@@ -39,29 +39,27 @@ export type DefaultResponse = any;
 
 export type NativeFetch = typeof fetch;
 
-export interface FetcherInstance {
-  create: <RequestInstance = CreatedCustomFetcherInstance>(
-    config?: RequestHandlerConfig,
-  ) => RequestInstance;
-}
-
-export interface CreatedCustomFetcherInstance {
-  request<
-    ResponseData = DefaultResponse,
-    QueryParams = DefaultParams,
-    PathParams = DefaultUrlParams,
-    RequestBody = DefaultPayload,
-  >(
-    requestConfig: RequestConfig<
-      ResponseData,
-      QueryParams,
-      PathParams,
-      RequestBody
-    >,
-  ): PromiseLike<
-    FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>
-  >;
-}
+export type CustomFetcher = <
+  ResponseData = DefaultResponse,
+  RequestBody = DefaultPayload,
+  QueryParams = DefaultParams,
+  PathParams = DefaultUrlParams,
+>(
+  url: string,
+  config?: RequestConfig<
+    ResponseData,
+    QueryParams,
+    PathParams,
+    RequestBody
+  > | null,
+) =>
+  | PromiseLike<
+      FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>
+    >
+  | FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>
+  | Response
+  | PromiseLike<Response>
+  | PromiseLike<unknown>;
 
 export type ErrorHandlingStrategy =
   | 'reject'
@@ -88,7 +86,7 @@ export interface ExtendedResponse<
   > | null;
   headers: HeadersObject & HeadersInit;
   config: RequestConfig<ResponseData, QueryParams, PathParams, RequestBody>;
-  isFetching: boolean;
+  isFetching?: boolean;
 }
 
 /**
@@ -463,12 +461,12 @@ export interface ExtendedRequestConfig<
    * When `null`, the default fetch behavior is used.
    *
    * @example:
-   * const customFetcher: FetcherInstance = { create: () => ({ request: (config) => fetch(config.url) }) };
-   * fetchf('/endpoint', { fetcher: customFetcher });
+   * const customFetcher: CustomFetcher = (url, config) => fetch(url, config);
+   * const data = await fetchf('/endpoint', { fetcher: customFetcher });
    *
    * @default null
    */
-  fetcher?: FetcherInstance | null;
+  fetcher?: CustomFetcher | null;
 
   /**
    * A custom logger instance to handle warnings and errors.
@@ -514,7 +512,7 @@ export type FetcherConfig<
 
 export interface RequestHandlerReturnType {
   config: RequestHandlerConfig;
-  getInstance: () => CreatedCustomFetcherInstance | null;
+  getInstance: () => CustomFetcher | null;
   request: <
     ResponseData = DefaultResponse,
     QueryParams = DefaultParams,
