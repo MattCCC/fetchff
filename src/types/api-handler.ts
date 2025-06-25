@@ -4,9 +4,9 @@ import type {
   RequestHandlerConfig,
   FetchResponse,
   RequestHandlerReturnType,
-  CreatedCustomFetcherInstance,
   DefaultResponse,
   ExtendedRequestConfig,
+  CustomFetcher,
 } from './request-handler';
 
 // Common type definitions
@@ -202,7 +202,7 @@ export type ApiHandlerDefaultMethods<EndpointsMethods> = {
   config: ApiHandlerConfig<EndpointsMethods>;
   endpoints: EndpointsConfig<EndpointsMethods>;
   requestHandler: RequestHandlerReturnType;
-  getInstance: () => CreatedCustomFetcherInstance | null;
+  getInstance: () => CustomFetcher | null;
   request: RequestEndpointFunction<EndpointsMethods>;
 };
 

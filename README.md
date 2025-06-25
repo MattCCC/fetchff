@@ -36,18 +36,15 @@ Also, managing multitude of API connections in large applications can be complex
 To address these challenges, the `fetchf()` provides several enhancements:
 
 1. **Consistent Error Handling:**
-
    - In JavaScript, the native `fetch()` function does not reject the Promise for HTTP error statuses such as 404 (Not Found) or 500 (Internal Server Error). Instead, `fetch()` resolves the Promise with a `Response` object, where the `ok` property indicates the success of the request. If the request encounters a network error or fails due to other issues (e.g., server downtime), `fetch()` will reject the Promise.
    - The `fetchff` plugin aligns error handling with common practices and makes it easier to manage errors consistently by rejecting erroneous status codes.
 
 2. **Enhanced Retry Mechanism:**
-
    - **Retry Configuration:** You can configure the number of retries, delay between retries, and exponential backoff for failed requests. This helps to handle transient errors effectively.
    - **Custom Retry Logic:** The `shouldRetry` asynchronous function allows for custom retry logic based on the error from `response.error` and attempt count, providing flexibility to handle different types of failures.
    - **Retry Conditions:** Errors are only retried based on configurable retry conditions, such as specific HTTP status codes or error types.
 
 3. **Improved Error Visibility:**
-
    - **Error Wrapping:** The `createApiFetcher()` and `fetchf()` wrap errors in a custom `ResponseError` class, which provides detailed information about the request and response. This makes debugging easier and improves visibility into what went wrong.
 
 4. **Extended settings:**
@@ -288,7 +285,7 @@ You can also use all native [`fetch()` settings](https://developer.mozilla.org/e
 | withCredentials            | `boolean`                                                                                              | `false` | Indicates whether credentials (such as cookies) should be included with the request. This equals to `credentials: "include"` in native `fetch()`. In Node.js, cookies are not managed automatically. Use a fetch polyfill or library that supports cookies if needed.                                                                                                                                                                                                                                                                                                                                                                                       |
 | timeout                    | `number`                                                                                               | `30000` | You can set a request timeout in milliseconds. By default 30 seconds (30000 ms). The timeout option applies to each individual request attempt including retries and polling. `0` means that the timeout is disabled.                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | logger                     | `Logger`                                                                                               | `null`  | You can additionally specify logger object with your custom logger to automatically log the errors to the console. It should contain at least `error` and `warn` functions.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| fetcher                    | `FetcherInstance`                                                                                      |         | A custom adapter (an instance / object) that exposes `create()` function so to create instance of API Fetcher. The `create()` should return `request()` function that would be used when making the requests. The native `fetch()` is used if the fetcher is not provided.                                                                                                                                                                                                                                                                                                                                                                                  |
+| fetcher                    | `CustomFetcher`                                                                                        |         | A custom fetcher function. By default, the native `fetch()` is used.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 
 </details>
 
@@ -1109,7 +1106,7 @@ The key types are:
 - **`RequestInterceptor`**: Function to modify request configurations before they are sent.
 - **`ResponseInterceptor`**: Function to process responses before they are handled by the application.
 - **`ErrorInterceptor`**: Function to handle errors when a request fails.
-- **`CreatedCustomFetcherInstance`**: Represents the custom `fetcher` instance created by its `create()` function.
+- **`CustomFetcher`**: Represents the custom `fetcher` function.
 
 For a full list of types and detailed definitions, refer to the [api-handler.ts](https://github.com/MattCCC/fetchff/blob/docs-update/src/types/api-handler.ts) file.
 

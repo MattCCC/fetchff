@@ -20,9 +20,7 @@ jest.mock('../src/utils', () => {
   };
 });
 
-const fetcher = {
-  create: jest.fn().mockReturnValue({ request: jest.fn() }),
-};
+let fetcher = jest.fn();
 
 fetchMock.mockGlobal();
 
@@ -137,14 +135,13 @@ describe('Request Handler', () => {
     });
 
     it('should use custom fetcher instance if provided', async () => {
-      const customFetcher = {
-        create: jest.fn().mockReturnValue({
-          request: jest.fn().mockResolvedValue({ data: { foo: 'bar' } }),
-        }),
-      };
+      const customFetcher = jest
+        .fn()
+        .mockResolvedValue({ data: { foo: 'bar' } });
+
       const handler = createRequestHandler({ fetcher: customFetcher });
       const result = await handler.request('http://example.com/api/custom');
-      expect(customFetcher.create).toHaveBeenCalled();
+      expect(customFetcher).toHaveBeenCalled();
       expect(result.data).toEqual({ foo: 'bar' });
     });
 
@@ -1513,31 +1510,29 @@ describe('Request Handler', () => {
     });
 
     it('should show nested data object if flattening is off', async () => {
+      fetcher = jest.fn().mockResolvedValue({ data: responseMock, ok: true });
+
       const requestHandler = createRequestHandler({
         fetcher,
         flattenResponse: false,
       });
 
-      (requestHandler.getInstance() as any).request = jest
-        .fn()
-        .mockResolvedValue(responseMock);
-
-      const response = await requestHandler.request(apiUrl, {
+      const { data } = await requestHandler.request(apiUrl, {
         method: 'put',
       });
 
-      expect(response).toMatchObject(responseMock);
+      expect(data).toMatchObject(responseMock);
     });
 
     it('should handle deeply nested data if data flattening is on', async () => {
+      fetcher = jest
+        .fn()
+        .mockResolvedValue({ data: { data: responseMock }, ok: true });
+
       const requestHandler = createRequestHandler({
         fetcher,
         flattenResponse: true,
       });
-
-      (requestHandler.getInstance() as any).request = jest
-        .fn()
-        .mockResolvedValue({ data: responseMock });
 
       const { data } = await requestHandler.request(apiUrl, {
         method: 'patch',
@@ -1548,15 +1543,13 @@ describe('Request Handler', () => {
     });
 
     it('should return null if there is no data', async () => {
+      fetcher = jest.fn().mockResolvedValue({ data: null, ok: true });
+
       const requestHandler = createRequestHandler({
         fetcher,
         flattenResponse: true,
         defaultResponse: null,
       });
-
-      (requestHandler.getInstance() as any).request = jest
-        .fn()
-        .mockResolvedValue({ data: null });
 
       expect(
         await requestHandler.request(apiUrl, { method: 'head' }),

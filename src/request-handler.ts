@@ -5,7 +5,7 @@ import type {
   RetryOptions,
   FetchResponse,
   RequestHandlerReturnType,
-  CreatedCustomFetcherInstance,
+  CustomFetcher,
 } from './types/request-handler';
 import type {
   DefaultParams,
@@ -52,14 +52,14 @@ export function createRequestHandler(
   /**
    * Immediately create instance of custom fetcher if it is defined
    */
-  const requestInstance = sanitizedConfig.fetcher?.create?.(handlerConfig);
+  const requestInstance = sanitizedConfig.fetcher;
 
   /**
    * Get Provider Instance
    *
-   * @returns {CreatedCustomFetcherInstance | null} Provider's instance
+   * @returns {CustomFetcher | null} Provider's instance
    */
-  const getInstance = (): CreatedCustomFetcherInstance | null => {
+  const getInstance = (): CustomFetcher | null => {
     return requestInstance || null;
   };
 
@@ -202,17 +202,23 @@ export function createRequestHandler(
           // Global interceptors
           await applyInterceptor(requestConfig, handlerConfig.onRequest);
 
-          response = requestInstance?.request
-            ? await requestInstance.request(requestConfig)
-            : ((await fetch(
+          // Backwards compatibility for custom fetcher
+          const fn = requestInstance ?? fetcherConfig.fetcher;
+
+          response = (fn
+            ? await fn<ResponseData, RequestBody, QueryParams, PathParams>(
+                requestConfig.url as string,
+                requestConfig,
+              )
+            : await fetch(
                 requestConfig.url as string,
                 requestConfig as RequestInit,
               )) as unknown as FetchResponse<
-                ResponseData,
-                RequestBody,
-                QueryParams,
-                PathParams
-              >);
+            ResponseData,
+            RequestBody,
+            QueryParams,
+            PathParams
+          >;
 
           // Add more information to response object
           if (response instanceof Response) {

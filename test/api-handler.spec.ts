@@ -6,10 +6,7 @@ import fetchMock from 'fetch-mock';
 describe('API Handler', () => {
   fetchMock.mockGlobal();
 
-  const fetcher = {
-    create: jest.fn().mockReturnValue({ request: jest.fn() }),
-  };
-
+  const fetcher = jest.fn();
   const apiUrl = 'http://example.com/api/';
   const config = {
     fetcher,
@@ -29,7 +26,7 @@ describe('API Handler', () => {
   it('getInstance() - should obtain method of the API request provider', () => {
     const api = createApiFetcher(config);
 
-    expect(typeof (api.getInstance() as any).request).toBe('function');
+    expect(typeof api.getInstance()).toBe('function');
   });
 
   describe('get()', () => {
