@@ -14,14 +14,14 @@ import type {
 } from './types/api-handler';
 import { applyInterceptor } from './interceptor-manager';
 import { ResponseError } from './errors/response-error';
-import { delayInvocation, sanitizeObject } from './utils';
+import { delayInvocation, isObject, sanitizeObject } from './utils';
 import {
   queueRequest,
   removeRequestFromQueue,
   setInFlightPromise,
   getInFlightPromise,
 } from './queue-manager';
-import { ABORT_ERROR, CANCELLED_ERROR, REJECT } from './constants';
+import { ABORT_ERROR, CANCELLED_ERROR, FUNCTION, REJECT } from './constants';
 import { prepareResponse, parseResponseData } from './response-parser';
 import { generateCacheKey, getCachedResponse, setCache } from './cache-manager';
 import { buildConfig, defaultConfig, mergeConfig } from './config-handler';
@@ -220,13 +220,20 @@ export function createRequestHandler(
             PathParams
           >;
 
-          // Add more information to response object
-          if (response instanceof Response) {
+          // Attach config and data to the response
+          // This is useful for custom fetchers that do not return a Response instance
+          // and for interceptors that may need to access the request config
+          if (isObject(response)) {
+            // Add more information to response object
+            if (typeof Response === FUNCTION && response instanceof Response) {
+              response.data = await parseResponseData(response);
+            }
+
             response.config = requestConfig;
-            response.data = await parseResponseData(response);
 
             // Check if the response status is not outside the range 200-299 and if so, output error
-            if (!response.ok) {
+            // This is the pattern for fetch responses as per spec, but custom fetchers may not follow it so we check for `ok` property
+            if (response.ok !== undefined && !response.ok) {
               throw new ResponseError(
                 `${requestConfig.method} to ${requestConfig.url} failed! Status: ${response.status || null}`,
                 requestConfig,
@@ -297,10 +304,9 @@ export function createRequestHandler(
           >;
 
           // Append additional information to Network, CORS or any other fetch() errors
-          error.status = error?.status || response?.status || 0;
-          error.statusText = error?.statusText || response?.statusText || '';
-          error.config = fetcherConfig;
-          error.request = fetcherConfig;
+          error.status = error.status || response?.status || 0;
+          error.statusText = error.statusText || response?.statusText || '';
+          error.config = error.request = fetcherConfig;
           error.response = response;
 
           // Prepare Extended Response

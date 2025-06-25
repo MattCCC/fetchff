@@ -3,6 +3,7 @@ import {
   APPLICATION_CONTENT_TYPE,
   APPLICATION_JSON,
   CONTENT_TYPE,
+  FUNCTION,
   OBJECT,
 } from './constants';
 import {
@@ -14,7 +15,7 @@ import {
   DefaultUrlParams,
   DefaultPayload,
 } from './types';
-import { flattenData, processHeaders } from './utils';
+import { flattenData, isObject, processHeaders } from './utils';
 
 /**
  * Parses the response data based on the Content-Type header.
@@ -83,7 +84,7 @@ export async function parseResponseData<ResponseData = DefaultResponse>(
  * Prepare response object with additional information.
  *
  * @param Response. It may be "null" in case of request being aborted.
- * @param {RequestConfig} requestConfig - Request config
+ * @param {RequestConfig} config - Request config
  * @param error - whether the response is erroneous
  * @returns {FetchResponse<ResponseData>} Response data
  */
@@ -99,12 +100,7 @@ export const prepareResponse = <
     QueryParams,
     PathParams
   > | null,
-  requestConfig: RequestConfig<
-    ResponseData,
-    QueryParams,
-    PathParams,
-    RequestBody
-  >,
+  config: RequestConfig<ResponseData, QueryParams, PathParams, RequestBody>,
   error: ResponseError<
     ResponseData,
     QueryParams,
@@ -112,7 +108,7 @@ export const prepareResponse = <
     RequestBody
   > | null = null,
 ): FetchResponse<ResponseData, RequestBody, QueryParams, PathParams> => {
-  const defaultResponse = requestConfig.defaultResponse ?? null;
+  const defaultResponse = config.defaultResponse ?? null;
 
   // This may happen when request is cancelled.
   if (!response) {
@@ -122,7 +118,7 @@ export const prepareResponse = <
       error,
       data: defaultResponse,
       headers: null,
-      config: requestConfig,
+      config,
     } as unknown as FetchResponse<
       ResponseData,
       RequestBody,
@@ -142,40 +138,46 @@ export const prepareResponse = <
     data = defaultResponse;
   }
 
-  if (requestConfig.flattenResponse) {
+  if (config.flattenResponse) {
     response.data = flattenData(data);
   }
 
-  // If it's a custom fetcher, and it does not return any Response instance, it may have its own internal handler
-  if (!(response instanceof Response)) {
-    return response;
-  }
+  const headers = processHeaders(response.headers);
 
   // Native fetch Response extended by extra information
-  return {
-    body: response.body,
-    bodyUsed: response.bodyUsed,
-    ok: response.ok,
-    redirected: response.redirected,
-    type: response.type,
-    url: response.url,
-    status: response.status,
-    statusText: response.statusText,
+  if (typeof Response === FUNCTION && response instanceof Response) {
+    return {
+      body: response.body,
+      bodyUsed: response.bodyUsed,
+      ok: response.ok,
+      redirected: response.redirected,
+      type: response.type,
+      url: response.url,
+      status: response.status,
+      statusText: response.statusText,
 
-    // Convert methods to use arrow functions to preserve correct return types
-    blob: () => response.blob(),
-    json: () => response.json(),
-    text: () => response.text(),
-    clone: () => response.clone(),
-    arrayBuffer: () => response.arrayBuffer(),
-    formData: () => response.formData(),
-    bytes: () => response.bytes(),
+      // Convert methods to use arrow functions to preserve correct return types
+      blob: () => response.blob(),
+      json: () => response.json(),
+      text: () => response.text(),
+      clone: () => response.clone(),
+      arrayBuffer: () => response.arrayBuffer(),
+      formData: () => response.formData(),
+      bytes: () => response.bytes(),
 
-    // Enhance the response with extra information
-    error,
-    data,
-    headers: processHeaders(response.headers),
-    config: requestConfig,
-    isFetching: false,
-  };
+      // Enhance the response with extra information
+      error,
+      data,
+      headers,
+      config,
+    };
+  }
+
+  // If it's a custom fetcher, and it does not return any Response instance, it may have its own internal handler
+  if (isObject(response)) {
+    response.error = error;
+    response.headers = headers;
+  }
+
+  return response;
 };
