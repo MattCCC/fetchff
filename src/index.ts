@@ -22,4 +22,17 @@ export async function fetchf<ResponseData = DefaultResponse>(
 
 export { createApiFetcher } from './api-handler';
 
+export { subscribe } from './pubsub-manager';
+
+export { getInFlightPromise } from './queue-manager';
+
+export {
+  generateCacheKey,
+  getCachedResponse,
+  mutate,
+  deleteCache,
+} from './cache-manager';
+
+export { buildConfig } from './config-handler';
+
 export * from './types';

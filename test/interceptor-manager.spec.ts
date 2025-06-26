@@ -1,4 +1,3 @@
-import 'whatwg-fetch';
 import { ExtendedResponse } from '../src';
 import type {
   FetchResponse,

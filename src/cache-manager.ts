@@ -12,6 +12,8 @@ import { shallowSerialize, sortObject } from './utils';
 import { revalidate } from './revalidator-manager';
 import { notifySubscribers } from './pubsub-manager';
 
+export const INFINITE_CACHE_TIME = -1;
+
 const _cache = new Map<string, CacheEntry<any>>();
 const DELIMITER = '|';
 const MIN_LENGTH_TO_HASH = 64;
@@ -150,8 +152,8 @@ export function generateCacheKey(options: RequestConfig): string {
  * @returns {boolean} - Returns true if the cache entry is expired, false otherwise.
  */
 function isCacheExpired(timestamp: number, maxStaleTime?: number): boolean {
-  // If maxStaleTime is not provided (undefined, null, or 0), the cache entry is considered not expired.
-  if (!maxStaleTime) {
+  // If maxStaleTime is not provided (undefined, null, 0, or -1), the cache entry is considered not expired.
+  if (!maxStaleTime || maxStaleTime === INFINITE_CACHE_TIME) {
     return false;
   }
 
@@ -163,7 +165,7 @@ function isCacheExpired(timestamp: number, maxStaleTime?: number): boolean {
  * Retrieves a cache entry if it exists and is not expired.
  *
  * @param {string} key Cache key to utilize
- * @param {number|undefined} cacheTime - Maximum time to cache entry in seconds.
+ * @param {number|undefined} cacheTime - Maximum time to cache entry in seconds. 0 or -1 means no expiration.
  * @returns {CacheEntry<T> | null} - The cache entry if it exists and is not expired, null otherwise.
  */
 export function getCache<T>(
@@ -211,7 +213,7 @@ export function deleteCache(key: string): void {
  * Prunes the cache by removing entries that have expired based on the provided cache time.
  * @param cacheTime - The maximum time to cache entry.
  */
-export function pruneCache(cacheTime: number = 0): void {
+export function pruneCache(cacheTime?: number): void {
   _cache.forEach((entry, key) => {
     if (isCacheExpired(entry.timestamp, cacheTime)) {
       deleteCache(key);

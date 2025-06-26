@@ -1,6 +1,10 @@
-import { DefaultPayload, DefaultParams, DefaultUrlParams } from './api-handler';
-import { MutationSettings } from './cache-manager';
-import { DefaultResponse, FetchResponse } from './request-handler';
+import type {
+  DefaultPayload,
+  DefaultParams,
+  DefaultUrlParams,
+} from './api-handler';
+import type { MutationSettings } from './cache-manager';
+import type { DefaultResponse, FetchResponse } from './request-handler';
 
 type RefetchFunction<
   ResponseData = DefaultResponse,
@@ -31,12 +35,9 @@ export interface UseFetcherResult<
    * The error encountered during the fetch operation, if any.
    * If the request was successful, this will be null.
    */
-  error: FetchResponse<
-    ResponseData,
-    RequestBody,
-    QueryParams,
-    PathParams
-  >['error'];
+  error:
+    | FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>['error']
+    | null;
   /**
    * Indicates if the request is currently validating or fetching data.
    * This is true when the request is in progress, including revalidations.
@@ -73,4 +74,29 @@ export interface UseFetcherResult<
    * @returns {Promise<FetchResponse<ResponseData, RequestBody, QueryParams, PathParams> | null>} The new fetch response or null if no URL is set.
    */
   refetch: RefetchFunction<ResponseData, RequestBody, QueryParams, PathParams>;
+
+  /**
+   * The configuration object used for this fetcher instance.
+   * This contains the settings and options passed to the hook.
+   */
+  config:
+    | FetchResponse<
+        ResponseData,
+        RequestBody,
+        QueryParams,
+        PathParams
+      >['config']
+    | undefined;
+
+  /**
+   * The HTTP headers returned with the response, or undefined if not available.
+   */
+  headers:
+    | FetchResponse<
+        ResponseData,
+        RequestBody,
+        QueryParams,
+        PathParams
+      >['headers']
+    | undefined;
 }

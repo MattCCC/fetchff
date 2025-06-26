@@ -1,5 +1,13 @@
 import { useEffect, useCallback, useSyncExternalStore, useMemo } from 'react';
-import { fetchf } from 'fetchff';
+import {
+  fetchf,
+  subscribe,
+  buildConfig,
+  mutate as globalMutate,
+  generateCacheKey,
+  getCachedResponse,
+  getInFlightPromise,
+} from 'fetchff';
 import type {
   DefaultParams,
   DefaultPayload,
@@ -8,18 +16,18 @@ import type {
   FetchResponse,
   RequestConfig,
 } from '..';
-import {
-  generateCacheKey,
-  getCachedResponse,
-  mutate as globalMutate,
-} from 'fetchff/cache-manager';
-import { subscribe } from 'fetchff/pubsub-manager';
-import { getInFlightPromise } from 'fetchff/queue-manager';
-import { buildConfig } from 'fetchff/config-handler';
-import { UseFetcherResult } from '../types/react-hooks';
-import { REJECT } from 'fetchff/constants';
+import type { UseFetcherResult } from '../types/react-hooks';
+
+import { decrementRef, incrementRef, INFINITE_CACHE_TIME } from './cache-ref';
 
 const DEFAULT_DEDUPE_TIME_MS = 2000;
+const DEFAULT_RESULT = {
+  data: null,
+  error: null,
+  isFetching: false,
+  config: undefined,
+  headers: undefined,
+};
 
 /**
  * High-performance React hook for fetching data with caching, deduplication, revalidation etc.
@@ -72,7 +80,7 @@ export function useFetcher<
 ): UseFetcherResult<ResponseData, RequestBody, QueryParams, PathParams> {
   // Efficient cache key generation based on URL and request parameters.
   // Optimized for speed: minimizes unnecessary function calls when possible
-  const _cacheKey = useMemo(
+  const cacheKey = useMemo(
     () => (url === null ? null : generateCacheKey(buildConfig(url, config))),
     [
       config.cacheKey,
@@ -94,45 +102,120 @@ export function useFetcher<
       config.credentials,
     ],
   );
+  const dedupeTime = config.dedupeTime ?? DEFAULT_DEDUPE_TIME_MS;
+  const cacheTime = config.cacheTime ?? INFINITE_CACHE_TIME;
 
-  // Attempt to get the cached response immediately and if not available, return null
-  const getSnapshot = () => getCachedResponse(_cacheKey, 0, config);
-
-  const state = useSyncExternalStore<FetchResponse<
-    ResponseData,
-    RequestBody,
-    QueryParams,
-    PathParams
-  > | null>(
-    // Subscribe to cache updates
-    (cb) => subscribe(_cacheKey, cb),
-    // Client snapshot - pure function, no side effects
-    getSnapshot,
-    // Server snapshot - consistent with client
-    getSnapshot,
+  const shouldTriggerOnMount = useMemo(
+    () => (config.immediate === undefined ? true : config.immediate),
+    [config.immediate],
   );
 
-  const dedupeTime = config.dedupeTime ?? DEFAULT_DEDUPE_TIME_MS;
+  // Attempt to get the cached response immediately and if not available, return null
+  const getSnapshot = useCallback(() => {
+    // Stale-While-Revalidate Pattern
+    const cached = getCachedResponse(
+      cacheKey,
+      // By setting -1 always return cached data if available (even if stale)
+      INFINITE_CACHE_TIME,
+      config,
+      false,
+    );
 
-  const refetch = useCallback(() => {
-    if (!url) {
-      return Promise.resolve(null);
+    return cached;
+  }, [cacheKey, cacheTime, config]);
+
+  const state =
+    useSyncExternalStore<FetchResponse<
+      ResponseData,
+      RequestBody,
+      QueryParams,
+      PathParams
+    > | null>(
+      // Subscribe to cache updates
+      (cb) => {
+        const unsubscribe = subscribe(cacheKey, () => {
+          cb(); // This should trigger React to call getSnapshot
+        });
+
+        return unsubscribe;
+      },
+      // Client snapshot - pure function, no side effects
+      getSnapshot,
+      // Server snapshot - consistent with client
+      getSnapshot,
+    ) ||
+    (DEFAULT_RESULT as unknown as FetchResponse<
+      ResponseData,
+      RequestBody,
+      QueryParams,
+      PathParams
+    >);
+
+  const isUnresolved = !state.data && !state.error;
+  const isFetching = state.isFetching ?? false;
+
+  // Handle Suspense outside the snapshot function
+  if (isUnresolved && config.strategy === 'reject') {
+    const pendingPromise = getInFlightPromise(cacheKey, dedupeTime);
+
+    if (pendingPromise) {
+      throw pendingPromise;
     }
+  }
 
-    return fetchf(url, {
-      dedupeTime,
-      cacheKey: _cacheKey,
-      strategy: 'softFail',
-      ...config,
-    });
-  }, [url, _cacheKey]);
+  const refetch = useCallback(
+    async (forceRefresh = true) => {
+      if (!url) {
+        return Promise.resolve(null);
+      }
+
+      // Fast path: check cache first if not forcing refresh
+      if (!forceRefresh && cacheKey) {
+        const cached = getCachedResponse(cacheKey, cacheTime, config, false);
+        if (cached) {
+          return Promise.resolve(cached);
+        }
+      }
+
+      return await fetchf(url, {
+        dedupeTime,
+        cacheTime,
+        cacheKey,
+        // When manual refetch is triggered, we want to ensure that the cache is busted
+        // This can be disabled by passing `refetch(false)`
+        cacheBuster: () => forceRefresh,
+        ...config,
+        // Ensure that errors are handled gracefully and not thrown by default, unless explicitly set to throw
+        strategy: 'softFail',
+      });
+    },
+    [url, cacheKey, cacheTime, dedupeTime],
+  );
 
   useEffect(() => {
     // Load the initial data if not already cached and not currently fetching
-    if (url && !state?.data && !state?.error && !state?.isFetching) {
-      refetch();
+    if (
+      url &&
+      shouldTriggerOnMount &&
+      !state.data &&
+      !state.error &&
+      !state.isFetching
+    ) {
+      // When the component mounts, we want to fetch data if:
+      // 1. URL is provided
+      // 2. shouldTriggerOnMount is true (so the "immediate" isn't specified or is true)
+      // 3. There is no cached data
+      // 4. There is no error
+      // 5. There is no ongoing fetch operation
+      refetch(false);
     }
-  }, [state?.data, state?.error, state?.isFetching, refetch]);
+
+    incrementRef(cacheKey);
+
+    return () => {
+      decrementRef(cacheKey, cacheTime);
+    };
+  }, [url, shouldTriggerOnMount, refetch, cacheKey, cacheTime]);
 
   const mutate = useCallback<
     UseFetcherResult<
@@ -143,25 +226,20 @@ export function useFetcher<
     >['mutate']
   >(
     async (data, mutationSettings) => {
-      return await globalMutate(_cacheKey, data, mutationSettings);
+      return await globalMutate(cacheKey, data, mutationSettings);
     },
-    [_cacheKey],
+    [cacheKey],
   );
-
-  // Handle Suspense outside the snapshot function
-  const pendingPromise = getInFlightPromise(_cacheKey, dedupeTime);
-
-  if (!state && pendingPromise && config.strategy === REJECT) {
-    throw pendingPromise;
-  }
 
   // Consumers always destructure the return value and use the fields directly, so
   // memoizing the object doesn't change rerender behavior nor improve any performance here
   return {
-    data: state?.data ?? null,
-    error: state?.error ?? null,
-    isValidating: state?.isFetching ?? false,
-    isLoading: !!url && (state?.isFetching ?? !state),
+    data: state.data,
+    error: state.error,
+    config: state.config,
+    headers: state.headers,
+    isValidating: isFetching,
+    isLoading: !!url && (isFetching || (isUnresolved && shouldTriggerOnMount)),
     mutate,
     refetch,
   };

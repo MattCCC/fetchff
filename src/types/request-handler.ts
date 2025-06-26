@@ -241,8 +241,10 @@ export interface CacheOptions<
   /**
    * Maximum time, in seconds, a cache entry is considered fresh (valid).
    * After this time, the entry may be considered stale (expired).
+   * - Set to `-1` to remove cache as soon as consumer is not using the data (e.g., a component unmounts), it is deleted from cache.
+   * - Set to `0` to disable caching (no cache).
    *
-   * @default 0 (no cache)
+   * @default undefined (no cache)
    */
   cacheTime?: number;
 
@@ -327,6 +329,15 @@ export interface ExtendedRequestConfig<
    * @default false
    */
   revalidateOnFocus?: boolean;
+
+  /**
+   * Whether to automatically run the request as soon as the handler is created.
+   * - If `true`, the request is sent immediately (useful for React/Vue hooks).
+   * - If `false`, you must call a function to trigger the request manually.
+   * This option is mainly relevant for UI library integrations; for plain promises, it has no effect.
+   * @default true
+   */
+  immediate?: boolean;
 
   /**
    * An object representing dynamic URL path parameters.

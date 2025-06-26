@@ -3,41 +3,29 @@
  */
 import { renderHook, act, waitFor } from '@testing-library/react';
 import * as fetchff from 'fetchff';
-import * as cacheManager from 'fetchff/cache-manager';
-import * as pubsubManager from 'fetchff/pubsub-manager';
-import * as queueManager from 'fetchff/queue-manager';
-import * as configHandler from 'fetchff/config-handler';
 import { useFetcher } from '../../src/react/index';
 import { FetchResponse } from '../../src/types/request-handler';
 
 // Mock all dependencies
 jest.mock('fetchff');
-jest.mock('fetchff/cache-manager');
-jest.mock('fetchff/pubsub-manager');
-jest.mock('fetchff/queue-manager');
-jest.mock('fetchff/config-handler');
 
 const mockFetchf = fetchff.fetchf as jest.MockedFunction<typeof fetchff.fetchf>;
-const mockGenerateCacheKey =
-  cacheManager.generateCacheKey as jest.MockedFunction<
-    typeof cacheManager.generateCacheKey
-  >;
-const mockGetCachedResponse =
-  cacheManager.getCachedResponse as jest.MockedFunction<
-    typeof cacheManager.getCachedResponse
-  >;
-const mockMutate = cacheManager.mutate as jest.MockedFunction<
-  typeof cacheManager.mutate
+const mockGenerateCacheKey = fetchff.generateCacheKey as jest.MockedFunction<
+  typeof fetchff.generateCacheKey
 >;
-const mockSubscribe = pubsubManager.subscribe as jest.MockedFunction<
-  typeof pubsubManager.subscribe
+const mockGetCachedResponse = fetchff.getCachedResponse as jest.MockedFunction<
+  typeof fetchff.getCachedResponse
+>;
+const mockMutate = fetchff.mutate as jest.MockedFunction<typeof fetchff.mutate>;
+const mockSubscribe = fetchff.subscribe as jest.MockedFunction<
+  typeof fetchff.subscribe
 >;
 const mockGetInFlightPromise =
-  queueManager.getInFlightPromise as jest.MockedFunction<
-    typeof queueManager.getInFlightPromise
+  fetchff.getInFlightPromise as jest.MockedFunction<
+    typeof fetchff.getInFlightPromise
   >;
-const mockBuildConfig = configHandler.buildConfig as jest.MockedFunction<
-  typeof configHandler.buildConfig
+const mockBuildConfig = fetchff.buildConfig as jest.MockedFunction<
+  typeof fetchff.buildConfig
 >;
 
 describe('useFetcher', () => {
@@ -100,6 +88,8 @@ describe('useFetcher', () => {
           dedupeTime: 2000,
           cacheKey: testCacheKey,
           strategy: 'softFail',
+          cacheBuster: expect.any(Function),
+          cacheTime: expect.any(Number),
         });
       });
     });
@@ -322,6 +312,8 @@ describe('useFetcher', () => {
         dedupeTime: 5000,
         cacheKey: testCacheKey,
         strategy: 'softFail',
+        cacheBuster: expect.any(Function),
+        cacheTime: expect.any(Number),
       });
     });
 
@@ -355,6 +347,8 @@ describe('useFetcher', () => {
         dedupeTime: 2000,
         cacheKey: testCacheKey,
         strategy: 'softFail',
+        cacheBuster: expect.any(Function),
+        cacheTime: expect.any(Number),
       });
     });
   });
@@ -394,8 +388,9 @@ describe('useFetcher', () => {
 
       expect(mockGetCachedResponse).toHaveBeenCalledWith(
         testCacheKey,
-        0, // 0 means no cache time for initial fetch
+        -1,
         expect.objectContaining({ cacheTime }),
+        false,
       );
     });
 
@@ -403,10 +398,7 @@ describe('useFetcher', () => {
       const dedupeTime = 5000;
       renderHook(() => useFetcher(testUrl, { dedupeTime }));
 
-      expect(mockGetInFlightPromise).toHaveBeenCalledWith(
-        testCacheKey,
-        dedupeTime,
-      );
+      expect(mockBuildConfig).toHaveBeenCalledWith(testUrl, { dedupeTime });
     });
 
     it('should handle empty URL', () => {

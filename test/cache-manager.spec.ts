@@ -234,8 +234,14 @@ describe('Cache Manager', () => {
 
     it('should return null and delete cache if expired', () => {
       setCache('key', { data: 'test' });
-      const result = getCache('key', -1);
+      const result = getCache('key', -2);
       expect(result).toBeNull();
+    });
+
+    it('should not return null and not delete cache if set to -1 (as long as it is used)', () => {
+      setCache('key', { data: 'test' });
+      const result = getCache('key', -1);
+      expect(result).not.toBeNull();
     });
 
     it('should return null if no cache entry exists', () => {
@@ -314,8 +320,15 @@ describe('Cache Manager', () => {
     it('should return null if cache is expired', () => {
       setCache(cacheKey, responseObj);
       // Simulate expiration by using negative cacheTime
-      const result = getCachedResponse(cacheKey, -1, fetcherConfig);
+      const result = getCachedResponse(cacheKey, -2, fetcherConfig);
       expect(result).toBeNull();
+    });
+
+    it('should not return null and not delete cache if set to -1 (as long as it is used)', () => {
+      setCache(cacheKey, responseObj);
+      // Simulate expiration by using negative cacheTime
+      const result = getCachedResponse(cacheKey, -1, fetcherConfig);
+      expect(result).not.toBeNull();
     });
 
     it('should return null if cacheBuster returns true', () => {
