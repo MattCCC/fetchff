@@ -1210,6 +1210,282 @@ Security is a core design principle of FetchFF, with sanitization mechanisms run
 
 </details>
 
+## ⚛️ React Integration
+
+<details>
+  <summary><span style="cursor:pointer">Click to expand</span></summary>
+  <br>
+
+FetchFF provides a powerful React hook `useFetcher` for data fetching with automatic caching, deduplication, and state management. It's designed for high performance and follows React best practices.
+
+### Basic Usage
+
+```tsx
+import { useFetcher } from 'fetchff/react';
+
+function UserProfile({ userId }: { userId: string }) {
+  const { data, error, isLoading, refetch } = useFetcher(
+    `/api/users/${userId}`,
+  );
+
+  if (isLoading) return <div>Loading...</div>;
+  if (error) return <div>Error: {error.message}</div>;
+
+  return (
+    <div>
+      <h1>{data.name}</h1>
+      <button onClick={() => refetch()}>Refresh</button>
+    </div>
+  );
+}
+```
+
+### Hook API
+
+The `useFetcher` hook returns an object with the following properties:
+
+- **`data`**: The fetched data or `null` if not available
+- **`error`**: Error object if the request failed, otherwise `null`
+- **`isLoading`**: `true` when making the initial request or when no data exists
+- **`isValidating`**: `true` when revalidating cached data
+- **`refetch`**: Function to manually trigger a new request
+- **`mutate`**: Function to update cached data directly
+- **`config`**: The configuration object used for the request
+- **`headers`**: Response headers from the last successful request
+
+### Configuration Options
+
+All standard FetchFF options are supported, plus React-specific features:
+
+```tsx
+const { data, error, isLoading } = useFetcher('/api/data', {
+  // Cache for 5 minutes
+  cacheTime: 300,
+
+  // Deduplicate requests within 2 seconds
+  dedupeTime: 2000,
+
+  // Revalidate when window regains focus
+  revalidateOnFocus: true,
+
+  // Don't fetch immediately (useful for POST requests; React specific)
+  immediate: false,
+
+  // Custom error handling
+  strategy: 'softFail',
+
+  // Request configuration
+  method: 'POST',
+  body: { name: 'John' },
+  headers: { Authorization: 'Bearer token' },
+});
+```
+
+### Conditional Requests
+
+Pass `null` as the URL to skip requests conditionally:
+
+```tsx
+function ConditionalData({
+  shouldFetch,
+  userId,
+}: {
+  shouldFetch: boolean;
+  userId?: string;
+}) {
+  const { data, isLoading } = useFetcher(
+    shouldFetch && userId ? `/api/users/${userId}` : null,
+  );
+
+  // Will only fetch when shouldFetch is true and userId exists
+  return <div>{data ? data.name : 'No data'}</div>;
+}
+```
+
+### Dynamic URLs and Parameters
+
+```tsx
+function SearchResults({ query }: { query: string }) {
+  const { data, isLoading } = useFetcher('/api/search', {
+    params: { q: query, limit: 10 },
+    // Only fetch when query exists
+    immediate: !!query,
+  });
+
+  return (
+    <div>
+      {isLoading && <div>Searching...</div>}
+      {data?.results?.map((item) => (
+        <div key={item.id}>{item.title}</div>
+      ))}
+    </div>
+  );
+}
+```
+
+### Mutations and Cache Updates
+
+```tsx
+function TodoList() {
+  const { data: todos, mutate, refetch } = useFetcher('/api/todos');
+
+  const addTodo = async (text: string) => {
+    // Optimistically update the cache
+    const newTodo = { id: Date.now(), text, completed: false };
+    mutate([...todos, newTodo]);
+
+    try {
+      // Make the actual request
+      await fetchf('/api/todos', {
+        method: 'POST',
+        body: { text },
+      });
+
+      // Revalidate to get the real data
+      refetch();
+    } catch (error) {
+      // Revert on error
+      mutate(todos);
+    }
+  };
+
+  return (
+    <div>
+      {todos?.map((todo) => (
+        <div key={todo.id}>{todo.text}</div>
+      ))}
+      <button onClick={() => addTodo('New todo')}>Add Todo</button>
+    </div>
+  );
+}
+```
+
+### Error Handling
+
+```tsx
+function DataWithErrorHandling() {
+  const { data, error, isLoading, refetch } = useFetcher('/api/data', {
+    retry: {
+      retries: 3,
+      delay: 1000,
+      backoff: 1.5,
+    },
+  });
+
+  if (isLoading) return <div>Loading...</div>;
+
+  if (error) {
+    return (
+      <div>
+        <p>Error: {error.message}</p>
+        <button onClick={() => refetch()}>Try Again</button>
+      </div>
+    );
+  }
+
+  return <div>{JSON.stringify(data)}</div>;
+}
+```
+
+### Suspense Support
+
+Use with React Suspense for declarative loading states:
+
+```tsx
+import { Suspense } from 'react';
+
+function DataComponent() {
+  const { data } = useFetcher('/api/data', {
+    strategy: 'reject', // Required for Suspense
+  });
+
+  return <div>{data.title}</div>;
+}
+
+function App() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <DataComponent />
+    </Suspense>
+  );
+}
+```
+
+### TypeScript Support
+
+Full TypeScript support with automatic type inference:
+
+```tsx
+interface User {
+  id: number;
+  name: string;
+  email: string;
+}
+
+interface UserParams {
+  include?: string[];
+}
+
+function UserComponent({ userId }: { userId: string }) {
+  const { data, error } = useFetcher<User>(`/api/users/${userId}`, {
+    params: { include: ['profile', 'settings'] } as UserParams,
+  });
+
+  // data is automatically typed as User | null
+  // error is typed as ResponseError | null
+
+  return <div>{data?.name}</div>;
+}
+```
+
+### Performance Features
+
+- **Automatic deduplication**: Multiple components requesting the same data share a single request
+- **Smart caching**: Configurable cache with automatic invalidation
+- **Minimal re-renders**: Optimized to prevent unnecessary component updates (relies on native React functionality)
+- **Background revalidation**: Keep data fresh without blocking the UI
+
+### Best Practices
+
+1. **Use conditional requests** for dependent data:
+
+   ```tsx
+   const { data: user } = useFetcher('/api/user');
+   const { data: posts } = useFetcher(
+     user ? `/api/users/${user.id}/posts` : null,
+   );
+   ```
+
+2. **Configure appropriate cache times** based on data volatility:
+
+   ```tsx
+   // Static data - cache for 1 hour
+   const { data: config } = useFetcher('/api/config', { cacheTime: 3600 });
+
+   // Dynamic data - cache for 30 seconds
+   const { data: feed } = useFetcher('/api/feed', { cacheTime: 30 });
+   ```
+
+3. **Use focus revalidation** for critical data:
+
+   ```tsx
+   const { data } = useFetcher('/api/critical-data', {
+     revalidateOnFocus: true,
+   });
+   ```
+
+4. **Handle loading and error states** appropriately:
+
+   ```tsx
+   const { data, error, isLoading } = useFetcher('/api/data');
+
+   if (isLoading) return <Spinner />;
+   if (error) return <ErrorMessage error={error} />;
+   return <DataDisplay data={data} />;
+   ```
+
+</details>
+
 ## Comparison with other libraries
 
 | Feature                                            | fetchff     | ofetch      | wretch       | axios        | native fetch() |
