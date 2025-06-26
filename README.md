@@ -431,10 +431,11 @@ The following options are available for configuring interceptors in the `Request
 
 ```typescript
 const { data } = await fetchf('https://api.example.com/', {
-  cacheTime: 300, // Cache is valid for 5 minutes
-  cacheKey: (config) => `${config.url}-${config.method}`, // Custom cache key based on URL and method
-  cacheBuster: (config) => config.method === 'POST', // Bust cache for POST requests
-  skipCache: (response, config) => response.status !== 200, // Skip caching on non-200 responses
+  cacheTime: 300, // Cache is valid for 5 minutes, set -1 for indefinite cache. By default no cache.
+  cacheKey: (config) => `${config.url}-${config.method}`, // Custom cache key based on URL and method, default automatically generated
+  cacheBuster: (config) => config.method === 'POST', // Bust cache for POST requests, by default no busting.
+  skipCache: (response, config) => response.status !== 200, // Skip caching on non-200 responses, by default no skipping
+  cacheErrors: false, // Cache error responses as well as successful ones, default false
 });
 ```
 
@@ -444,15 +445,14 @@ The caching system can be fine-tuned using the following options when configurin
 
 - **`cacheTime`**:  
   Type: `number`  
-  Specifies the duration, in seconds, for which a cache entry is considered "fresh." Once this time has passed, the entry is considered stale and may be refreshed with a new request.  
-  _Default:_ `0` (no caching).
+  Specifies the duration, in seconds, for which a cache entry is considered "fresh." Once this time has passed, the entry is considered stale and may be refreshed with a new request. Set to -1 for indefinite cache.
+  _Default:_ `undefined` (no caching).
 
 - **`cacheKey`**:  
   Type: `CacheKeyFunction | string`  
   A string or function used to generate a custom cache key for the request cache, deduplication etc. If not provided, a default key is created by hashing various parts of the request, including `Method`, `URL`, query parameters, and headers etc. Providing string can help to greatly improve the performance of the requests, avoid unnecessary request flooding etc.
 
   You can provide either:
-
   - A **string**: Used directly as the cache key for all requests using matching string.
   - A **function**: Receives the full request config as an argument and should return a unique string key. This allows you to include any relevant part of the request (such as URL, method, params, body, or custom logic) in the cache key.
 
@@ -769,7 +769,6 @@ The retry mechanism is configured via the `retry` option when instantiating the 
 - **`retryOn`**:  
   Type: `number[]`  
   Array of HTTP status codes that should trigger a retry. By default, retries are triggered for the following status codes:
-
   - `408` - Request Timeout
   - `409` - Conflict
   - `425` - Too Early
@@ -789,7 +788,6 @@ The retry mechanism is configured via the `retry` option when instantiating the 
 1. **Initial Request**: When a request fails, the retry mechanism captures the failure and checks if it should retry based on the `retryOn` configuration and the result of the `shouldRetry` function.
 
 2. **Retry Attempts**: If a retry is warranted:
-
    - The request is retried up to the specified number of attempts (`retries`).
    - Each retry waits for a delay before making the next attempt. The delay starts at the initial `delay` value and increases exponentially based on the `backoff` factor, but will not exceed the `maxDelay`.
    - If `resetTimeout` is enabled, the timeout is reset for each retry attempt.
@@ -1161,19 +1159,16 @@ const response = await fetchf('/api/users', {
 ### Input Sanitization Features
 
 1. **Object Sanitization**
-
    - All incoming objects are sanitized via the `sanitizeObject` utility
    - Creates shallow copies of input objects with dangerous properties removed
    - Applied automatically to request configurations, headers, and other objects
 
 2. **URL Parameter Safety**
-
    - Path parameters are properly encoded using `encodeURIComponent`
    - Query parameters are safely serialized and encoded
    - Prevents URL injection attacks and ensures valid URL formatting
 
 3. **Data Validation**
-
    - Checks for JSON serializability of request bodies
    - Detects circular references that could cause issues
    - Properly handles different data types (strings, arrays, objects, etc.)
@@ -1216,6 +1211,7 @@ Security is a core design principle of FetchFF, with sanitization mechanisms run
 | **Unified API Client**                             | ✅          | --          | --           | --           | --             |
 | **Smart Request Cache**                            | ✅          | --          | --           | --           | --             |
 | **Automatic Request Deduplication**                | ✅          | --          | --           | --           | --             |
+| **Revalidation on Window Focus**                   | ✅          | --          | --           | --           | --             |
 | **Custom Fetching Adapter**                        | ✅          | --          | --           | --           | --             |
 | **Built-in Error Handling**                        | ✅          | --          | ✅           | --           | --             |
 | **Customizable Error Handling**                    | ✅          | --          | ✅           | ✅           | --             |
@@ -1285,6 +1281,7 @@ const api = createApiFetcher({
   cacheKey: (config) => `${config.url}-${config.method}`, // Custom cache key based on URL and method
   cacheBuster: (config) => config.method === 'POST', // Bust cache for POST requests
   skipCache: (response, config) => response.status !== 200, // Skip caching on non-200 responses
+  cacheErrors: false, // Cache error responses as well as successful ones, default false
   onError(error) {
     // Interceptor on error
     console.error('Request failed', error);
@@ -1840,14 +1837,58 @@ app.get('/api/proxy', async (req, res) => {
 
 `fetchff` is designed to seamlessly integrate with any popular frameworks like Next.js, libraries like React, Vue, React Query and SWR. It is written in pure JS so you can effortlessly manage API requests with minimal setup, and without any dependencies.
 
-#### Using with React
+#### Using with React - useFetcher() hook
 
 <details>
   <summary><span style="cursor:pointer">Click to expand</span></summary>
   <br>
-  You can implement a `useFetcher()` hook to handle the data fetching. Since this package has everything included, you don't really need anything more than a simple hook to utilize.<br><br>
+  The <b>fetchff</b> ships with highly performant and optimized <b>useFetcher()</b> hook to handle the data fetching.<br><br>
 
-Create `api.ts` file:
+Basic usage:
+
+```tsx
+import { useFetcher } from 'fetchff/react';
+
+export const ProfileComponent = ({ id }) => {
+  const {
+    data: profile,
+    error,
+    isLoading,
+  } = useFetcher('https://example.com/api/profile/:id', {
+    cacheTime: 20,
+    urlPathParams: { id },
+  });
+
+  if (isLoading) return <div>Loading...</div>;
+  if (error) return <div>Error: {error.message}</div>;
+
+  return <div>{JSON.stringify(profile)}</div>;
+};
+```
+
+Don't perform request if `id` doesn't exist (Dependent Queries):
+
+```tsx
+import { useFetcher } from 'fetchff/react';
+
+export const ProfileComponent = ({ id }) => {
+  const {
+    data: profile,
+    error,
+    isLoading,
+  } = useFetcher(id ? 'https://example.com/api/profile/:id' : null, {
+    cacheTime: 20,
+    urlPathParams: { id },
+  });
+
+  if (isLoading) return <div>Loading...</div>;
+  if (error) return <div>Error: {error.message}</div>;
+
+  return <div>{JSON.stringify(profile)}</div>;
+};
+```
+
+Example with API Handler:
 
 ```tsx
 import { createApiFetcher } from 'fetchff';
@@ -1863,45 +1904,17 @@ export const api = createApiFetcher({
 });
 ```
 
-Create `useFetcher.ts` file:
-
 ```tsx
-export const useFetcher = (apiFunction) => {
-  const [data, setData] = useState(null);
-  const [error] = useState(null);
-  const [isLoading, setLoading] = useState(true);
+import { useFetcher } from 'fetchff/react';
 
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-
-      const { data, error } = await apiFunction();
-
-      if (error) {
-        setError(error);
-      } else {
-        setData(data);
-      }
-
-      setLoading(false);
-    };
-
-    fetchData();
-  }, [apiFunction]);
-
-  return { data, error, isLoading, setData };
-};
-```
-
-Call the API in the components:
-
-```tsx
 export const ProfileComponent = ({ id }) => {
   const {
     data: profile,
     error,
     isLoading,
-  } = useFetcher(() => api.getProfile({ urlPathParams: { id } }));
+  } = useFetcher('getProfile', {
+    fetcher: () => api.getProfile({ urlPathParams: { id } }),
+  });
 
   if (isLoading) return <div>Loading...</div>;
   if (error) return <div>Error: {error.message}</div>;
