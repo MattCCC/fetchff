@@ -88,7 +88,8 @@ describe('useFetcher', () => {
           dedupeTime: 2000,
           cacheKey: testCacheKey,
           strategy: 'softFail',
-          cacheBuster: expect.any(Function),
+          cacheErrors: expect.any(Boolean),
+          cacheBuster: undefined,
           cacheTime: expect.any(Number),
         });
       });
@@ -312,6 +313,7 @@ describe('useFetcher', () => {
         dedupeTime: 5000,
         cacheKey: testCacheKey,
         strategy: 'softFail',
+        cacheErrors: expect.any(Boolean),
         cacheBuster: expect.any(Function),
         cacheTime: expect.any(Number),
       });
@@ -347,6 +349,7 @@ describe('useFetcher', () => {
         dedupeTime: 2000,
         cacheKey: testCacheKey,
         strategy: 'softFail',
+        cacheErrors: expect.any(Boolean),
         cacheBuster: expect.any(Function),
         cacheTime: expect.any(Number),
       });
@@ -390,7 +393,6 @@ describe('useFetcher', () => {
         testCacheKey,
         -1,
         expect.objectContaining({ cacheTime }),
-        false,
       );
     });
 

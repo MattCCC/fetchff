@@ -278,6 +278,12 @@ export interface CacheOptions<
     QueryParams,
     PathParams
   >;
+
+  /**
+   * If true, error responses (non-2xx) will also be cached.
+   * @default false
+   */
+  cacheErrors?: boolean;
 }
 
 /**

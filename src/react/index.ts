@@ -118,7 +118,6 @@ export function useFetcher<
       // By setting -1 always return cached data if available (even if stale)
       INFINITE_CACHE_TIME,
       config,
-      false,
     );
 
     return cached;
@@ -171,22 +170,25 @@ export function useFetcher<
 
       // Fast path: check cache first if not forcing refresh
       if (!forceRefresh && cacheKey) {
-        const cached = getCachedResponse(cacheKey, cacheTime, config, false);
+        const cached = getCachedResponse(cacheKey, cacheTime, config);
         if (cached) {
           return Promise.resolve(cached);
         }
       }
 
+      // When manual refetch is triggered, we want to ensure that the cache is busted
+      // This can be disabled by passing `refetch(false)`
+      const cacheBuster = forceRefresh ? () => true : config.cacheBuster;
+
       return await fetchf(url, {
         dedupeTime,
         cacheTime,
         cacheKey,
-        // When manual refetch is triggered, we want to ensure that the cache is busted
-        // This can be disabled by passing `refetch(false)`
-        cacheBuster: () => forceRefresh,
         ...config,
+        cacheBuster,
         // Ensure that errors are handled gracefully and not thrown by default, unless explicitly set to throw
         strategy: 'softFail',
+        cacheErrors: true,
       });
     },
     [url, cacheKey, cacheTime, dedupeTime],

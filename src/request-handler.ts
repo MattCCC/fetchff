@@ -343,6 +343,24 @@ export function createRequestHandler(
             const shouldHandleError =
               !isCancelled || mergedConfig.rejectCancelled;
 
+            if (_cacheKey) {
+              if (
+                cacheTime &&
+                mergedConfig.cacheErrors &&
+                (!mergedConfig.skipCache ||
+                  !mergedConfig.skipCache<
+                    ResponseData,
+                    RequestBody,
+                    QueryParams,
+                    PathParams
+                  >(output, mergedConfig))
+              ) {
+                setCache(_cacheKey, output);
+              }
+
+              notifySubscribers(_cacheKey, output);
+            }
+
             if (shouldHandleError) {
               const errorHandlingStrategy = mergedConfig.strategy;
 
