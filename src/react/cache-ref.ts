@@ -16,22 +16,26 @@ import { deleteCache } from 'fetchff';
 
 export const INFINITE_CACHE_TIME = -1;
 
-const cache = new Map<string, number>();
+const refs = new Map<string, number>();
 
 export const incrementRef = (key: string | null) => {
   if (!key) {
     return;
   }
 
-  cache.set(key, (cache.get(key) || 0) + 1);
+  refs.set(key, (refs.get(key) || 0) + 1);
 };
 
-export const decrementRef = (key: string | null, cacheTime?: number) => {
+export const decrementRef = (
+  key: string | null,
+  cacheTime?: number,
+  dedupeTime?: number,
+) => {
   if (!key) {
     return;
   }
 
-  const current = cache.get(key);
+  const current = getRefCount(key);
 
   if (!current) {
     return;
@@ -40,16 +44,22 @@ export const decrementRef = (key: string | null, cacheTime?: number) => {
   const newCount = current - 1;
 
   // If the current reference count is less than 2, we can consider deleting the global cache entry
+  // The infinite cache time is a special case where we never delete the cache entry unless the reference count drops to zero.
+  // This allows for long-lived cache entries that are only deleted when explicitly no longer needed.
   if (newCount <= 0 && cacheTime && cacheTime === INFINITE_CACHE_TIME) {
-    cache.delete(key);
+    refs.delete(key);
 
     setTimeout(() => {
+      // Check if the reference count is still zero before deleting the cache as it might have been incremented again
+      // This is to ensure that if another increment happens during the timeout, we don't delete the cache prematurely
+      // This is particularly useful in scenarios where multiple components might be using the same cache
+      // entry and we want to avoid unnecessary cache deletions.
       if (!getRefCount(key)) {
         deleteCache(key);
       }
-    }, 2000); // Delay to ensure all operations are complete before deletion
+    }, dedupeTime); // Delay to ensure all operations are complete before deletion
   } else {
-    cache.set(key, newCount);
+    refs.set(key, newCount);
   }
 };
 
@@ -58,9 +68,9 @@ export const getRefCount = (key: string | null): number => {
     return 0;
   }
 
-  return cache.get(key) || 0;
+  return refs.get(key) || 0;
 };
 
 export const clearRefCache = () => {
-  cache.clear();
+  refs.clear();
 };

@@ -215,7 +215,7 @@ export function useFetcher<
     incrementRef(cacheKey);
 
     return () => {
-      decrementRef(cacheKey, cacheTime);
+      decrementRef(cacheKey, cacheTime, dedupeTime);
     };
   }, [url, shouldTriggerOnMount, refetch, cacheKey, cacheTime]);
 
