@@ -1531,27 +1531,17 @@ In the example above we fetch data from an API for user with an ID of 1. We also
 ```typescript
 import { createApiFetcher, RequestConfig, FetchResponse } from 'fetchff';
 
-// Define the custom fetcher object
-const customFetcher = {
-  create() {
-    // Create instance here. It will be called at the beginning of every request.
-    return {
-      // This function will be called whenever a request is being fired.
-      request: async (config: RequestConfig): Promise<FetchResponse> => {
-        // Implement your custom fetch logic here
-        const response = await fetch(config.url, config);
-        // Optionally, process or transform the response
-        return response;
-      },
-    };
-  },
-};
-
 // Create the API fetcher with the custom fetcher
 const api = createApiFetcher({
   baseURL: 'https://api.example.com/',
   retry: retryConfig,
-  fetcher: customFetcher, // Provide the custom fetcher object directly
+  // This function will be called whenever a request is being fired.
+  fetcher: async (config: RequestConfig): Promise<FetchResponse> => {
+    // Implement your custom fetch logic here
+    const response = await fetch(config.url, config);
+    // Optionally, process or transform the response
+    return response;
+  },
   endpoints: {
     getBooks: {
       url: 'books/all',
