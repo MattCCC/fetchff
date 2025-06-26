@@ -46,12 +46,6 @@ export default defineConfig([
     treeshake: true,
     bundle: true,
     splitting: false,
-    external: [
-      'react',
-      'react-dom',
-      'fetchff',
-      '../index',
-      '../config-handler',
-    ], // prevent bundling React
+    external: ['react', 'react-dom', 'fetchff'], // prevent bundling React
   },
 ]);

@@ -38,8 +38,8 @@ export class FetchError<
     super(message);
 
     this.name = 'FetchError';
-    this.status = response?.status || 0;
-    this.statusText = response?.statusText || '';
+    this.status = response ? response.status : 0;
+    this.statusText = response ? response.statusText : '';
     this.config = request;
   }
 }

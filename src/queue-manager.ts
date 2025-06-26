@@ -43,7 +43,7 @@ export async function queueRequest(
     const timeoutId = item[1];
 
     // If the request is already in the queue and within the dedupeTime, reuse the existing controller
-    if (!prevIsCancellable && now - item[2] < dedupeTime) {
+    if (!prevIsCancellable && dedupeTime && now - item[2] < dedupeTime) {
       return previousController;
     }
 

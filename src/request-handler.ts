@@ -175,6 +175,7 @@ export function createRequestHandler(
       let attempt = 0;
       let waitTime: number = delay || 0;
       const _retries = retries > 0 ? retries : 0;
+      const skipCache = mergedConfig.skipCache;
 
       while (attempt <= _retries) {
         try {
@@ -280,13 +281,11 @@ export function createRequestHandler(
           if (_cacheKey) {
             if (
               cacheTime &&
-              (!requestConfig.skipCache ||
-                !requestConfig.skipCache<
-                  ResponseData,
-                  RequestBody,
-                  QueryParams,
-                  PathParams
-                >(output, requestConfig))
+              (!skipCache ||
+                !skipCache<ResponseData, RequestBody, QueryParams, PathParams>(
+                  output,
+                  requestConfig,
+                ))
             ) {
               setCache(_cacheKey, output);
             }
@@ -347,8 +346,8 @@ export function createRequestHandler(
               if (
                 cacheTime &&
                 mergedConfig.cacheErrors &&
-                (!mergedConfig.skipCache ||
-                  !mergedConfig.skipCache<
+                (!skipCache ||
+                  !skipCache<
                     ResponseData,
                     RequestBody,
                     QueryParams,

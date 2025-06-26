@@ -7,8 +7,8 @@ import type {
   RequestConfig,
 } from './types/request-handler';
 import type { CacheEntry, MutationSettings } from './types/cache-manager';
-import { GET, OBJECT, STRING, UNDEFINED } from './constants';
-import { shallowSerialize, sortObject } from './utils';
+import { GET, STRING, UNDEFINED } from './constants';
+import { isObject, shallowSerialize, sortObject } from './utils';
 import { revalidate } from './revalidator-manager';
 import { notifySubscribers } from './pubsub-manager';
 
@@ -115,10 +115,9 @@ export function generateCacheKey(options: RequestConfig): string {
     } else if (body instanceof ArrayBuffer || ArrayBuffer.isView(body)) {
       bodyString = 'AB' + body.byteLength;
     } else {
-      const o =
-        typeof body === OBJECT
-          ? JSON.stringify(sortObject(body))
-          : String(body);
+      const o = isObject(body)
+        ? JSON.stringify(sortObject(body))
+        : String(body);
 
       bodyString = o.length > MIN_LENGTH_TO_HASH ? hash(o) : o;
     }
@@ -252,7 +251,7 @@ export async function mutate<ResponseData = DefaultResponse>(
   setCache(key, updatedResponse);
   notifySubscribers(key, updatedResponse);
 
-  if (settings?.revalidate) {
+  if (settings && settings.revalidate) {
     return await revalidate(key);
   }
 }

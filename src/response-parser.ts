@@ -27,7 +27,7 @@ export async function parseResponseData<ResponseData = DefaultResponse>(
   response: FetchResponse<ResponseData>,
 ): Promise<any> {
   // Bail early for HEAD requests or status codes, or any requests that never have a body
-  if (!response?.body) {
+  if (!response || !response.body) {
     return null;
   }
 
