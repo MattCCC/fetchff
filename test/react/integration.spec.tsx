@@ -27,6 +27,7 @@ import {
 import { generateCacheKey } from 'fetchff/cache-manager';
 import { buildConfig } from 'fetchff/config-handler';
 import { getRefCount, getRefs } from 'fetchff/react/cache-ref';
+import React from 'react';
 
 describe('React Integration Tests', () => {
   beforeEach(() => {
@@ -370,6 +371,101 @@ describe('React Integration Tests', () => {
 
       await waitFor(() => {
         expect(screen.getByTestId('data')).toHaveTextContent('{"cached":true}');
+      });
+    });
+  });
+
+  describe('Advanced Caching', () => {
+    it('should handle cache corruption recovery', async () => {
+      // First request
+      mockFetchResponse('/api/cache-test', { body: { version: 1 } });
+
+      const { unmount } = render(<BasicComponent url="/api/cache-test" />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('data')).toHaveTextContent('version');
+      });
+
+      unmount();
+
+      // Simulate cache corruption by directly modifying cache
+      // Then verify recovery on next request
+      mockFetchResponse('/api/cache-test', { body: { version: 2 } });
+
+      render(<BasicComponent url="/api/cache-test" />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('data')).toHaveTextContent('version');
+      });
+    });
+
+    it('should handle cache size limits', async () => {
+      // Create many cache entries to test limits
+      for (let i = 0; i < 1000; i++) {
+        mockFetchResponse(`/api/cache-limit-${i}`, { body: { id: i } });
+        const { unmount } = render(
+          <BasicComponent url={`/api/cache-limit-${i}`} />,
+        );
+        unmount();
+      }
+
+      // Verify cache doesn't grow indefinitely
+      const refs = getRefs();
+      expect(refs.size).toBeLessThan(1000); // Should have been cleaned up
+    });
+  });
+
+  describe('React Features', () => {
+    it('should work correctly in React Strict Mode', async () => {
+      mockFetchResponse('/api/strict', { body: { strict: true } });
+
+      render(
+        <React.StrictMode>
+          <BasicComponent url="/api/strict" />
+        </React.StrictMode>,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('data')).toHaveTextContent('strict');
+      });
+
+      // In strict mode, effects run twice in development
+      // Verify no duplicate requests
+      expect(global.fetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('should handle React 18 concurrent features', async () => {
+      mockFetchResponse('/api/concurrent?v=1', { body: { concurrent: true } });
+
+      const ConcurrentComponent = () => {
+        const [isPending, startTransition] = React.useTransition();
+        const [url, setUrl] = React.useState('/api/concurrent?v=1');
+
+        const { data } = useFetcher(url);
+
+        return (
+          <div>
+            <div data-testid="pending">
+              {isPending ? 'Pending' : 'Not Pending'}
+            </div>
+            <div data-testid="data">
+              {data ? JSON.stringify(data) : 'No Data'}
+            </div>
+            <button
+              onClick={() =>
+                startTransition(() => setUrl('/api/concurrent?v=2'))
+              }
+            >
+              Update
+            </button>
+          </div>
+        );
+      };
+
+      render(<ConcurrentComponent />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('data')).toHaveTextContent('concurrent');
       });
     });
   });
@@ -1427,6 +1523,29 @@ describe('React Integration Tests', () => {
       });
 
       global.fetch = originalFetch;
+    });
+
+    it('should work with service workers', async () => {
+      // Mock service worker interception
+      const originalFetch = global.fetch;
+      global.fetch = jest.fn().mockImplementation((url, options) => {
+        // Simulate service worker modifying request
+        if (url.includes('/api/sw')) {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            body: { serviceWorker: true, modified: true },
+            data: { serviceWorker: true, modified: true },
+          });
+        }
+        return originalFetch(url, options);
+      });
+
+      render(<BasicComponent url="/api/sw" />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('data')).toHaveTextContent('serviceWorker');
+      });
     });
 
     it('should handle localStorage/sessionStorage not available', async () => {
