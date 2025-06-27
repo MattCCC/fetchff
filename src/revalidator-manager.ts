@@ -19,7 +19,7 @@
 import { UNDEFINED } from './constants';
 import { FetchResponse } from './types';
 
-export type RevalidatorFn = () => Promise<FetchResponse | null | void>;
+export type RevalidatorFn = () => Promise<FetchResponse | null>;
 
 type RevalidatorEntry = [RevalidatorFn, number, number]; // [revalidator, lastUsed, ttl]
 
@@ -71,7 +71,7 @@ export function unregisterAllRevalidators(key: string) {
  */
 export async function revalidate<T = unknown>(
   key: string | null,
-): Promise<T | void | null | FetchResponse> {
+): Promise<T | null | FetchResponse> {
   // If no key is provided, no revalidation occurs
   if (key === null) {
     return null;

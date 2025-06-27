@@ -1216,7 +1216,7 @@ Security is a core design principle of FetchFF, with sanitization mechanisms run
   <summary><span style="cursor:pointer">Click to expand</span></summary>
   <br>
 
-FetchFF provides a powerful React hook `useFetcher` for data fetching with automatic caching, deduplication, and state management. It's designed for high performance and follows React best practices.
+FetchFF offers a high-performance React hook, `useFetcher(url, config)`, for efficient data fetching in React applications. This hook provides built-in caching, automatic request deduplication, comprehensive state management etc. Its API mirrors the native `fetch` and `fetchf(url, config)` signatures, allowing you to pass all standard and advanced configuration options seamlessly. Designed with React best practices in mind, `useFetcher` ensures optimal performance and a smooth developer experience.
 
 ### Basic Usage
 
@@ -1242,16 +1242,24 @@ function UserProfile({ userId }: { userId: string }) {
 
 ### Hook API
 
-The `useFetcher` hook returns an object with the following properties:
+The `useFetcher(url, config)` hook returns an object with the following properties:
 
-- **`data`**: The fetched data or `null` if not available
-- **`error`**: Error object if the request failed, otherwise `null`
-- **`isLoading`**: `true` when making the initial request or when no data exists
-- **`isValidating`**: `true` when revalidating cached data
-- **`refetch`**: Function to manually trigger a new request
-- **`mutate`**: Function to update cached data directly
-- **`config`**: The configuration object used for the request
-- **`headers`**: Response headers from the last successful request
+- **`data: ResponseData | null`**  
+  The fetched data, typed as `T` (generic), or `null` if not available.
+- **`error: ResponseError | null`**  
+  Error object if the request failed, otherwise `null`.
+- **`isLoading: boolean`**  
+  `true` while data is being loaded for the first time or during a fetch.
+- **`isValidating: boolean`**  
+  `true` when currently fetching (fetch is in progress).
+- **`config: RequestHandlerConfig`**  
+  The configuration object used for the request.
+- **`headers: Record<string, string>`**  
+  Response headers from the last successful request.
+- **`refetch: (forceRefresh: boolean = true) => Promise<FetchResponse<ResponseData, RequestBody, QueryParams, PathParams> | null>`**  
+  Function to manually trigger a new request. It always uses `softFail` strategy and returns a new FetchResponse object. The `forceRefresh` is set to `true` by default - it will bypass cache and force new request and cache refresh.
+- **`mutate: (data: ResponseData, settings: MutationSettings) => Promise<FetchResponse<ResponseData, RequestBody, QueryParams, PathParams> | null>`**  
+  Function to update cached data directly, by passing new data. The `settings` object contains currently `revalidate` (boolean) property. If set to `true`, a new request will be made after cache and component data are updated.
 
 ### Configuration Options
 
@@ -1519,7 +1527,7 @@ function UserComponent({ userId }: { userId: string }) {
 | **Built-in Input Sanitization**                    | ✅          | --          | --           | --           | --             |
 | **Prototype Pollution Protection**                 | ✅          | --          | --           | --           | --             |
 | **Server-Side Rendering (SSR) Support**            | ✅          | ✅          | --           | --           | --             |
-| **Minimal Installation Size**                      | 🟢 (4.3 KB) | 🟡 (6.5 KB) | 🟢 (2.21 KB) | 🔴 (13.7 KB) | 🟢 (0 KB)      |
+| **Minimal Installation Size**                      | 🟢 (4.5 KB) | 🟡 (6.5 KB) | 🟢 (2.21 KB) | 🔴 (13.7 KB) | 🟢 (0 KB)      |
 
 ## ✏️ Examples
 

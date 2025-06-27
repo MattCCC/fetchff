@@ -11,6 +11,7 @@ import { GET, STRING, UNDEFINED } from './constants';
 import { isObject, shallowSerialize, sortObject } from './utils';
 import { revalidate } from './revalidator-manager';
 import { notifySubscribers } from './pubsub-manager';
+import type { DefaultPayload, DefaultParams, DefaultUrlParams } from './types';
 
 export const INFINITE_CACHE_TIME = -1;
 
@@ -227,11 +228,21 @@ export function pruneCache(cacheTime?: number): void {
  * @param {ResponseData} newData - The new data to be cached.
  * @param {MutationSettings|undefined} settings - Mutation settings.
  */
-export async function mutate<ResponseData = DefaultResponse>(
+export async function mutate<
+  ResponseData = DefaultResponse,
+  RequestBody = DefaultPayload,
+  QueryParams = DefaultParams,
+  PathParams = DefaultUrlParams,
+>(
   key: string | null,
   newData: ResponseData,
   settings?: MutationSettings,
-): Promise<FetchResponse<ResponseData> | void | null> {
+): Promise<FetchResponse<
+  ResponseData,
+  RequestBody,
+  QueryParams,
+  PathParams
+> | null> {
   // If no key is provided, do nothing
   if (!key) {
     return null;
@@ -240,7 +251,7 @@ export async function mutate<ResponseData = DefaultResponse>(
   const cachedResponse = getCache<ResponseData>(key);
 
   if (!cachedResponse) {
-    return;
+    return null;
   }
 
   const updatedResponse: ResponseData = {
@@ -254,6 +265,8 @@ export async function mutate<ResponseData = DefaultResponse>(
   if (settings && settings.revalidate) {
     return await revalidate(key);
   }
+
+  return null;
 }
 
 /**

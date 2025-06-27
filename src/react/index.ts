@@ -43,7 +43,7 @@ const DEFAULT_RESULT = {
  *   If the URL is a full URL, it will be used as is.
  * @param {RequestConfig<ResponseData, QueryParams, PathParams, RequestBody>} [config={}] - fetchff and native fetch compatible configuration.
  *
- * @returns {UseFetcherResult<ResponseData>} An object containing:
+ * @returns {UseFetcherResult<ResponseData, RequestBody, QueryParams, PathParams>} An object containing:
  *   - `data`: The fetched data or `null` if not yet available.
  *   - `error`: Any error encountered during fetching or `null`.
  *   - `isLoading`: Boolean indicating if the request is in progress.
@@ -186,7 +186,7 @@ export function useFetcher<
         cacheKey,
         ...config,
         cacheBuster,
-        // Ensure that errors are handled gracefully and not thrown by default, unless explicitly set to throw
+        // Ensure that errors are handled gracefully and not thrown by default
         strategy: 'softFail',
         cacheErrors: true,
       });
