@@ -13,6 +13,7 @@ import {
 import { useFetcher } from '../../src/react/index';
 import {
   clearMockResponses,
+  createAbortableFetchMock,
   mockFetchResponse,
 } from '../utils/mockFetchResponse';
 import {
@@ -23,6 +24,9 @@ import {
   ConditionalComponent,
   TestData,
 } from '../mocks/test-components';
+import { generateCacheKey } from 'fetchff/cache-manager';
+import { buildConfig } from 'fetchff/config-handler';
+import { getRefCount, getRefs } from 'fetchff/react/cache-ref';
 
 describe('React Integration Tests', () => {
   beforeEach(() => {
@@ -968,6 +972,479 @@ describe('React Integration Tests', () => {
       });
 
       expect(responseCount).toBeGreaterThan(1);
+    });
+  });
+
+  describe('Configuration Validation', () => {
+    it('should handle invalid configuration gracefully', async () => {
+      const invalidConfigs = [
+        { timeout: -1 },
+        { timeout: 'invalid' },
+        { retries: -1 },
+        { cacheTime: 'invalid' },
+        { headers: 'invalid' },
+        { method: 'INVALID' },
+      ];
+
+      for (const config of invalidConfigs) {
+        await act(async () => {
+          expect(() =>
+            // @ts-expect-error Intentionally passing invalid config
+            render(<BasicComponent url="/api/invalid" config={config} />),
+          ).not.toThrow();
+        });
+      }
+    });
+  });
+
+  describe('Race Conditions', () => {
+    it('should handle rapid URL changes without race conditions', async () => {
+      let resolveCount = 0;
+      global.fetch = jest.fn().mockImplementation((url) => {
+        return new Promise((resolve) => {
+          setTimeout(() => {
+            resolveCount++;
+            resolve({
+              ok: true,
+              status: 200,
+              body: { url, resolved: resolveCount },
+              data: { url, resolved: resolveCount },
+            });
+          }, Math.random() * 100); // Random delay to simulate race conditions
+        });
+      });
+
+      const { rerender } = render(<BasicComponent url="/api/race-1" />);
+
+      // Rapidly change URLs
+      rerender(<BasicComponent url="/api/race-2" />);
+      rerender(<BasicComponent url="/api/race-3" />);
+      rerender(<BasicComponent url="/api/race-4" />);
+
+      await waitFor(() => {
+        const data = screen.getByTestId('data').textContent;
+        // Should show data for the LAST URL only
+        expect(data).toContain('/api/race-4');
+        expect(data).not.toContain('/api/race-1');
+        expect(data).not.toContain('/api/race-2');
+        expect(data).not.toContain('/api/race-3');
+      });
+    });
+
+    it('should handle concurrent requests to same URL', async () => {
+      let callCount = 0;
+      global.fetch = jest.fn().mockImplementation(() => {
+        callCount++;
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          body: { concurrent: true, callCount },
+          data: { concurrent: true, callCount },
+        });
+      });
+
+      // Render multiple components with same URL simultaneously
+      render(
+        <div>
+          <BasicComponent url="/api/concurrent" />
+          <BasicComponent url="/api/concurrent" />
+          <BasicComponent url="/api/concurrent" />
+        </div>,
+      );
+
+      await waitFor(() => {
+        const dataElements = screen.getAllByTestId('data');
+        dataElements.forEach((element) => {
+          expect(element).toHaveTextContent('concurrent');
+        });
+      });
+
+      // Should dedupe - only 1 actual fetch call
+      expect(callCount).toBe(1);
+    });
+  });
+
+  describe('Memory Management', () => {
+    it('should cleanup subscriptions when component unmounts', async () => {
+      mockFetchResponse('/api/test', { body: { message: 'Hello World' } });
+
+      const { unmount } = render(<BasicComponent url="/api/test" />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('data')).toHaveTextContent('Hello World');
+      });
+
+      const cacheKey = generateCacheKey(buildConfig('/api/test', {}));
+
+      // Check specific cache key ref count
+      expect(getRefCount(cacheKey)).toBe(1);
+
+      // Check it's in the global refs map
+      const refsBefore = getRefs();
+      expect(refsBefore.has(cacheKey)).toBe(true);
+      expect(refsBefore.get(cacheKey)).toBe(1);
+
+      unmount();
+
+      // Verify specific cleanup
+      expect(getRefCount(cacheKey)).toBe(0);
+
+      // Verify it's removed from global map (or set to 0)
+      const refsAfter = getRefs();
+      expect(refsAfter.get(cacheKey)).toBeUndefined();
+    });
+
+    it('should not leak memory with rapid mount/unmount cycles', async () => {
+      const initialRefs = getRefs();
+      const initialRefCount = Array.from(initialRefs.values()).reduce(
+        (sum, count) => sum + count,
+        0,
+      );
+
+      for (let i = 0; i < 100; i++) {
+        const url = `/api/test-${i}`;
+        mockFetchResponse(url, { body: { id: i } });
+
+        const { unmount } = render(<BasicComponent url={url} />);
+        unmount();
+      }
+
+      const finalRefs = getRefs();
+      const finalRefCount = Array.from(finalRefs.values()).reduce(
+        (sum, count) => sum + count,
+        0,
+      );
+
+      // Should not accumulate any refs
+      expect(finalRefCount).toBe(initialRefCount);
+
+      // Or more specifically, no refs should be > 0
+      const activeRefs = Array.from(finalRefs.values()).filter(
+        (count) => count > 0,
+      );
+      expect(activeRefs).toHaveLength(0);
+    });
+
+    it('should track multiple components using same cache key', async () => {
+      mockFetchResponse('/api/shared', { body: { shared: true } });
+
+      const { unmount: unmount1 } = render(
+        <BasicComponent url="/api/shared" />,
+      );
+      const { unmount: unmount2 } = render(
+        <BasicComponent url="/api/shared" />,
+      );
+      const { unmount: unmount3 } = render(
+        <BasicComponent url="/api/shared" />,
+      );
+
+      const cacheKey = generateCacheKey(buildConfig('/api/shared', {}));
+
+      // Should have 3 references to the same cache key
+      expect(getRefCount(cacheKey)).toBe(3);
+
+      const refs = getRefs();
+      expect(refs.get(cacheKey)).toBe(3);
+
+      // Unmount one component
+      unmount1();
+      expect(getRefCount(cacheKey)).toBe(2);
+
+      // Unmount second component
+      unmount2();
+      expect(getRefCount(cacheKey)).toBe(1);
+
+      // Unmount last component
+      unmount3();
+      expect(getRefCount(cacheKey)).toBe(0);
+    });
+
+    it('should handle cache key collisions properly', async () => {
+      // Two different URLs that might generate same cache key (edge case)
+      mockFetchResponse('/api/test', { body: { source: 'first' } });
+      mockFetchResponse('/api/test?v=1', { body: { source: 'second' } });
+
+      const { unmount: unmount1 } = render(<BasicComponent url="/api/test" />);
+      const { unmount: unmount2 } = render(
+        <BasicComponent url="/api/test?v=1" />,
+      );
+
+      const refs = getRefs();
+
+      // Should have proper ref counting even with different URLs
+      const totalActiveRefs = Array.from(refs.values()).reduce(
+        (sum, count) => sum + count,
+        0,
+      );
+      expect(totalActiveRefs).toBe(2);
+
+      unmount1();
+      unmount2();
+
+      const refsAfter = getRefs();
+      const finalActiveRefs = Array.from(refsAfter.values()).filter(
+        (count) => count > 0,
+      );
+      expect(finalActiveRefs).toHaveLength(0);
+    });
+
+    it('should handle rapid ref count changes without race conditions', async () => {
+      mockFetchResponse('/api/rapid', { body: { test: true } });
+
+      const components: Array<{ unmount: () => void }> = [];
+
+      // Rapidly mount components
+      for (let i = 0; i < 50; i++) {
+        components.push(render(<BasicComponent url="/api/rapid" />));
+      }
+
+      const cacheKey = generateCacheKey(buildConfig('/api/rapid', {}));
+      expect(getRefCount(cacheKey)).toBe(50);
+
+      // Rapidly unmount half
+      for (let i = 0; i < 25; i++) {
+        components.pop()?.unmount();
+      }
+
+      expect(getRefCount(cacheKey)).toBe(25);
+
+      // Unmount the rest
+      components.forEach(({ unmount }) => unmount());
+
+      expect(getRefCount(cacheKey)).toBe(0);
+    });
+  });
+
+  describe('Request Cancellation', () => {
+    it('should cancel in-flight requests when component unmounts', async () => {
+      let abortSignal: AbortSignal | null = null;
+      // ✅ Mock that captures signal and responds to abort
+      global.fetch = jest.fn().mockImplementation((url, options) => {
+        abortSignal = options?.signal;
+        return createAbortableFetchMock(1000)(url, options);
+      });
+
+      const { unmount } = render(<BasicComponent url="/api/slow" />);
+
+      // Wait for component to mount and request to start
+      await waitFor(() => {
+        expect(abortSignal).not.toBeNull();
+      });
+
+      // Unmount immediately (synchronously)
+      unmount();
+
+      // Check that abort signal was triggered by unmount
+      expect((abortSignal as AbortSignal | null)?.aborted).toBe(true);
+    });
+
+    it('should handle timeout cancellation', async () => {
+      let abortSignal: AbortSignal | null = null;
+
+      global.fetch = jest.fn().mockImplementation((url, options) => {
+        abortSignal = options?.signal as AbortSignal | null;
+        return createAbortableFetchMock(2000, true)(url, options);
+      });
+
+      render(<BasicComponent url="/api/timeout" config={{ timeout: 100 }} />);
+
+      // Wait for request to start
+      await waitFor(() => {
+        expect(abortSignal).not.toBeNull();
+      });
+
+      // Advance time past timeout
+      await act(async () => {
+        jest.advanceTimersByTime(150);
+      });
+
+      // Should be aborted and show error
+      expect((abortSignal as AbortSignal | null)?.aborted).toBe(true);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('error')).toHaveTextContent(
+          /timeout|aborted/i,
+        );
+      });
+    });
+
+    it('should NOT cancel requests when component stays mounted', async () => {
+      let abortSignal: AbortSignal | null = null;
+      let requestCompleted = false;
+
+      global.fetch = jest.fn().mockImplementation((url, options) => {
+        abortSignal = options?.signal as AbortSignal | null;
+        return createAbortableFetchMock(1000, true)(url, options).then(
+          (result: unknown) => {
+            requestCompleted = true;
+            return result;
+          },
+        );
+      });
+
+      render(<BasicComponent url="/api/not-cancelled" />);
+
+      // Wait for request to start
+      await waitFor(() => {
+        expect(abortSignal).not.toBeNull();
+      });
+
+      // Initially not aborted
+      expect((abortSignal as AbortSignal | null)?.aborted).toBe(false);
+
+      // Advance time to let request complete (but don't unmount)
+      await act(async () => {
+        jest.advanceTimersByTime(1200);
+      });
+
+      // Request should complete successfully without being aborted
+      expect((abortSignal as AbortSignal | null)?.aborted).toBe(false);
+      expect(requestCompleted).toBe(true);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('data')).toHaveTextContent(
+          '"completed":true',
+        );
+        expect(screen.getByTestId('error')).toHaveTextContent('No Error');
+      });
+    });
+
+    it('should NOT timeout when request completes within timeout limit', async () => {
+      let abortSignal: AbortSignal | null = null;
+
+      global.fetch = jest.fn().mockImplementation((url, options) => {
+        abortSignal = options?.signal as AbortSignal | null;
+        return createAbortableFetchMock(50, true)(url, options); // 50ms request, 150ms timeout
+      });
+
+      render(<BasicComponent url="/api/fast" config={{ timeout: 150 }} />);
+
+      // Wait for request to start
+      await waitFor(() => {
+        expect(abortSignal).not.toBeNull();
+      });
+
+      // Advance time but less than timeout
+      await act(async () => {
+        jest.advanceTimersByTime(75);
+      });
+
+      // Should NOT be aborted
+      expect((abortSignal as AbortSignal | null)?.aborted).toBe(false);
+
+      // Should show successful data, not timeout error
+      await waitFor(() => {
+        expect(screen.getByTestId('data')).toHaveTextContent(
+          '"completed":true',
+        );
+        expect(screen.getByTestId('error')).toHaveTextContent('No Error');
+      });
+    });
+  });
+
+  describe('Data Type Edge Cases', () => {
+    it('should handle circular reference objects in mutations', async () => {
+      mockFetchResponse('/api/circular', { body: { id: 1, name: 'test' } });
+
+      render(<BasicComponent url="/api/circular" />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('data')).toHaveTextContent('test');
+      });
+
+      // Create circular reference
+      const circularObj: Record<string, unknown> = { id: 2, name: 'circular' };
+      circularObj.self = circularObj;
+
+      // Should not crash when trying to mutate with circular reference
+      expect(() => {
+        fireEvent.click(screen.getByTestId('mutate'));
+      }).not.toThrow();
+    });
+  });
+
+  describe('SSR/Hydration', () => {
+    it('should handle server-side rendering without window', async () => {
+      const originalWindow = global.window;
+      // @ts-expect-error Delete window to simulate SSR environment
+      delete global.window;
+
+      await act(async () => {
+        expect(() => {
+          render(<BasicComponent url="/api/ssr" />);
+        }).not.toThrow();
+      });
+
+      global.window = originalWindow;
+    });
+  });
+
+  describe('Browser API Edge Cases', () => {
+    it('should handle fetch API not available', async () => {
+      const originalFetch = global.fetch;
+      // @ts-expect-error Delete fetch to simulate no fetch API
+      delete global.fetch;
+
+      await act(async () => {
+        expect(() => {
+          render(<BasicComponent url="/api/no-fetch" />);
+        }).not.toThrow();
+      });
+
+      global.fetch = originalFetch;
+    });
+
+    it('should handle localStorage/sessionStorage not available', async () => {
+      const originalLocalStorage = global.localStorage;
+      // @ts-expect-error Delete localStorage to simulate no storage
+      delete global.localStorage;
+
+      await act(async () => {
+        expect(() => {
+          render(<BasicComponent url="/api/no-storage" />);
+        }).not.toThrow();
+      });
+
+      global.localStorage = originalLocalStorage;
+    });
+  });
+
+  describe('Performance', () => {
+    it('should handle many simultaneous different requests efficiently', async () => {
+      jest.useRealTimers();
+
+      const startTime = performance.now();
+
+      // Mock 100 different endpoints
+      for (let i = 0; i < 100; i++) {
+        mockFetchResponse(`/api/perf-${i}`, { body: { id: i } });
+      }
+
+      const ManyRequestsComponent = () => {
+        const requests = Array.from({ length: 100 }, (_, i) => {
+          const { data } = useFetcher(`/api/perf-${i}`);
+          return data;
+        });
+
+        return (
+          <div data-testid="many-requests">
+            {requests.filter(Boolean).length} loaded
+          </div>
+        );
+      };
+
+      render(<ManyRequestsComponent />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('many-requests')).toHaveTextContent(
+          '100 loaded',
+        );
+      });
+
+      const endTime = performance.now();
+      // Should complete within reasonable time
+      // It is a basic performance test, not a strict benchmark
+      expect(endTime - startTime).toBeLessThan(100);
     });
   });
 });

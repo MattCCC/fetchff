@@ -75,3 +75,49 @@ export const getMockUrls = () => Array.from(mockResponses.keys());
 
 // Utility to check if a URL has a mock configured
 export const hasMockForUrl = (url: string) => mockResponses.has(url);
+
+// Create a helper for AbortController-aware mocks
+export const createAbortableFetchMock = (
+  delay: number = 2000,
+  shouldSucceed: boolean = true,
+) => {
+  return jest.fn().mockImplementation((url, options) => {
+    const signal = options?.signal as AbortSignal | null;
+
+    return new Promise((resolve, reject) => {
+      // Check if already aborted
+      if (signal?.aborted) {
+        reject(new DOMException('Request was aborted', 'AbortError'));
+        return;
+      }
+
+      // Set up abort handling
+      const abortHandler = () => {
+        reject(new DOMException('Request was aborted', 'AbortError'));
+      };
+
+      signal?.addEventListener('abort', abortHandler);
+
+      // Simulate request
+      const timeoutId = setTimeout(() => {
+        signal?.removeEventListener('abort', abortHandler);
+
+        if (shouldSucceed) {
+          resolve({
+            ok: true,
+            status: 200,
+            body: { url, completed: true },
+            data: { url, completed: true },
+          });
+        } else {
+          reject(new Error('Network Error'));
+        }
+      }, delay);
+
+      // Clean up on abort
+      signal?.addEventListener('abort', () => {
+        clearTimeout(timeoutId);
+      });
+    });
+  });
+};
