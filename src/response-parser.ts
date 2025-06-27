@@ -108,7 +108,7 @@ export const prepareResponse = <
     RequestBody
   > | null = null,
 ): FetchResponse<ResponseData, RequestBody, QueryParams, PathParams> => {
-  const defaultResponse = config.defaultResponse ?? null;
+  const defaultResponse = config.defaultResponse;
 
   // This may happen when request is cancelled.
   if (!response) {
@@ -116,7 +116,7 @@ export const prepareResponse = <
       ok: false,
       // Enhance the response with extra information
       error,
-      data: defaultResponse,
+      data: defaultResponse ?? null,
       headers: null,
       config,
     } as unknown as FetchResponse<
@@ -131,15 +131,16 @@ export const prepareResponse = <
 
   // Set the default response if the provided data is an empty object
   if (
-    data === undefined ||
-    data === null ||
-    (typeof data === OBJECT && Object.keys(data).length === 0)
+    defaultResponse !== undefined &&
+    (data === undefined ||
+      data === null ||
+      (typeof data === OBJECT && Object.keys(data).length === 0))
   ) {
     response.data = data = defaultResponse;
   }
 
   if (config.flattenResponse) {
-    response.data = flattenData(data);
+    response.data = data = flattenData(data);
   }
 
   const headers = processHeaders(response.headers);

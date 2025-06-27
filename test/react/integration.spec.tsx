@@ -1343,6 +1343,40 @@ describe('React Integration Tests', () => {
   });
 
   describe('Data Type Edge Cases', () => {
+    it('should handle various response data types', async () => {
+      const testCases = [
+        { body: 'null', expected: 'null' },
+        { body: undefined, expected: 'No Data' },
+        { body: '', expected: '""' },
+        { body: 0, expected: '0' },
+        { body: false, expected: 'false' },
+        { body: [], expected: '[]' },
+        { body: {}, expected: '{}' },
+        { body: { nested: { deep: { value: 'test' } } }, expected: 'nested' },
+      ];
+
+      for (let index = 0; index < testCases.length; index++) {
+        const testCase = testCases[index];
+        mockFetchResponse(`/api/types-${index}`, testCase);
+
+        const { unmount } = render(
+          <BasicComponent url={`/api/types-${index}`} />,
+        );
+
+        await waitFor(() => {
+          const dataText = screen.getByTestId('data').textContent;
+          if (testCase.expected === 'No Data') {
+            expect(dataText).toBe('No Data');
+          } else {
+            expect(dataText).toContain(testCase.expected);
+          }
+        });
+
+        // Clean up between iterations to avoid multiple elements
+        unmount();
+      }
+    });
+
     it('should handle circular reference objects in mutations', async () => {
       mockFetchResponse('/api/circular', { body: { id: 1, name: 'test' } });
 

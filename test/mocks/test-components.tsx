@@ -52,7 +52,9 @@ export const BasicComponent = ({
       <div data-testid="validating">
         {isValidating ? 'Validating...' : 'Not Validating'}
       </div>
-      <div data-testid="data">{data ? JSON.stringify(data) : 'No Data'}</div>
+      <div data-testid="data">
+        {data !== null && data !== undefined ? JSON.stringify(data) : 'No Data'}
+      </div>
       <div data-testid="headers">
         {headers ? JSON.stringify(headers) : 'No headers'}
       </div>
