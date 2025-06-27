@@ -272,7 +272,7 @@ describe('Cache Manager', () => {
       const timestampBefore = Date.now();
       setCache('key', { foo: 'bar' });
       const entry = getCache('key', 60);
-      expect(entry?.timestamp).toBeGreaterThanOrEqual(timestampBefore);
+      expect(entry?.time).toBeGreaterThanOrEqual(timestampBefore);
     });
   });
 
@@ -352,7 +352,7 @@ describe('Cache Manager', () => {
 
   describe('mutate', () => {
     const cacheKey = 'test-key';
-    const initialData = { data: 'initial', timestamp: Date.now() };
+    const initialData = { data: 'initial', time: Date.now() };
     const newData = { name: 'John', age: 30 };
 
     afterEach(() => {

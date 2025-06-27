@@ -1,6 +1,6 @@
 export interface CacheEntry<T> {
   data: T;
-  timestamp: number;
+  time: number;
 }
 
 export interface MutationSettings {

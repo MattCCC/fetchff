@@ -175,7 +175,7 @@ export function getCache<T>(
   const entry = _cache.get(key);
 
   if (entry) {
-    if (!isCacheExpired(entry.timestamp, cacheTime)) {
+    if (!isCacheExpired(entry.time, cacheTime)) {
       return entry;
     }
 
@@ -194,7 +194,7 @@ export function getCache<T>(
 export function setCache<T = unknown>(key: string, response: T): void {
   const cacheEntry: CacheEntry<T> = {
     data: response,
-    timestamp: timeNow(),
+    time: timeNow(),
   };
 
   _cache.set(key, cacheEntry);
@@ -215,7 +215,7 @@ export function deleteCache(key: string): void {
  */
 export function pruneCache(cacheTime?: number): void {
   _cache.forEach((entry, key) => {
-    if (isCacheExpired(entry.timestamp, cacheTime)) {
+    if (isCacheExpired(entry.time, cacheTime)) {
       deleteCache(key);
     }
   });
