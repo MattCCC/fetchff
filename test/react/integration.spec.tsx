@@ -11,161 +11,18 @@ import {
   act,
 } from '@testing-library/react';
 import { useFetcher } from '../../src/react/index';
-import type { RequestConfig } from '../../src/types/request-handler';
 import {
   clearMockResponses,
   mockFetchResponse,
 } from '../utils/mockFetchResponse';
-
-// Test interfaces
-interface TestData {
-  message?: string;
-  count?: number;
-  original?: boolean;
-  updated?: boolean;
-  id?: number;
-  name?: string;
-  shared?: string;
-  timestamp?: number;
-  deduped?: boolean;
-  poll?: number;
-  success?: boolean;
-  suspense?: string;
-  individual?: boolean;
-  posts?: Array<{ id: number; title: string }>;
-  focus?: number;
-  headers?: string;
-  created?: boolean;
-  userId?: number;
-  default?: string;
-  overlap?: boolean;
-}
-
-// Test components
-const BasicComponent = ({
-  url,
-  config = {},
-}: {
-  url: string | null;
-  config?: RequestConfig<TestData>;
-}) => {
-  const {
-    data,
-    error,
-    headers,
-    isLoading,
-    isValidating,
-    mutate,
-    refetch,
-    config: requestConfig,
-  } = useFetcher<TestData>(url, config);
-
-  return (
-    <div>
-      <div data-testid="loading">
-        {isLoading ? 'Loading...' : 'Not Loading'}
-      </div>
-      <div data-testid="validating">
-        {isValidating ? 'Validating...' : 'Not Validating'}
-      </div>
-      <div data-testid="data">{data ? JSON.stringify(data) : 'No Data'}</div>
-      <div data-testid="headers">
-        {headers ? JSON.stringify(headers) : 'No headers'}
-      </div>
-      <div data-testid="error">{error ? error.message : 'No Error'}</div>
-      <div data-testid="config">
-        {requestConfig ? JSON.stringify(requestConfig) : 'No Config'}
-      </div>
-      <button onClick={() => refetch()} data-testid="refetch">
-        Refetch
-      </button>
-      <button onClick={() => mutate({ updated: true })} data-testid="mutate">
-        Mutate
-      </button>
-    </div>
-  );
-};
-
-const SuspenseComponent = ({ url }: { url: string }) => {
-  const { data, error, isLoading } = useFetcher<TestData>(url, {
-    strategy: 'reject',
-  });
-
-  if (error) {
-    return <div data-testid="error">Error: {error.message}</div>;
-  }
-
-  if (isLoading) {
-    return <div data-testid="suspense-loading">Suspense Loading...</div>;
-  }
-
-  return <div data-testid="data">{JSON.stringify(data)}</div>;
-};
-
-const MultipleRequestsComponent = () => {
-  const { data: data1 } = useFetcher<TestData>('/api/data-1');
-  const { data: data2 } = useFetcher<TestData>('/api/data-2');
-  const { data: data3, config: config3 } = useFetcher<TestData>('/api/data-3');
-
-  return (
-    <div>
-      <div data-testid="data-1">
-        {data1 ? JSON.stringify(data1) : 'No Data 1'}
-      </div>
-      <div data-testid="data-2">
-        {data2 ? JSON.stringify(data2) : 'No Data 2'}
-      </div>
-      <div data-testid="data-3">
-        {data3 ? JSON.stringify(data3) : 'No Data 3'}
-      </div>
-      <div data-testid="data-3-config">
-        {config3 ? JSON.stringify(config3) : 'No Data 3 Config'}
-      </div>
-    </div>
-  );
-};
-
-const ErrorHandlingComponent = ({ shouldError }: { shouldError: boolean }) => {
-  const { data, error, refetch } = useFetcher<TestData>(
-    shouldError ? '/api/error-endpoint' : '/api/success-endpoint',
-    {
-      retry: {
-        retries: 2,
-        delay: 100,
-        backoff: 1.5,
-      },
-    },
-  );
-
-  return (
-    <div>
-      <div data-testid="result-data">
-        {data ? JSON.stringify(data) : 'No Data'}
-      </div>
-      <div data-testid="result-error">{error ? error.message : 'No Error'}</div>
-      <button onClick={() => refetch()} data-testid="retry">
-        Retry
-      </button>
-    </div>
-  );
-};
-
-const ConditionalComponent = ({ enabled }: { enabled: boolean }) => {
-  const { data, isLoading } = useFetcher<TestData>(
-    enabled ? '/api/conditional' : null,
-  );
-
-  return (
-    <div>
-      <div data-testid="conditional-data">
-        {data ? JSON.stringify(data) : 'No Data'}
-      </div>
-      <div data-testid="conditional-loading">
-        {isLoading ? 'Loading' : 'Not Loading'}
-      </div>
-    </div>
-  );
-};
+import {
+  BasicComponent,
+  ErrorHandlingComponent,
+  SuspenseComponent,
+  MultipleRequestsComponent,
+  ConditionalComponent,
+  TestData,
+} from '../mocks/test-components';
 
 describe('React Integration Tests', () => {
   beforeEach(() => {
@@ -707,6 +564,410 @@ describe('React Integration Tests', () => {
       });
 
       expect(callCount).toBeGreaterThanOrEqual(2);
+    });
+  });
+
+  describe('Complex Mixed Settings', () => {
+    it('should handle caching + retry + polling combined', async () => {
+      let callCount = 0;
+      global.fetch = jest.fn().mockImplementation(() => {
+        callCount++;
+        if (callCount <= 2) {
+          return Promise.resolve({
+            ok: false,
+            status: 500,
+            statusText: 'Server Error',
+          });
+        }
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          body: { retryCount: callCount, cacheHit: false },
+          data: { retryCount: callCount, cacheHit: false },
+        });
+      });
+
+      const ComplexComponent = () => {
+        const { data, error, isValidating } = useFetcher<TestData>(
+          '/api/complex',
+          {
+            cacheTime: 10,
+            dedupeTime: 2,
+            revalidateOnFocus: true,
+            pollingInterval: 1000,
+            retry: { retries: 3, delay: 100, backoff: 2 },
+            cacheKey: 'complex-test',
+          },
+        );
+
+        return (
+          <div>
+            <div data-testid="complex-data">
+              {data ? JSON.stringify(data) : 'No Data'}
+            </div>
+            <div data-testid="complex-error">
+              {error?.message || 'No Error'}
+            </div>
+            <div data-testid="complex-validating">
+              {isValidating ? 'Validating' : 'Not Validating'}
+            </div>
+          </div>
+        );
+      };
+
+      await act(async () => {
+        render(<ComplexComponent />);
+      });
+
+      // Should retry and eventually succeed
+      await waitFor(() => {
+        expect(screen.getByTestId('complex-data')).toHaveTextContent(
+          'retryCount',
+        );
+      });
+
+      // Advance timer for polling
+      await act(async () => {
+        jest.advanceTimersByTime(1000);
+      });
+
+      expect(callCount).toBeGreaterThanOrEqual(3);
+    });
+
+    it('should handle mixed strategies with different error handling', async () => {
+      mockFetchResponse('/api/reject', { status: 404, ok: false });
+      mockFetchResponse('/api/softfail', { status: 500, ok: false });
+
+      const MixedComponent = () => {
+        const { data: rejectData, error: rejectError } = useFetcher<TestData>(
+          '/api/reject',
+          {
+            strategy: 'reject',
+            cacheTime: 5,
+          },
+        );
+
+        const { data: softFailData } = useFetcher<TestData>('/api/softfail', {
+          strategy: 'softFail',
+          defaultResponse: { message: 'fallback' },
+          retry: { retries: 2, delay: 50 },
+        });
+
+        return (
+          <div>
+            <div data-testid="reject-data">
+              {rejectData ? JSON.stringify(rejectData) : 'No Reject Data'}
+            </div>
+            <div data-testid="reject-error">
+              {rejectError?.message || 'No Reject Error'}
+            </div>
+            <div data-testid="softfail-data">
+              {softFailData ? JSON.stringify(softFailData) : 'No SoftFail Data'}
+            </div>
+          </div>
+        );
+      };
+
+      render(<MixedComponent />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('reject-error')).toHaveTextContent('404');
+        expect(screen.getByTestId('softfail-data')).toHaveTextContent(
+          'fallback',
+        );
+      });
+    });
+
+    it('should handle cache mutations with dependencies', async () => {
+      mockFetchResponse('/api/users/123', { body: { id: 123, name: 'John' } });
+      mockFetchResponse('/api/users/123/posts', {
+        body: { posts: ['post1', 'post2'] },
+      });
+
+      const CacheComponent = () => {
+        const { data: user, mutate: mutateUser } = useFetcher<TestData>(
+          '/api/users/123',
+          {
+            cacheTime: 30,
+            cacheKey: 'user-123',
+          },
+        );
+
+        const { data: posts, mutate: mutatePosts } = useFetcher<TestData>(
+          '/api/users/123/posts',
+          {
+            cacheTime: 15,
+            cacheKey: 'posts-123',
+            immediate: !!user,
+          },
+        );
+
+        const updateUser = () => {
+          mutateUser({ ...user, name: 'Updated Name', mutated: true });
+          mutatePosts({ ...posts, cached: true });
+        };
+
+        return (
+          <div>
+            <div data-testid="user-data">
+              {user ? JSON.stringify(user) : 'No User'}
+            </div>
+            <div data-testid="posts-data">
+              {posts ? JSON.stringify(posts) : 'No Posts'}
+            </div>
+            <button onClick={updateUser} data-testid="update-user">
+              Update User
+            </button>
+          </div>
+        );
+      };
+
+      render(<CacheComponent />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('user-data')).toHaveTextContent('John');
+      });
+
+      fireEvent.click(screen.getByTestId('update-user'));
+
+      expect(screen.getByTestId('user-data')).toHaveTextContent('Updated Name');
+      expect(screen.getByTestId('user-data')).toHaveTextContent('mutated');
+    });
+
+    it('should handle conditional requests with dynamic URLs', async () => {
+      mockFetchResponse('/api/users/456', { body: { id: 456, name: 'Jane' } });
+      mockFetchResponse('/api/posts/789?include=comments', {
+        body: { id: 789, title: 'Post Title' },
+      });
+
+      const DynamicComponent = ({
+        type,
+        id,
+        enabled,
+      }: {
+        type: 'user' | 'post' | null;
+        id?: number;
+        enabled: boolean;
+      }) => {
+        const url = enabled && type && id ? `/api/${type}s/${id}` : null;
+
+        const { data, isLoading } = useFetcher<TestData>(url, {
+          cacheTime: type === 'user' ? 60 : 30,
+          dedupeTime: 5,
+          retry: { retries: type === 'user' ? 3 : 1, delay: 200 },
+          params: type === 'post' ? { include: 'comments' } : undefined,
+        });
+
+        return (
+          <div>
+            <div data-testid="dynamic-url">{url || 'No URL'}</div>
+            <div data-testid="dynamic-data">
+              {data ? JSON.stringify(data) : 'No Data'}
+            </div>
+            <div data-testid="dynamic-loading">
+              {isLoading ? 'Loading' : 'Not Loading'}
+            </div>
+          </div>
+        );
+      };
+
+      const { rerender } = render(
+        <DynamicComponent type={null} enabled={false} />,
+      );
+
+      expect(screen.getByTestId('dynamic-url')).toHaveTextContent('No URL');
+      expect(global.fetch).not.toHaveBeenCalled();
+
+      rerender(<DynamicComponent type="user" id={456} enabled={true} />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('dynamic-data')).toHaveTextContent('Jane');
+      });
+
+      rerender(<DynamicComponent type="post" id={789} enabled={true} />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('dynamic-data')).toHaveTextContent(
+          'Post Title',
+        );
+      });
+    });
+
+    it('should handle overlapping requests with different configs', async () => {
+      mockFetchResponse('/api/overlap', { body: { phase: 'initial' } });
+
+      const OverlapComponent = ({ phase }: { phase: 1 | 2 | 3 }) => {
+        const config1 = {
+          cacheTime: phase === 1 ? 10 : 0,
+          dedupeTime: 1,
+          method: 'GET' as const,
+        };
+
+        const config2 = {
+          cacheTime: 20,
+          method: phase === 2 ? 'POST' : 'GET',
+          body: phase === 2 ? { data: 'test' } : undefined,
+          immediate: phase !== 2,
+        };
+
+        const { data: data1 } = useFetcher<TestData>('/api/overlap', config1);
+        const { data: data2, refetch } = useFetcher<TestData>(
+          '/api/overlap',
+          config2,
+        );
+
+        return (
+          <div>
+            <div data-testid="overlap-data1">
+              {data1 ? JSON.stringify(data1) : 'No Data1'}
+            </div>
+            <div data-testid="overlap-data2">
+              {data2 ? JSON.stringify(data2) : 'No Data2'}
+            </div>
+            <div data-testid="overlap-phase">{phase}</div>
+            <button onClick={refetch} data-testid="overlap-refetch">
+              Refetch
+            </button>
+          </div>
+        );
+      };
+
+      const { rerender } = render(<OverlapComponent phase={1} />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('overlap-data1')).toHaveTextContent(
+          'initial',
+        );
+      });
+
+      rerender(<OverlapComponent phase={2} />);
+      fireEvent.click(screen.getByTestId('overlap-refetch'));
+
+      rerender(<OverlapComponent phase={3} />);
+      expect(screen.getByTestId('overlap-phase')).toHaveTextContent('3');
+    });
+
+    it('should handle different error types with mixed configurations', async () => {
+      const ErrorComponent = ({
+        errorType,
+      }: {
+        errorType: 'network' | '500' | '404' | 'success';
+      }) => {
+        const getUrl = () => {
+          switch (errorType) {
+            case 'network':
+              return '/api/network-error';
+            case '500':
+              return '/api/server-error';
+            case '404':
+              return '/api/not-found';
+            case 'success':
+              return '/api/success';
+          }
+        };
+
+        const { data, error } = useFetcher<TestData>(getUrl(), {
+          timeout: 5000,
+          retry: {
+            retries: errorType === '500' ? 3 : 1,
+            delay: 50,
+            retryOn: errorType === '404' ? [] : [500, 502, 503],
+          },
+          strategy: errorType === '404' ? 'softFail' : 'reject',
+          defaultResponse: { error: true },
+        });
+
+        return (
+          <div>
+            <div data-testid="error-type">{errorType}</div>
+            <div data-testid="error-data">
+              {data ? JSON.stringify(data) : 'No Data'}
+            </div>
+            <div data-testid="error-message">
+              {error?.message || 'No Error'}
+            </div>
+          </div>
+        );
+      };
+
+      // Test 404 with softFail
+      mockFetchResponse('/api/not-found', { status: 404, ok: false });
+      const { rerender } = render(<ErrorComponent errorType="404" />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('error-data')).toHaveTextContent('error');
+      });
+
+      // Test 500 with retries
+      mockFetchResponse('/api/server-error', { status: 500, ok: false });
+      rerender(<ErrorComponent errorType="500" />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('error-message')).toHaveTextContent('500');
+      });
+
+      // Test success
+      mockFetchResponse('/api/success', { body: { success: true } });
+      rerender(<ErrorComponent errorType="success" />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('error-data')).toHaveTextContent('success');
+      });
+    });
+
+    it('should handle rapid config changes with cache invalidation', async () => {
+      let responseCount = 0;
+      global.fetch = jest.fn().mockImplementation(() => {
+        responseCount++;
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          body: { count: responseCount, timestamp: Date.now() },
+          data: { count: responseCount, timestamp: Date.now() },
+        });
+      });
+
+      const RapidComponent = ({
+        config,
+      }: {
+        config: { cacheTime: number; dedupeTime: number };
+      }) => {
+        const { data, refetch } = useFetcher<TestData>('/api/rapid', {
+          ...config,
+          cacheKey: `rapid-${config.cacheTime}-${config.dedupeTime}`,
+        });
+
+        return (
+          <div>
+            <div data-testid="rapid-data">
+              {data ? JSON.stringify(data) : 'No Data'}
+            </div>
+            <button onClick={refetch} data-testid="rapid-refetch">
+              Refetch
+            </button>
+          </div>
+        );
+      };
+
+      const { rerender } = render(
+        <RapidComponent config={{ cacheTime: 10, dedupeTime: 1 }} />,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('rapid-data')).toHaveTextContent('count');
+      });
+
+      // Change config rapidly
+      rerender(<RapidComponent config={{ cacheTime: 0, dedupeTime: 5 }} />);
+      rerender(<RapidComponent config={{ cacheTime: 30, dedupeTime: 0 }} />);
+
+      fireEvent.click(screen.getByTestId('rapid-refetch'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('rapid-data')).toHaveTextContent('count');
+      });
+
+      expect(responseCount).toBeGreaterThan(1);
     });
   });
 });

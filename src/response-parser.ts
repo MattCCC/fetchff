@@ -135,7 +135,7 @@ export const prepareResponse = <
     data === null ||
     (typeof data === OBJECT && Object.keys(data).length === 0)
   ) {
-    data = defaultResponse;
+    response.data = data = defaultResponse;
   }
 
   if (config.flattenResponse) {

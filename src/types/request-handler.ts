@@ -312,7 +312,7 @@ export interface ExtendedRequestConfig<
   strategy?: ErrorHandlingStrategy;
 
   /**
-   * A default response to return if the request fails and the strategy is set to `'defaultResponse'`.
+   * A default response to return if the request fails
    */
   defaultResponse?: any;
 
