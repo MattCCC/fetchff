@@ -18,6 +18,7 @@
  */
 import { UNDEFINED } from './constants';
 import { FetchResponse } from './types';
+import { timeNow } from './utils';
 
 export type RevalidatorFn = () => Promise<FetchResponse | null>;
 
@@ -32,7 +33,7 @@ export function registerRevalidator(
   fn: RevalidatorFn,
   ttl: number = DEFAULT_TTL,
 ) {
-  revalidators.set(key, [fn, Date.now(), ttl]);
+  revalidators.set(key, [fn, timeNow(), ttl]);
 }
 
 export function unregisterManualRevalidator(key: string) {
@@ -81,7 +82,7 @@ export async function revalidate<T = unknown>(
 
   if (entry) {
     // Update only the lastUsed timestamp without resetting the whole array
-    entry[1] = Date.now();
+    entry[1] = timeNow();
 
     return await entry[0]?.();
   }
@@ -119,7 +120,7 @@ export function enableFocusRevalidation(
 
   revalidators.set(key + FOCUS_REVALIDATORS_SUFFIX, [
     revalidatorFn,
-    Date.now(),
+    timeNow(),
     ttl,
   ]);
 }
@@ -135,7 +136,7 @@ export function startRevalidatorCleanup(
   intervalMs: number = DEFAULT_TTL,
 ): () => void {
   const intervalId = setInterval(() => {
-    const now = Date.now();
+    const now = timeNow();
     revalidators.forEach(([, lastUsed, ttl], key) => {
       if (ttl > 0 && now - lastUsed > ttl) {
         revalidators.delete(key);
@@ -160,7 +161,7 @@ export function unregisterFocusRevalidator(key: string) {
 }
 
 function revalidateAllOnFocus() {
-  const now = Date.now();
+  const now = timeNow();
 
   revalidators.forEach((entry, key) => {
     // Only process focus revalidators (keys ending with FOCUS_REVALIDATORS_SUFFIX)

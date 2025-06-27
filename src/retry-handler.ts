@@ -1,4 +1,5 @@
 import type { FetchResponse } from './types';
+import { timeNow } from './utils';
 
 /**
  * Calculates the number of milliseconds to wait before retrying a request,
@@ -31,7 +32,7 @@ export function getRetryAfterMs(
   const date = new Date(retryAfter);
 
   if (!isNaN(date.getTime())) {
-    const ms = date.getTime() - Date.now();
+    const ms = date.getTime() - timeNow();
 
     return ms > 0 ? ms : 0;
   }

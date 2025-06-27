@@ -16,18 +16,17 @@ import { applyInterceptor } from './interceptor-manager';
 import { ResponseError } from './errors/response-error';
 import { delayInvocation, isObject, sanitizeObject } from './utils';
 import {
-  queueRequest,
+  markInFlight,
   abortRequest,
   setInFlightPromise,
   getInFlightPromise,
-} from './queue-manager';
+} from './inflight-manager';
 import { ABORT_ERROR, CANCELLED_ERROR, FUNCTION, REJECT } from './constants';
 import { prepareResponse, parseResponseData } from './response-parser';
 import { generateCacheKey, getCachedResponse, setCache } from './cache-manager';
 import { buildConfig, defaultConfig, mergeConfig } from './config-handler';
 import { getRetryAfterMs } from './retry-handler';
 import { withPolling } from './polling-handler';
-import { withInFlight } from './inflight-manager';
 import { notifySubscribers } from './pubsub-manager';
 import { registerRevalidators } from './revalidator-manager';
 
@@ -180,7 +179,7 @@ export function createRequestHandler(
       while (attempt <= _retries) {
         try {
           // Add the request to the queue. Make sure to handle deduplication, cancellation, timeouts in accordance to retry settings
-          const controller = await queueRequest(
+          const controller = await markInFlight(
             _cacheKey,
             fetcherConfig.url as string,
             timeout,
@@ -410,7 +409,11 @@ export function createRequestHandler(
 
     // If cache key is specified, wrap the request with in-flight management
     const doRequestWithInFlight = _cacheKey
-      ? async () => withInFlight(_cacheKey, doRequestOnce)
+      ? async () => {
+          notifySubscribers(_cacheKey, { isFetching: true });
+
+          return doRequestOnce();
+        }
       : doRequestOnce;
 
     // If polling is enabled, use withPolling to handle the request

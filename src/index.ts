@@ -24,7 +24,7 @@ export { createApiFetcher } from './api-handler';
 
 export { subscribe } from './pubsub-manager';
 
-export { abortRequest, getInFlightPromise } from './queue-manager';
+export { abortRequest, getInFlightPromise } from './inflight-manager';
 
 export {
   generateCacheKey,

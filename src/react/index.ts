@@ -171,6 +171,7 @@ export function useFetcher<
       // Fast path: check cache first if not forcing refresh
       if (!forceRefresh && cacheKey) {
         const cached = getCachedResponse(cacheKey, cacheTime, config);
+
         if (cached) {
           return Promise.resolve(cached);
         }

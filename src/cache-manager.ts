@@ -8,7 +8,7 @@ import type {
 } from './types/request-handler';
 import type { CacheEntry, MutationSettings } from './types/cache-manager';
 import { GET, STRING, UNDEFINED } from './constants';
-import { isObject, shallowSerialize, sortObject } from './utils';
+import { isObject, shallowSerialize, sortObject, timeNow } from './utils';
 import { revalidate } from './revalidator-manager';
 import { notifySubscribers } from './pubsub-manager';
 import type { DefaultPayload, DefaultParams, DefaultUrlParams } from './types';
@@ -158,7 +158,7 @@ function isCacheExpired(timestamp: number, maxStaleTime?: number): boolean {
   }
 
   // Check if the current time exceeds the timestamp by more than maxStaleTime seconds
-  return Date.now() - timestamp > maxStaleTime * 1000;
+  return timeNow() - timestamp > maxStaleTime * 1000;
 }
 
 /**
@@ -194,7 +194,7 @@ export function getCache<T>(
 export function setCache<T = unknown>(key: string, response: T): void {
   const cacheEntry: CacheEntry<T> = {
     data: response,
-    timestamp: Date.now(),
+    timestamp: timeNow(),
   };
 
   _cache.set(key, cacheEntry);

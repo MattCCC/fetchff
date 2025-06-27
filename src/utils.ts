@@ -226,6 +226,8 @@ export function replaceUrlPathParams(
   });
 }
 
+export const timeNow = () => Date.now();
+
 /**
  * Checks if a value is JSON serializable.
  *
