@@ -1345,6 +1345,7 @@ describe('React Integration Tests', () => {
   describe('Data Type Edge Cases', () => {
     it('should handle various response data types', async () => {
       const testCases = [
+        { body: null, expected: 'No Data' },
         { body: 'null', expected: 'null' },
         { body: undefined, expected: 'No Data' },
         { body: '', expected: '""' },
