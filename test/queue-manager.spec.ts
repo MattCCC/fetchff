@@ -1,6 +1,6 @@
 import {
   queueRequest,
-  removeRequestFromQueue,
+  abortRequest,
   getController,
 } from '../src/queue-manager';
 
@@ -21,14 +21,14 @@ describe('Request Queue Manager', () => {
   it('should remove a request from the queue', async () => {
     const key = createKey('https://example.com');
     await queueRequest(key, 'https://example.com', 1000);
-    await removeRequestFromQueue(key);
+    await abortRequest(key);
     const retrievedController = await getController(key);
     expect(retrievedController).toBeUndefined();
   });
 
   it('should handle removing a non-existent request', async () => {
     const key = createKey('https://example.com');
-    await expect(removeRequestFromQueue(key)).resolves.not.toThrow();
+    await expect(abortRequest(key)).resolves.not.toThrow();
   });
 
   it('should handle multiple concurrent requests correctly', async () => {
@@ -44,8 +44,8 @@ describe('Request Queue Manager', () => {
     ]);
     expect(retrievedController1).toBe(controller1);
     expect(retrievedController2).toBe(controller2);
-    await removeRequestFromQueue(key1);
-    await removeRequestFromQueue(key2);
+    await abortRequest(key1);
+    await abortRequest(key2);
   });
 
   it('should handle concurrent requests with different configurations separately', async () => {
@@ -68,7 +68,7 @@ describe('Request Queue Manager', () => {
     jest.advanceTimersByTime(timeout);
     const controller = await getController(key);
     expect(controller).toBeUndefined();
-    await removeRequestFromQueue(key);
+    await abortRequest(key);
   });
 
   it('should queue multiple operations on the same request key correctly', async () => {
@@ -120,7 +120,7 @@ describe('Request Queue Manager', () => {
     );
     jest.advanceTimersByTime(1000);
     expect(controller.signal.aborted).toBe(false);
-    await removeRequestFromQueue(key, null);
+    await abortRequest(key, null);
   });
 
   it('should handle multiple distinct requests separately', async () => {

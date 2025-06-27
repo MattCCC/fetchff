@@ -17,7 +17,7 @@ import { ResponseError } from './errors/response-error';
 import { delayInvocation, isObject, sanitizeObject } from './utils';
 import {
   queueRequest,
-  removeRequestFromQueue,
+  abortRequest,
   setInFlightPromise,
   getInFlightPromise,
 } from './queue-manager';
@@ -249,7 +249,8 @@ export function createRequestHandler(
           // Global interceptors
           await applyInterceptor(response, handlerConfig.onResponse);
 
-          removeRequestFromQueue(_cacheKey);
+          // Remove the request from the queue
+          abortRequest(_cacheKey);
 
           const output = prepareResponse<
             ResponseData,
@@ -334,7 +335,7 @@ export function createRequestHandler(
             await applyInterceptor(error, handlerConfig.onError);
 
             // Remove the request from the queue
-            removeRequestFromQueue(_cacheKey);
+            abortRequest(_cacheKey);
 
             // Timeouts and request cancellations using AbortController do not throw any errors unless rejectCancelled is true.
             // Only handle the error if the request was not cancelled, or if it was cancelled and rejectCancelled is true.

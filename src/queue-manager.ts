@@ -71,7 +71,7 @@ export async function queueRequest(
           TIMEOUT_ERROR,
         );
 
-        removeRequestFromQueue(key, error);
+        abortRequest(key, error);
       }, timeout)
     : null;
 
@@ -86,7 +86,7 @@ export async function queueRequest(
  * @param key - Unique key for the request.
  * @param {boolean} error - Error payload so to force the request to abort.
  */
-export async function removeRequestFromQueue(
+export async function abortRequest(
   key: string | null,
   error: DOMException | null | string = null,
 ): Promise<void> {

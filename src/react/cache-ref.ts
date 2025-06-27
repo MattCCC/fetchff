@@ -12,7 +12,7 @@
  * @see deleteCache
  */
 
-import { deleteCache } from 'fetchff';
+import { abortRequest, deleteCache } from 'fetchff';
 
 export const INFINITE_CACHE_TIME = -1;
 
@@ -30,6 +30,7 @@ export const decrementRef = (
   key: string | null,
   cacheTime?: number,
   dedupeTime?: number,
+  url?: string | null,
 ) => {
   if (!key) {
     return;
@@ -48,6 +49,12 @@ export const decrementRef = (
   // This allows for long-lived cache entries that are only deleted when explicitly no longer needed.
   if (newCount <= 0 && cacheTime && cacheTime === INFINITE_CACHE_TIME) {
     refs.delete(key);
+
+    // Abort any ongoing requests associated with this cache key
+    abortRequest(
+      key,
+      new DOMException('Request to ' + url + ' aborted', 'AbortError'),
+    );
 
     setTimeout(() => {
       // Check if the reference count is still zero before deleting the cache as it might have been incremented again
@@ -69,6 +76,10 @@ export const getRefCount = (key: string | null): number => {
   }
 
   return refs.get(key) || 0;
+};
+
+export const getRefs = (): Map<string, number> => {
+  return refs;
 };
 
 export const clearRefCache = () => {
