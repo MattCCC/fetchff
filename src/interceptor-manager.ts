@@ -1,3 +1,5 @@
+import { isObject } from './utils';
+
 type InterceptorFunction<T> = (object: T) => Promise<T>;
 
 /**
@@ -6,7 +8,7 @@ type InterceptorFunction<T> = (object: T) => Promise<T>;
  * @template T - Type of the object.
  * @template I - Type of interceptors.
  *
- * @param {T} object - The object to process.
+ * @param {T} data - The data object to process.
  * @param {InterceptorFunction<T> | InterceptorFunction<T>[]} [interceptors] - Interceptor function(s).
  *
  * @returns {Promise<void>} - Nothing as the function is non-idempotent.
@@ -14,23 +16,23 @@ type InterceptorFunction<T> = (object: T) => Promise<T>;
 export async function applyInterceptor<
   T extends object,
   I = InterceptorFunction<T> | InterceptorFunction<T>[],
->(object: T, interceptors?: I): Promise<void> {
+>(data: T, interceptors?: I): Promise<void> {
   if (!interceptors) {
     return;
   }
 
   if (typeof interceptors === 'function') {
-    const value = await interceptors(object);
+    const value = await interceptors(data);
 
-    if (value) {
-      Object.assign(object, value);
+    if (value && isObject(data) && isObject(value)) {
+      Object.assign(data, value);
     }
   } else if (Array.isArray(interceptors)) {
     for (const interceptor of interceptors) {
-      const value = await interceptor(object);
+      const value = await interceptor(data);
 
-      if (value) {
-        Object.assign(object, value);
+      if (value && isObject(data) && isObject(value)) {
+        Object.assign(data, value);
       }
     }
   }
