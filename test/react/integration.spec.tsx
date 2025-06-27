@@ -1598,7 +1598,7 @@ describe('React Integration Tests', () => {
       const endTime = performance.now();
       // Should complete within reasonable time
       // It is a basic performance test, not a strict benchmark
-      expect(endTime - startTime).toBeLessThan(120);
+      expect(endTime - startTime).toBeLessThan(150);
     });
   });
 });

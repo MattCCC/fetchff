@@ -14,7 +14,7 @@ export default defineConfig([
     sourcemap: true,
     minify: true,
     treeshake: true,
-    splitting: false,
+    splitting: true,
   },
   {
     name: 'fetchff-node',
@@ -45,7 +45,7 @@ export default defineConfig([
     minify: true,
     treeshake: true,
     bundle: true,
-    splitting: false,
+    splitting: true,
     external: ['react', 'react-dom', 'fetchff'], // prevent bundling React
   },
 ]);
