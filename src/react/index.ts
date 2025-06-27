@@ -121,7 +121,7 @@ export function useFetcher<
     );
 
     return cached;
-  }, [cacheKey, cacheTime, config]);
+  }, [cacheKey, cacheTime]);
 
   const state =
     useSyncExternalStore<FetchResponse<
