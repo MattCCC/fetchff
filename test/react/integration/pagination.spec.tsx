@@ -7,14 +7,14 @@ import React, { act } from 'react';
 import {
   clearMockResponses,
   mockFetchResponse,
-} from '../utils/mockFetchResponse';
-import { useFetcher } from '../../src/react/index';
+} from '../../utils/mockFetchResponse';
+import { useFetcher } from '../../../src/react/index';
 import {
   ErrorPaginationComponent,
   InfiniteScrollComponent,
   PaginationComponent,
   SearchPaginationComponent,
-} from '../mocks/test-components';
+} from '../../mocks/test-components';
 
 describe('React Pagination Integration Tests', () => {
   beforeEach(() => {

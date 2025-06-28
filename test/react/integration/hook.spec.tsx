@@ -10,12 +10,12 @@ import {
   waitFor,
   act,
 } from '@testing-library/react';
-import { useFetcher } from '../../src/react/index';
+import { useFetcher } from '../../../src/react/index';
 import {
   clearMockResponses,
   createAbortableFetchMock,
   mockFetchResponse,
-} from '../utils/mockFetchResponse';
+} from '../../utils/mockFetchResponse';
 import {
   BasicComponent,
   ErrorHandlingComponent,
@@ -23,7 +23,7 @@ import {
   MultipleRequestsComponent,
   ConditionalComponent,
   TestData,
-} from '../mocks/test-components';
+} from '../../mocks/test-components';
 import { generateCacheKey } from 'fetchff/cache-manager';
 import { buildConfig } from 'fetchff/config-handler';
 import { getRefCount, getRefs } from 'fetchff/react/cache-ref';
