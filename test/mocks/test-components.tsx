@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { useFetcher } from '../../src/react/index';
 import type { RequestConfig } from '../../src/types/request-handler';
 
@@ -401,6 +402,212 @@ export const ErrorTypesComponent = ({
       <div data-testid="error-loading">
         {isLoading ? 'Loading' : 'Not Loading'}
       </div>
+    </div>
+  );
+};
+
+export const PaginationComponent = () => {
+  const [page, setPage] = useState(1);
+  const limit = 10;
+
+  const { data, isLoading, error } = useFetcher<{
+    data: Array<{ id: number; title: string }>;
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+      hasNext: boolean;
+      hasPrev: boolean;
+    };
+  }>('/api/posts', {
+    params: { page, limit },
+    cacheTime: 30,
+    cacheKey: `posts-page-${page}`,
+  });
+
+  return (
+    <div>
+      <div data-testid="pagination-loading">
+        {isLoading ? 'Loading' : 'Not Loading'}
+      </div>
+      <div data-testid="pagination-error">
+        {error ? error.message : 'No Error'}
+      </div>
+      <div data-testid="pagination-data">
+        {data?.data ? JSON.stringify(data.data) : 'No Data'}
+      </div>
+      <div data-testid="pagination-info">
+        {data?.pagination
+          ? `Page ${data.pagination.page} of ${data.pagination.totalPages}`
+          : 'No Pagination Info'}
+      </div>
+      <button
+        onClick={() => setPage(page - 1)}
+        disabled={!data?.pagination?.hasPrev}
+        data-testid="prev-page"
+      >
+        Previous
+      </button>
+      <button
+        onClick={() => setPage(page + 1)}
+        disabled={!data?.pagination?.hasNext}
+        data-testid="next-page"
+      >
+        Next
+      </button>
+      <div data-testid="current-page">{page}</div>
+    </div>
+  );
+};
+
+export const InfiniteScrollComponent = () => {
+  const [allItems, setAllItems] = useState<
+    Array<{ id: number; content: string }>
+  >([]);
+  const [offset, setOffset] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+
+  const { data, isLoading } = useFetcher<{
+    items: Array<{ id: number; content: string }>;
+    hasMore: boolean;
+    nextOffset: number | null;
+  }>('/api/feed', {
+    params: { offset, limit: 5 },
+    cacheTime: 0, // Don't cache for infinite scroll
+    immediate: hasMore, // Only fetch if there's more data
+  });
+
+  useEffect(() => {
+    if (data?.items) {
+      setAllItems((prev) => [...prev, ...data.items]);
+      setHasMore(data.hasMore);
+      if (data.nextOffset !== null) {
+        // Don't auto-advance here, wait for user action
+      }
+    }
+  }, [data]);
+
+  const loadMore = () => {
+    if (data && data.nextOffset !== null && hasMore) {
+      setOffset(data.nextOffset);
+    }
+  };
+
+  return (
+    <div>
+      <div data-testid="infinite-items">
+        {allItems.map((item) => (
+          <div key={item.id} data-testid={`item-${item.id}`}>
+            {item.content}
+          </div>
+        ))}
+      </div>
+      <div data-testid="infinite-loading">
+        {isLoading ? 'Loading More' : 'Not Loading'}
+      </div>
+      <div data-testid="items-count">{allItems.length}</div>
+      <button
+        onClick={loadMore}
+        disabled={!hasMore || isLoading}
+        data-testid="load-more"
+      >
+        Load More
+      </button>
+      <div data-testid="has-more">{hasMore ? 'Has More' : 'No More'}</div>
+    </div>
+  );
+};
+
+export const SearchPaginationComponent = () => {
+  const [search, setSearch] = useState('john');
+  const [status, setStatus] = useState('active');
+  const [page, setPage] = useState(1);
+
+  const { data, isLoading } = useFetcher<{
+    users: Array<{ id: number; name: string; status: string }>;
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
+  }>('/api/users', {
+    params: { search, status, page, limit: 3 },
+    cacheTime: 60,
+    cacheKey: `users-${search}-${status}-${page}`,
+    dedupeTime: 1000, // Dedupe rapid searches
+  });
+
+  // Reset page when search changes
+  useEffect(() => {
+    setPage(1);
+  }, [search, status]);
+
+  return (
+    <div>
+      <input
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        data-testid="search-input"
+        placeholder="Search users..."
+      />
+      <select
+        value={status}
+        onChange={(e) => setStatus(e.target.value)}
+        data-testid="status-filter"
+      >
+        <option value="active">Active</option>
+        <option value="inactive">Inactive</option>
+      </select>
+
+      <div data-testid="search-loading">
+        {isLoading ? 'Searching' : 'Not Searching'}
+      </div>
+
+      <div data-testid="search-results">
+        {data?.users?.map((user) => (
+          <div key={user.id} data-testid={`user-${user.id}`}>
+            {user.name} - {user.status}
+          </div>
+        )) || 'No Results'}
+      </div>
+
+      <div data-testid="search-total">
+        {data?.pagination ? `Total: ${data.pagination.total}` : 'No Total'}
+      </div>
+
+      <div data-testid="search-page">
+        {data?.pagination ? `Page: ${data.pagination.page}` : 'No Page'}
+      </div>
+    </div>
+  );
+};
+
+export const ErrorPaginationComponent = ({ attemptCount = 0 }) => {
+  const [page, setPage] = useState(1);
+
+  const { data, error, isLoading } = useFetcher('/api/posts-error', {
+    params: { page },
+    retry: { retries: 3, delay: 100, backoff: 1.5 },
+    cacheTime: 0, // Don't cache error responses
+  });
+
+  return (
+    <div>
+      <div data-testid="error-pagination-data">
+        {data?.data ? JSON.stringify(data.data) : 'No Data'}
+      </div>
+      <div data-testid="error-pagination-error">
+        {error ? `Error: ${error.status}` : 'No Error'}
+      </div>
+      <div data-testid="error-pagination-loading">
+        {isLoading ? 'Loading' : 'Not Loading'}
+      </div>
+      <button onClick={() => setPage(2)} data-testid="goto-page-2">
+        Go to Page 2
+      </button>
+      <div data-testid="error-attempt-count">{attemptCount}</div>
     </div>
   );
 };

@@ -103,7 +103,7 @@ export function useFetcher<
     ],
   );
   const dedupeTime = config.dedupeTime ?? DEFAULT_DEDUPE_TIME_MS;
-  const cacheTime = config.cacheTime ?? INFINITE_CACHE_TIME;
+  const cacheTime = config.cacheTime || INFINITE_CACHE_TIME;
 
   const shouldTriggerOnMount = useMemo(
     () => (config.immediate === undefined ? true : config.immediate),
@@ -182,10 +182,10 @@ export function useFetcher<
       const cacheBuster = forceRefresh ? () => true : config.cacheBuster;
 
       return await fetchf(url, {
-        dedupeTime,
-        cacheTime,
         cacheKey,
         ...config,
+        dedupeTime,
+        cacheTime,
         cacheBuster,
         // Ensure that errors are handled gracefully and not thrown by default
         strategy: 'softFail',
