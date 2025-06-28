@@ -4,6 +4,7 @@ import {
   subscribe,
   buildConfig,
   mutate as globalMutate,
+  setCache,
   generateCacheKey,
   getCachedResponse,
   getInFlightPromise,
@@ -112,10 +113,9 @@ export function useFetcher<
 
   // Attempt to get the cached response immediately and if not available, return null
   const getSnapshot = useCallback(() => {
-    // Stale-While-Revalidate Pattern
     const cached = getCachedResponse(
       cacheKey,
-      // By setting -1 always return cached data if available (even if stale)
+      // Stale-While-Revalidate Pattern: By setting -1 always return cached data if available (even if stale)
       INFINITE_CACHE_TIME,
       config,
     );
@@ -123,26 +123,30 @@ export function useFetcher<
     return cached;
   }, [cacheKey, cacheTime]);
 
+  // Subscribe to cache updates for the specific cache key
+  const doSubscribe = useCallback(
+    (cb: () => void) => {
+      const unsubscribe = subscribe(cacheKey, (data: FetchResponse | null) => {
+        // Optimistic Updates: Reflect that a fetch is happening, so to catch "fetching" state. This can help with UI updates (e.g., showing loading spinners).
+        if (cacheKey && data && data.isFetching) {
+          setCache(cacheKey, data);
+        }
+
+        return cb();
+      });
+
+      return unsubscribe;
+    },
+    [cacheKey],
+  );
+
   const state =
     useSyncExternalStore<FetchResponse<
       ResponseData,
       RequestBody,
       QueryParams,
       PathParams
-    > | null>(
-      // Subscribe to cache updates
-      (cb) => {
-        const unsubscribe = subscribe(cacheKey, () => {
-          cb(); // This should trigger React to call getSnapshot
-        });
-
-        return unsubscribe;
-      },
-      // Client snapshot - pure function, no side effects
-      getSnapshot,
-      // Server snapshot - consistent with client
-      getSnapshot,
-    ) ||
+    > | null>(doSubscribe, getSnapshot, getSnapshot) ||
     (DEFAULT_RESULT as unknown as FetchResponse<
       ResponseData,
       RequestBody,
@@ -151,7 +155,7 @@ export function useFetcher<
     >);
 
   const isUnresolved = !state.data && !state.error;
-  const isFetching = state.isFetching ?? false;
+  const isFetching = state.isFetching || false;
 
   // Handle Suspense outside the snapshot function
   if (isUnresolved && config.strategy === 'reject') {
@@ -164,12 +168,15 @@ export function useFetcher<
 
   const refetch = useCallback(
     async (forceRefresh = true) => {
+      // Truthy check for forceRefresh to ensure it's a boolean. It is useful in onClick handlers so to avoid additional annonymous function calls.
+      const shouldRefresh = !!forceRefresh;
+
       if (!url) {
         return Promise.resolve(null);
       }
 
       // Fast path: check cache first if not forcing refresh
-      if (!forceRefresh && cacheKey) {
+      if (!shouldRefresh && cacheKey) {
         const cached = getCachedResponse(cacheKey, cacheTime, config);
 
         if (cached) {
@@ -179,11 +186,11 @@ export function useFetcher<
 
       // When manual refetch is triggered, we want to ensure that the cache is busted
       // This can be disabled by passing `refetch(false)`
-      const cacheBuster = forceRefresh ? () => true : config.cacheBuster;
+      const cacheBuster = shouldRefresh ? () => true : config.cacheBuster;
 
       return await fetchf(url, {
-        cacheKey,
         ...config,
+        cacheKey,
         dedupeTime,
         cacheTime,
         cacheBuster,

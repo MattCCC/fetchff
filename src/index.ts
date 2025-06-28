@@ -30,6 +30,7 @@ export {
   generateCacheKey,
   getCachedResponse,
   mutate,
+  setCache,
   deleteCache,
 } from './cache-manager';
 

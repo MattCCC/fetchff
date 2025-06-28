@@ -11,7 +11,12 @@ type RefetchFunction<
   RequestBody = DefaultPayload,
   QueryParams = DefaultParams,
   PathParams = DefaultUrlParams,
-> = () => Promise<FetchResponse<
+> = (
+  // Whatever truthy value to force a refresh, or any other value.
+  // It comes handy when passing the refetch directly to a click handler.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  forceRefresh?: boolean | any,
+) => Promise<FetchResponse<
   ResponseData,
   RequestBody,
   QueryParams,

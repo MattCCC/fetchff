@@ -63,7 +63,7 @@ export const BasicComponent = ({
       <div data-testid="config">
         {requestConfig ? JSON.stringify(requestConfig) : 'No Config'}
       </div>
-      <button onClick={() => refetch()} data-testid="refetch">
+      <button onClick={refetch} data-testid="refetch">
         Refetch
       </button>
       <button onClick={() => mutate({ updated: true })} data-testid="mutate">
@@ -83,7 +83,7 @@ export const SuspenseComponent = ({ url }: { url: string }) => {
   }
 
   if (isLoading) {
-    return <div data-testid="suspense-loading">Suspense Loading...</div>;
+    return <div data-testid="conditional-loading">Conditional Loading...</div>;
   }
 
   return <div data-testid="data">{JSON.stringify(data)}</div>;
@@ -134,7 +134,7 @@ export const ErrorHandlingComponent = ({
         {data ? JSON.stringify(data) : 'No Data'}
       </div>
       <div data-testid="result-error">{error ? error.message : 'No Error'}</div>
-      <button onClick={() => refetch()} data-testid="retry">
+      <button onClick={refetch} data-testid="retry">
         Retry
       </button>
     </div>

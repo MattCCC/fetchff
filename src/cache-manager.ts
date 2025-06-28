@@ -189,11 +189,11 @@ export function getCache<T>(
  * Sets a new cache entry or updates an existing one.
  *
  * @param {string} key Cache key to utilize
- * @param {T} response - The data to be cached.
+ * @param {T} data - The data to be cached.
  */
-export function setCache<T = unknown>(key: string, response: T): void {
+export function setCache<T = unknown>(key: string, data: T): void {
   const cacheEntry: CacheEntry<T> = {
-    data: response,
+    data,
     time: timeNow(),
   };
 

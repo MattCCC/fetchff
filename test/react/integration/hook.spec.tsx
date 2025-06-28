@@ -431,7 +431,7 @@ describe('React Integration Tests', () => {
 
       // In strict mode, effects run twice in development
       // Verify no duplicate requests
-      expect(global.fetch).toHaveBeenCalledTimes(2);
+      expect(global.fetch).toHaveBeenCalledTimes(1);
     });
 
     it('should handle React 18 concurrent features', async () => {

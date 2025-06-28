@@ -79,7 +79,8 @@ export const hasMockForUrl = (url: string) => mockResponses.has(url);
 // Create a helper for AbortController-aware mocks
 export const createAbortableFetchMock = (
   delay: number = 2000,
-  shouldSucceed: boolean = true,
+  shouldResolve: boolean = true,
+  mockData: unknown = null,
 ) => {
   return jest.fn().mockImplementation((url, options) => {
     const signal = options?.signal as AbortSignal | null;
@@ -87,13 +88,18 @@ export const createAbortableFetchMock = (
     return new Promise((resolve, reject) => {
       // Check if already aborted
       if (signal?.aborted) {
-        reject(new DOMException('Request was aborted', 'AbortError'));
+        reject(new DOMException('Request is already aborted', 'AbortError'));
         return;
       }
 
       // Set up abort handling
       const abortHandler = () => {
-        reject(new DOMException('Request was aborted', 'AbortError'));
+        reject(
+          new DOMException(
+            'Request was aborted: ' + signal?.reason.message,
+            'AbortError',
+          ),
+        );
       };
 
       signal?.addEventListener('abort', abortHandler);
@@ -102,15 +108,18 @@ export const createAbortableFetchMock = (
       const timeoutId = setTimeout(() => {
         signal?.removeEventListener('abort', abortHandler);
 
-        if (shouldSucceed) {
-          resolve({
-            ok: true,
-            status: 200,
-            body: { url, completed: true },
-            data: { url, completed: true },
-          });
+        if (shouldResolve) {
+          resolve(
+            mockData || {
+              ok: true,
+              status: 200,
+              body: { url, completed: true },
+              // Since it is not a Response object, we need to mock the response.data as well.
+              data: { url, completed: true },
+            },
+          );
         } else {
-          reject(new Error('Network Error'));
+          reject(new Error('Network Error due to timeout'));
         }
       }, delay);
 
