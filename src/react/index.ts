@@ -26,8 +26,8 @@ const DEFAULT_RESULT = {
   data: null,
   error: null,
   isFetching: false,
-  config: undefined,
-  headers: undefined,
+  config: {},
+  headers: {},
 };
 
 /**

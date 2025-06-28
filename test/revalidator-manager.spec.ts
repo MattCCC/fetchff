@@ -3,12 +3,12 @@
  */
 import {
   registerRevalidator,
-  unregisterManualRevalidator,
+  unregisterRevalidator,
   revalidate,
-  enableFocusRevalidation,
+  registerFocusRevalidator,
   unregisterFocusRevalidator,
   initFetchffRevalidationOnFocus,
-  removeFetchffRevalidationOnFocus,
+  removeFocusRevalidators,
   startRevalidatorCleanup,
   unregisterAllRevalidators,
 } from '../src/revalidator-manager';
@@ -27,10 +27,8 @@ describe('Revalidator Manager', () => {
 
   afterEach(() => {
     // Clean up registered revalidators
-    unregisterManualRevalidator(testKey);
-    unregisterManualRevalidator(testKey2);
-    unregisterFocusRevalidator(testKey);
-    unregisterFocusRevalidator(testKey2);
+    unregisterAllRevalidators(testKey);
+    unregisterAllRevalidators(testKey2);
   });
 
   describe('registerRevalidator', () => {
@@ -70,7 +68,7 @@ describe('Revalidator Manager', () => {
   describe('unregisterRevalidator', () => {
     it('should remove a registered revalidator', async () => {
       registerRevalidator(testKey, mockRevalidatorFn);
-      unregisterManualRevalidator(testKey);
+      unregisterRevalidator(testKey);
 
       const result = await revalidate(testKey);
 
@@ -80,16 +78,14 @@ describe('Revalidator Manager', () => {
 
     it('should disable focus revalidation when unregistering', () => {
       registerRevalidator(testKey, mockRevalidatorFn);
-      enableFocusRevalidation(testKey);
+      registerFocusRevalidator(testKey);
 
       // This should not throw and should clean up focus revalidation
-      expect(() => unregisterManualRevalidator(testKey)).not.toThrow();
+      expect(() => unregisterRevalidator(testKey)).not.toThrow();
     });
 
     it('should handle unregistering non-existent key gracefully', () => {
-      expect(() =>
-        unregisterManualRevalidator('non-existent-key'),
-      ).not.toThrow();
+      expect(() => unregisterRevalidator('non-existent-key')).not.toThrow();
     });
   });
 
@@ -136,26 +132,26 @@ describe('Revalidator Manager', () => {
     });
   });
 
-  describe('enableFocusRevalidation', () => {
+  describe('registerFocusRevalidator', () => {
     it('should add key to focus revalidation set', () => {
-      expect(() => enableFocusRevalidation(testKey)).not.toThrow();
+      expect(() => registerFocusRevalidator(testKey)).not.toThrow();
     });
 
     it('should handle adding the same key multiple times', () => {
-      enableFocusRevalidation(testKey);
-      enableFocusRevalidation(testKey);
+      registerFocusRevalidator(testKey);
+      registerFocusRevalidator(testKey);
 
-      expect(() => enableFocusRevalidation(testKey)).not.toThrow();
+      expect(() => registerFocusRevalidator(testKey)).not.toThrow();
     });
 
     it('should handle empty key', () => {
-      expect(() => enableFocusRevalidation('')).not.toThrow();
+      expect(() => registerFocusRevalidator('')).not.toThrow();
     });
   });
 
   describe('disableFocusRevalidation', () => {
     it('should remove key from focus revalidation set', () => {
-      enableFocusRevalidation(testKey);
+      registerFocusRevalidator(testKey);
 
       expect(() => unregisterFocusRevalidator(testKey)).not.toThrow();
     });
@@ -175,7 +171,7 @@ describe('Revalidator Manager', () => {
     let mockAddEventListener: jest.Mock;
 
     beforeEach(() => {
-      removeFetchffRevalidationOnFocus();
+      removeFocusRevalidators();
       mockAddEventListener = jest.fn();
       window.addEventListener = mockAddEventListener;
       window.removeEventListener = jest.fn();
@@ -199,8 +195,8 @@ describe('Revalidator Manager', () => {
       // we'll test the focus functionality through the public API
       registerRevalidator(testKey, mockRevalidatorFn);
       registerRevalidator(testKey2, mockRevalidatorFn2);
-      enableFocusRevalidation(testKey);
-      enableFocusRevalidation(testKey2);
+      registerFocusRevalidator(testKey);
+      registerFocusRevalidator(testKey2);
 
       // We can't easily test the actual focus event due to module initialization,
       // but we can test that the functions work correctly when called directly
@@ -216,7 +212,7 @@ describe('Revalidator Manager', () => {
     let mockAddEventListener: jest.Mock;
 
     beforeEach(() => {
-      removeFetchffRevalidationOnFocus();
+      removeFocusRevalidators();
       mockAddEventListener = jest.fn();
       window.addEventListener = mockAddEventListener;
       window.removeEventListener = jest.fn();
@@ -320,7 +316,7 @@ describe('Revalidator Manager', () => {
 
   describe('focus revalidation with suffix logic', () => {
     it('should store focus revalidators with |f suffix', () => {
-      enableFocusRevalidation(testKey, mockRevalidatorFn);
+      registerFocusRevalidator(testKey, mockRevalidatorFn);
 
       // Manual revalidator should not trigger focus revalidator
       expect(() => revalidate(testKey)).not.toThrow();
@@ -335,7 +331,7 @@ describe('Revalidator Manager', () => {
       const focusFn = jest.fn().mockResolvedValue('focus');
 
       registerRevalidator(testKey, manualFn);
-      enableFocusRevalidation(testKey, focusFn);
+      registerFocusRevalidator(testKey, focusFn);
 
       // Manual revalidation should only call manual function
       const result = await revalidate(testKey);
@@ -346,7 +342,7 @@ describe('Revalidator Manager', () => {
 
     it('should unregister focus revalidator without affecting manual', async () => {
       registerRevalidator(testKey, mockRevalidatorFn);
-      enableFocusRevalidation(testKey, mockRevalidatorFn2);
+      registerFocusRevalidator(testKey, mockRevalidatorFn2);
 
       unregisterFocusRevalidator(testKey);
 
@@ -355,9 +351,9 @@ describe('Revalidator Manager', () => {
       expect(mockRevalidatorFn).toHaveBeenCalledTimes(1);
     });
 
-    it('should handle enableFocusRevalidation with null function gracefully', () => {
-      expect(() => enableFocusRevalidation(testKey, null)).not.toThrow();
-      expect(() => enableFocusRevalidation(testKey)).not.toThrow();
+    it('should handle registerFocusRevalidator with null function gracefully', () => {
+      expect(() => registerFocusRevalidator(testKey, null)).not.toThrow();
+      expect(() => registerFocusRevalidator(testKey)).not.toThrow();
     });
   });
 
@@ -415,7 +411,7 @@ describe('Revalidator Manager', () => {
 
     beforeEach(() => {
       jest.useFakeTimers();
-      removeFetchffRevalidationOnFocus();
+      removeFocusRevalidators();
 
       mockAddEventListener = jest.fn().mockImplementation((event, handler) => {
         if (event === 'focus') {
@@ -435,8 +431,8 @@ describe('Revalidator Manager', () => {
     });
 
     it('should call focus revalidators when focus event is triggered', () => {
-      enableFocusRevalidation(testKey, mockRevalidatorFn);
-      enableFocusRevalidation(testKey2, mockRevalidatorFn2);
+      registerFocusRevalidator(testKey, mockRevalidatorFn);
+      registerFocusRevalidator(testKey2, mockRevalidatorFn2);
 
       // Simulate focus event
       if (focusHandler) {
@@ -465,7 +461,7 @@ describe('Revalidator Manager', () => {
 
     it('should clean up expired focus revalidators on focus event', () => {
       const shortTTL = 100; // 100ms
-      enableFocusRevalidation(testKey, mockRevalidatorFn, shortTTL);
+      registerFocusRevalidator(testKey, mockRevalidatorFn, shortTTL);
 
       // Fast forward past TTL
       jest.advanceTimersByTime(shortTTL + 1);
@@ -480,7 +476,7 @@ describe('Revalidator Manager', () => {
     });
 
     it('should not clean up focus revalidators with TTL = 0', () => {
-      enableFocusRevalidation(testKey, mockRevalidatorFn, 0);
+      registerFocusRevalidator(testKey, mockRevalidatorFn, 0);
 
       // Fast forward way past normal TTL
       jest.advanceTimersByTime(60 * 60 * 1000); // 1 hour (reduced from 24)
@@ -498,8 +494,8 @@ describe('Revalidator Manager', () => {
       const errorFn = jest.fn().mockRejectedValue(new Error('Focus error'));
       const workingFn = jest.fn().mockResolvedValue('success');
 
-      enableFocusRevalidation(testKey, errorFn);
-      enableFocusRevalidation(testKey2, workingFn);
+      registerFocusRevalidator(testKey, errorFn);
+      registerFocusRevalidator(testKey2, workingFn);
 
       // Simulate focus event
       if (focusHandler) {
@@ -528,7 +524,7 @@ describe('Revalidator Manager', () => {
     });
 
     it('should handle unregistering with empty string key', () => {
-      expect(() => unregisterManualRevalidator('')).not.toThrow();
+      expect(() => unregisterRevalidator('')).not.toThrow();
       expect(() => unregisterFocusRevalidator('')).not.toThrow();
     });
 
@@ -565,7 +561,7 @@ describe('Revalidator Manager', () => {
   describe('unregisterAllRevalidators', () => {
     it('should remove both manual and focus revalidators', async () => {
       registerRevalidator(testKey, mockRevalidatorFn);
-      enableFocusRevalidation(testKey, mockRevalidatorFn2);
+      registerFocusRevalidator(testKey, mockRevalidatorFn2);
 
       unregisterAllRevalidators(testKey);
 
@@ -582,7 +578,7 @@ describe('Revalidator Manager', () => {
     });
 
     it('should handle unregistering when only focus exists', () => {
-      enableFocusRevalidation(testKey, mockRevalidatorFn);
+      registerFocusRevalidator(testKey, mockRevalidatorFn);
 
       expect(() => unregisterAllRevalidators(testKey)).not.toThrow();
     });
@@ -606,7 +602,7 @@ describe('Revalidator Manager', () => {
       const focusFn = jest.fn().mockResolvedValue('focus');
 
       registerRevalidator(testKey, manualFn, 5000);
-      enableFocusRevalidation(testKey, focusFn, 10000);
+      registerFocusRevalidator(testKey, focusFn, 10000);
 
       // Manual revalidation should only call manual function
       const result = await revalidate(testKey);
@@ -616,12 +612,12 @@ describe('Revalidator Manager', () => {
 
       // Cleanup should work independently
       unregisterFocusRevalidator(testKey);
-      unregisterManualRevalidator(testKey);
+      unregisterRevalidator(testKey);
     });
 
     it('should handle revalidators with TTL = 0 never expiring', async () => {
       registerRevalidator(testKey, mockRevalidatorFn, 0);
-      enableFocusRevalidation(testKey2, mockRevalidatorFn2, 0);
+      registerFocusRevalidator(testKey2, mockRevalidatorFn2, 0);
 
       const cleanup = startRevalidatorCleanup(50); // Reduced cleanup interval
 
@@ -680,7 +676,7 @@ describe('Revalidator Manager', () => {
     it('should handle keys containing focus suffix correctly', async () => {
       const trickeyKey = 'test|f|more';
       registerRevalidator(trickeyKey, mockRevalidatorFn);
-      enableFocusRevalidation(trickeyKey, mockRevalidatorFn2);
+      registerFocusRevalidator(trickeyKey, mockRevalidatorFn2);
 
       await revalidate(trickeyKey);
       expect(mockRevalidatorFn).toHaveBeenCalledTimes(1);
@@ -692,7 +688,7 @@ describe('Revalidator Manager', () => {
 
     it('should handle self-modifying revalidators', async () => {
       const selfModifyingFn = jest.fn().mockImplementation(() => {
-        unregisterManualRevalidator(testKey);
+        unregisterRevalidator(testKey);
         return 'self-modified';
       });
 
@@ -762,7 +758,7 @@ describe('Revalidator Manager', () => {
 
     beforeEach(() => {
       jest.useFakeTimers();
-      removeFetchffRevalidationOnFocus();
+      removeFocusRevalidators();
 
       const mockAddEventListener = jest
         .fn()
@@ -784,7 +780,7 @@ describe('Revalidator Manager', () => {
 
     it('should handle focus revalidation with proper cleanup timing', () => {
       const shortTTL = 100;
-      enableFocusRevalidation(testKey, mockRevalidatorFn, shortTTL);
+      registerFocusRevalidator(testKey, mockRevalidatorFn, shortTTL);
 
       // Fast forward well past TTL
       jest.advanceTimersByTime(shortTTL + 50);
@@ -802,8 +798,8 @@ describe('Revalidator Manager', () => {
       const errorFn = jest.fn().mockRejectedValue(new Error('Focus error'));
       const workingFn = jest.fn().mockResolvedValue('success');
 
-      enableFocusRevalidation(testKey, errorFn);
-      enableFocusRevalidation(testKey2, workingFn);
+      registerFocusRevalidator(testKey, errorFn);
+      registerFocusRevalidator(testKey2, workingFn);
 
       // Should not throw despite error in one revalidator
       expect(() => {
@@ -831,7 +827,7 @@ describe('Revalidator Manager', () => {
     });
 
     it('should handle rapid focus events without issues', () => {
-      enableFocusRevalidation(testKey, mockRevalidatorFn, 5000);
+      registerFocusRevalidator(testKey, mockRevalidatorFn, 5000);
 
       // Trigger multiple focus events rapidly (reduced from 5 to 3)
       if (focusHandler) {
@@ -886,7 +882,7 @@ describe('Revalidator Manager', () => {
       const focusFn = jest.fn().mockResolvedValue('focus');
 
       registerRevalidator(testKey, manualFn);
-      enableFocusRevalidation(testKey, focusFn);
+      registerFocusRevalidator(testKey, focusFn);
 
       const result = await revalidate(testKey);
       expect(manualFn).toHaveBeenCalledTimes(1);
@@ -908,7 +904,7 @@ describe('Revalidator Manager', () => {
     it('should handle keys containing focus suffix', async () => {
       const specialKey = 'test|f|more';
       registerRevalidator(specialKey, mockRevalidatorFn);
-      enableFocusRevalidation(specialKey, mockRevalidatorFn2);
+      registerFocusRevalidator(specialKey, mockRevalidatorFn2);
 
       await revalidate(specialKey);
       expect(mockRevalidatorFn).toHaveBeenCalledTimes(1);
@@ -920,7 +916,7 @@ describe('Revalidator Manager', () => {
 
     it('should handle self-modifying revalidators', async () => {
       const selfModifyingFn = jest.fn().mockImplementation(() => {
-        unregisterManualRevalidator(testKey);
+        unregisterRevalidator(testKey);
         return 'modified';
       });
 

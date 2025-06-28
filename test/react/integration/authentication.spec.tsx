@@ -2,8 +2,14 @@
  * @jest-environment jsdom
  */
 import '@testing-library/jest-dom';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
-import { act, useEffect, useState } from 'react';
+import {
+  act,
+  render,
+  screen,
+  waitFor,
+  fireEvent,
+} from '@testing-library/react';
+import { useEffect, useState } from 'react';
 import {
   clearMockResponses,
   mockFetchResponse,

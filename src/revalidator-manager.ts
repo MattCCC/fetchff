@@ -36,7 +36,7 @@ export function registerRevalidator(
   revalidators.set(key, [fn, timeNow(), ttl]);
 }
 
-export function unregisterManualRevalidator(key: string) {
+export function unregisterRevalidator(key: string) {
   revalidators.delete(key);
 }
 
@@ -51,7 +51,7 @@ export function registerRevalidators(
   if (revalidatorOnFocus) {
     initFetchffRevalidationOnFocus();
 
-    enableFocusRevalidation(
+    registerFocusRevalidator(
       key + FOCUS_REVALIDATORS_SUFFIX,
       revalidatorFn,
       ttl,
@@ -60,8 +60,8 @@ export function registerRevalidators(
 }
 
 export function unregisterAllRevalidators(key: string) {
-  unregisterManualRevalidator(key);
-  unregisterFocusRevalidator(key + FOCUS_REVALIDATORS_SUFFIX);
+  unregisterRevalidator(key);
+  unregisterRevalidator(key + FOCUS_REVALIDATORS_SUFFIX);
 }
 
 /**
@@ -109,7 +109,7 @@ let hasAttachedFocusHandler = false;
  * @param {RevalidatorFn | null} revalidatorFn Function to revalidate the cache entry
  * @param {number} ttl Time to live in milliseconds (default: 3 minutes)
  */
-export function enableFocusRevalidation(
+export function registerFocusRevalidator(
   key: string,
   revalidatorFn: RevalidatorFn | null = null,
   ttl: number = DEFAULT_TTL,
@@ -139,7 +139,7 @@ export function startRevalidatorCleanup(
     const now = timeNow();
     revalidators.forEach(([, lastUsed, ttl], key) => {
       if (ttl > 0 && now - lastUsed > ttl) {
-        revalidators.delete(key);
+        unregisterRevalidator(key);
       }
     });
   }, intervalMs);
@@ -157,7 +157,7 @@ export function unregisterFocusRevalidator(key: string) {
     return;
   }
 
-  revalidators.delete(key + FOCUS_REVALIDATORS_SUFFIX);
+  unregisterRevalidator(key + FOCUS_REVALIDATORS_SUFFIX);
 }
 
 function revalidateAllOnFocus() {
@@ -173,7 +173,7 @@ function revalidateAllOnFocus() {
 
     // Clean up expired entries
     if (ttl > 0 && now - entry[1] > entry[2]) {
-      revalidators.delete(key);
+      unregisterRevalidator(key);
       return;
     }
 
@@ -182,6 +182,14 @@ function revalidateAllOnFocus() {
 
     // Fire-and-forget, swallow errors
     Promise.resolve(entry[0]?.()).catch(() => {});
+  });
+}
+
+function clearAllFocusRevalidators() {
+  revalidators.forEach((_, key) => {
+    if (key.endsWith(FOCUS_REVALIDATORS_SUFFIX)) {
+      unregisterRevalidator(key);
+    }
   });
 }
 
@@ -204,7 +212,7 @@ export function initFetchffRevalidationOnFocus() {
   window.addEventListener('focus', revalidateAllOnFocus);
 }
 
-export function removeFetchffRevalidationOnFocus() {
+export function removeFocusRevalidators() {
   if (typeof window === UNDEFINED || !hasAttachedFocusHandler) {
     return;
   }
@@ -213,4 +221,6 @@ export function removeFetchffRevalidationOnFocus() {
 
   // Remove the focus event listener to stop revalidating on focus
   window.removeEventListener('focus', revalidateAllOnFocus);
+
+  clearAllFocusRevalidators();
 }
