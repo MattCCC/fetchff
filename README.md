@@ -736,6 +736,8 @@ shouldRetry(response, attempt) {
     return true;
   }
   // ...other logic
+
+  return null; // Fallback to `retryOn` status code check
 }
 ```
 
@@ -784,10 +786,12 @@ The retry mechanism is configured via the `retry` option when instantiating the 
   - `503` - Service Unavailable
   - `504` - Gateway Timeout
 
-- **`shouldRetry(response, currentAttempt)`**:  
-  Type: `RetryFunction`  
-  Function that determines whether a retry should be attempted <b>based on the error</b> from <b>response</b> object (accessed by: <b>response.error</b>), and the current attempt number. This function receives the error object and the attempt number as arguments.  
-  _Default:_ Retry up to the number of specified attempts.
+If used in conjunction with `shouldRetry`, the `shouldRetry` function takes priority, and falls back to `retryOn` only if it returns `null`.
+
+- **`shouldRetry(response: FetchResponse, currentAttempt: Number) => boolean`**:  
+  Type: `RetryFunction<ResponseData, QueryParams, PathParams, RequestBody>`  
+  Function that determines whether a retry should be attempted <b>based on the error</b> or <b>successful response</b> (if `shouldRetry` is provided) object, and the current attempt number. This function receives the error object and the attempt number as arguments. The boolean returned indicates decision. If `true` then it should retry, if `false` then abort and don't retry, if `null` then fallback to `retryOn` status codes check.
+  _Default:_ `undefined`.
 
 ### How It Works
 
@@ -1234,7 +1238,7 @@ function UserProfile({ userId }: { userId: string }) {
   return (
     <div>
       <h1>{data.name}</h1>
-      <button onClick={() => refetch()}>Refresh</button>
+      <button onClick={refetch}>Refresh</button>
     </div>
   );
 }
@@ -1386,7 +1390,7 @@ function DataWithErrorHandling() {
     return (
       <div>
         <p>Error: {error.message}</p>
-        <button onClick={() => refetch()}>Try Again</button>
+        <button onClick={refetch}>Try Again</button>
       </div>
     );
   }

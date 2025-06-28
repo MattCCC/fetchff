@@ -127,7 +127,7 @@ export type RetryFunction<
 > = (
   response: FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>,
   attempt: number,
-) => Promise<boolean> | boolean;
+) => Promise<boolean | null> | boolean | null;
 
 export type PollingFunction<
   ResponseData = DefaultResponse,

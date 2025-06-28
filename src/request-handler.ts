@@ -318,13 +318,36 @@ export function createRequestHandler(
             RequestBody
           >(response, fetcherConfig, error);
 
-          if (
-            // We check retries provided regardless of the shouldRetry being provided so to avoid infinite loops.
-            // It is a fail-safe so to prevent excessive retry attempts even if custom retry logic suggests a retry.
-            attempt === _retries || // Stop if the maximum retries have been reached
-            !retryOn?.includes(error.status) || // Check if the error status is retryable
-            (shouldRetry !== undefined && !(await shouldRetry(output, attempt))) // If shouldRetry is defined, evaluate it
-          ) {
+          let shouldStopRetrying = false;
+
+          // Safety first: always respect max retries
+          // We check retries provided regardless of the shouldRetry being provided so to avoid infinite loops.
+          // It is a fail-safe so to prevent excessive retry attempts even if custom retry logic suggests a retry.
+          if (attempt === _retries) {
+            shouldStopRetrying = true;
+          } else {
+            let customDecision: boolean | null = null;
+
+            // Get custom decision if shouldRetry is provided
+            if (shouldRetry) {
+              const result = await shouldRetry(output, attempt);
+              customDecision = result;
+            }
+
+            // Decision cascade:
+            if (customDecision === true) {
+              // shouldRetry explicitly says retry
+              shouldStopRetrying = false;
+            } else if (customDecision === false) {
+              // shouldRetry explicitly says don't retry
+              shouldStopRetrying = true;
+            } else {
+              // shouldRetry returned undefined/null, fallback to retryOn
+              shouldStopRetrying = !retryOn?.includes(error.status);
+            }
+          }
+
+          if (shouldStopRetrying) {
             if (!isRequestCancelled(error as ResponseError)) {
               logger(mergedConfig, 'FETCH ERROR', error as ResponseError);
             }

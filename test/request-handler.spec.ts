@@ -535,7 +535,35 @@ describe('Request Handler', () => {
         maxDelay: 5000,
         backoff: 1.5,
         retryOn: [500],
-        shouldRetry: jest.fn(() => Promise.resolve(true)),
+      };
+      const requestHandler = createRequestHandler({
+        baseURL,
+        retry: retryConfig,
+        logger: mockLogger,
+        onError: jest.fn(),
+      });
+
+      (globalThis.fetch as jest.Mock).mockRejectedValue({
+        status: 400,
+        json: jest.fn().mockResolvedValue({}),
+      });
+
+      await expect(requestHandler.request('/endpoint')).rejects.toMatchObject({
+        status: 400,
+        json: expect.any(Function),
+      });
+
+      expect(globalThis.fetch).toHaveBeenCalledTimes(1); // No retries
+    });
+
+    it('should not retry if the error status is not in retryOn list and shouldRetry calls for status check', async () => {
+      const retryConfig = {
+        retries: 2,
+        delay: 100,
+        maxDelay: 5000,
+        backoff: 1.5,
+        retryOn: [500],
+        shouldRetry: jest.fn(() => Promise.resolve(null)),
       };
       const requestHandler = createRequestHandler({
         baseURL,
