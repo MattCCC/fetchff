@@ -191,11 +191,11 @@ export function createRequestHandler(
             !!(timeout && (!_retries || resetTimeout)),
           );
 
-          // Shallow copy to ensure basic idempotency
-          // Note that the refrence of the main object does not change here so it is safe in context of queue management and interceptors
+          // Create a shallow copy to maintain idempotency.
+          // This ensures the original object is not mutated before passing to interceptors or fetchers.
           const requestConfig: RequestConfig = {
-            signal: controller.signal,
             ...fetcherConfig,
+            signal: controller.signal,
           };
 
           // Local interceptors
