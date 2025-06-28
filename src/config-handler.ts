@@ -80,11 +80,7 @@ export const buildConfig = (
     : requestConfig.credentials;
 
   // The explicitly passed query params
-  const explicitParams = requestConfig.params;
-
-  const urlPath = explicitParams
-    ? appendQueryParams(dynamicUrl, explicitParams)
-    : dynamicUrl;
+  const urlPath = appendQueryParams(dynamicUrl, requestConfig.params);
   const isFullUrl = urlPath.includes('://');
   const baseURL = isFullUrl
     ? ''

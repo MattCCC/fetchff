@@ -151,7 +151,7 @@ export function createRequestHandler(
       >(_cacheKey, dedupeTime);
 
       if (inflight) {
-        return await inflight;
+        return inflight;
       }
     }
 
@@ -178,10 +178,12 @@ export function createRequestHandler(
 
       while (attempt <= _retries) {
         try {
+          const url = fetcherConfig.url as string;
+
           // Add the request to the queue. Make sure to handle deduplication, cancellation, timeouts in accordance to retry settings
           const controller = await markInFlight(
             _cacheKey,
-            fetcherConfig.url as string,
+            url,
             timeout,
             dedupeTime,
             cancellable,
@@ -203,15 +205,15 @@ export function createRequestHandler(
           await applyInterceptor(requestConfig, handlerConfig.onRequest);
 
           // Backwards compatibility for custom fetcher
-          const fn = requestInstance ?? fetcherConfig.fetcher;
+          const fn = requestInstance || fetcherConfig.fetcher;
 
           response = (fn
             ? await fn<ResponseData, RequestBody, QueryParams, PathParams>(
-                requestConfig.url as string,
+                url,
                 requestConfig,
               )
             : await fetch(
-                requestConfig.url as string,
+                url,
                 requestConfig as RequestInit,
               )) as unknown as FetchResponse<
             ResponseData,
@@ -235,7 +237,7 @@ export function createRequestHandler(
             // This is the pattern for fetch responses as per spec, but custom fetchers may not follow it so we check for `ok` property
             if (response.ok !== undefined && !response.ok) {
               throw new ResponseError(
-                `${requestConfig.method} to ${requestConfig.url} failed! Status: ${response.status || null}`,
+                `${requestConfig.method} to ${url} failed! Status: ${response.status || null}`,
                 requestConfig,
                 response,
               );

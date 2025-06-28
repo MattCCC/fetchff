@@ -50,9 +50,8 @@ export async function markInFlight(
   const item = inFlight.get(key);
 
   if (item) {
-    const prevIsCancellable = item[3];
     const previousController = item[0];
-    const timeoutId = item[1];
+    const prevIsCancellable = item[3];
 
     // If the request is already in the queue and within the dedupeTime, reuse the existing controller
     if (!prevIsCancellable && dedupeTime && timeNow() - item[2] < dedupeTime) {
@@ -66,6 +65,8 @@ export async function markInFlight(
         new DOMException('Aborted due to new request', ABORT_ERROR),
       );
     }
+
+    const timeoutId = item[1];
 
     if (timeoutId !== null) {
       clearTimeout(timeoutId);

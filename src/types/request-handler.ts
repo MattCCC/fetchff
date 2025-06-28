@@ -125,12 +125,7 @@ export type RetryFunction<
   PathParams = DefaultUrlParams,
   RequestBody = DefaultPayload,
 > = (
-  response: ExtendedResponse<
-    ResponseData,
-    RequestBody,
-    QueryParams,
-    PathParams
-  >,
+  response: FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>,
   attempt: number,
 ) => Promise<boolean> | boolean;
 
@@ -219,7 +214,10 @@ export interface RetryOptions<
   retryOn?: number[];
 
   /**
-   * A function to determine whether to retry based on the error and attempt number.
+   * A function that determines whether a failed or successful request should be retried, based on the response and the current attempt number.
+   * Return `true` to retry, or `false` to stop retrying.
+   * @param response - The response object from the failed request.
+   * @param attempt - The current retry attempt number (starting from 1).
    */
   shouldRetry?: RetryFunction<
     ResponseData,
