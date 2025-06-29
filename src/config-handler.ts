@@ -20,19 +20,22 @@ import {
   appendQueryParams,
   isSearchParams,
   isJSONSerializable,
+  isSlowConnection,
 } from './utils';
+
+const defaultTimeoutMs = (isSlowConnection() ? 60 : 30) * 1000;
 
 export const defaultConfig: RequestHandlerConfig = {
   method: GET,
   strategy: REJECT,
-  timeout: 30000, // 30 seconds
+  timeout: defaultTimeoutMs, // 30 seconds (60 on slow connections)
   headers: {
     Accept: APPLICATION_JSON + ', text/plain, */*',
     'Accept-Encoding': 'gzip, deflate, br',
   },
   retry: {
-    delay: 1000,
-    maxDelay: 30000,
+    delay: defaultTimeoutMs / 30, // 1 second (2 on slow connections)
+    maxDelay: defaultTimeoutMs, // 30 seconds (60 on slow connections)
     resetTimeout: true,
     backoff: 1.5,
 
