@@ -119,7 +119,7 @@ yarn add fetchff
 
 ### Standalone usage
 
-#### `fetchf()`
+#### `fetchf(url, config)`
 
 It is a functional wrapper for `fetch()`. It seamlessly enhances it with additional settings like the retry mechanism and error handling improvements. The `fetchf()` can be used directly as a function, simplifying the usage and making it easier to integrate with functional programming styles. The `fetchf()` makes requests independently of `createApiFetcher()` settings.
 
@@ -136,9 +136,40 @@ const { data, error } = await fetchf('/api/user-details', {
 });
 ```
 
-### Multiple API Endpoints
+### Global Configuration
 
-#### `createApiFetcher()`
+#### `setDefaultConfig(customConfig)`
+
+<details>
+  <summary><span style="cursor:pointer">Click to expand</span></summary>
+  <br>
+
+Allows you to globally override the default configuration for all requests. This is useful for setting application-wide defaults like timeouts, headers, or retry policies.
+
+```typescript
+import { setDefaultConfig } from 'fetchff';
+
+// Set global defaults for all requests
+setDefaultConfig({
+  timeout: 10000, // 10 seconds for all requests
+  headers: {
+    Authorization: 'Bearer your-token',
+  },
+  retry: {
+    retries: 2,
+    delay: 1500,
+  },
+});
+
+// All subsequent requests will use these defaults
+const { data } = await fetchf('/api/data'); // Uses 10s timeout and retry config
+```
+
+</details>
+
+### Instance with many API endpoints
+
+#### `createApiFetcher(config)`
 
 <details>
   <summary><span style="cursor:pointer">Click to expand</span></summary>
@@ -245,6 +276,198 @@ You can access `api.endpoints` property directly to modify the endpoints list. T
 #### `api.getInstance()`
 
 If you initialize API handler with your custom `fetcher`, then this function will return the instance created using `fetcher.create()` function. Your fetcher can include anything. It will be triggering `fetcher.request()` instead of native fetch() that is available by default. It gives you ultimate flexibility on how you want your requests to be made.
+
+</details>
+
+### Advanced Utilities
+
+<details>
+  <summary><span style="cursor:pointer">Click to expand</span></summary>
+  <br>
+
+#### Cache Management
+
+##### `mutate(key, newData, settings)`
+
+Programmatically update cached data without making a network request. Useful for optimistic updates or reflecting changes from other operations.
+
+**Parameters:**
+
+- `key` (string): The cache key to update
+- `newData` (any): The new data to store in cache
+- `settings` (object, optional): Configuration options
+  - `revalidate` (boolean): Whether to trigger background revalidation after update
+
+```typescript
+import { mutate } from 'fetchff';
+
+// Update cache for a specific cache key
+await mutate('/api/users', newUserData);
+
+// Update with options
+await mutate('/api/users', updatedData, {
+  revalidate: true, // Trigger background revalidation
+});
+```
+
+##### `deleteCache(key)`
+
+Remove cached data for a specific cache key. Useful for cache invalidation when you know data is stale.
+
+**Parameters:**
+
+- `key` (string): The cache key to delete
+
+```typescript
+import { deleteCache } from 'fetchff';
+
+// Delete specific cache entry
+deleteCache('/api/user-profile');
+
+// Delete cache after user logout
+const logout = () => {
+  deleteCache('/api/user/*'); // Delete all user-related cache
+};
+```
+
+#### Revalidation Management
+
+##### `revalidate(key, isStaleRevalidation)`
+
+Manually trigger revalidation for a specific cache entry, forcing a fresh network request to update the cached data.
+
+**Parameters:**
+
+- `key` (string): The cache key to revalidate
+- `isStaleRevalidation` (boolean, optional): Whether this is a background revalidation that doesn't mark as in-flight
+
+```typescript
+import { revalidate } from 'fetchff';
+
+// Revalidate specific cache entry
+await revalidate('/api/user-profile');
+
+// Revalidate with custom cache key
+await revalidate('custom-cache-key');
+
+// Background revalidation (doesn't mark as in-flight)
+await revalidate('/api/user-profile', true);
+```
+
+##### `revalidateAll(type, isStaleRevalidation)`
+
+Trigger revalidation for all cache entries associated with a specific event type (focus or online).
+
+**Parameters:**
+
+- `type` (string): The revalidation event type ('focus' or 'online')
+- `isStaleRevalidation` (boolean, optional): Whether this is a background revalidation
+
+```typescript
+import { revalidateAll } from 'fetchff';
+
+// Manually trigger focus revalidation for all relevant entries
+revalidateAll('focus');
+
+// Manually trigger online revalidation for all relevant entries
+revalidateAll('online');
+```
+
+##### `removeRevalidators(type)`
+
+Clean up revalidation event listeners for a specific event type. Useful for preventing memory leaks when you no longer need automatic revalidation.
+
+**Parameters:**
+
+- `type` (string): The revalidation event type to remove ('focus' or 'online')
+
+```typescript
+import { removeRevalidators } from 'fetchff';
+
+// Remove all focus revalidation listeners
+removeRevalidators('focus');
+
+// Remove all online revalidation listeners
+removeRevalidators('online');
+
+// Typically called during cleanup
+// e.g., in React useEffect cleanup or when unmounting components
+```
+
+#### Pub/Sub System
+
+##### `subscribe(key, callback)`
+
+Subscribe to cache updates and data changes. Receive notifications when specific cache entries are updated.
+
+**Parameters:**
+
+- `key` (string): The cache key to subscribe to
+- `callback` (function): Function called when cache is updated
+  - `response` (any): The full response object
+
+**Returns:** Function to unsubscribe from updates
+
+```typescript
+import { subscribe } from 'fetchff';
+
+// Subscribe to cache changes for a specific key
+const unsubscribe = subscribe('/api/user-data', (response) => {
+  console.log('Cache updated with response:', response);
+  console.log('Response data:', response.data);
+  console.log('Response status:', response.status);
+});
+
+// Clean up subscription when no longer needed
+unsubscribe();
+```
+
+#### Request Management
+
+##### `abortRequest(key, error)`
+
+Programmatically abort in-flight requests for a specific cache key or URL pattern.
+
+**Parameters:**
+
+- `key` (string): The cache key or URL pattern to abort
+- `error` (Error, optional): Custom error to throw for aborted requests
+
+```typescript
+import { abortRequest } from 'fetchff';
+
+// Abort specific request by cache key
+abortRequest('/api/slow-operation');
+
+// Useful for cleanup when component unmounts or route changes
+const cleanup = () => {
+  abortRequest('/api/user-dashboard');
+};
+```
+
+#### Network Detection
+
+##### `isSlowConnection()`
+
+Check if the user is on a slow network connection (2G/3G). Useful for adapting application behavior based on connection speed.
+
+**Parameters:** None
+
+**Returns:** Boolean indicating if connection is slow
+
+```typescript
+import { isSlowConnection } from 'fetchff';
+
+// Check connection speed and adapt behavior
+if (isSlowConnection()) {
+  console.log('User is on a slow connection');
+  // Reduce image quality, disable auto-refresh, etc.
+}
+
+// Use in conditional logic
+const shouldAutoRefresh = !isSlowConnection();
+const imageQuality = isSlowConnection() ? 'low' : 'high';
+```
 
 </details>
 
