@@ -338,6 +338,12 @@ export interface ExtendedRequestConfig<
   revalidateOnFocus?: boolean;
 
   /**
+   * If true, automatically revalidates the request when the browser regains network connectivity.
+   * @default false
+   */
+  revalidateOnReconnect?: boolean;
+
+  /**
    * Whether to automatically run the request as soon as the handler is created.
    * - If `true`, the request is sent immediately (useful for React/Vue hooks).
    * - If `false`, you must call a function to trigger the request manually.

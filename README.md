@@ -83,6 +83,7 @@ To address these challenges, the `fetchf()` provides several enhancements:
 - **Smart Retry Mechanism**: Features exponential backoff for intelligent error handling and retry mechanisms.
 - **Request Deduplication**: Set the time during which requests are deduplicated (treated as same request).
 - **Cache Management**: Dynamically manage cache with configurable expiration, custom keys, and selective invalidation.
+- **Network Revalidation**: Automatically revalidate data on window focus and network reconnection for fresh data.
 - **Dynamic URLs Support**: Easily manage routes with dynamic parameters, such as `/user/:userId`.
 - **Error Handling**: Flexible error management at both global and individual request levels.
 - **Request Cancellation**: Utilizes `AbortController` to cancel previous requests automatically.
@@ -284,6 +285,7 @@ You can also use all native [`fetch()` settings](https://developer.mozilla.org/e
 | withCredentials            | `boolean`                                                                                              | `false` | Indicates whether credentials (such as cookies) should be included with the request. This equals to `credentials: "include"` in native `fetch()`. In Node.js, cookies are not managed automatically. Use a fetch polyfill or library that supports cookies if needed.                                                                                                                                                                                                                                                                                                                                                                                       |
 | timeout                    | `number`                                                                                               | `30000` | You can set a request timeout in milliseconds. By default 30 seconds (30000 ms). The timeout option applies to each individual request attempt including retries and polling. `0` means that the timeout is disabled.                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | revalidateOnFocus          | `boolean`                                                                                              | `false` | When set to `true`, automatically revalidates (refetches) data when the browser window regains focus. **Note: This bypasses the cache and always makes a fresh network request** to ensure users see the most up-to-date data when they return to your application from another tab or window. Particularly useful for applications that display real-time or frequently changing data, but should be used judiciously to avoid unnecessary network traffic.                                                                                                                                                                                                |
+| revalidateOnReconnect      | `boolean`                                                                                              | `false` | When set to `true`, automatically revalidates (refetches) data when the browser regains internet connectivity after being offline. **This uses background revalidation to silently update data** without showing loading states to users. Helps ensure your application displays fresh data after network interruptions. Works by listening to the browser's `online` event.                                                                                                                                                                                                                                                                                |
 | logger                     | `Logger`                                                                                               | `null`  | You can additionally specify logger object with your custom logger to automatically log the errors to the console. It should contain at least `error` and `warn` functions.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | fetcher                    | `CustomFetcher`                                                                                        |         | A custom fetcher function. By default, the native `fetch()` is used.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 
@@ -413,6 +415,148 @@ The following options are available for configuring interceptors in the `Request
 
 4. **Custom Handling**:  
    Each interceptor function provides a flexible way to customize request and response behavior. You can use these functions to integrate with other systems, handle specific cases, or modify requests and responses as needed.
+
+</details>
+
+## 🌐 Network Revalidation
+
+<details>
+  <summary><span style="cursor:pointer">Click to expand</span></summary>
+  <br>
+
+`fetchff` provides intelligent network revalidation features that automatically keep your data fresh based on user interactions and network connectivity. These features help ensure users always see up-to-date information without manual intervention.
+
+### Focus Revalidation
+
+When `revalidateOnFocus` is enabled, requests are automatically triggered when the browser window regains focus (e.g., when users switch back to your tab).
+
+```typescript
+const { data } = await fetchf('/api/user-profile', {
+  revalidateOnFocus: true, // Revalidate when window gains focus
+  cacheTime: 300, // Cache for 5 minutes, but still revalidate on focus
+});
+```
+
+### Network Reconnection Revalidation
+
+The `revalidateOnReconnect` feature automatically revalidates data when the browser detects that internet connectivity has been restored after being offline.
+
+```typescript
+const { data } = await fetchf('/api/notifications', {
+  revalidateOnReconnect: true, // Revalidate when network reconnects
+  cacheTime: 600, // Cache for 10 minutes, but revalidate when back online
+});
+```
+
+### How It Works
+
+1. **Event Listeners**: `fetchff` automatically attaches global event listeners for `focus` and `online` events when needed
+2. **Background Revalidation**: Network revalidation uses background requests that don't show loading states to users
+3. **Automatic Cleanup**: Event listeners are properly managed and cleaned up to prevent memory leaks
+4. **Smart Caching**: Revalidation works alongside caching - fresh data updates the cache for future requests
+5. **Stale-While-Revalidate**: Use `staleTime` to control when background revalidation happens automatically
+
+### Configuration Options
+
+Both revalidation features can be configured globally or per-request, and work seamlessly with cache timing:
+
+```typescript
+import { createApiFetcher } from 'fetchff';
+
+const api = createApiFetcher({
+  baseURL: 'https://api.example.com',
+  // Global settings apply to all endpoints
+  revalidateOnFocus: true,
+  revalidateOnReconnect: true,
+  cacheTime: 300, // Cache for 5 minutes
+  staleTime: 60, // Consider fresh for 1 minute, then background revalidate
+  endpoints: {
+    getCriticalData: {
+      url: '/critical-data',
+      // Override global settings for specific endpoints
+      revalidateOnFocus: true,
+      revalidateOnReconnect: true,
+      staleTime: 30, // More aggressive background revalidation for critical data
+    },
+    getStaticData: {
+      url: '/static-data',
+      // Disable revalidation for static data
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      staleTime: 3600, // Background revalidate after 1 hour
+    },
+  },
+});
+```
+
+### Use Cases
+
+**Focus Revalidation** is ideal for:
+
+- Real-time dashboards and analytics
+- Social media feeds and chat applications
+- Financial data and trading platforms
+- Any data that changes frequently while users are away
+
+**Reconnection Revalidation** is perfect for:
+
+- Mobile applications with intermittent connectivity
+- Offline-capable applications
+- Critical data that must be current when online
+- Applications used in areas with unstable internet
+
+### Best Practices
+
+1. **Combine with appropriate cache and stale times**:
+
+   ```typescript
+   const { data } = await fetchf('/api/live-data', {
+     cacheTime: 300, // Cache for 5 minutes
+     staleTime: 30, // Consider fresh for 30 seconds
+     revalidateOnFocus: true, // Also revalidate on focus
+     revalidateOnReconnect: true,
+   });
+   ```
+
+2. **Use `staleTime` for automatic background updates** - Data stays fresh without user interaction:
+
+   ```typescript
+   // Good: Automatic background revalidation for dynamic data
+   const { data: notifications } = await fetchf('/api/notifications', {
+     cacheTime: 600, // Cache for 10 minutes
+     staleTime: 60, // Background revalidate after 1 minute
+     revalidateOnFocus: true,
+   });
+
+   // Good: Less frequent updates for semi-static data
+   const { data: userProfile } = await fetchf('/api/profile', {
+     cacheTime: 1800, // Cache for 30 minutes
+     staleTime: 600, // Background revalidate after 10 minutes
+     revalidateOnReconnect: true,
+   });
+   ```
+
+3. **Use selectively** - Don't enable for all requests to avoid unnecessary network traffic:
+
+   ```typescript
+   // Good: Enable for critical, changing data
+   const { data: userNotifications } = await fetchf('/api/notifications', {
+     revalidateOnFocus: true,
+     revalidateOnReconnect: true,
+   });
+
+   // Avoid: Don't enable for static configuration data
+   const { data: appConfig } = await fetchf('/api/config', {
+     cacheTime: 3600, // Cache for 1 hour
+     staleTime: 0, // Disable background revalidation
+     revalidateOnFocus: false,
+     revalidateOnReconnect: false,
+   });
+   ```
+
+4. **Consider user experience** - Network revalidation happens silently in the background, providing smooth UX without loading spinners.
+
+> ⚠️ **Browser Support**: These features work in all modern browsers that support the `focus` and `online` events. In server-side environments (Node.js), these options are safely ignored.
 
 </details>
 
@@ -1556,6 +1700,8 @@ _fetchff uniquely combines advanced input sanitization, prototype pollution prot
 | **Declarative API repository pattern**             | ✅          | --          | --           | --           | --             | --              |
 | **Supports Server-Side Rendering (SSR)**           | ✅          | ✅          | ✅           | ✅           | ✅             | ✅              |
 | **SWR Pattern Support**                            | ✅          | --          | --           | --           | --             | ✅              |
+| **Revalidation on Tab Focus**                      | ✅          | --          | --           | --           | --             | ✅              |
+| **Revalidation on Network Reconnect**              | ✅          | --          | --           | --           | --             | ✅              |
 | **Minimal Installation Size**                      | 🟢 (4.5 KB) | 🟡 (6.5 KB) | 🟢 (2.21 KB) | 🔴 (13.7 KB) | 🟢 (0 KB)      | 🟡 (6.2 KB)     |
 
 ## ✏️ Examples

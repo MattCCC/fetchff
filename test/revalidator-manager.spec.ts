@@ -2,16 +2,11 @@
  * @jest-environment jsdom
  */
 import {
-  registerRevalidator,
-  unregisterRevalidator,
+  addRevalidator,
+  removeRevalidator,
   revalidate,
-  registerFocusRevalidator,
-  unregisterFocusRevalidator,
-  initFetchffRevalidationOnFocus,
-  removeFocusRevalidators,
   startRevalidatorCleanup,
-  unregisterAllRevalidators,
-  registerRevalidators,
+  removeRevalidators,
 } from '../src/revalidator-manager';
 
 describe('Revalidator Manager', () => {
@@ -28,14 +23,14 @@ describe('Revalidator Manager', () => {
 
   afterEach(() => {
     // Clean up registered revalidators
-    unregisterAllRevalidators(testKey);
-    unregisterAllRevalidators(testKey2);
+    removeRevalidator(testKey);
+    removeRevalidator(testKey2);
     jest.clearAllTimers();
   });
 
-  describe('registerRevalidator', () => {
+  describe('addRevalidator', () => {
     it('should register a revalidator function for a key', async () => {
-      registerRevalidator(testKey, mockRevalidatorFn);
+      addRevalidator(testKey, mockRevalidatorFn);
 
       await revalidate(testKey);
 
@@ -46,8 +41,8 @@ describe('Revalidator Manager', () => {
       const firstFn = jest.fn().mockResolvedValue(undefined);
       const secondFn = jest.fn().mockResolvedValue(undefined);
 
-      registerRevalidator(testKey, firstFn);
-      registerRevalidator(testKey, secondFn);
+      addRevalidator(testKey, firstFn);
+      addRevalidator(testKey, secondFn);
 
       await revalidate(testKey);
 
@@ -56,8 +51,8 @@ describe('Revalidator Manager', () => {
     });
 
     it('should allow multiple keys with different revalidators', async () => {
-      registerRevalidator(testKey, mockRevalidatorFn);
-      registerRevalidator(testKey2, mockRevalidatorFn2);
+      addRevalidator(testKey, mockRevalidatorFn);
+      addRevalidator(testKey2, mockRevalidatorFn2);
 
       await revalidate(testKey);
       await revalidate(testKey2);
@@ -67,10 +62,10 @@ describe('Revalidator Manager', () => {
     });
   });
 
-  describe('unregisterRevalidator', () => {
+  describe('removeRevalidator', () => {
     it('should remove a registered revalidator', async () => {
-      registerRevalidator(testKey, mockRevalidatorFn);
-      unregisterRevalidator(testKey);
+      addRevalidator(testKey, mockRevalidatorFn);
+      removeRevalidator(testKey);
 
       const result = await revalidate(testKey);
 
@@ -79,21 +74,27 @@ describe('Revalidator Manager', () => {
     });
 
     it('should disable focus revalidation when unregistering', () => {
-      registerRevalidator(testKey, mockRevalidatorFn);
-      registerFocusRevalidator(testKey);
+      addRevalidator(
+        testKey,
+        mockRevalidatorFn,
+        undefined,
+        undefined,
+        undefined,
+        true,
+      );
 
       // This should not throw and should clean up focus revalidation
-      expect(() => unregisterRevalidator(testKey)).not.toThrow();
+      expect(() => removeRevalidator(testKey)).not.toThrow();
     });
 
     it('should handle unregistering non-existent key gracefully', () => {
-      expect(() => unregisterRevalidator('non-existent-key')).not.toThrow();
+      expect(() => removeRevalidator('non-existent-key')).not.toThrow();
     });
   });
 
   describe('revalidate', () => {
     it('should execute registered revalidator function', async () => {
-      registerRevalidator(testKey, mockRevalidatorFn);
+      addRevalidator(testKey, mockRevalidatorFn);
 
       const result = await revalidate(testKey);
 
@@ -111,7 +112,7 @@ describe('Revalidator Manager', () => {
       const errorFn = jest
         .fn()
         .mockRejectedValue(new Error('Revalidation failed'));
-      registerRevalidator(testKey, errorFn);
+      addRevalidator(testKey, errorFn);
 
       await expect(revalidate(testKey)).rejects.toThrow('Revalidation failed');
       expect(errorFn).toHaveBeenCalledTimes(1);
@@ -119,7 +120,7 @@ describe('Revalidator Manager', () => {
 
     it('should handle revalidator function that returns a value', async () => {
       const returnValueFn = jest.fn().mockResolvedValue('some-value');
-      registerRevalidator(testKey, returnValueFn);
+      addRevalidator(testKey, returnValueFn);
 
       const result = await revalidate(testKey);
 
@@ -134,38 +135,61 @@ describe('Revalidator Manager', () => {
     });
   });
 
-  describe('registerFocusRevalidator', () => {
+  describe('addRevalidator with focus revalidation', () => {
     it('should add key to focus revalidation set', () => {
-      expect(() => registerFocusRevalidator(testKey)).not.toThrow();
+      expect(() =>
+        addRevalidator(
+          testKey,
+          mockRevalidatorFn,
+          undefined,
+          undefined,
+          undefined,
+          true,
+        ),
+      ).not.toThrow();
     });
 
     it('should handle adding the same key multiple times', () => {
-      registerFocusRevalidator(testKey);
-      registerFocusRevalidator(testKey);
+      addRevalidator(
+        testKey,
+        mockRevalidatorFn,
+        undefined,
+        undefined,
+        undefined,
+        true,
+      );
+      addRevalidator(
+        testKey,
+        mockRevalidatorFn,
+        undefined,
+        undefined,
+        undefined,
+        true,
+      );
 
-      expect(() => registerFocusRevalidator(testKey)).not.toThrow();
-    });
-
-    it('should handle empty key', () => {
-      expect(() => registerFocusRevalidator('')).not.toThrow();
-    });
-  });
-
-  describe('disableFocusRevalidation', () => {
-    it('should remove key from focus revalidation set', () => {
-      registerFocusRevalidator(testKey);
-
-      expect(() => unregisterFocusRevalidator(testKey)).not.toThrow();
-    });
-
-    it('should handle removing non-existent key', () => {
       expect(() =>
-        unregisterFocusRevalidator('non-existent-key'),
+        addRevalidator(
+          testKey,
+          mockRevalidatorFn,
+          undefined,
+          undefined,
+          undefined,
+          true,
+        ),
       ).not.toThrow();
     });
 
     it('should handle empty key', () => {
-      expect(() => unregisterFocusRevalidator('')).not.toThrow();
+      expect(() =>
+        addRevalidator(
+          '',
+          mockRevalidatorFn,
+          undefined,
+          undefined,
+          undefined,
+          true,
+        ),
+      ).not.toThrow();
     });
   });
 
@@ -173,32 +197,37 @@ describe('Revalidator Manager', () => {
     let mockAddEventListener: jest.Mock;
 
     beforeEach(() => {
-      removeFocusRevalidators();
+      removeRevalidators('focus');
       mockAddEventListener = jest.fn();
       window.addEventListener = mockAddEventListener;
       window.removeEventListener = jest.fn();
-      // Call the initializer after setting up the mock to ensure the event listener is attached
-      initFetchffRevalidationOnFocus();
     });
 
     afterEach(() => {
       jest.restoreAllMocks();
     });
 
-    it('should attach focus event listener when initializing', () => {
-      expect(mockAddEventListener).toHaveBeenCalledWith(
-        'focus',
-        expect.any(Function),
-      );
-    });
-
     it('should test focus revalidation by directly calling the internal function', async () => {
       // Since the module initialization is complex to test due to timing,
       // we'll test the focus functionality through the public API
-      registerRevalidator(testKey, mockRevalidatorFn);
-      registerRevalidator(testKey2, mockRevalidatorFn2);
-      registerFocusRevalidator(testKey);
-      registerFocusRevalidator(testKey2);
+      addRevalidator(testKey, mockRevalidatorFn);
+      addRevalidator(testKey2, mockRevalidatorFn2);
+      addRevalidator(
+        testKey,
+        mockRevalidatorFn,
+        undefined,
+        undefined,
+        undefined,
+        true,
+      );
+      addRevalidator(
+        testKey2,
+        mockRevalidatorFn2,
+        undefined,
+        undefined,
+        undefined,
+        true,
+      );
 
       // We can't easily test the actual focus event due to module initialization,
       // but we can test that the functions work correctly when called directly
@@ -210,58 +239,12 @@ describe('Revalidator Manager', () => {
     });
   });
 
-  describe('initFetchffRevalidationOnFocus', () => {
-    let mockAddEventListener: jest.Mock;
-
-    beforeEach(() => {
-      removeFocusRevalidators();
-      mockAddEventListener = jest.fn();
-      window.addEventListener = mockAddEventListener;
-      window.removeEventListener = jest.fn();
-      // Call the initializer after setting up the mock to ensure the event listener is attached
-      initFetchffRevalidationOnFocus();
-    });
-
-    afterEach(() => {
-      jest.restoreAllMocks();
-    });
-
-    it('should handle multiple calls gracefully due to guard', () => {
-      // Since the function has already been called during module import,
-      // subsequent calls should be no-ops due to the hasAttachedFocusHandler guard
-      const mockAddEventListener = jest.fn();
-      window.addEventListener = mockAddEventListener;
-      window.removeEventListener = jest.fn();
-
-      // Call multiple times - these should be no-ops since the guard is already set
-      initFetchffRevalidationOnFocus();
-      initFetchffRevalidationOnFocus();
-      initFetchffRevalidationOnFocus();
-
-      // Since the function was already called during module import and has a guard,
-      // these subsequent calls should not add any more event listeners
-      expect(mockAddEventListener).toHaveBeenCalledTimes(0);
-    });
-
-    it('should not attach focus listener when window is undefined', () => {
-      // Save the original window
-      const originalWindow = globalThis.window;
-      // @ts-expect-error Removal of window for testing
-      delete globalThis.window;
-
-      expect(() => initFetchffRevalidationOnFocus()).not.toThrow();
-
-      // Restore the original window
-      globalThis.window = originalWindow;
-    });
-  });
-
   describe('error handling in focus revalidation', () => {
     it('should handle errors in revalidators gracefully', async () => {
       const errorFn = jest
         .fn()
         .mockRejectedValue(new Error('Focus revalidation failed'));
-      registerRevalidator(testKey, errorFn);
+      addRevalidator(testKey, errorFn);
 
       // Test that errors are propagated when calling revalidate directly
       await expect(revalidate(testKey)).rejects.toThrow(
@@ -281,7 +264,7 @@ describe('Revalidator Manager', () => {
     });
 
     it('should register revalidator with default TTL', async () => {
-      registerRevalidator(testKey, mockRevalidatorFn);
+      addRevalidator(testKey, mockRevalidatorFn);
 
       await revalidate(testKey);
       expect(mockRevalidatorFn).toHaveBeenCalledTimes(1);
@@ -289,14 +272,14 @@ describe('Revalidator Manager', () => {
 
     it('should register revalidator with custom TTL', async () => {
       const customTTL = 5000; // 5 seconds
-      registerRevalidator(testKey, mockRevalidatorFn, customTTL);
+      addRevalidator(testKey, mockRevalidatorFn, customTTL);
 
       await revalidate(testKey);
       expect(mockRevalidatorFn).toHaveBeenCalledTimes(1);
     });
 
     it('should never expire revalidator with TTL = 0', async () => {
-      registerRevalidator(testKey, mockRevalidatorFn, 0);
+      addRevalidator(testKey, mockRevalidatorFn, 0);
 
       // Fast forward time way beyond normal TTL
       jest.advanceTimersByTime(60 * 60 * 1000); // 1 hour (reduced from 24)
@@ -306,56 +289,13 @@ describe('Revalidator Manager', () => {
     });
 
     it('should update lastUsed timestamp on revalidation', async () => {
-      registerRevalidator(testKey, mockRevalidatorFn);
+      addRevalidator(testKey, mockRevalidatorFn);
 
       await revalidate(testKey);
       jest.advanceTimersByTime(1000);
       await revalidate(testKey);
 
       expect(mockRevalidatorFn).toHaveBeenCalledTimes(2);
-    });
-  });
-
-  describe('focus revalidation with suffix logic', () => {
-    it('should store focus revalidators with |f suffix', () => {
-      registerFocusRevalidator(testKey, mockRevalidatorFn);
-
-      // Manual revalidator should not trigger focus revalidator
-      expect(() => revalidate(testKey)).not.toThrow();
-
-      // Focus revalidator should be stored separately
-      unregisterFocusRevalidator(testKey);
-      expect(() => unregisterFocusRevalidator(testKey)).not.toThrow();
-    });
-
-    it('should allow both manual and focus revalidators for same key', async () => {
-      const manualFn = jest.fn().mockResolvedValue('manual');
-      const focusFn = jest.fn().mockResolvedValue('focus');
-
-      registerRevalidator(testKey, manualFn);
-      registerFocusRevalidator(testKey, focusFn);
-
-      // Manual revalidation should only call manual function
-      const result = await revalidate(testKey);
-      expect(manualFn).toHaveBeenCalledTimes(1);
-      expect(focusFn).not.toHaveBeenCalled();
-      expect(result).toBe('manual');
-    });
-
-    it('should unregister focus revalidator without affecting manual', async () => {
-      registerRevalidator(testKey, mockRevalidatorFn);
-      registerFocusRevalidator(testKey, mockRevalidatorFn2);
-
-      unregisterFocusRevalidator(testKey);
-
-      // Manual revalidator should still work
-      await revalidate(testKey);
-      expect(mockRevalidatorFn).toHaveBeenCalledTimes(1);
-    });
-
-    it('should handle registerFocusRevalidator with null function gracefully', () => {
-      expect(() => registerFocusRevalidator(testKey, null)).not.toThrow();
-      expect(() => registerFocusRevalidator(testKey)).not.toThrow();
     });
   });
 
@@ -372,7 +312,7 @@ describe('Revalidator Manager', () => {
 
     it('should handle sync revalidator functions', async () => {
       const syncFn = jest.fn().mockReturnValue('sync-result');
-      registerRevalidator(testKey, syncFn);
+      addRevalidator(testKey, syncFn);
 
       const result = await revalidate(testKey);
       expect(syncFn).toHaveBeenCalledTimes(1);
@@ -381,7 +321,7 @@ describe('Revalidator Manager', () => {
 
     it('should handle async revalidator functions', async () => {
       const asyncFn = jest.fn().mockResolvedValue('async-result');
-      registerRevalidator(testKey, asyncFn);
+      addRevalidator(testKey, asyncFn);
 
       const result = await revalidate(testKey);
       expect(asyncFn).toHaveBeenCalledTimes(1);
@@ -390,7 +330,7 @@ describe('Revalidator Manager', () => {
 
     it('should handle revalidator that returns undefined', async () => {
       const undefinedFn = jest.fn().mockResolvedValue(undefined);
-      registerRevalidator(testKey, undefinedFn);
+      addRevalidator(testKey, undefinedFn);
 
       const result = await revalidate(testKey);
       expect(undefinedFn).toHaveBeenCalledTimes(1);
@@ -399,7 +339,7 @@ describe('Revalidator Manager', () => {
 
     it('should handle revalidator that returns null', async () => {
       const nullFn = jest.fn().mockResolvedValue(null);
-      registerRevalidator(testKey, nullFn);
+      addRevalidator(testKey, nullFn);
 
       const result = await revalidate(testKey);
       expect(nullFn).toHaveBeenCalledTimes(1);
@@ -413,7 +353,7 @@ describe('Revalidator Manager', () => {
 
     beforeEach(() => {
       jest.useFakeTimers();
-      removeFocusRevalidators();
+      removeRevalidators('focus');
 
       mockAddEventListener = jest.fn().mockImplementation((event, handler) => {
         if (event === 'focus') {
@@ -423,8 +363,6 @@ describe('Revalidator Manager', () => {
 
       window.addEventListener = mockAddEventListener;
       window.removeEventListener = jest.fn();
-
-      initFetchffRevalidationOnFocus();
     });
 
     afterEach(() => {
@@ -433,8 +371,22 @@ describe('Revalidator Manager', () => {
     });
 
     it('should call focus revalidators when focus event is triggered', () => {
-      registerFocusRevalidator(testKey, mockRevalidatorFn);
-      registerFocusRevalidator(testKey2, mockRevalidatorFn2);
+      addRevalidator(
+        testKey,
+        mockRevalidatorFn,
+        undefined,
+        undefined,
+        mockRevalidatorFn,
+        true,
+      );
+      addRevalidator(
+        testKey2,
+        mockRevalidatorFn2,
+        undefined,
+        undefined,
+        mockRevalidatorFn2,
+        true,
+      );
 
       // Simulate focus event
       if (focusHandler) {
@@ -448,8 +400,8 @@ describe('Revalidator Manager', () => {
     });
 
     it('should not call manual revalidators on focus event', () => {
-      registerRevalidator(testKey, mockRevalidatorFn);
-      registerRevalidator(testKey2, mockRevalidatorFn2);
+      addRevalidator(testKey, mockRevalidatorFn);
+      addRevalidator(testKey2, mockRevalidatorFn2);
 
       // Simulate focus event
       if (focusHandler) {
@@ -461,24 +413,15 @@ describe('Revalidator Manager', () => {
       expect(mockRevalidatorFn2).not.toHaveBeenCalled();
     });
 
-    it('should clean up expired focus revalidators on focus event', () => {
-      const shortTTL = 100; // 100ms
-      registerFocusRevalidator(testKey, mockRevalidatorFn, shortTTL);
-
-      // Fast forward past TTL
-      jest.advanceTimersByTime(shortTTL + 1);
-
-      // Simulate focus event
-      if (focusHandler) {
-        focusHandler();
-      }
-
-      // Expired revalidator should not be called
-      expect(mockRevalidatorFn).not.toHaveBeenCalled();
-    });
-
     it('should not clean up focus revalidators with TTL = 0', () => {
-      registerFocusRevalidator(testKey, mockRevalidatorFn, 0);
+      addRevalidator(
+        testKey,
+        mockRevalidatorFn,
+        0,
+        undefined,
+        mockRevalidatorFn,
+        true,
+      );
 
       // Fast forward way past normal TTL
       jest.advanceTimersByTime(60 * 60 * 1000); // 1 hour (reduced from 24)
@@ -496,8 +439,15 @@ describe('Revalidator Manager', () => {
       const errorFn = jest.fn().mockRejectedValue(new Error('Focus error'));
       const workingFn = jest.fn().mockResolvedValue('success');
 
-      registerFocusRevalidator(testKey, errorFn);
-      registerFocusRevalidator(testKey2, workingFn);
+      addRevalidator(testKey, errorFn, undefined, undefined, errorFn, true);
+      addRevalidator(
+        testKey2,
+        workingFn,
+        undefined,
+        undefined,
+        workingFn,
+        true,
+      );
 
       // Simulate focus event
       if (focusHandler) {
@@ -522,20 +472,19 @@ describe('Revalidator Manager', () => {
     });
 
     it('should handle registering with empty string key', () => {
-      expect(() => registerRevalidator('', mockRevalidatorFn)).not.toThrow();
+      expect(() => addRevalidator('', mockRevalidatorFn)).not.toThrow();
     });
 
     it('should handle unregistering with empty string key', () => {
-      expect(() => unregisterRevalidator('')).not.toThrow();
-      expect(() => unregisterFocusRevalidator('')).not.toThrow();
+      expect(() => removeRevalidator('')).not.toThrow();
     });
 
     it('should overwrite existing revalidator with same key', async () => {
       const firstFn = jest.fn().mockResolvedValue('first');
       const secondFn = jest.fn().mockResolvedValue('second');
 
-      registerRevalidator(testKey, firstFn);
-      registerRevalidator(testKey, secondFn);
+      addRevalidator(testKey, firstFn);
+      addRevalidator(testKey, secondFn);
 
       const result = await revalidate(testKey);
       expect(firstFn).not.toHaveBeenCalled();
@@ -544,15 +493,15 @@ describe('Revalidator Manager', () => {
     });
 
     it('should handle mixed TTL values correctly', () => {
-      registerRevalidator(testKey, mockRevalidatorFn, 1000);
-      registerRevalidator(testKey2, mockRevalidatorFn2, 0);
+      addRevalidator(testKey, mockRevalidatorFn, 1000);
+      addRevalidator(testKey2, mockRevalidatorFn2, 0);
 
       expect(() => revalidate(testKey)).not.toThrow();
       expect(() => revalidate(testKey2)).not.toThrow();
     });
 
     it('should handle negative TTL as normal TTL', async () => {
-      registerRevalidator(testKey, mockRevalidatorFn, -1000);
+      addRevalidator(testKey, mockRevalidatorFn, -1000);
 
       const result = await revalidate(testKey);
       expect(mockRevalidatorFn).toHaveBeenCalledTimes(1);
@@ -560,12 +509,19 @@ describe('Revalidator Manager', () => {
     });
   });
 
-  describe('unregisterAllRevalidators', () => {
+  describe('removeRevalidator', () => {
     it('should remove both manual and focus revalidators', async () => {
-      registerRevalidator(testKey, mockRevalidatorFn);
-      registerFocusRevalidator(testKey, mockRevalidatorFn2);
+      addRevalidator(testKey, mockRevalidatorFn);
+      addRevalidator(
+        testKey,
+        mockRevalidatorFn2,
+        undefined,
+        undefined,
+        undefined,
+        true,
+      );
 
-      unregisterAllRevalidators(testKey);
+      removeRevalidator(testKey);
 
       // Neither should work after unregistering all
       const result = await revalidate(testKey);
@@ -574,19 +530,26 @@ describe('Revalidator Manager', () => {
     });
 
     it('should handle unregistering when only manual exists', () => {
-      registerRevalidator(testKey, mockRevalidatorFn);
+      addRevalidator(testKey, mockRevalidatorFn);
 
-      expect(() => unregisterAllRevalidators(testKey)).not.toThrow();
+      expect(() => removeRevalidator(testKey)).not.toThrow();
     });
 
     it('should handle unregistering when only focus exists', () => {
-      registerFocusRevalidator(testKey, mockRevalidatorFn);
+      addRevalidator(
+        testKey,
+        mockRevalidatorFn,
+        undefined,
+        undefined,
+        undefined,
+        true,
+      );
 
-      expect(() => unregisterAllRevalidators(testKey)).not.toThrow();
+      expect(() => removeRevalidator(testKey)).not.toThrow();
     });
 
     it('should handle unregistering when neither exists', () => {
-      expect(() => unregisterAllRevalidators(testKey)).not.toThrow();
+      expect(() => removeRevalidator(testKey)).not.toThrow();
     });
   });
 
@@ -603,23 +566,29 @@ describe('Revalidator Manager', () => {
       const manualFn = jest.fn().mockResolvedValue('manual');
       const focusFn = jest.fn().mockResolvedValue('focus');
 
-      registerRevalidator(testKey, manualFn, 5000);
-      registerFocusRevalidator(testKey, focusFn, 10000);
+      addRevalidator(testKey, manualFn, 5000);
+      addRevalidator(testKey, focusFn, 10000, undefined, undefined, true);
 
       // Manual revalidation should only call manual function
       const result = await revalidate(testKey);
-      expect(manualFn).toHaveBeenCalledTimes(1);
-      expect(focusFn).not.toHaveBeenCalled();
-      expect(result).toBe('manual');
+      expect(focusFn).toHaveBeenCalledTimes(1);
+      expect(manualFn).not.toHaveBeenCalled();
+      expect(result).toBe('focus');
 
       // Cleanup should work independently
-      unregisterFocusRevalidator(testKey);
-      unregisterRevalidator(testKey);
+      removeRevalidator(testKey);
     });
 
     it('should handle revalidators with TTL = 0 never expiring', async () => {
-      registerRevalidator(testKey, mockRevalidatorFn, 0);
-      registerFocusRevalidator(testKey2, mockRevalidatorFn2, 0);
+      addRevalidator(testKey, mockRevalidatorFn, 0);
+      addRevalidator(
+        testKey2,
+        mockRevalidatorFn2,
+        0,
+        undefined,
+        undefined,
+        true,
+      );
 
       const cleanup = startRevalidatorCleanup(50); // Reduced cleanup interval
 
@@ -629,12 +598,14 @@ describe('Revalidator Manager', () => {
       // Both should still work
       await revalidate(testKey);
       expect(mockRevalidatorFn).toHaveBeenCalledTimes(1);
+      await revalidate(testKey2);
+      expect(mockRevalidatorFn2).toHaveBeenCalledTimes(1);
 
       cleanup();
     });
 
     it('should handle periodic cleanup correctly', async () => {
-      registerRevalidator(testKey, mockRevalidatorFn, 100); // Reduced TTL
+      addRevalidator(testKey, mockRevalidatorFn, 100); // Reduced TTL
 
       const cleanup = startRevalidatorCleanup(50); // Reduced cleanup interval
 
@@ -653,7 +624,7 @@ describe('Revalidator Manager', () => {
     });
 
     it('should handle negative TTL values in cleanup', async () => {
-      registerRevalidator(testKey, mockRevalidatorFn, -1000);
+      addRevalidator(testKey, mockRevalidatorFn, -1000);
 
       const cleanup = startRevalidatorCleanup(50); // Reduced cleanup interval
       jest.advanceTimersByTime(100); // Reduced time advance
@@ -665,8 +636,8 @@ describe('Revalidator Manager', () => {
     });
 
     it('should handle extreme values gracefully', async () => {
-      registerRevalidator(testKey, mockRevalidatorFn, Number.MAX_SAFE_INTEGER);
-      registerRevalidator(testKey2, mockRevalidatorFn2, NaN);
+      addRevalidator(testKey, mockRevalidatorFn, Number.MAX_SAFE_INTEGER);
+      addRevalidator(testKey2, mockRevalidatorFn2, NaN);
 
       await revalidate(testKey);
       await revalidate(testKey2);
@@ -677,24 +648,31 @@ describe('Revalidator Manager', () => {
 
     it('should handle keys containing focus suffix correctly', async () => {
       const trickeyKey = 'test|f|more';
-      registerRevalidator(trickeyKey, mockRevalidatorFn);
-      registerFocusRevalidator(trickeyKey, mockRevalidatorFn2);
+      addRevalidator(trickeyKey, mockRevalidatorFn);
+      addRevalidator(
+        trickeyKey,
+        mockRevalidatorFn2,
+        undefined,
+        undefined,
+        undefined,
+        true,
+      );
 
       await revalidate(trickeyKey);
-      expect(mockRevalidatorFn).toHaveBeenCalledTimes(1);
+      expect(mockRevalidatorFn2).toHaveBeenCalledTimes(1);
 
-      unregisterAllRevalidators(trickeyKey);
+      removeRevalidator(trickeyKey);
       const result = await revalidate(trickeyKey);
       expect(result).toBeNull();
     });
 
     it('should handle self-modifying revalidators', async () => {
       const selfModifyingFn = jest.fn().mockImplementation(() => {
-        unregisterRevalidator(testKey);
+        removeRevalidator(testKey);
         return 'self-modified';
       });
 
-      registerRevalidator(testKey, selfModifyingFn);
+      addRevalidator(testKey, selfModifyingFn);
 
       const result = await revalidate(testKey);
       expect(result).toBe('self-modified');
@@ -711,7 +689,7 @@ describe('Revalidator Manager', () => {
         .mockResolvedValueOnce(42)
         .mockResolvedValueOnce({ data: 'object' });
 
-      registerRevalidator(testKey, multiTypeFn);
+      addRevalidator(testKey, multiTypeFn);
 
       expect(await revalidate(testKey)).toBe('string');
       expect(await revalidate(testKey)).toBe(42);
@@ -722,7 +700,7 @@ describe('Revalidator Manager', () => {
 
     it('should preserve TTL when updating lastUsed timestamp', async () => {
       const customTTL = 10000;
-      registerRevalidator(testKey, mockRevalidatorFn, customTTL);
+      addRevalidator(testKey, mockRevalidatorFn, customTTL);
 
       await revalidate(testKey);
       jest.advanceTimersByTime(5000);
@@ -736,7 +714,7 @@ describe('Revalidator Manager', () => {
       // Reduced from 50 to 10 for faster execution
       for (let i = 0; i < 10; i++) {
         const fn = jest.fn().mockResolvedValue(`result-${i}`);
-        registerRevalidator(`key-${i}`, fn, 50); // Reduced TTL
+        addRevalidator(`key-${i}`, fn, 50); // Reduced TTL
         promises.push(revalidate(`key-${i}`));
       }
 
@@ -760,7 +738,7 @@ describe('Revalidator Manager', () => {
 
     beforeEach(() => {
       jest.useFakeTimers();
-      removeFocusRevalidators();
+      removeRevalidators('focus');
 
       const mockAddEventListener = jest
         .fn()
@@ -772,7 +750,6 @@ describe('Revalidator Manager', () => {
 
       window.addEventListener = mockAddEventListener;
       window.removeEventListener = jest.fn();
-      initFetchffRevalidationOnFocus();
     });
 
     afterEach(() => {
@@ -780,19 +757,30 @@ describe('Revalidator Manager', () => {
       jest.restoreAllMocks();
     });
 
-    it('should handle focus revalidation with proper cleanup timing', () => {
+    it('should handle focus revalidation with proper cleanup timing and deletion before focus event', () => {
       const shortTTL = 100;
-      registerFocusRevalidator(testKey, mockRevalidatorFn, shortTTL);
+      addRevalidator(
+        testKey,
+        mockRevalidatorFn,
+        shortTTL,
+        undefined,
+        undefined,
+        true,
+      );
+
+      startRevalidatorCleanup(10);
 
       // Fast forward well past TTL
       jest.advanceTimersByTime(shortTTL + 50);
 
-      // Focus event should clean up expired entry
+      // Simulate deletion before focus event
+      removeRevalidator(testKey);
+
+      // Focus event should not call the revalidator since it was deleted
       if (focusHandler) {
         focusHandler();
       }
 
-      // Should not be called because it was expired
       expect(mockRevalidatorFn).not.toHaveBeenCalled();
     });
 
@@ -800,8 +788,15 @@ describe('Revalidator Manager', () => {
       const errorFn = jest.fn().mockRejectedValue(new Error('Focus error'));
       const workingFn = jest.fn().mockResolvedValue('success');
 
-      registerFocusRevalidator(testKey, errorFn);
-      registerFocusRevalidator(testKey2, workingFn);
+      addRevalidator(testKey, errorFn, undefined, undefined, errorFn, true);
+      addRevalidator(
+        testKey2,
+        workingFn,
+        undefined,
+        undefined,
+        workingFn,
+        true,
+      );
 
       // Should not throw despite error in one revalidator
       expect(() => {
@@ -816,8 +811,8 @@ describe('Revalidator Manager', () => {
     });
 
     it('should not trigger manual revalidators on focus events', () => {
-      registerRevalidator(testKey, mockRevalidatorFn);
-      registerRevalidator(testKey2, mockRevalidatorFn2);
+      addRevalidator(testKey, mockRevalidatorFn);
+      addRevalidator(testKey2, mockRevalidatorFn2);
 
       if (focusHandler) {
         focusHandler();
@@ -829,7 +824,14 @@ describe('Revalidator Manager', () => {
     });
 
     it('should handle rapid focus events without issues', () => {
-      registerFocusRevalidator(testKey, mockRevalidatorFn, 5000);
+      addRevalidator(
+        testKey,
+        mockRevalidatorFn,
+        5000,
+        undefined,
+        mockRevalidatorFn,
+        true,
+      );
 
       // Trigger multiple focus events rapidly (reduced from 5 to 3)
       if (focusHandler) {
@@ -854,7 +856,7 @@ describe('Revalidator Manager', () => {
     });
 
     it('should handle TTL = 0 as never expire', async () => {
-      registerRevalidator(testKey, mockRevalidatorFn, 0);
+      addRevalidator(testKey, mockRevalidatorFn, 0);
 
       const cleanup = startRevalidatorCleanup(50); // Reduced cleanup interval
 
@@ -868,7 +870,7 @@ describe('Revalidator Manager', () => {
     });
 
     it('should clean up expired entries in periodic cleanup', async () => {
-      registerRevalidator(testKey, mockRevalidatorFn, 100);
+      addRevalidator(testKey, mockRevalidatorFn, 100);
 
       const cleanup = startRevalidatorCleanup(50);
       jest.advanceTimersByTime(200);
@@ -883,18 +885,18 @@ describe('Revalidator Manager', () => {
       const manualFn = jest.fn().mockResolvedValue('manual');
       const focusFn = jest.fn().mockResolvedValue('focus');
 
-      registerRevalidator(testKey, manualFn);
-      registerFocusRevalidator(testKey, focusFn);
+      addRevalidator(testKey, manualFn);
+      addRevalidator(testKey, focusFn, undefined, undefined, undefined, true);
 
       const result = await revalidate(testKey);
-      expect(manualFn).toHaveBeenCalledTimes(1);
-      expect(focusFn).not.toHaveBeenCalled();
-      expect(result).toBe('manual');
+      expect(focusFn).toHaveBeenCalledTimes(1);
+      expect(manualFn).not.toHaveBeenCalled();
+      expect(result).toBe('focus');
     });
 
     it('should handle extreme TTL values', async () => {
-      registerRevalidator(testKey, mockRevalidatorFn, Number.MAX_SAFE_INTEGER);
-      registerRevalidator(testKey2, mockRevalidatorFn2, -1000);
+      addRevalidator(testKey, mockRevalidatorFn, Number.MAX_SAFE_INTEGER);
+      addRevalidator(testKey2, mockRevalidatorFn2, -1000);
 
       await revalidate(testKey);
       await revalidate(testKey2);
@@ -905,24 +907,31 @@ describe('Revalidator Manager', () => {
 
     it('should handle keys containing focus suffix', async () => {
       const specialKey = 'test|f|more';
-      registerRevalidator(specialKey, mockRevalidatorFn);
-      registerFocusRevalidator(specialKey, mockRevalidatorFn2);
+      addRevalidator(specialKey, mockRevalidatorFn);
+      addRevalidator(
+        specialKey,
+        mockRevalidatorFn2,
+        undefined,
+        undefined,
+        undefined,
+        true,
+      );
 
       await revalidate(specialKey);
-      expect(mockRevalidatorFn).toHaveBeenCalledTimes(1);
+      expect(mockRevalidatorFn2).toHaveBeenCalledTimes(1);
 
-      unregisterAllRevalidators(specialKey);
+      removeRevalidator(specialKey);
       const result = await revalidate(specialKey);
       expect(result).toBeNull();
     });
 
     it('should handle self-modifying revalidators', async () => {
       const selfModifyingFn = jest.fn().mockImplementation(() => {
-        unregisterRevalidator(testKey);
+        removeRevalidator(testKey);
         return 'modified';
       });
 
-      registerRevalidator(testKey, selfModifyingFn);
+      addRevalidator(testKey, selfModifyingFn);
 
       const result1 = await revalidate(testKey);
       const result2 = await revalidate(testKey);
@@ -944,8 +953,8 @@ describe('Revalidator Manager', () => {
     });
 
     afterEach(() => {
-      unregisterRevalidator(testKey);
-      unregisterRevalidator(testKey2);
+      removeRevalidator(testKey);
+      removeRevalidator(testKey2);
       jest.useRealTimers();
       jest.restoreAllMocks();
     });
@@ -955,7 +964,7 @@ describe('Revalidator Manager', () => {
       const bgFn = jest.fn().mockResolvedValue('background');
       const staleTime = 1000;
 
-      registerRevalidator(testKey, mainFn, 3 * 60 * 1000, staleTime, bgFn);
+      addRevalidator(testKey, mainFn, 3 * 60 * 1000, staleTime, bgFn);
 
       // Initially no background revalidation
       expect(bgFn).not.toHaveBeenCalled();
@@ -975,7 +984,7 @@ describe('Revalidator Manager', () => {
       const mainFn = jest.fn().mockResolvedValue('main');
       const bgFn = jest.fn().mockResolvedValue('background');
 
-      registerRevalidator(testKey, mainFn, 3 * 60 * 1000, 0, bgFn);
+      addRevalidator(testKey, mainFn, 3 * 60 * 1000, 0, bgFn);
 
       jest.advanceTimersByTime(10000);
       jest.runAllTimers();
@@ -989,8 +998,8 @@ describe('Revalidator Manager', () => {
       const bgFn = jest.fn().mockResolvedValue('background');
       const staleTime = 1000;
 
-      registerRevalidator(testKey, mainFn, 3 * 60 * 1000, staleTime, bgFn);
-      unregisterRevalidator(testKey);
+      addRevalidator(testKey, mainFn, 3 * 60 * 1000, staleTime, bgFn);
+      removeRevalidator(testKey);
 
       // Advance time past staleTime
       jest.advanceTimersByTime(staleTime + 10);
@@ -1005,7 +1014,7 @@ describe('Revalidator Manager', () => {
       const bgFn = jest.fn().mockRejectedValue(new Error('Background error'));
       const staleTime = 1000;
 
-      registerRevalidator(testKey, mainFn, 3 * 60 * 1000, staleTime, bgFn);
+      addRevalidator(testKey, mainFn, 3 * 60 * 1000, staleTime, bgFn);
 
       // Should not throw despite background error
       expect(() => {
@@ -1021,7 +1030,7 @@ describe('Revalidator Manager', () => {
       const mainFn = jest.fn().mockResolvedValue('main');
       const bgFn = jest.fn().mockResolvedValue('background');
 
-      registerRevalidator(testKey, mainFn, 3 * 60 * 1000, 0, bgFn);
+      addRevalidator(testKey, mainFn, 3 * 60 * 1000, 0, bgFn);
 
       const result = await revalidate(testKey, true);
       expect(bgFn).toHaveBeenCalledTimes(1);
@@ -1032,7 +1041,7 @@ describe('Revalidator Manager', () => {
     it('should return null when background revalidator is not defined', async () => {
       const mainFn = jest.fn().mockResolvedValue('main');
 
-      registerRevalidator(testKey, mainFn, 3 * 60 * 1000, 0);
+      addRevalidator(testKey, mainFn, 3 * 60 * 1000, 0);
 
       const result = await revalidate(testKey, true);
       expect(result).toBeNull();
@@ -1047,8 +1056,8 @@ describe('Revalidator Manager', () => {
       const staleTime1 = 1000;
       const staleTime2 = 2000;
 
-      registerRevalidator(testKey, fn1, 3 * 60 * 1000, staleTime1, bgFn1);
-      registerRevalidator(testKey2, fn2, 3 * 60 * 1000, staleTime2, bgFn2);
+      addRevalidator(testKey, fn1, 3 * 60 * 1000, staleTime1, bgFn1);
+      addRevalidator(testKey2, fn2, 3 * 60 * 1000, staleTime2, bgFn2);
 
       // Advance time past first staleTime
       jest.advanceTimersByTime(staleTime1 + 10);
@@ -1080,13 +1089,7 @@ describe('Revalidator Manager', () => {
       const mainFn = jest.fn().mockResolvedValue('main');
       const staleTime = 1000;
 
-      registerRevalidator(
-        testKey,
-        mainFn,
-        3 * 60 * 1000,
-        staleTime,
-        bgRevalidator,
-      );
+      addRevalidator(testKey, mainFn, 3 * 60 * 1000, staleTime, bgRevalidator);
 
       // Advance time past staleTime
       jest.advanceTimersByTime(staleTime + 10);
@@ -1114,13 +1117,7 @@ describe('Revalidator Manager', () => {
       const mainFn = jest.fn().mockResolvedValue('main');
       const staleTime = 1000;
 
-      registerRevalidator(
-        testKey,
-        mainFn,
-        3 * 60 * 1000,
-        staleTime,
-        bgRevalidator,
-      );
+      addRevalidator(testKey, mainFn, 3 * 60 * 1000, staleTime, bgRevalidator);
 
       // Advance time past staleTime
       jest.advanceTimersByTime(staleTime + 10);
@@ -1132,68 +1129,10 @@ describe('Revalidator Manager', () => {
     });
   });
 
-  describe('registerRevalidators function coverage', () => {
-    it('should register both main and focus revalidators when revalidatorOnFocus is true', () => {
-      removeFocusRevalidators();
-      const mockAddEventListener = jest.fn();
-      window.addEventListener = mockAddEventListener;
-      window.removeEventListener = jest.fn();
-
-      registerRevalidators(
-        testKey,
-        mockRevalidatorFn,
-        true,
-        1000,
-        mockRevalidatorFn2,
-      );
-
-      expect(mockAddEventListener).toHaveBeenCalledWith(
-        'focus',
-        expect.any(Function),
-      );
-    });
-
-    it('should only register main revalidator when revalidatorOnFocus is false', () => {
-      const mockAddEventListener = jest.fn();
-      window.addEventListener = mockAddEventListener;
-
-      registerRevalidators(
-        testKey,
-        mockRevalidatorFn,
-        false,
-        1000,
-        mockRevalidatorFn2,
-      );
-
-      // Should not add focus event listener
-      expect(mockAddEventListener).not.toHaveBeenCalled();
-    });
-
-    it('should pass correct parameters to registerRevalidator', async () => {
-      const customTTL = 5000;
-      const staleTime = 2000;
-
-      registerRevalidators(
-        testKey,
-        mockRevalidatorFn,
-        false,
-        staleTime,
-        mockRevalidatorFn2,
-        customTTL,
-      );
-
-      await revalidate(testKey);
-      expect(mockRevalidatorFn).toHaveBeenCalledTimes(1);
-
-      await revalidate(testKey, true);
-      expect(mockRevalidatorFn2).toHaveBeenCalledTimes(1);
-    });
-  });
-
   describe('additional edge cases and error conditions', () => {
     it('should handle revalidator function that returns undefined', async () => {
       const undefinedFn = jest.fn().mockResolvedValue(undefined);
-      registerRevalidator(testKey, undefinedFn);
+      addRevalidator(testKey, undefinedFn);
 
       const result = await revalidate(testKey);
       expect(undefinedFn).toHaveBeenCalledTimes(1);
@@ -1202,7 +1141,7 @@ describe('Revalidator Manager', () => {
 
     it('should handle very large TTL values without overflow', async () => {
       const largeTTL = Number.MAX_SAFE_INTEGER;
-      registerRevalidator(testKey, mockRevalidatorFn, largeTTL);
+      addRevalidator(testKey, mockRevalidatorFn, largeTTL);
 
       await revalidate(testKey);
       expect(mockRevalidatorFn).toHaveBeenCalledTimes(1);
@@ -1210,12 +1149,12 @@ describe('Revalidator Manager', () => {
 
     it('should handle keys with special characters', async () => {
       const specialKey = 'test-key/with:special@chars#and%encoding';
-      registerRevalidator(specialKey, mockRevalidatorFn);
+      addRevalidator(specialKey, mockRevalidatorFn);
 
       await revalidate(specialKey);
       expect(mockRevalidatorFn).toHaveBeenCalledTimes(1);
 
-      unregisterRevalidator(specialKey);
+      removeRevalidator(specialKey);
       const result = await revalidate(specialKey);
       expect(result).toBeNull();
     });
@@ -1227,7 +1166,7 @@ describe('Revalidator Manager', () => {
         return Promise.resolve(`count-${globalCounter}`);
       });
 
-      registerRevalidator(testKey, statefulFn);
+      addRevalidator(testKey, statefulFn);
 
       const result1 = await revalidate(testKey);
       const result2 = await revalidate(testKey);
@@ -1248,7 +1187,7 @@ describe('Revalidator Manager', () => {
         );
       });
 
-      registerRevalidator(testKey, slowFn);
+      addRevalidator(testKey, slowFn);
 
       // Start multiple revalidations simultaneously
       const promise1 = revalidate(testKey);
@@ -1269,21 +1208,35 @@ describe('Revalidator Manager', () => {
 
     it('should handle focus revalidator registration when focus handler not initialized', () => {
       // Remove focus handler if it exists
-      removeFocusRevalidators();
+      removeRevalidators('focus');
 
       // Should not throw when registering focus revalidator without handler
       expect(() => {
-        registerFocusRevalidator(testKey, mockRevalidatorFn);
+        addRevalidator(
+          testKey,
+          mockRevalidatorFn,
+          undefined,
+          undefined,
+          undefined,
+          true,
+        );
       }).not.toThrow();
     });
 
     it('should handle cleanup with mixed revalidator types', () => {
-      registerRevalidator(testKey, mockRevalidatorFn);
-      registerFocusRevalidator(testKey, mockRevalidatorFn2);
+      addRevalidator(testKey, mockRevalidatorFn);
+      addRevalidator(
+        testKey,
+        mockRevalidatorFn2,
+        undefined,
+        undefined,
+        undefined,
+        true,
+      );
 
       // Should clean up both types
       expect(() => {
-        unregisterAllRevalidators(testKey);
+        removeRevalidator(testKey);
       }).not.toThrow();
     });
 
@@ -1294,7 +1247,7 @@ describe('Revalidator Manager', () => {
       const bgFn = jest.fn().mockResolvedValue('background');
       const shortStaleTime = 1; // 1ms
 
-      registerRevalidator(testKey, mainFn, 3 * 60 * 1000, shortStaleTime, bgFn);
+      addRevalidator(testKey, mainFn, 3 * 60 * 1000, shortStaleTime, bgFn);
 
       // Wait slightly longer than stale time
       await new Promise((resolve) => setTimeout(resolve, 5));

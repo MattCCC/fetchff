@@ -353,3 +353,15 @@ export function processHeaders(
 
   return headersObject;
 }
+
+/**
+ * Determines if the current environment is a browser.
+ *
+ * @returns {boolean} - True if running in a browser environment, false otherwise.
+ */
+export function isBrowser(): boolean {
+  // For node and and some mobile frameworks like React Native, `add/removeEventListener` doesn't exist on window!
+  return (
+    typeof window !== UNDEFINED && typeof window.addEventListener === FUNCTION
+  );
+}

@@ -28,7 +28,7 @@ import { buildConfig, defaultConfig, mergeConfig } from './config-handler';
 import { getRetryAfterMs } from './retry-handler';
 import { withPolling } from './polling-handler';
 import { notifySubscribers } from './pubsub-manager';
-import { registerRevalidators } from './revalidator-manager';
+import { addRevalidator } from './revalidator-manager';
 
 /**
  * Create Request Handler
@@ -113,6 +113,7 @@ export function createRequestHandler(
       cacheTime,
       cacheKey,
       revalidateOnFocus,
+      revalidateOnReconnect,
       pollingInterval = 0,
     } = mergedConfig;
 
@@ -125,7 +126,8 @@ export function createRequestHandler(
       dedupeTime ||
       cancellable ||
       timeout ||
-      revalidateOnFocus
+      revalidateOnFocus ||
+      revalidateOnReconnect
     ) {
       _cacheKey = generateCacheKey(fetcherConfig);
     }
@@ -456,12 +458,14 @@ export function createRequestHandler(
         setInFlightPromise(_cacheKey, doRequestPromise);
       }
 
-      registerRevalidators(
+      addRevalidator(
         _cacheKey,
         doRequestWithInFlight,
-        !!revalidateOnFocus,
+        undefined,
         mergedConfig.staleTime,
         doRequestOnce,
+        !!revalidateOnFocus,
+        !!revalidateOnReconnect,
       );
     }
 

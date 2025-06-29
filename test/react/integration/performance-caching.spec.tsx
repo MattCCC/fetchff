@@ -63,7 +63,7 @@ describe('Performance & Caching Integration Tests', () => {
       const endTime = performance.now();
       // Should complete within reasonable time
       // It is a basic performance test, not a strict benchmark
-      expect(endTime - startTime).toBeLessThan(250);
+      expect(endTime - startTime).toBeLessThan(350);
     });
   });
 

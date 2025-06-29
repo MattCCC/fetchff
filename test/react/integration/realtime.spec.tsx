@@ -12,7 +12,7 @@ import {
 import { useEffect, useState } from 'react';
 import { clearMockResponses } from '../../utils/mockFetchResponse';
 import { useFetcher } from '../../../src/react/index';
-import { removeFocusRevalidators } from 'fetchff/revalidator-manager';
+import { removeRevalidators } from '../../../src/revalidator-manager';
 
 describe('Real-time & WebSocket Integration Tests', () => {
   beforeEach(() => {
@@ -248,7 +248,7 @@ describe('Real-time & WebSocket Integration Tests', () => {
 
   describe('Background Updates', () => {
     afterEach(() => {
-      removeFocusRevalidators();
+      removeRevalidators('focus');
     });
 
     it('should handle revalidation on window focus', async () => {
