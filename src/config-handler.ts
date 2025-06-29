@@ -78,15 +78,24 @@ export const buildConfig = (
   url: string,
   requestConfig: RequestConfig,
 ): FetcherConfig => {
-  const method = (requestConfig.method ?? GET).toUpperCase() as Method;
-  const isGetAlikeMethod = method === GET || method === HEAD;
-  const dynamicUrl = replaceUrlPathParams(url, requestConfig.urlPathParams);
+  let method = requestConfig.method as Method;
+  method = method ? (method.toUpperCase() as Method) : GET;
 
   let body: RequestConfig['data'] | undefined;
 
   // Only applicable for request methods 'PUT', 'POST', 'DELETE', and 'PATCH'
-  if (!isGetAlikeMethod) {
+  if (method !== GET && method !== HEAD) {
     body = requestConfig.body ?? requestConfig.data;
+
+    // Automatically stringify request body, if possible and when not dealing with strings
+    if (
+      body &&
+      typeof body !== STRING &&
+      !isSearchParams(body) &&
+      isJSONSerializable(body)
+    ) {
+      body = JSON.stringify(body);
+    }
   }
 
   setContentTypeIfNeeded(method, requestConfig.headers, body);
@@ -97,21 +106,12 @@ export const buildConfig = (
     : requestConfig.credentials;
 
   // The explicitly passed query params
+  const dynamicUrl = replaceUrlPathParams(url, requestConfig.urlPathParams);
   const urlPath = appendQueryParams(dynamicUrl, requestConfig.params);
   const isFullUrl = urlPath.includes('://');
   const baseURL = isFullUrl
     ? ''
-    : (requestConfig.baseURL ?? requestConfig.apiUrl ?? '');
-
-  // Automatically stringify request body, if possible and when not dealing with strings
-  if (
-    body &&
-    typeof body !== STRING &&
-    !isSearchParams(body) &&
-    isJSONSerializable(body)
-  ) {
-    body = JSON.stringify(body);
-  }
+    : requestConfig.baseURL || requestConfig.apiUrl || '';
 
   return {
     ...requestConfig,

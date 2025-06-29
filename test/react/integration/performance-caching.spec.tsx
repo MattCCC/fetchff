@@ -9,7 +9,7 @@ import {
   fireEvent,
   act,
 } from '@testing-library/react';
-import { useEffect, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import {
   clearMockResponses,
   mockFetchResponse,
@@ -32,17 +32,17 @@ describe('Performance & Caching Integration Tests', () => {
     it('should handle many simultaneous different requests efficiently', async () => {
       jest.useRealTimers();
 
-      const startTime = performance.now();
-
       // Mock 100 different endpoints
       for (let i = 0; i < 100; i++) {
         mockFetchResponse(`/api/perf-${i}`, { body: { id: i } });
       }
 
+      const startTime = performance.now();
+
       const ManyRequestsComponent = () => {
         const requests = Array.from({ length: 100 }, (_, i) => {
-          const { data } = useFetcher(`/api/perf-${i}`);
-          return data;
+          const response = useFetcher(`/api/perf-${i}`);
+          return response;
         });
 
         return (
@@ -64,6 +64,194 @@ describe('Performance & Caching Integration Tests', () => {
       // Should complete within reasonable time
       // It is a basic performance test, not a strict benchmark
       expect(endTime - startTime).toBeLessThan(350);
+    });
+
+    it('should not cause unnecessary rerenders with external store', async () => {
+      jest.useRealTimers();
+
+      let renderCount = 0;
+      let dataChangeCount = 0;
+      let previousData: unknown = null;
+
+      mockFetchResponse('/api/stable-data', {
+        body: { message: 'Stable data', timestamp: Date.now() },
+      });
+
+      const RenderTrackingComponent = memo(({ testId }: { testId: string }) => {
+        renderCount++;
+
+        const { data, isLoading, error } = useFetcher('/api/stable-data', {
+          cacheTime: 30000, // Long cache time
+          staleTime: 15000, // Long stale time
+        });
+
+        // Track actual data changes (not just rerenders)
+        console.log(
+          '🚀 ~ RenderTrackingComponent ~ data:',
+          testId,
+          isLoading,
+          previousData,
+          data,
+        );
+        if (data !== previousData) {
+          dataChangeCount++;
+          previousData = data;
+        }
+
+        return (
+          <div data-testid={testId}>
+            <div data-testid={`${testId}-render-count`}>{renderCount}</div>
+            <div data-testid={`${testId}-data-change-count`}>
+              {dataChangeCount}
+            </div>
+            <div data-testid={`${testId}-data`}>
+              {data ? JSON.stringify(data) : 'Loading...'}
+            </div>
+            <div data-testid={`${testId}-loading`}>
+              {isLoading ? 'Loading' : 'Loaded'}
+            </div>
+            <div data-testid={`${testId}-error`}>
+              {error ? 'Error' : 'No Error'}
+            </div>
+          </div>
+        );
+      });
+
+      const TestContainer = () => {
+        const [forceRerender, setForceRerender] = useState(0);
+        const [unrelatedState, setUnrelatedState] = useState('initial');
+
+        return (
+          <div>
+            <RenderTrackingComponent testId="stable-component" />
+
+            <div data-testid="force-rerender-count">{forceRerender}</div>
+            <div data-testid="unrelated-state">{unrelatedState}</div>
+
+            <button
+              data-testid="force-rerender-btn"
+              onClick={() => setForceRerender((prev) => prev + 1)}
+            >
+              Force Parent Rerender
+            </button>
+
+            <button
+              data-testid="change-unrelated-btn"
+              onClick={() => setUnrelatedState(`changed-${Date.now()}`)}
+            >
+              Change Unrelated State
+            </button>
+          </div>
+        );
+      };
+
+      const { rerender } = render(<TestContainer />);
+
+      // Wait for initial data load
+      await waitFor(() => {
+        expect(screen.getByTestId('stable-component-data')).toHaveTextContent(
+          'Stable data',
+        );
+        expect(
+          screen.getByTestId('stable-component-loading'),
+        ).toHaveTextContent('Loaded');
+      });
+
+      // Get initial counts
+      const initialRenderCount = parseInt(
+        screen.getByTestId('stable-component-render-count').textContent || '0',
+      );
+      const initialDataChangeCount = parseInt(
+        screen.getByTestId('stable-component-data-change-count').textContent ||
+          '0',
+      );
+
+      // Test 1: Force parent rerenders should not cause child rerenders
+      fireEvent.click(screen.getByTestId('force-rerender-btn'));
+      fireEvent.click(screen.getByTestId('force-rerender-btn'));
+      fireEvent.click(screen.getByTestId('force-rerender-btn'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('force-rerender-count')).toHaveTextContent(
+          '3',
+        );
+      });
+
+      // useFetcher component should not have re-rendered due to parent rerenders
+      expect(
+        parseInt(
+          screen.getByTestId('stable-component-render-count').textContent ||
+            '0',
+        ),
+      ).toBe(initialRenderCount); // Should be same as initial
+
+      // Test 2: Changing unrelated state should not cause rerenders
+      fireEvent.click(screen.getByTestId('change-unrelated-btn'));
+      fireEvent.click(screen.getByTestId('change-unrelated-btn'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('unrelated-state')).toHaveTextContent(
+          'changed-',
+        );
+      });
+
+      // Still should not have re-rendered
+      expect(
+        parseInt(
+          screen.getByTestId('stable-component-render-count').textContent ||
+            '0',
+        ),
+      ).toBe(initialRenderCount);
+
+      // Test 3: Manual rerender of entire tree should not cause unnecessary rerenders
+      rerender(<TestContainer />);
+      rerender(<TestContainer />);
+
+      // Component should still not have re-rendered unnecessarily
+      expect(
+        parseInt(
+          screen.getByTestId('stable-component-render-count').textContent ||
+            '0',
+        ),
+      ).toBe(initialRenderCount);
+
+      // Test 4: Data should not have changed (only one real data change - initial load)
+      expect(
+        parseInt(
+          screen.getByTestId('stable-component-data-change-count')
+            .textContent || '0',
+        ),
+      ).toBe(initialDataChangeCount); // Should be 1 (initial load only)
+
+      console.log('🎯 Render Performance Results:', {
+        totalRenders: parseInt(
+          screen.getByTestId('stable-component-render-count').textContent ||
+            '0',
+        ),
+        dataChanges: parseInt(
+          screen.getByTestId('stable-component-data-change-count')
+            .textContent || '0',
+        ),
+        parentRerenders: parseInt(
+          screen.getByTestId('force-rerender-count').textContent || '0',
+        ),
+        ratio: `${parseInt(screen.getByTestId('stable-component-render-count').textContent || '0')} renders / ${parseInt(screen.getByTestId('stable-component-data-change-count').textContent || '0')} data changes`,
+      });
+
+      // Assertions for optimal performance
+      expect(
+        parseInt(
+          screen.getByTestId('stable-component-render-count').textContent ||
+            '0',
+        ),
+      ).toBeLessThanOrEqual(initialRenderCount + 1); // Allow max 1 additional render
+
+      expect(
+        parseInt(
+          screen.getByTestId('stable-component-data-change-count')
+            .textContent || '0',
+        ),
+      ).toBe(1); // Should only have 1 data change (initial load)
     });
   });
 
@@ -157,7 +345,7 @@ describe('Performance & Caching Integration Tests', () => {
         const [cacheKey, setCacheKey] = useState('user-data-1');
 
         const { data, isLoading, refetch } = useFetcher('/api/user-data', {
-          cacheTime: 10000, // Long cache time
+          cacheTime: 1000, // Long cache time
           cacheKey,
         });
 

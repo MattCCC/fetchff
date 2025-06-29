@@ -437,7 +437,7 @@ export function createRequestHandler(
     // If cache key is specified, wrap the request with in-flight management
     const doRequestWithInFlight = _cacheKey
       ? async () => {
-          notifySubscribers(_cacheKey, { isFetching: true });
+          notifySubscribers(_cacheKey, { isFetching: true, data: null });
 
           return doRequestOnce();
         }
