@@ -1369,12 +1369,24 @@ The native `fetch()` API function doesn't throw exceptions for HTTP errors like 
 Promises are rejected, and global error handling is triggered. You must use `try/catch` blocks to handle errors.
 
 ```typescript
+import { fetchf } from 'fetchff';
+
 try {
-  const { data } = await fetchf('https://api.example.com/', {
-    strategy: 'reject', // It is default so it does not really needs to be specified
+  const { data } = await fetchf('https://api.example.com/users', {
+    strategy: 'reject', // Default strategy - can be omitted
+    timeout: 5000,
   });
+
+  console.log('Users fetched successfully:', data);
 } catch (error) {
-  console.error(error.status, error.statusText, error.response, error.config);
+  // Handle specific error types
+  if (error.status === 404) {
+    console.error('API endpoint not found');
+  } else if (error.status >= 500) {
+    console.error('Server error:', error.statusText);
+  } else {
+    console.error('Request failed:', error.message);
+  }
 }
 ```
 
@@ -1386,12 +1398,29 @@ try {
 > You must always check the error property in the response object to detect and handle errors.
 
 ```typescript
-const { data, error } = await fetchf('https://api.example.com/', {
+import { fetchf } from 'fetchff';
+
+const { data, error } = await fetchf('https://api.example.com/users', {
   strategy: 'softFail',
+  timeout: 5000,
 });
 
 if (error) {
-  console.error(error.status, error.statusText, error.response, error.config);
+  // Handle errors without try/catch
+  console.error('Request failed:', {
+    status: error.status,
+    message: error.message,
+    url: error.config?.url,
+  });
+
+  // Show user-friendly error message
+  if (error.status === 429) {
+    console.log('Rate limited. Please try again later.');
+  } else if (error.status >= 500) {
+    console.log('Server temporarily unavailable. Please try again.');
+  }
+} else {
+  console.log('Users fetched successfully:', data);
 }
 ```
 
@@ -1405,14 +1434,31 @@ Check `Response Object` section below to see how `error` object is structured.
 > You must always check the error property in the response object to detect and handle errors.
 
 ```typescript
-const { data, error } = await fetchf('https://api.example.com/', {
-  strategy: 'defaultResponse',
-  defaultResponse: {},
-});
+import { fetchf } from 'fetchff';
+
+const { data, error } = await fetchf(
+  'https://api.example.com/user-preferences',
+  {
+    strategy: 'defaultResponse',
+    defaultResponse: {
+      theme: 'light',
+      language: 'en',
+      notifications: true,
+    },
+    timeout: 5000,
+  },
+);
 
 if (error) {
-  console.error('Request failed', data); // "data" will be equal to {} if there is an error
+  console.warn('Failed to load user preferences, using defaults:', data);
+  // Log error for debugging but continue with default values
+  console.error('Preferences API error:', error.message);
+} else {
+  console.log('User preferences loaded:', data);
 }
+
+// Safe to use data regardless of error state
+document.body.className = data.theme;
 ```
 
 **`silent`**:  
@@ -2136,11 +2182,12 @@ interface Books {
 }
 
 interface BookQueryParams {
-  newBook: boolean;
+  newBook?: boolean;
+  category?: string;
 }
 
 interface BookPathParams {
-  bookId?: number;
+  bookId: number;
 }
 ```
 
@@ -2151,37 +2198,64 @@ import { createApiFetcher } from 'fetchff';
 
 const endpoints = {
   fetchBooks: {
-    url: 'books',
+    url: '/books',
+    method: 'GET' as const,
   },
   fetchBook: {
-    url: 'books/:bookId',
+    url: '/books/:bookId',
+    method: 'GET' as const,
   },
-};
+} as const;
 
-// No need to specify all endpoints types. For example, the "fetchBooks" is inferred automatically.
+// Define endpoints with proper typing
 interface EndpointsList {
   fetchBook: Endpoint<Book, BookQueryParams, BookPathParams>;
+  fetchBooks: Endpoint<Books, BookQueryParams>;
 }
 
 type EndpointsConfiguration = typeof endpoints;
 
 const api = createApiFetcher<EndpointsList, EndpointsConfiguration>({
-  apiUrl: 'https://example.com/api/',
+  baseURL: 'https://example.com/api',
   endpoints,
+  strategy: 'softFail',
 });
+
+export { api };
+export type { Book, Books, BookQueryParams, BookPathParams };
 ```
 
 ```typescript
+// Usage with full type safety
+import { api, type Book, type Books } from './api';
+
+// Properly typed request with URL params
 const book = await api.fetchBook({
   params: { newBook: true },
   urlPathParams: { bookId: 1 },
 });
 
-// Will return an error since "rating" does not exist in "BookQueryParams"
-const anotherBook = await api.fetchBook({ params: { rating: 5 } });
+if (book.error) {
+  console.error('Failed to fetch book:', book.error.message);
+} else {
+  console.log('Book title:', book.data?.title);
+}
 
-// You can also pass generic type directly to the request
-const books = await api.fetchBooks<Books>();
+// For example, this will cause a TypeScript error - 'rating' doesn't exist in BookQueryParams
+// const invalidBook = await api.fetchBook({
+//   params: { rating: 5 }
+// });
+
+// Generic type can be passed directly for additional type safety
+const books = await api.fetchBooks<Books>({
+  params: { category: 'fiction' },
+});
+
+if (books.error) {
+  console.error('Failed to fetch books:', books.error.message);
+} else {
+  console.log('Total books:', books.data?.totalResults);
+}
 ```
 
 </details>
@@ -2199,19 +2273,31 @@ const endpoints = {
   getPosts: {
     url: '/posts/:subject',
   },
-
   getUser: {
     // Generally there is no need to specify method: 'get' for GET requests as it is default one. It can be adjusted using global "method" setting
     method: 'get',
     url: '/user-details',
   },
-
   updateUserDetails: {
     method: 'post',
     url: '/user-details/update/:userId',
     strategy: 'defaultResponse',
   },
 };
+
+interface PostsResponse {
+  posts: Array<{ id: number; title: string; content: string }>;
+  totalCount: number;
+}
+
+interface PostsQueryParams {
+  additionalInfo?: string;
+  limit?: number;
+}
+
+interface PostsPathParams {
+  subject: string;
+}
 
 interface EndpointsList {
   getPosts: Endpoint<PostsResponse, PostsQueryParams, PostsPathParams>;
@@ -2220,7 +2306,7 @@ interface EndpointsList {
 type EndpointsConfiguration = typeof endpoints;
 
 const api = createApiFetcher<EndpointsList, EndpointsConfiguration>({
-  apiUrl: 'https://example.com/api',
+  baseURL: 'https://example.com/api',
   endpoints,
   onError(error) {
     console.log('Request failed', error);
@@ -2231,12 +2317,14 @@ const api = createApiFetcher<EndpointsList, EndpointsConfiguration>({
 });
 
 // Fetch user data - "data" will return data directly
-// GET to: http://example.com/api/user-details?userId=1&ratings[]=1&ratings[]=2
-const { data } = await api.getUser({ params: { userId: 1, ratings: [1, 2] } });
+// GET to: https://example.com/api/user-details?userId=1&ratings[]=1&ratings[]=2
+const { data } = await api.getUser({
+  params: { userId: 1, ratings: [1, 2] },
+});
 
 // Fetch posts - "data" will return data directly
-// GET to: http://example.com/api/posts/myTestSubject?additionalInfo=something
-const { data } = await api.getPosts({
+// GET to: https://example.com/api/posts/test?additionalInfo=something
+const { data: postsData } = await api.getPosts({
   params: { additionalInfo: 'something' },
   urlPathParams: { subject: 'test' },
 });
@@ -2301,7 +2389,7 @@ const api = createApiFetcher({
 import { createApiFetcher } from 'fetchff';
 
 const api = createApiFetcher({
-  apiUrl: 'https://example.com/api',
+  baseURL: 'https://example.com/api',
   endpoints: {
     sendMessage: {
       method: 'post',
@@ -2320,7 +2408,7 @@ async function sendMessage() {
 
     console.log('Message sent successfully');
   } catch (error) {
-    console.log(error);
+    console.error('Message failed to send:', error.message);
   }
 }
 
@@ -2339,7 +2427,7 @@ sendMessage();
 import { createApiFetcher } from 'fetchff';
 
 const api = createApiFetcher({
-  apiUrl: 'https://example.com/api',
+  baseURL: 'https://example.com/api',
   endpoints: {
     sendMessage: {
       method: 'post',
@@ -2356,9 +2444,9 @@ async function sendMessage() {
   });
 
   if (error) {
-    console.error('Request Error', error);
+    console.error('Request Error', error.message);
   } else {
-    console.log('Message sent successfully');
+    console.log('Message sent successfully:', data);
   }
 }
 
@@ -2377,12 +2465,11 @@ sendMessage();
 import { createApiFetcher } from 'fetchff';
 
 const api = createApiFetcher({
-  apiUrl: 'https://example.com/api',
+  baseURL: 'https://example.com/api',
   endpoints: {
     sendMessage: {
       method: 'post',
       url: '/send-message/:postId',
-
       // You can also specify strategy and other settings in global list of endpoints, but just for this endpoint
       // strategy: 'defaultResponse',
     },
@@ -2390,25 +2477,24 @@ const api = createApiFetcher({
 });
 
 async function sendMessage() {
-  const { data } = await api.sendMessage({
+  const { data, error } = await api.sendMessage({
     body: { message: 'Text' },
     urlPathParams: { postId: 1 },
     strategy: 'defaultResponse',
     // null is a default setting, you can change it to empty {} or anything
-    // defaultResponse: null,
+    defaultResponse: { status: 'failed', message: 'Default response' },
     onError(error) {
       // Callback is still triggered here
-      console.log(error);
+      console.error('API error:', error.message);
     },
   });
 
-  if (data === null) {
-    // Because of the strategy, if API call fails, it will just return null
+  if (error) {
+    console.warn('Message failed to send, using default response:', data);
     return;
   }
 
-  // You can do something with the response here
-  console.log('Message sent successfully');
+  console.log('Message sent successfully:', data);
 }
 
 sendMessage();
@@ -2426,12 +2512,11 @@ sendMessage();
 import { createApiFetcher } from 'fetchff';
 
 const api = createApiFetcher({
-  apiUrl: 'https://example.com/api',
+  baseURL: 'https://example.com/api',
   endpoints: {
     sendMessage: {
       method: 'post',
       url: '/send-message/:postId',
-
       // You can also specify strategy and other settings in here, just for this endpoint
       // strategy: 'silent',
     },
@@ -2444,7 +2529,7 @@ async function sendMessage() {
     urlPathParams: { postId: 1 },
     strategy: 'silent',
     onError(error) {
-      console.log(error);
+      console.error('Silent error logged:', error.message);
     },
   });
 
@@ -2468,7 +2553,7 @@ sendMessage();
 import { createApiFetcher } from 'fetchff';
 
 const api = createApiFetcher({
-  apiUrl: 'https://example.com/api',
+  baseURL: 'https://example.com/api',
   endpoints: {
     sendMessage: {
       method: 'post',
@@ -2478,17 +2563,21 @@ const api = createApiFetcher({
 });
 
 async function sendMessage() {
-  await api.sendMessage({
-    body: { message: 'Text' },
-    urlPathParams: { postId: 1 },
-    onError(error) {
-      console.log('Error', error.message);
-      console.log(error.response);
-      console.log(error.config);
-    },
-  });
+  try {
+    await api.sendMessage({
+      body: { message: 'Text' },
+      urlPathParams: { postId: 1 },
+      onError(error) {
+        console.error('Error intercepted:', error.message);
+        console.error('Response:', error.response);
+        console.error('Config:', error.config);
+      },
+    });
 
-  console.log('Message sent successfully');
+    console.log('Message sent successfully');
+  } catch (error) {
+    console.error('Final error handler:', error.message);
+  }
 }
 
 sendMessage();
@@ -2509,11 +2598,11 @@ import { createApiFetcher } from 'fetchff';
 
 // Initialize API fetcher with endpoints
 const api = createApiFetcher({
+  baseURL: 'https://example.com/api',
   endpoints: {
     getUser: { url: '/user' },
-    createPost: { url: '/post' },
+    createPost: { url: '/post', method: 'POST' },
   },
-  apiUrl: 'https://example.com/api',
 });
 
 async function fetchUserAndCreatePost(userId: number, postData: any) {
@@ -2563,90 +2652,148 @@ app.get('/api/proxy', async (req, res) => {
 
 `fetchff` is designed to seamlessly integrate with any popular frameworks like Next.js, libraries like React, Vue, React Query and SWR. It is written in pure JS so you can effortlessly manage API requests with minimal setup, and without any dependencies.
 
-#### Using with React - useFetcher() hook
+#### Advanced Caching Strategies
 
 <details>
   <summary><span style="cursor:pointer">Click to expand</span></summary>
   <br>
-  The <b>fetchff</b> ships with highly performant and optimized <b>useFetcher()</b> hook to handle the data fetching.<br><br>
 
-Basic usage:
+```typescript
+import { fetchf, mutate, deleteCache } from 'fetchff';
 
-```tsx
-import { useFetcher } from 'fetchff/react';
-
-export const ProfileComponent = ({ id }) => {
-  const {
-    data: profile,
-    error,
-    isLoading,
-  } = useFetcher('https://example.com/api/profile/:id', {
-    cacheTime: 20,
-    urlPathParams: { id },
+// Example: User dashboard with smart caching
+const fetchUserDashboard = async (userId: string) => {
+  return await fetchf(`/api/users/${userId}/dashboard`, {
+    cacheTime: 300, // Cache for 5 minutes
+    staleTime: 60, // Background revalidate after 1 minute
+    cacheKey: `user-dashboard-${userId}`, // Custom cache key
+    skipCache: (response) => response.status === 503, // Skip caching on service unavailable
+    revalidateOnFocus: true, // Refresh when user returns to tab
   });
+};
 
-  if (isLoading) return <div>Loading...</div>;
-  if (error) return <div>Error: {error.message}</div>;
+// Example: Optimistic updates with cache mutations
+const updateUserProfile = async (userId: string, updates: any) => {
+  // Optimistically update cache
+  const currentData = await fetchf(`/api/users/${userId}`);
+  await mutate(`/api/users/${userId}`, { ...currentData.data, ...updates });
 
-  return <div>{JSON.stringify(profile)}</div>;
+  try {
+    // Make actual API call
+    const response = await fetchf(`/api/users/${userId}`, {
+      method: 'PATCH',
+      body: updates,
+    });
+
+    // Update cache with real response
+    await mutate(`/api/users/${userId}`, response.data, { revalidate: true });
+
+    return response;
+  } catch (error) {
+    // Revert cache on error
+    await mutate(`/api/users/${userId}`, currentData.data);
+    throw error;
+  }
+};
+
+// Example: Cache invalidation after user logout
+const logout = async () => {
+  await fetchf('/api/auth/logout', { method: 'POST' });
+
+  // Clear all user-related cache
+  deleteCache('/api/user*');
+  deleteCache('/api/dashboard*');
 };
 ```
 
-Don't perform request if `id` doesn't exist (Dependent Queries):
+</details>
 
-```tsx
-import { useFetcher } from 'fetchff/react';
+#### Real-time Polling Implementation
 
-export const ProfileComponent = ({ id }) => {
-  const {
-    data: profile,
-    error,
-    isLoading,
-  } = useFetcher(id ? 'https://example.com/api/profile/:id' : null, {
-    cacheTime: 20,
-    urlPathParams: { id },
-  });
+<details>
+  <summary><span style="cursor:pointer">Click to expand</span></summary>
+  <br>
 
-  if (isLoading) return <div>Loading...</div>;
-  if (error) return <div>Error: {error.message}</div>;
+```typescript
+import { fetchf } from 'fetchff';
 
-  return <div>{JSON.stringify(profile)}</div>;
-};
-```
+// Example: Job status monitoring with intelligent polling
+const monitorJobStatus = async (jobId: string) => {
+  return await fetchf(`/api/jobs/${jobId}/status`, {
+    pollingInterval: 2000, // Poll every 2 seconds
+    pollingDelay: 500, // Wait 500ms before first poll
+    maxPollingAttempts: 30, // Max 30 attempts (1 minute total)
 
-Example with API Handler:
+    shouldStopPolling(response, attempt) {
+      // Stop polling when job is complete or failed
+      if (
+        response.data?.status === 'completed' ||
+        response.data?.status === 'failed'
+      ) {
+        return true;
+      }
 
-```tsx
-import { createApiFetcher } from 'fetchff';
+      // Stop if we've been polling for too long
+      if (attempt >= 30) {
+        console.warn('Job monitoring timeout after 30 attempts');
+        return true;
+      }
 
-export const api = createApiFetcher({
-  apiUrl: 'https://example.com/api',
-  strategy: 'softFail',
-  endpoints: {
-    getProfile: {
-      url: '/profile/:id',
+      return false;
     },
-  },
-});
-```
 
-```tsx
-import { useFetcher } from 'fetchff/react';
+    onResponse(response) {
+      console.log(`Job ${jobId} status:`, response.data?.status);
 
-export const ProfileComponent = ({ id }) => {
-  const {
-    data: profile,
-    error,
-    isLoading,
-  } = useFetcher('getProfile', {
-    fetcher: () => api.getProfile({ urlPathParams: { id } }),
+      // Update UI progress if available
+      if (response.data?.progress) {
+        updateProgressBar(response.data.progress);
+      }
+    },
   });
-
-  if (isLoading) return <div>Loading...</div>;
-  if (error) return <div>Error: {error.message}</div>;
-
-  return <div>{JSON.stringify(profile)}</div>;
 };
+
+// Example: Server health monitoring
+const monitorServerHealth = async () => {
+  return await fetchf('/api/health', {
+    pollingInterval: 30000, // Check every 30 seconds
+    shouldStopPolling(response, attempt) {
+      // Never stop health monitoring (until manually cancelled)
+      return false;
+    },
+
+    onResponse(response) {
+      const isHealthy = response.data?.status === 'healthy';
+      updateHealthIndicator(isHealthy);
+
+      if (!isHealthy) {
+        console.warn('Server health check failed:', response.data);
+        notifyAdmins(response.data);
+      }
+    },
+
+    onError(error) {
+      console.error('Health check failed:', error.message);
+      updateHealthIndicator(false);
+    },
+  });
+};
+
+// Helper functions (implementation depends on your UI framework)
+function updateProgressBar(progress: number) {
+  // Update progress bar in UI
+  console.log(`Progress: ${progress}%`);
+}
+
+function updateHealthIndicator(isHealthy: boolean) {
+  // Update health indicator in UI
+  console.log(`Server status: ${isHealthy ? 'Healthy' : 'Unhealthy'}`);
+}
+
+function notifyAdmins(healthData: any) {
+  // Send notifications to administrators
+  console.log('Notifying admins about health issue:', healthData);
+}
 ```
 
 </details>
@@ -2661,9 +2808,10 @@ Integrate `fetchff` with React Query to streamline your data fetching:
 
 ```tsx
 import { createApiFetcher } from 'fetchff';
+import { useQuery } from '@tanstack/react-query';
 
 const api = createApiFetcher({
-  apiUrl: 'https://example.com/api',
+  baseURL: 'https://example.com/api',
   endpoints: {
     getProfile: {
       url: '/profile/:id',
@@ -2671,10 +2819,12 @@ const api = createApiFetcher({
   },
 });
 
-export const useProfile = ({ id }) => {
-  return useQuery(['profile', id], () =>
-    api.getProfile({ urlPathParams: { id } }),
-  );
+export const useProfile = (id: string) => {
+  return useQuery({
+    queryKey: ['profile', id],
+    queryFn: () => api.getProfile({ urlPathParams: { id } }),
+    enabled: !!id, // Only fetch when id exists
+  });
 };
 ```
 
@@ -2691,16 +2841,23 @@ Combine `fetchff` with SWR for efficient data fetching and caching.
 Single calls:
 
 ```typescript
-const fetchProfile = ({ id }) =>
-  fetchf('https://example.com/api/profile/:id', { urlPathParams: id });
+import { fetchf } from 'fetchff';
+import useSWR from 'swr';
 
-export const useProfile = ({ id }) => {
-  const { data, error } = useSWR(['profile', id], fetchProfile);
+const fetchProfile = (id: string) =>
+  fetchf(`https://example.com/api/profile/${id}`, {
+    strategy: 'softFail',
+  });
+
+export const useProfile = (id: string) => {
+  const { data, error } = useSWR(id ? ['profile', id] : null, () =>
+    fetchProfile(id),
+  );
 
   return {
-    profile: data,
+    profile: data?.data,
     isLoading: !error && !data,
-    isError: error,
+    isError: error || data?.error,
   };
 };
 ```
@@ -2712,7 +2869,7 @@ import { createApiFetcher } from 'fetchff';
 import useSWR from 'swr';
 
 const api = createApiFetcher({
-  apiUrl: 'https://example.com/api',
+  baseURL: 'https://example.com/api',
   endpoints: {
     getProfile: {
       url: '/profile/:id',
@@ -2720,15 +2877,15 @@ const api = createApiFetcher({
   },
 });
 
-export const useProfile = ({ id }) => {
-  const fetcher = () => api.getProfile({ urlPathParams: { id } });
-
-  const { data, error } = useSWR(['profile', id], fetcher);
+export const useProfile = (id: string) => {
+  const { data, error } = useSWR(id ? ['profile', id] : null, () =>
+    api.getProfile({ urlPathParams: { id } }),
+  );
 
   return {
-    profile: data,
+    profile: data?.data,
     isLoading: !error && !data,
-    isError: error,
+    isError: error || data?.error,
   };
 };
 ```
@@ -2746,7 +2903,7 @@ export const useProfile = ({ id }) => {
 import { createApiFetcher } from 'fetchff';
 
 const api = createApiFetcher({
-  apiUrl: 'https://example.com/api',
+  baseURL: 'https://example.com/api',
   strategy: 'softFail',
   endpoints: {
     getProfile: { url: '/profile/:id' },
