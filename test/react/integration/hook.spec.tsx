@@ -298,6 +298,56 @@ describe('React Integration Tests', () => {
       expect(screen.getByTestId('config')).toHaveTextContent('"method":"POST"');
     });
 
+    it('should handle switching immediate from false to true', async () => {
+      mockFetchResponse('/api/immediate-switch', { body: { switched: true } });
+
+      const ImmediateSwitchComponent = ({
+        immediate,
+      }: {
+        immediate: boolean;
+      }) => {
+        const { data, isLoading } = useFetcher<TestData>(
+          '/api/immediate-switch',
+          {
+            immediate,
+          },
+        );
+
+        return (
+          <div>
+            <div data-testid="switch-data">
+              {data ? JSON.stringify(data) : 'No Data'}
+            </div>
+            <div data-testid="switch-loading">
+              {isLoading ? 'Loading' : 'Not Loading'}
+            </div>
+          </div>
+        );
+      };
+
+      const { rerender } = render(
+        <ImmediateSwitchComponent immediate={false} />,
+      );
+
+      // Should not make request when immediate is false
+      expect(screen.getByTestId('switch-loading')).toHaveTextContent(
+        'Not Loading',
+      );
+      expect(screen.getByTestId('switch-data')).toHaveTextContent('No Data');
+      expect(global.fetch).not.toHaveBeenCalled();
+
+      // Switch to immediate: true
+      rerender(<ImmediateSwitchComponent immediate={true} />);
+
+      // Should now make the request
+      await waitFor(() => {
+        expect(screen.getByTestId('switch-data')).toHaveTextContent(
+          '{"switched":true}',
+        );
+      });
+
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+    });
     it('should handle URL path parameters', async () => {
       mockFetchResponse('/api/users/123/posts', {
         body: {
