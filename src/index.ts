@@ -34,3 +34,6 @@ export { subscribe } from './pubsub-manager';
 
 /** Abort in-flight requests and check request status */
 export { abortRequest, getInFlightPromise } from './inflight-manager';
+
+/** Network and environment utilities (Browser Only) */
+export { isSlowConnection } from './utils';

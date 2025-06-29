@@ -365,3 +365,18 @@ export function isBrowser(): boolean {
     typeof window !== UNDEFINED && typeof window.addEventListener === FUNCTION
   );
 }
+
+/**
+ * Detects if the user is on a slow network connection
+ * @returns {boolean} True if connection is slow, false otherwise or if detection unavailable
+ */
+export const isSlowConnection = (): boolean => {
+  // Only works in browser environments
+  if (!isBrowser()) {
+    return false;
+  }
+
+  const conn = navigator && (navigator as any).connection;
+
+  return conn && ['slow-2g', '2g', '3g'].includes(conn.effectiveType);
+};
