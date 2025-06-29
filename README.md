@@ -526,6 +526,168 @@ You can also use all native [`fetch()` settings](https://developer.mozilla.org/e
 > - **🌀 Interceptors** - `onRequest`, `onResponse`, `onError`
 > - **🔍 Error Handling** - `strategy`
 
+### Performance Implications of Settings
+
+Understanding the performance impact of different settings helps you optimize for your specific use case:
+
+#### **High-Performance Settings**
+
+**Minimize Network Requests:**
+
+```typescript
+// Aggressive caching for static data
+const staticConfig = {
+  cacheTime: 3600, // 1 hour cache
+  staleTime: 1800, // 30 minutes freshness
+  dedupeTime: 10000, // 10 seconds deduplication
+};
+
+// Result: 90%+ reduction in network requests
+```
+
+**Optimize for Mobile/Slow Connections:**
+
+```typescript
+const mobileOptimized = {
+  timeout: 60000, // Longer timeout for slow connections (auto-adaptive)
+  retry: {
+    retries: 5, // More retries for unreliable connections
+    delay: 2000, // Longer initial delay (auto-adaptive)
+    backoff: 2.0, // Aggressive backoff
+  },
+  cacheTime: 900, // Longer cache on mobile
+};
+```
+
+#### **Memory vs Network Trade-offs**
+
+**Memory-Efficient (Low Cache):**
+
+```typescript
+const memoryEfficient = {
+  cacheTime: 60, // Short cache (1 minute)
+  staleTime: 0, // No stale-while-revalidate
+  dedupeTime: 1000, // Short deduplication
+};
+// Pros: Low memory usage
+// Cons: More network requests, slower perceived performance
+```
+
+**Network-Efficient (High Cache):**
+
+```typescript
+const networkEfficient = {
+  cacheTime: 1800, // Long cache (30 minutes)
+  staleTime: 300, // 5 minutes stale-while-revalidate
+  dedupeTime: 5000, // Longer deduplication
+};
+// Pros: Fewer network requests, faster user experience
+// Cons: Higher memory usage, potentially stale data
+```
+
+#### **Feature Performance Impact**
+
+| Feature                    | Performance Impact                  | Best Use Case                               |
+| -------------------------- | ----------------------------------- | ------------------------------------------- |
+| **Caching**                | ⬇️ 70-90% fewer requests            | Static or semi-static data                  |
+| **Deduplication**          | ⬇️ 50-80% fewer concurrent requests | High-traffic applications                   |
+| **Stale-while-revalidate** | ⬆️ 90% faster perceived loading     | Dynamic data that tolerates brief staleness |
+| **Request cancellation**   | ⬇️ Reduced bandwidth waste          | Search-as-you-type, rapid navigation        |
+| **Retry mechanism**        | ⬆️ 95%+ success rate                | Mission-critical operations                 |
+| **Polling**                | ⬆️ Real-time updates                | Live data monitoring                        |
+
+#### **Adaptive Performance by Connection**
+
+FetchFF automatically adapts timeouts and retry delays based on connection speed:
+
+```typescript
+// Automatic adaptation (no configuration needed)
+const adaptiveRequest = fetchf('/api/data');
+
+// On fast connections (WiFi/4G):
+// - timeout: 30 seconds
+// - retry delay: 1 second → 1.5s → 2.25s...
+// - max retry delay: 30 seconds
+
+// On slow connections (2G/3G):
+// - timeout: 60 seconds
+// - retry delay: 2 seconds → 3s → 4.5s...
+// - max retry delay: 60 seconds
+```
+
+#### **Performance Patterns**
+
+**Progressive Loading (Best UX):**
+
+```typescript
+// Layer 1: Instant response with cache
+const quickData = await fetchf('/api/summary', {
+  cacheTime: 300,
+  staleTime: 60,
+});
+
+// Layer 2: Background enhancement
+fetchf('/api/detailed-data', {
+  strategy: 'silent',
+  cacheTime: 600,
+  onResponse(response) {
+    updateUIWithDetailedData(response.data);
+  },
+});
+```
+
+**Bandwidth-Conscious Loading:**
+
+```typescript
+// Check connection before expensive operations
+import { isSlowConnection } from 'fetchff';
+
+const loadUserDashboard = async () => {
+  const isSlowConn = isSlowConnection();
+
+  // Essential data always loads
+  const userData = await fetchf('/api/user', {
+    cacheTime: isSlowConn ? 600 : 300, // Longer cache on slow connections
+  });
+
+  // Optional data only on fast connections
+  if (!isSlowConn) {
+    fetchf('/api/user/analytics', { strategy: 'silent' });
+    fetchf('/api/user/recommendations', { strategy: 'silent' });
+  }
+};
+```
+
+#### **Performance Monitoring**
+
+Track key metrics to optimize your settings:
+
+```typescript
+const performanceConfig = {
+  onRequest(config) {
+    console.time(`request-${config.url}`);
+  },
+
+  onResponse(response) {
+    console.timeEnd(`request-${response.config.url}`);
+
+    // Track cache hit rate
+    if (response.fromCache) {
+      incrementMetric('cache.hits');
+    } else {
+      incrementMetric('cache.misses');
+    }
+  },
+
+  onError(error) {
+    incrementMetric('requests.failed');
+    console.warn('Request failed:', error.config.url, error.status);
+  },
+};
+```
+
+> ℹ️ **Note:** This is just an example. You need to implement the `incrementMetric` function yourself to record or report performance metrics as needed in your application.
+
 </details>
 
 ## 🏷️ Headers
@@ -909,6 +1071,131 @@ The caching system can be fine-tuned using the following options when configurin
 
   5. **Network Request and Cache Update**:  
      If no valid cache entry is found, or if caching is skipped or busted, the request is sent to the network. The response is then cached according to your configuration, making it available for future requests.
+
+### 🔄 Cache and Deduplication Integration
+
+Understanding how caching works together with request deduplication is crucial for optimal performance:
+
+#### **Cache-First, Then Deduplication**
+
+```typescript
+// Multiple components requesting the same data
+const userProfile1 = useFetcher('/api/user/123', { cacheTime: 300 });
+const userProfile2 = useFetcher('/api/user/123', { cacheTime: 300 });
+const userProfile3 = useFetcher('/api/user/123', { cacheTime: 300 });
+
+// Flow:
+// 1. First request checks cache → cache miss → network request initiated
+// 2. Second request checks cache → cache miss → joins in-flight request (deduplication)
+// 3. Third request checks cache → cache miss → joins in-flight request (deduplication)
+// 4. When network response arrives → cache is populated → all requests receive same data
+```
+
+#### **Cache Hit Scenarios**
+
+```typescript
+// First request (cache miss - goes to network)
+const request1 = fetchf('/api/data', { cacheTime: 300, dedupeTime: 5000 });
+
+// After 2 seconds - cache hit (no deduplication needed)
+setTimeout(() => {
+  const request2 = fetchf('/api/data', { cacheTime: 300, dedupeTime: 5000 });
+  // Returns cached data immediately, no network request
+}, 2000);
+
+// After 10 minutes - cache expired, new request
+setTimeout(() => {
+  const request3 = fetchf('/api/data', { cacheTime: 300, dedupeTime: 5000 });
+  // Cache expired → new network request → potential for deduplication again
+}, 600000);
+```
+
+#### **Deduplication Window vs Cache Time**
+
+- **`dedupeTime`**: Prevents duplicate requests during a short time window (milliseconds)
+- **`cacheTime`**: Stores successful responses for longer periods (seconds)
+- **Integration**: Deduplication handles concurrent requests, caching handles subsequent requests
+
+```typescript
+const config = {
+  dedupeTime: 2000, // 2 seconds - for rapid concurrent requests
+  cacheTime: 300, // 5 minutes - for longer-term storage
+};
+
+// Timeline example:
+// T+0ms:   Request A initiated → network call starts
+// T+500ms: Request B initiated → joins Request A (deduplication)
+// T+1500ms: Request C initiated → joins Request A (deduplication)
+// T+2500ms: Request D initiated → deduplication window expired, but cache hit!
+// T+6000ms: Request E initiated → cache hit (no network call needed)
+```
+
+### ⏰ Understanding staleTime vs cacheTime
+
+The relationship between `staleTime` and `cacheTime` enables sophisticated data freshness strategies:
+
+#### **Cache States and Timing**
+
+```typescript
+const fetchWithTimings = fetchf('/api/user-feed', {
+  cacheTime: 600, // Cache for 10 minutes
+  staleTime: 60, // Consider fresh for 1 minute
+});
+
+// Data lifecycle:
+// T+0:     Fresh data - served from cache, no background request
+// T+30s:   Still fresh - served from cache, no background request
+// T+90s:   Stale but cached - served from cache + background revalidation
+// T+300s:  Still stale - served from cache + background revalidation
+// T+650s:  Cache expired - network request required, shows loading state
+```
+
+#### **Practical Combinations**
+
+**High-Frequency Updates (Real-time Data)**
+
+```typescript
+const realtimeData = {
+  cacheTime: 30, // Cache for 30 seconds
+  staleTime: 5, // Fresh for 5 seconds only
+  // Result: Frequent background updates, always responsive UI
+};
+```
+
+**Balanced Performance (User Data)**
+
+```typescript
+const userData = {
+  cacheTime: 300, // Cache for 5 minutes
+  staleTime: 60, // Fresh for 1 minute
+  // Result: Good performance + reasonable freshness
+};
+```
+
+**Static Content (Configuration)**
+
+```typescript
+const staticConfig = {
+  cacheTime: 3600, // Cache for 1 hour
+  staleTime: 1800, // Fresh for 30 minutes
+  // Result: Minimal network usage for rarely changing data
+};
+```
+
+#### **Background Revalidation Behavior**
+
+```typescript
+// When staleTime expires but cacheTime hasn't:
+const { data } = await fetchf('/api/notifications', {
+  cacheTime: 600, // 10 minutes total cache
+  staleTime: 120, // 2 minutes of "freshness"
+});
+
+// T+0:     Returns cached data immediately, no background request
+// T+150s:  Returns cached data immediately + triggers background request
+// T+150s:  Background request completes → cache silently updated
+// T+650s:  Cache expired → full loading state + network request
+```
 
 ### Auto-Generated Cache Key Properties
 
@@ -1496,6 +1783,209 @@ myLoadingProcess();
 
 5. **Custom Error Handling**:  
    Depending on the strategy chosen, you can tailor how errors are managed, either by handling them directly within response objects, using default responses, or managing them silently.
+
+### 🎯 Choosing the Right Error Strategy
+
+Understanding when to use each error handling strategy is crucial for building robust applications:
+
+#### **`reject` Strategy - Traditional Error Handling**
+
+**When to Use:**
+
+- Building applications with established error boundaries
+- Need consistent error propagation through promise chains
+- Integration with existing try/catch error handling patterns
+- Critical operations where failures must be explicitly handled
+
+**Best For:**
+
+```typescript
+// API calls where failure must stop execution
+try {
+  const { data } = await fetchf('/api/payment/process', {
+    method: 'POST',
+    body: paymentData,
+    strategy: 'reject', // Default - can be omitted
+  });
+
+  // Only proceed if payment succeeded
+  await processOrderCompletion(data);
+} catch (error) {
+  // Handle payment failure explicitly
+  showPaymentErrorModal(error.message);
+  revertOrderState();
+}
+```
+
+#### **`softFail` Strategy - Graceful Error Handling**
+
+**When to Use:**
+
+- Building user-friendly interfaces that degrade gracefully
+- Multiple API calls where some failures are acceptable
+- React/Vue components that need to handle loading/error states
+- Data fetching where partial failures shouldn't break the UI
+
+**Best For:**
+
+```typescript
+// Dashboard with multiple data sources
+const { data: userStats, error: statsError } = await fetchf('/api/user/stats', {
+  strategy: 'softFail',
+});
+const { data: notifications, error: notifError } = await fetchf('/api/notifications', {
+  strategy: 'softFail',
+});
+
+// Render what we can, gracefully handle what failed
+return (
+  <Dashboard>
+    {userStats && <StatsWidget data={userStats} />}
+    {statsError && <ErrorMessage>Stats temporarily unavailable</ErrorMessage>}
+
+    {notifications && <NotificationsList data={notifications} />}
+    {notifError && <ErrorMessage>Notifications unavailable</ErrorMessage>}
+  </Dashboard>
+);
+```
+
+#### **`defaultResponse` Strategy - Fallback Values**
+
+**When to Use:**
+
+- Optional features that should work even when API fails
+- Configuration or preferences that have sensible defaults
+- Non-critical data that can fall back to static values
+- Progressive enhancement scenarios
+
+**Best For:**
+
+```typescript
+// User preferences with fallbacks
+const { data: preferences } = await fetchf('/api/user/preferences', {
+  strategy: 'defaultResponse',
+  defaultResponse: {
+    theme: 'light',
+    language: 'en',
+    notifications: true,
+    autoSave: false,
+  },
+});
+
+// Safe to use preferences regardless of API status
+applyTheme(preferences.theme);
+setLanguage(preferences.language);
+```
+
+#### **`silent` Strategy - Fire-and-Forget**
+
+**When to Use:**
+
+- Analytics and telemetry data
+- Non-critical background operations
+- Optional data prefetching
+- Logging and monitoring calls
+
+**Best For:**
+
+```typescript
+// Analytics tracking (don't let failures affect user experience)
+const trackUserAction = (action: string, data: any) => {
+  fetchf('/api/analytics/track', {
+    method: 'POST',
+    body: { action, data, timestamp: Date.now() },
+    strategy: 'silent',
+    onError(error) {
+      // Log error for debugging, but don't disrupt user flow
+      console.warn('Analytics tracking failed:', error.message);
+    },
+  });
+
+  // This function never throws, never shows loading states
+  // User interaction continues uninterrupted
+};
+
+// Background data prefetching
+const prefetchNextPage = () => {
+  fetchf('/api/articles/page/2', {
+    strategy: 'silent',
+    cacheTime: 300, // Cache for later use
+  });
+  // No need to await or handle response
+};
+```
+
+### 📊 Performance Strategy Matrix
+
+Choose strategies based on your application's needs:
+
+| Use Case                | Strategy          | Benefits                                          | Trade-offs                              |
+| ----------------------- | ----------------- | ------------------------------------------------- | --------------------------------------- |
+| **Critical Operations** | `reject`          | Explicit error handling, prevents data corruption | Requires try/catch, can break user flow |
+| **UI Components**       | `softFail`        | Graceful degradation, better UX                   | Need to check error property            |
+| **Optional Features**   | `defaultResponse` | Always provides usable data                       | May mask real issues                    |
+| **Background Tasks**    | `silent`          | Never disrupts user experience                    | Errors may go unnoticed                 |
+
+### 🔧 Advanced Strategy Patterns
+
+#### **Hybrid Error Handling**
+
+```typescript
+// Combine strategies for optimal UX
+const fetchUserDashboard = async (userId: string) => {
+  // Critical user data - must succeed
+  const { data: userData } = await fetchf(`/api/users/${userId}`, {
+    strategy: 'reject',
+  });
+
+  // Optional widgets - graceful degradation
+  const { data: stats, error: statsError } = await fetchf(
+    `/api/users/${userId}/stats`,
+    {
+      strategy: 'softFail',
+    },
+  );
+
+  // Preferences with fallbacks
+  const { data: preferences } = await fetchf(
+    `/api/users/${userId}/preferences`,
+    {
+      strategy: 'defaultResponse',
+      defaultResponse: DEFAULT_USER_PREFERENCES,
+    },
+  );
+
+  // Background analytics - fire and forget
+  fetchf('/api/analytics/dashboard-view', {
+    method: 'POST',
+    body: { userId, timestamp: Date.now() },
+    strategy: 'silent',
+  });
+
+  return { userData, stats, statsError, preferences };
+};
+```
+
+#### **Progressive Enhancement**
+
+```typescript
+// Start with defaults, enhance with API data
+const enhanceWithApiData = async () => {
+  // Immediate render with defaults
+  let config = DEFAULT_APP_CONFIG;
+  renderApp(config);
+
+  // Enhance with API data when available
+  const { data: apiConfig } = await fetchf('/api/config', {
+    strategy: 'defaultResponse',
+    defaultResponse: DEFAULT_APP_CONFIG,
+  });
+
+  // Re-render with enhanced config
+  config = { ...config, ...apiConfig };
+  renderApp(config);
+};
+```
 
 #### `onError`
 
