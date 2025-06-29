@@ -1517,45 +1517,46 @@ const { data } = useFetcher('/api/notifications', { staleTime: 600 });
 
 _fetchff uniquely combines advanced input sanitization, prototype pollution protection, unified cache across React and direct fetches, multiple error handling strategies, and a declarative API repository pattern—all in a single lightweight package._
 
-| Feature                                            | fetchff     | ofetch      | wretch       | axios        | native fetch() | swr         |
-| -------------------------------------------------- | ----------- | ----------- | ------------ | ------------ | -------------- | ----------- |
-| **Unified API Client**                             | ✅          | --          | --           | --           | --             | --          |
-| **Smart Request Cache**                            | ✅          | --          | --           | --           | --             | ✅          |
-| **Automatic Request Deduplication**                | ✅          | --          | --           | --           | --             | ✅          |
-| **Revalidation on Window Focus**                   | ✅          | --          | --           | --           | --             | ✅          |
-| **Custom Fetching Adapter**                        | ✅          | --          | --           | --           | --             | ✅          |
-| **Built-in Error Handling**                        | ✅          | --          | ✅           | --           | --             | --          |
-| **Customizable Error Handling**                    | ✅          | --          | ✅           | ✅           | --             | ✅          |
-| **Retries with exponential backoff**               | ✅          | --          | --           | --           | --             | --          |
-| **Advanced Query Params handling**                 | ✅          | --          | --           | --           | --             | --          |
-| **Custom Response Based Retry logic**              | ✅          | ✅          | ✅           | --           | --             | --          |
-| **Easy Timeouts**                                  | ✅          | ✅          | ✅           | ✅           | --             | --          |
-| **Conditional Polling Functionality**              | ✅          | --          | --           | --           | --             | --          |
-| **Easy Cancellation of stale (previous) requests** | ✅          | --          | --           | --           | --             | --          |
-| **Default Responses**                              | ✅          | --          | --           | --           | --             | ✅          |
-| **Custom adapters (fetchers)**                     | ✅          | --          | --           | ✅           | --             | ✅          |
-| **Global Configuration**                           | ✅          | --          | ✅           | ✅           | --             | ✅          |
-| **TypeScript Support**                             | ✅          | ✅          | ✅           | ✅           | ✅             | ✅          |
-| **Built-in AbortController Support**               | ✅          | --          | --           | --           | --             | --          |
-| **Request Interceptors**                           | ✅          | ✅          | ✅           | ✅           | --             | --          |
-| **Safe deduping + cancellation**                   | ✅          | --          | --           | --           | --             | --          |
-| **Response-based polling decisions**               | ✅          | --          | --           | --           | --             | --          |
-| **Request and Response Transformation**            | ✅          | ✅          | ✅           | ✅           | --             | --          |
-| **Integration with libraries**                     | ✅          | ✅          | ✅           | ✅           | --             | ✅          |
-| **Request Queuing**                                | ✅          | --          | --           | --           | --             | --          |
-| **Multiple Fetching Strategies**                   | ✅          | --          | --           | --           | --             | --          |
-| **Dynamic URLs with Path and query separation**    | ✅          | --          | ✅           | --           | --             | --          |
-| **Automatic Retry on Failure**                     | ✅          | ✅          | --           | ✅           | --             | ✅          |
-| **Automatically handle 429 Retry-After headers**   | ✅          | --          | --           | --           | --             | --          |
-| **Built-in Input Sanitization**                    | ✅          | --          | --           | --           | --             | --          |
-| **Prototype Pollution Protection**                 | ✅          | --          | --           | --           | --             | --          |
-| **First Class React Integration**                  | ✅          | --          | --           | --           | --             | ✅          |
-| **Shared cache for React and direct fetches**      | ✅          | --          | --           | --           | --             | --          |
-| **Per-endpoint and per-request config merging**    | ✅          | --          | --           | --           | --             | --          |
-| **Declarative API repository pattern**             | ✅          | --          | --           | --           | --             | --          |
-| **Supports Server-Side Rendering (SSR)**           | ✅          | ✅          | ✅           | ✅           | ✅             | ✅          |
-| **SWR Pattern Support**                            | ✅          | --          | --           | --           | --             | ✅          |
-| **Minimal Installation Size**                      | 🟢 (4.5 KB) | 🟡 (6.5 KB) | 🟢 (2.21 KB) | 🔴 (13.7 KB) | 🟢 (0 KB)      | 🟡 (6.2 KB) |
+| Feature                                            | fetchff     | ofetch      | wretch       | axios        | native fetch() | swr             |
+| -------------------------------------------------- | ----------- | ----------- | ------------ | ------------ | -------------- | --------------- |
+| **Unified API Client**                             | ✅          | --          | --           | --           | --             | --              |
+| **Smart Request Cache**                            | ✅          | --          | --           | --           | --             | ✅              |
+| **Automatic Request Deduplication**                | ✅          | --          | --           | --           | --             | ✅              |
+| **Revalidation on Window Focus**                   | ✅          | --          | --           | --           | --             | ✅              |
+| **Custom Fetching Adapter**                        | ✅          | --          | --           | --           | --             | ✅              |
+| **Built-in Error Handling**                        | ✅          | --          | ✅           | --           | --             | --              |
+| **Customizable Error Handling**                    | ✅          | --          | ✅           | ✅           | --             | ✅              |
+| **Retries with exponential backoff**               | ✅          | --          | --           | --           | --             | --              |
+| **Advanced Query Params handling**                 | ✅          | --          | --           | --           | --             | --              |
+| **Custom Response Based Retry logic**              | ✅          | ✅          | ✅           | --           | --             | --              |
+| **Easy Timeouts**                                  | ✅          | ✅          | ✅           | ✅           | --             | --              |
+| **Conditional Polling Functionality**              | ✅          | --          | --           | --           | --             | --              |
+| **Easy Cancellation of stale (previous) requests** | ✅          | --          | --           | --           | --             | --              |
+| **Default Responses**                              | ✅          | --          | --           | --           | --             | ✅              |
+| **Custom adapters (fetchers)**                     | ✅          | --          | --           | ✅           | --             | ✅              |
+| **Global Configuration**                           | ✅          | --          | ✅           | ✅           | --             | ✅              |
+| **TypeScript Support**                             | ✅          | ✅          | ✅           | ✅           | ✅             | ✅              |
+| **Built-in AbortController Support**               | ✅          | --          | --           | --           | --             | --              |
+| **Request Interceptors**                           | ✅          | ✅          | ✅           | ✅           | --             | --              |
+| **Safe deduping + cancellation**                   | ✅          | --          | --           | --           | --             | --              |
+| **Response-based polling decisions**               | ✅          | --          | --           | --           | --             | --              |
+| **Request/Response Data Transformation**           | ✅          | ✅          | ✅           | ✅           | --             | --              |
+| **Works with Multiple Frameworks**                 | ✅          | ✅          | ✅           | ✅           | ✅             | --              |
+| **Works across multiple instances or layers**      | ✅          | --          | --           | --           | --             | -- (only React) |
+| **Concurrent Request Deduplication**               | ✅          | --          | --           | --           | --             | ✅              |
+| **Flexible Error Handling Strategies**             | ✅          | --          | ✅           | ✅           | --             | ✅              |
+| **Dynamic URLs with Path and query separation**    | ✅          | --          | ✅           | --           | --             | --              |
+| **Automatic Retry on Failure**                     | ✅          | ✅          | --           | ✅           | --             | ✅              |
+| **Automatically handle 429 Retry-After headers**   | ✅          | --          | --           | --           | --             | --              |
+| **Built-in Input Sanitization**                    | ✅          | --          | --           | --           | --             | --              |
+| **Prototype Pollution Protection**                 | ✅          | --          | --           | --           | --             | --              |
+| **First Class React Integration**                  | ✅          | --          | --           | --           | --             | ✅              |
+| **Shared cache for React and direct fetches**      | ✅          | --          | --           | --           | --             | --              |
+| **Per-endpoint and per-request config merging**    | ✅          | --          | --           | --           | --             | --              |
+| **Declarative API repository pattern**             | ✅          | --          | --           | --           | --             | --              |
+| **Supports Server-Side Rendering (SSR)**           | ✅          | ✅          | ✅           | ✅           | ✅             | ✅              |
+| **SWR Pattern Support**                            | ✅          | --          | --           | --           | --             | ✅              |
+| **Minimal Installation Size**                      | 🟢 (4.5 KB) | 🟡 (6.5 KB) | 🟢 (2.21 KB) | 🔴 (13.7 KB) | 🟢 (0 KB)      | 🟡 (6.2 KB)     |
 
 ## ✏️ Examples
 
