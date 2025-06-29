@@ -71,7 +71,12 @@ export interface UseFetcherResult<
       PathParams
     >['data'],
     mutationSettings?: MutationSettings,
-  ) => void;
+  ) => Promise<FetchResponse<
+    ResponseData,
+    RequestBody,
+    QueryParams,
+    PathParams
+  > | null>;
   /**
    * Function to refetch the data from the server.
    * This will trigger a new fetch operation and update the cache with the latest data.
