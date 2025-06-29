@@ -3,13 +3,12 @@
 
 <h4 align="center">Fast, lightweight (~4 KB gzipped) and reusable data fetching</h4>
 
-<i>The last fetch wrapper you will ever need.</i>
 <i>"fetchff" stands for "fetch fast & flexibly"</i>
 
 [npm-url]: https://npmjs.org/package/fetchff
 [npm-image]: https://img.shields.io/npm/v/fetchff.svg
 
-[![NPM version][npm-image]][npm-url] [![Blazing Fast](https://badgen.now.sh/badge/speed/blazing%20%F0%9F%94%A5/green)](https://github.com/MattCCC/fetchff) [![Code Coverage](https://img.shields.io/badge/coverage-97.13-green)](https://github.com/MattCCC/fetchff) [![npm downloads](https://img.shields.io/npm/dm/fetchff.svg?color=lightblue)](http://npm-stat.com/charts.html?package=fetchff) [![gzip size](https://img.shields.io/bundlephobia/minzip/fetchff)](https://bundlephobia.com/result?p=fetchff) [![snyk](https://snyk.io/test/github/MattCCC/fetchff/badge.svg)](https://security.snyk.io/package/npm/fetchff)
+[![NPM version][npm-image]][npm-url] [![Blazing Fast](https://badgen.now.sh/badge/speed/blazing%20%F0%9F%94%A5/green)](https://github.com/MattCCC/fetchff) [![Code Coverage](https://img.shields.io/badge/coverage-97.48-green)](https://github.com/MattCCC/fetchff) [![npm downloads](https://img.shields.io/npm/dm/fetchff.svg?color=lightblue)](http://npm-stat.com/charts.html?package=fetchff) [![gzip size](https://img.shields.io/bundlephobia/minzip/fetchff)](https://bundlephobia.com/result?p=fetchff) [![snyk](https://snyk.io/test/github/MattCCC/fetchff/badge.svg)](https://security.snyk.io/package/npm/fetchff)
 
 </div>
 
@@ -437,6 +436,7 @@ const { data } = await fetchf('https://api.example.com/', {
   cacheBuster: (config) => config.method === 'POST', // Bust cache for POST requests, by default no busting.
   skipCache: (response, config) => response.status !== 200, // Skip caching on non-200 responses, by default no skipping
   cacheErrors: false, // Cache error responses as well as successful ones, default false
+  staleTime: 600, // Data is considered fresh for 10 minutes before background revalidation (0 by default, meaning no background revalidation)
 });
 ```
 
@@ -483,22 +483,26 @@ The caching system can be fine-tuned using the following options when configurin
   Determines whether error responses (such as HTTP 4xx or 5xx) should also be cached. If set to `true`, both successful and error responses are stored in the cache. If `false`, only successful responses are cached.  
   _Default:_ `false`.
 
-### How It Works
+- **`staleTime`**:  
+  Type: `number`  
+  Specifies the duration, in seconds, for which cached data is considered "fresh." During this period, cached data will be returned immediately, but a background revalidation (network request) will be triggered to update the cache. If set to `0`, background revalidation is disabled and data is always considered stale after `cacheTime` expires.  
+  _Default:_ `0` (no background revalidation).
 
-1. **Request and Cache Check**:  
-   When a request is made, the cache is first checked for an existing entry. If a valid cache entry is found and is still "fresh" (based on `cacheTime`), the cached response is returned immediately. Note that when the native `fetch()` setting called `cache` is set to `reload` the request will automatically skip the internal cache.
+  ### How It Works
+  1. **Cache Lookup**:  
+     When a request is made, `fetchff` first checks the internal cache for a matching entry using the generated cache key. If a valid and "fresh" cache entry exists (within `cacheTime`), the cached response is returned immediately. If the native `fetch()` option `cache: 'reload'` is set, the internal cache is bypassed and a fresh request is made.
 
-2. **Cache Key**:  
-   A cache key uniquely identifies each request. By default, the key is generated based on the URL and other relevant request options. Custom keys can be provided using the `cacheKey` function.
+  2. **Cache Key Generation**:  
+     Each request is uniquely identified by a cache key, which is auto-generated from the URL, method, params, headers, and other relevant options. You can override this by providing a custom `cacheKey` string or function for fine-grained cache control.
 
-3. **Cache Busting**:  
-   If the `cacheBuster` function is defined, it determines whether to invalidate and refresh the cache for specific requests. This is useful for ensuring that certain requests, such as `POST` requests, always fetch new data.
+  3. **Cache Busting**:  
+     If a `cacheBuster` function is provided, it determines whether to invalidate (bust) the cache for a given request. This is useful for scenarios like forcing fresh data on `POST` requests or after certain actions.
 
-4. **Skipping Cache**:  
-   The `skipCache` function provides flexibility in deciding whether to store a response in the cache. For example, you might skip caching responses that have a `4xx` or `5xx` status code.
+  4. **Conditional Caching**:  
+     The `skipCache` function allows you to decide, per response, whether it should be stored in the cache. For example, you can skip caching for error responses (like HTTP 4xx/5xx) or based on custom logic.
 
-5. **Final Outcome**:  
-   If no valid cache entry is found, or the cache is skipped or busted, the request proceeds to the network, and the response is cached based on the provided configuration.
+  5. **Network Request and Cache Update**:  
+     If no valid cache entry is found, or if caching is skipped or busted, the request is sent to the network. The response is then cached according to your configuration, making it available for future requests.
 
 ### Auto-Generated Cache Key Properties
 
@@ -1455,46 +1459,57 @@ function UserComponent({ userId }: { userId: string }) {
 - **Automatic deduplication**: Multiple components requesting the same data share a single request
 - **Smart caching**: Configurable cache with automatic invalidation
 - **Minimal re-renders**: Optimized to prevent unnecessary component updates (relies on native React functionality)
-- **Background revalidation**: Keep data fresh without blocking the UI
+- **Background revalidation**: Keep data fresh without blocking the UI (use `staleTime` setting to control the time)
 
 ### Best Practices
 
 1. **Use conditional requests** for dependent data:
 
-   ```tsx
-   const { data: user } = useFetcher('/api/user');
-   const { data: posts } = useFetcher(
-     user ? `/api/users/${user.id}/posts` : null,
-   );
-   ```
+```tsx
+const { data: user } = useFetcher('/api/user');
+const { data: posts } = useFetcher(user ? `/api/users/${user.id}/posts` : null);
+```
 
 2. **Configure appropriate cache times** based on data volatility:
 
-   ```tsx
-   // Static data - cache for 1 hour
-   const { data: config } = useFetcher('/api/config', { cacheTime: 3600 });
+```tsx
+// Static data - cache for 1 hour
+const { data: config } = useFetcher('/api/config', { cacheTime: 3600 });
 
-   // Dynamic data - cache for 30 seconds
-   const { data: feed } = useFetcher('/api/feed', { cacheTime: 30 });
-   ```
+// Dynamic data - cache for 30 seconds
+const { data: feed } = useFetcher('/api/feed', { cacheTime: 30 });
+```
 
 3. **Use focus revalidation** for critical data:
 
-   ```tsx
-   const { data } = useFetcher('/api/critical-data', {
-     revalidateOnFocus: true,
-   });
-   ```
+```tsx
+const { data } = useFetcher('/api/critical-data', {
+  revalidateOnFocus: true,
+});
+```
 
 4. **Handle loading and error states** appropriately:
 
-   ```tsx
-   const { data, error, isLoading } = useFetcher('/api/data');
+```tsx
+const { data, error, isLoading } = useFetcher('/api/data');
 
-   if (isLoading) return <Spinner />;
-   if (error) return <ErrorMessage error={error} />;
-   return <DataDisplay data={data} />;
-   ```
+if (isLoading) return <Spinner />;
+if (error) return <ErrorMessage error={error} />;
+return <DataDisplay data={data} />;
+```
+
+5. **Leverage `staleTime` to control background revalidation:**
+
+```tsx
+// Data is considered fresh for 10 minutes; background revalidation happens after
+const { data } = useFetcher('/api/notifications', { staleTime: 600 });
+```
+
+- Use a longer `staleTime` for rarely changing data to minimize unnecessary network requests.
+- Use a shorter `staleTime` for frequently updated data to keep the UI fresh.
+- Setting `staleTime: 0` disables the staleTime (default).
+- Combine `staleTime` with `cacheTime` for fine-grained cache and revalidation control.
+- Adjust `staleTime` per endpoint based on how critical or dynamic the data is.
 
 </details>
 
@@ -1539,6 +1554,7 @@ _fetchff uniquely combines advanced input sanitization, prototype pollution prot
 | **Per-endpoint and per-request config merging**    | ✅          | --          | --           | --           | --             | --          |
 | **Declarative API repository pattern**             | ✅          | --          | --           | --           | --             | --          |
 | **Supports Server-Side Rendering (SSR)**           | ✅          | ✅          | ✅           | ✅           | ✅             | ✅          |
+| **SWR Pattern Support**                            | ✅          | --          | --           | --           | --             | ✅          |
 | **Minimal Installation Size**                      | 🟢 (4.5 KB) | 🟡 (6.5 KB) | 🟢 (2.21 KB) | 🔴 (13.7 KB) | 🟢 (0 KB)      | 🟡 (6.2 KB) |
 
 ## ✏️ Examples
@@ -1572,12 +1588,15 @@ const api = createApiFetcher({
   withCredentials: true, // Pass cookies to all requests.
   timeout: 30000, // Request timeout in milliseconds (30s in this example).
   dedupeTime: 0, // Time window, in milliseconds, during which identical requests are deduplicated (treated as single request).
+  immediate: false, // If false, disables automatic request on initialization (useful for POST or conditional requests, React-specific)
+  staleTime: 600, // Data is considered fresh for 10 minutes before background revalidation (disabled by default)
   pollingInterval: 5000, // Interval in milliseconds between polling attempts. Setting 0 disables polling.
   pollingDelay: 1000, // Wait 1 second before beginning each polling attempt
   maxPollingAttempts: 10, // Stop polling after 10 attempts
   shouldStopPolling: (response, attempt) => false, // Function to determine if polling should stop based on the response. Return true to stop polling, or false to continue.
   method: 'get', // Default request method.
   params: {}, // Default params added to all requests.
+  urlPathParams: {}, // Dynamic URL path parameters for replacing segments like /user/:id
   data: {}, // Alias for 'body'. Default data passed to POST, PUT, DELETE and PATCH requests.
   cacheTime: 300, // Cache time in seconds. In this case it is valid for 5 minutes (300 seconds)
   cacheKey: (config) => `${config.url}-${config.method}`, // Custom cache key based on URL and method

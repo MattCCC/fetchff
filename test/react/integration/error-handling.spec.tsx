@@ -2,8 +2,14 @@
  * @jest-environment jsdom
  */
 import '@testing-library/jest-dom';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
-import React, { act } from 'react';
+import {
+  render,
+  screen,
+  waitFor,
+  act,
+  fireEvent,
+} from '@testing-library/react';
+import React from 'react';
 import {
   clearMockResponses,
   createAbortableFetchMock,
@@ -307,6 +313,9 @@ describe('Error Handling Integration Tests', () => {
     });
 
     it('should handle error boundaries with fetchf failures', async () => {
+      const originalConsoleError = console.error;
+      console.error = jest.fn();
+
       mockFetchResponse('/api/critical-error', {
         status: 500,
         ok: false,
@@ -367,6 +376,8 @@ describe('Error Handling Integration Tests', () => {
           'Error Boundary Caught: Critical API Error',
         );
       });
+
+      console.error = originalConsoleError;
     });
   });
 

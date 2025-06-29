@@ -341,7 +341,7 @@ export interface ExtendedRequestConfig<
    * Whether to automatically run the request as soon as the handler is created.
    * - If `true`, the request is sent immediately (useful for React/Vue hooks).
    * - If `false`, you must call a function to trigger the request manually.
-   * This option is mainly relevant for UI library integrations; for plain promises, it has no effect.
+   * Primarily used in UI integrations (e.g., React/Vue hooks); has no effect for direct fetchf() usage.
    * @default true
    */
   immediate?: boolean;
@@ -441,6 +441,12 @@ export interface ExtendedRequestConfig<
    * @default 0 (0 milliseconds means no deduplication)
    */
   dedupeTime?: number;
+
+  /**
+   * Time in milliseconds after which data is considered stale and background revalidation is triggered
+   * @default 0 (data is never considered stale)
+   */
+  staleTime?: number;
 
   /**
    * The time (in milliseconds) between the end of one polling attempt and the start of the next.

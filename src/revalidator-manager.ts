@@ -22,31 +22,56 @@ import { timeNow } from './utils';
 
 export type RevalidatorFn = () => Promise<FetchResponse | null>;
 
-type RevalidatorEntry = [RevalidatorFn, number, number]; // [revalidator, lastUsed, ttl]
+type RevalidatorEntry = [
+  RevalidatorFn,
+  number,
+  number,
+  number?,
+  RevalidatorFn?,
+]; // [revalidator, lastUsed, ttl, staleTime?, bgRevalidator?]
 
 const DEFAULT_TTL = 3 * 60 * 1000; // Default TTL of 3 minutes
 const FOCUS_REVALIDATORS_SUFFIX = '|F';
 const revalidators = new Map<string, RevalidatorEntry>();
+const staleTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
 export function registerRevalidator(
   key: string,
   fn: RevalidatorFn,
   ttl: number = DEFAULT_TTL,
+  staleTime?: number,
+  bgRevalidatorFn?: RevalidatorFn,
 ) {
-  revalidators.set(key, [fn, timeNow(), ttl]);
+  revalidators.set(key, [fn, timeNow(), ttl, staleTime, bgRevalidatorFn]);
+
+  if (staleTime) {
+    const timer = setTimeout(() => {
+      revalidate(key, true).catch(() => {});
+    }, staleTime);
+    staleTimers.set(key, timer);
+  }
 }
 
 export function unregisterRevalidator(key: string) {
   revalidators.delete(key);
+
+  // Clean up stale timer
+  const timer = staleTimers.get(key);
+  if (timer) {
+    clearTimeout(timer);
+    staleTimers.delete(key);
+  }
 }
 
 export function registerRevalidators(
   key: string,
   revalidatorFn: RevalidatorFn,
   revalidatorOnFocus: boolean,
+  staleTime?: number,
+  bgRevalidatorFn?: RevalidatorFn,
   ttl: number = DEFAULT_TTL,
 ) {
-  registerRevalidator(key, revalidatorFn, ttl);
+  registerRevalidator(key, revalidatorFn, ttl, staleTime, bgRevalidatorFn);
 
   if (revalidatorOnFocus) {
     initFetchffRevalidationOnFocus();
@@ -72,6 +97,7 @@ export function unregisterAllRevalidators(key: string) {
  */
 export async function revalidate<T = unknown>(
   key: string | null,
+  isBgRevalidator: boolean = false,
 ): Promise<T | null | FetchResponse> {
   // If no key is provided, no revalidation occurs
   if (key === null) {
@@ -84,7 +110,14 @@ export async function revalidate<T = unknown>(
     // Update only the lastUsed timestamp without resetting the whole array
     entry[1] = timeNow();
 
-    return await entry[0]?.();
+    const revalidator = isBgRevalidator ? entry[4] : entry[0];
+
+    if (!revalidator) {
+      // If no revalidator function is registered, return null
+      return null;
+    }
+
+    return await revalidator();
   }
 
   // If no revalidator is registered for the key, return null

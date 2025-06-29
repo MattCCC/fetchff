@@ -11,6 +11,7 @@ import {
   removeFocusRevalidators,
   startRevalidatorCleanup,
   unregisterAllRevalidators,
+  registerRevalidators,
 } from '../src/revalidator-manager';
 
 describe('Revalidator Manager', () => {
@@ -29,6 +30,7 @@ describe('Revalidator Manager', () => {
     // Clean up registered revalidators
     unregisterAllRevalidators(testKey);
     unregisterAllRevalidators(testKey2);
+    jest.clearAllTimers();
   });
 
   describe('registerRevalidator', () => {
@@ -927,6 +929,379 @@ describe('Revalidator Manager', () => {
 
       expect(result1).toBe('modified');
       expect(result2).toBeNull();
+    });
+  });
+
+  describe('staleTime functionality', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+      // Mock global fetch for staleTime tests
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: jest.fn().mockResolvedValue({ data: 'mocked response' }),
+      });
+    });
+
+    afterEach(() => {
+      unregisterRevalidator(testKey);
+      unregisterRevalidator(testKey2);
+      jest.useRealTimers();
+      jest.restoreAllMocks();
+    });
+
+    it('should trigger background revalidation after staleTime', async () => {
+      const mainFn = jest.fn().mockResolvedValue('main');
+      const bgFn = jest.fn().mockResolvedValue('background');
+      const staleTime = 1000;
+
+      registerRevalidator(testKey, mainFn, 3 * 60 * 1000, staleTime, bgFn);
+
+      // Initially no background revalidation
+      expect(bgFn).not.toHaveBeenCalled();
+
+      // Advance time past staleTime
+      jest.advanceTimersByTime(staleTime + 10);
+
+      // Run all pending timers and microtasks
+      jest.runAllTimers();
+      await Promise.resolve(); // Allow microtasks to complete
+
+      expect(bgFn).toHaveBeenCalledTimes(1);
+      expect(mainFn).not.toHaveBeenCalled();
+    });
+
+    it('should not trigger background revalidation when staleTime is 0', async () => {
+      const mainFn = jest.fn().mockResolvedValue('main');
+      const bgFn = jest.fn().mockResolvedValue('background');
+
+      registerRevalidator(testKey, mainFn, 3 * 60 * 1000, 0, bgFn);
+
+      jest.advanceTimersByTime(10000);
+      jest.runAllTimers();
+      await Promise.resolve();
+
+      expect(bgFn).not.toHaveBeenCalled();
+    });
+
+    it('should clean up stale timer on unregister', async () => {
+      const mainFn = jest.fn().mockResolvedValue('main');
+      const bgFn = jest.fn().mockResolvedValue('background');
+      const staleTime = 1000;
+
+      registerRevalidator(testKey, mainFn, 3 * 60 * 1000, staleTime, bgFn);
+      unregisterRevalidator(testKey);
+
+      // Advance time past staleTime
+      jest.advanceTimersByTime(staleTime + 10);
+      jest.runAllTimers();
+      await Promise.resolve();
+
+      expect(bgFn).not.toHaveBeenCalled();
+    });
+
+    it('should handle background revalidation errors silently', async () => {
+      const mainFn = jest.fn().mockResolvedValue('main');
+      const bgFn = jest.fn().mockRejectedValue(new Error('Background error'));
+      const staleTime = 1000;
+
+      registerRevalidator(testKey, mainFn, 3 * 60 * 1000, staleTime, bgFn);
+
+      // Should not throw despite background error
+      expect(() => {
+        jest.advanceTimersByTime(staleTime + 10);
+      }).not.toThrow();
+
+      jest.runAllTimers();
+      await Promise.resolve();
+      expect(bgFn).toHaveBeenCalledTimes(1);
+    });
+
+    it('should use background revalidator when isBgRevalidator is true', async () => {
+      const mainFn = jest.fn().mockResolvedValue('main');
+      const bgFn = jest.fn().mockResolvedValue('background');
+
+      registerRevalidator(testKey, mainFn, 3 * 60 * 1000, 0, bgFn);
+
+      const result = await revalidate(testKey, true);
+      expect(bgFn).toHaveBeenCalledTimes(1);
+      expect(mainFn).not.toHaveBeenCalled();
+      expect(result).toBe('background');
+    });
+
+    it('should return null when background revalidator is not defined', async () => {
+      const mainFn = jest.fn().mockResolvedValue('main');
+
+      registerRevalidator(testKey, mainFn, 3 * 60 * 1000, 0);
+
+      const result = await revalidate(testKey, true);
+      expect(result).toBeNull();
+      expect(mainFn).not.toHaveBeenCalled();
+    });
+
+    it('should handle multiple stale timers for different keys', async () => {
+      const fn1 = jest.fn().mockResolvedValue('fn1');
+      const fn2 = jest.fn().mockResolvedValue('fn2');
+      const bgFn1 = jest.fn().mockResolvedValue('bg1');
+      const bgFn2 = jest.fn().mockResolvedValue('bg2');
+      const staleTime1 = 1000;
+      const staleTime2 = 2000;
+
+      registerRevalidator(testKey, fn1, 3 * 60 * 1000, staleTime1, bgFn1);
+      registerRevalidator(testKey2, fn2, 3 * 60 * 1000, staleTime2, bgFn2);
+
+      // Advance time past first staleTime
+      jest.advanceTimersByTime(staleTime1 + 10);
+
+      expect(bgFn1).toHaveBeenCalledTimes(1);
+      expect(bgFn2).not.toHaveBeenCalled();
+
+      // Advance time past second staleTime
+      jest.advanceTimersByTime(staleTime2 - staleTime1);
+
+      expect(bgFn1).toHaveBeenCalledTimes(1);
+      expect(bgFn2).toHaveBeenCalledTimes(1);
+    });
+
+    it('should handle fetch-based background revalidation', async () => {
+      const fetchSpy = global.fetch as jest.MockedFunction<typeof fetch>;
+      fetchSpy.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: jest.fn().mockResolvedValue({ data: 'fresh data' }),
+      } as unknown as Response);
+
+      // Create a realistic revalidator that uses fetch
+      const bgRevalidator = jest.fn().mockImplementation(async () => {
+        const response = await fetch('/api/test');
+        return response.json();
+      });
+
+      const mainFn = jest.fn().mockResolvedValue('main');
+      const staleTime = 1000;
+
+      registerRevalidator(
+        testKey,
+        mainFn,
+        3 * 60 * 1000,
+        staleTime,
+        bgRevalidator,
+      );
+
+      // Advance time past staleTime
+      jest.advanceTimersByTime(staleTime + 10);
+      jest.runAllTimers();
+      await Promise.resolve();
+
+      expect(bgRevalidator).toHaveBeenCalledTimes(1);
+      expect(fetchSpy).toHaveBeenCalledWith('/api/test');
+    });
+
+    it('should handle network errors in background revalidation', async () => {
+      const fetchSpy = global.fetch as jest.MockedFunction<typeof fetch>;
+      fetchSpy.mockRejectedValueOnce(new Error('Network error'));
+
+      // Create a revalidator that handles fetch errors
+      const bgRevalidator = jest.fn().mockImplementation(async () => {
+        try {
+          const response = await fetch('/api/test');
+          return response.json();
+        } catch {
+          throw new Error('Revalidation failed');
+        }
+      });
+
+      const mainFn = jest.fn().mockResolvedValue('main');
+      const staleTime = 1000;
+
+      registerRevalidator(
+        testKey,
+        mainFn,
+        3 * 60 * 1000,
+        staleTime,
+        bgRevalidator,
+      );
+
+      // Advance time past staleTime
+      jest.advanceTimersByTime(staleTime + 10);
+      jest.runAllTimers();
+      await Promise.resolve();
+
+      expect(bgRevalidator).toHaveBeenCalledTimes(1);
+      expect(fetchSpy).toHaveBeenCalledWith('/api/test');
+    });
+  });
+
+  describe('registerRevalidators function coverage', () => {
+    it('should register both main and focus revalidators when revalidatorOnFocus is true', () => {
+      removeFocusRevalidators();
+      const mockAddEventListener = jest.fn();
+      window.addEventListener = mockAddEventListener;
+      window.removeEventListener = jest.fn();
+
+      registerRevalidators(
+        testKey,
+        mockRevalidatorFn,
+        true,
+        1000,
+        mockRevalidatorFn2,
+      );
+
+      expect(mockAddEventListener).toHaveBeenCalledWith(
+        'focus',
+        expect.any(Function),
+      );
+    });
+
+    it('should only register main revalidator when revalidatorOnFocus is false', () => {
+      const mockAddEventListener = jest.fn();
+      window.addEventListener = mockAddEventListener;
+
+      registerRevalidators(
+        testKey,
+        mockRevalidatorFn,
+        false,
+        1000,
+        mockRevalidatorFn2,
+      );
+
+      // Should not add focus event listener
+      expect(mockAddEventListener).not.toHaveBeenCalled();
+    });
+
+    it('should pass correct parameters to registerRevalidator', async () => {
+      const customTTL = 5000;
+      const staleTime = 2000;
+
+      registerRevalidators(
+        testKey,
+        mockRevalidatorFn,
+        false,
+        staleTime,
+        mockRevalidatorFn2,
+        customTTL,
+      );
+
+      await revalidate(testKey);
+      expect(mockRevalidatorFn).toHaveBeenCalledTimes(1);
+
+      await revalidate(testKey, true);
+      expect(mockRevalidatorFn2).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('additional edge cases and error conditions', () => {
+    it('should handle revalidator function that returns undefined', async () => {
+      const undefinedFn = jest.fn().mockResolvedValue(undefined);
+      registerRevalidator(testKey, undefinedFn);
+
+      const result = await revalidate(testKey);
+      expect(undefinedFn).toHaveBeenCalledTimes(1);
+      expect(result).toBeUndefined();
+    });
+
+    it('should handle very large TTL values without overflow', async () => {
+      const largeTTL = Number.MAX_SAFE_INTEGER;
+      registerRevalidator(testKey, mockRevalidatorFn, largeTTL);
+
+      await revalidate(testKey);
+      expect(mockRevalidatorFn).toHaveBeenCalledTimes(1);
+    });
+
+    it('should handle keys with special characters', async () => {
+      const specialKey = 'test-key/with:special@chars#and%encoding';
+      registerRevalidator(specialKey, mockRevalidatorFn);
+
+      await revalidate(specialKey);
+      expect(mockRevalidatorFn).toHaveBeenCalledTimes(1);
+
+      unregisterRevalidator(specialKey);
+      const result = await revalidate(specialKey);
+      expect(result).toBeNull();
+    });
+
+    it('should handle revalidator that modifies global state', async () => {
+      let globalCounter = 0;
+      const statefulFn = jest.fn().mockImplementation(() => {
+        globalCounter++;
+        return Promise.resolve(`count-${globalCounter}`);
+      });
+
+      registerRevalidator(testKey, statefulFn);
+
+      const result1 = await revalidate(testKey);
+      const result2 = await revalidate(testKey);
+
+      expect(result1).toBe('count-1');
+      expect(result2).toBe('count-2');
+      expect(globalCounter).toBe(2);
+    });
+
+    it('should handle simultaneous revalidations of same key', async () => {
+      let callCount = 0;
+      const slowFn = jest.fn().mockImplementation(() => {
+        return new Promise((resolve) =>
+          setTimeout(() => {
+            callCount++;
+            resolve(`result-${callCount}`);
+          }, 10),
+        );
+      });
+
+      registerRevalidator(testKey, slowFn);
+
+      // Start multiple revalidations simultaneously
+      const promise1 = revalidate(testKey);
+      const promise2 = revalidate(testKey);
+      const promise3 = revalidate(testKey);
+
+      const [result1, result2, result3] = await Promise.all([
+        promise1,
+        promise2,
+        promise3,
+      ]);
+
+      expect(slowFn).toHaveBeenCalledTimes(3);
+      expect(result1).toBe('result-1');
+      expect(result2).toBe('result-2');
+      expect(result3).toBe('result-3');
+    });
+
+    it('should handle focus revalidator registration when focus handler not initialized', () => {
+      // Remove focus handler if it exists
+      removeFocusRevalidators();
+
+      // Should not throw when registering focus revalidator without handler
+      expect(() => {
+        registerFocusRevalidator(testKey, mockRevalidatorFn);
+      }).not.toThrow();
+    });
+
+    it('should handle cleanup with mixed revalidator types', () => {
+      registerRevalidator(testKey, mockRevalidatorFn);
+      registerFocusRevalidator(testKey, mockRevalidatorFn2);
+
+      // Should clean up both types
+      expect(() => {
+        unregisterAllRevalidators(testKey);
+      }).not.toThrow();
+    });
+
+    it('should handle extremely short stale times', async () => {
+      jest.useRealTimers(); // Use real timers for this test
+
+      const mainFn = jest.fn().mockResolvedValue('main');
+      const bgFn = jest.fn().mockResolvedValue('background');
+      const shortStaleTime = 1; // 1ms
+
+      registerRevalidator(testKey, mainFn, 3 * 60 * 1000, shortStaleTime, bgFn);
+
+      // Wait slightly longer than stale time
+      await new Promise((resolve) => setTimeout(resolve, 5));
+
+      expect(bgFn).toHaveBeenCalledTimes(1);
+
+      jest.useFakeTimers(); // Restore fake timers
     });
   });
 });

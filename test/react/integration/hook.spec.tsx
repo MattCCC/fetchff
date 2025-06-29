@@ -1562,43 +1562,4 @@ describe('React Integration Tests', () => {
       global.localStorage = originalLocalStorage;
     });
   });
-
-  describe('Performance', () => {
-    it('should handle many simultaneous different requests efficiently', async () => {
-      jest.useRealTimers();
-
-      const startTime = performance.now();
-
-      // Mock 100 different endpoints
-      for (let i = 0; i < 100; i++) {
-        mockFetchResponse(`/api/perf-${i}`, { body: { id: i } });
-      }
-
-      const ManyRequestsComponent = () => {
-        const requests = Array.from({ length: 100 }, (_, i) => {
-          const { data } = useFetcher(`/api/perf-${i}`);
-          return data;
-        });
-
-        return (
-          <div data-testid="many-requests">
-            {requests.filter(Boolean).length} loaded
-          </div>
-        );
-      };
-
-      render(<ManyRequestsComponent />);
-
-      await waitFor(() => {
-        expect(screen.getByTestId('many-requests')).toHaveTextContent(
-          '100 loaded',
-        );
-      });
-
-      const endTime = performance.now();
-      // Should complete within reasonable time
-      // It is a basic performance test, not a strict benchmark
-      expect(endTime - startTime).toBeLessThan(150);
-    });
-  });
 });

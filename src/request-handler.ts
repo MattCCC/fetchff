@@ -460,6 +460,8 @@ export function createRequestHandler(
         _cacheKey,
         doRequestWithInFlight,
         !!revalidateOnFocus,
+        mergedConfig.staleTime,
+        doRequestOnce,
       );
     }
 
