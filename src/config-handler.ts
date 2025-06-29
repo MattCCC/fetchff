@@ -6,6 +6,7 @@ import {
   CHARSET_UTF_8,
   CONTENT_TYPE,
   OBJECT,
+  REJECT,
 } from './constants';
 import type {
   FetcherConfig,
@@ -19,21 +20,22 @@ import {
   appendQueryParams,
   isSearchParams,
   isJSONSerializable,
+  isSlowConnection,
 } from './utils';
+
+const defaultTimeoutMs = (isSlowConnection() ? 60 : 30) * 1000;
 
 export const defaultConfig: RequestHandlerConfig = {
   method: GET,
-  strategy: 'reject',
-  timeout: 30000, // 30 seconds
-  dedupeTime: 0,
-  defaultResponse: null,
+  strategy: REJECT,
+  timeout: defaultTimeoutMs, // 30 seconds (60 on slow connections)
   headers: {
     Accept: APPLICATION_JSON + ', text/plain, */*',
     'Accept-Encoding': 'gzip, deflate, br',
   },
   retry: {
-    delay: 1000,
-    maxDelay: 30000,
+    delay: defaultTimeoutMs / 30, // 1 second (2 on slow connections)
+    maxDelay: defaultTimeoutMs, // 30 seconds (60 on slow connections)
     resetTimeout: true,
     backoff: 1.5,
 
@@ -49,6 +51,20 @@ export const defaultConfig: RequestHandlerConfig = {
       504, // Gateway Timeout
     ],
   },
+};
+
+/**
+ * Overwrites the default configuration with the provided custom configuration.
+ *
+ * @param {Partial<RequestHandlerConfig>} customConfig - The custom configuration to merge into the default config.
+ * @returns {Partial<RequestHandlerConfig>} - The updated default configuration object.
+ */
+export const setDefaultConfig = (
+  customConfig: Partial<RequestHandlerConfig>,
+): Partial<RequestHandlerConfig> => {
+  Object.assign(defaultConfig, customConfig);
+
+  return defaultConfig;
 };
 
 /**
@@ -81,15 +97,11 @@ export const buildConfig = (
     : requestConfig.credentials;
 
   // The explicitly passed query params
-  const explicitParams = requestConfig.params;
-
-  const urlPath = explicitParams
-    ? appendQueryParams(dynamicUrl, explicitParams)
-    : dynamicUrl;
+  const urlPath = appendQueryParams(dynamicUrl, requestConfig.params);
   const isFullUrl = urlPath.includes('://');
   const baseURL = isFullUrl
     ? ''
-    : (requestConfig.baseURL ?? requestConfig.apiUrl);
+    : (requestConfig.baseURL ?? requestConfig.apiUrl ?? '');
 
   // Automatically stringify request body, if possible and when not dealing with strings
   if (

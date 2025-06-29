@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import type {
   DefaultResponse,
   RequestHandlerConfig,
@@ -6,7 +5,7 @@ import type {
   RetryOptions,
   FetchResponse,
   RequestHandlerReturnType,
-  CreatedCustomFetcherInstance,
+  CustomFetcher,
 } from './types/request-handler';
 import type {
   DefaultParams,
@@ -15,19 +14,21 @@ import type {
 } from './types/api-handler';
 import { applyInterceptor } from './interceptor-manager';
 import { ResponseError } from './errors/response-error';
-import { delayInvocation, sanitizeObject } from './utils';
+import { delayInvocation, isObject, sanitizeObject } from './utils';
 import {
-  queueRequest,
-  removeRequestFromQueue,
+  markInFlight,
+  abortRequest,
   setInFlightPromise,
   getInFlightPromise,
-} from './queue-manager';
-import { ABORT_ERROR, CANCELLED_ERROR } from './constants';
+} from './inflight-manager';
+import { ABORT_ERROR, CANCELLED_ERROR, FUNCTION, REJECT } from './constants';
 import { prepareResponse, parseResponseData } from './response-parser';
 import { generateCacheKey, getCachedResponse, setCache } from './cache-manager';
 import { buildConfig, defaultConfig, mergeConfig } from './config-handler';
 import { getRetryAfterMs } from './retry-handler';
 import { withPolling } from './polling-handler';
+import { notifySubscribers } from './pubsub-manager';
+import { addRevalidator } from './revalidator-manager';
 
 /**
  * Create Request Handler
@@ -50,14 +51,14 @@ export function createRequestHandler(
   /**
    * Immediately create instance of custom fetcher if it is defined
    */
-  const requestInstance = sanitizedConfig.fetcher?.create?.(handlerConfig);
+  const requestInstance = sanitizedConfig.fetcher;
 
   /**
    * Get Provider Instance
    *
-   * @returns {CreatedCustomFetcherInstance | null} Provider's instance
+   * @returns {CustomFetcher | null} Provider's instance
    */
-  const getInstance = (): CreatedCustomFetcherInstance | null => {
+  const getInstance = (): CustomFetcher | null => {
     return requestInstance || null;
   };
 
@@ -96,13 +97,14 @@ export function createRequestHandler(
     mergeConfig('retry', mergedConfig, handlerConfig, _reqConfig);
     mergeConfig('headers', mergedConfig, handlerConfig, _reqConfig);
 
+    const fetcherConfig = buildConfig(url, mergedConfig);
+
     let response: FetchResponse<
       ResponseData,
       RequestBody,
       QueryParams,
       PathParams
     > | null = null;
-    const fetcherConfig = buildConfig(url, mergedConfig);
 
     const {
       timeout,
@@ -110,27 +112,34 @@ export function createRequestHandler(
       dedupeTime,
       cacheTime,
       cacheKey,
+      revalidateOnFocus,
+      revalidateOnReconnect,
       pollingInterval = 0,
     } = mergedConfig;
 
-    // Prevent performance overhead of cache access
     let _cacheKey: string | null = null;
 
     // Generate cache key if required
-    if (cacheTime || dedupeTime || cancellable || timeout) {
-      _cacheKey = cacheKey
-        ? cacheKey(fetcherConfig)
-        : generateCacheKey(fetcherConfig);
+    if (
+      cacheKey ||
+      cacheTime ||
+      dedupeTime ||
+      cancellable ||
+      timeout ||
+      revalidateOnFocus ||
+      revalidateOnReconnect
+    ) {
+      _cacheKey = generateCacheKey(fetcherConfig);
     }
 
     // Cache handling logic
-    if (cacheTime) {
+    if (_cacheKey && cacheTime) {
       const cached = getCachedResponse<
         ResponseData,
         RequestBody,
         QueryParams,
         PathParams
-      >(_cacheKey, cacheTime, mergedConfig.cacheBuster, fetcherConfig);
+      >(_cacheKey, cacheTime, fetcherConfig);
 
       if (cached) {
         return cached;
@@ -139,15 +148,12 @@ export function createRequestHandler(
 
     // Deduplication logic
     if (_cacheKey && dedupeTime) {
-      const inflight = getInFlightPromise(_cacheKey, dedupeTime);
+      const inflight = getInFlightPromise<
+        FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>
+      >(_cacheKey, dedupeTime);
 
       if (inflight) {
-        return (await inflight) as FetchResponse<
-          ResponseData,
-          RequestBody,
-          QueryParams,
-          PathParams
-        >;
+        return inflight;
       }
     }
 
@@ -170,13 +176,16 @@ export function createRequestHandler(
       let attempt = 0;
       let waitTime: number = delay || 0;
       const _retries = retries > 0 ? retries : 0;
+      const skipCache = mergedConfig.skipCache;
 
       while (attempt <= _retries) {
         try {
+          const url = fetcherConfig.url as string;
+
           // Add the request to the queue. Make sure to handle deduplication, cancellation, timeouts in accordance to retry settings
-          const controller = await queueRequest(
+          const controller = await markInFlight(
             _cacheKey,
-            fetcherConfig.url as string,
+            url,
             timeout,
             dedupeTime,
             cancellable,
@@ -184,11 +193,11 @@ export function createRequestHandler(
             !!(timeout && (!_retries || resetTimeout)),
           );
 
-          // Shallow copy to ensure basic idempotency
-          // Note that the refrence of the main object does not change here so it is safe in context of queue management and interceptors
+          // Create a shallow copy to maintain idempotency.
+          // This ensures the original object is not mutated before passing to interceptors or fetchers.
           const requestConfig: RequestConfig = {
-            signal: controller.signal,
             ...fetcherConfig,
+            signal: controller.signal,
           };
 
           // Local interceptors
@@ -197,27 +206,40 @@ export function createRequestHandler(
           // Global interceptors
           await applyInterceptor(requestConfig, handlerConfig.onRequest);
 
-          response = requestInstance?.request
-            ? await requestInstance.request(requestConfig)
-            : ((await fetch(
-                requestConfig.url as string,
+          // Backwards compatibility for custom fetcher
+          const fn = requestInstance || fetcherConfig.fetcher;
+
+          response = (fn
+            ? await fn<ResponseData, RequestBody, QueryParams, PathParams>(
+                url,
+                requestConfig,
+              )
+            : await fetch(
+                url,
                 requestConfig as RequestInit,
               )) as unknown as FetchResponse<
-                ResponseData,
-                RequestBody,
-                QueryParams,
-                PathParams
-              >);
+            ResponseData,
+            RequestBody,
+            QueryParams,
+            PathParams
+          >;
 
-          // Add more information to response object
-          if (response instanceof Response) {
+          // Attach config and data to the response
+          // This is useful for custom fetchers that do not return a Response instance
+          // and for interceptors that may need to access the request config
+          if (isObject(response)) {
+            // Add more information to response object
+            if (typeof Response === FUNCTION && response instanceof Response) {
+              response.data = await parseResponseData(response);
+            }
+
             response.config = requestConfig;
-            response.data = await parseResponseData(response);
 
             // Check if the response status is not outside the range 200-299 and if so, output error
-            if (!response.ok) {
+            // This is the pattern for fetch responses as per spec, but custom fetchers may not follow it so we check for `ok` property
+            if (response.ok !== undefined && !response.ok) {
               throw new ResponseError(
-                `${requestConfig.method} to ${requestConfig.url} failed! Status: ${response.status || null}`,
+                `${requestConfig.method} to ${url} failed! Status: ${response.status || null}`,
                 requestConfig,
                 response,
               );
@@ -230,7 +252,8 @@ export function createRequestHandler(
           // Global interceptors
           await applyInterceptor(response, handlerConfig.onResponse);
 
-          removeRequestFromQueue(_cacheKey);
+          // Remove the request from the queue
+          abortRequest(_cacheKey);
 
           const output = prepareResponse<
             ResponseData,
@@ -259,13 +282,19 @@ export function createRequestHandler(
             continue; // Retry the request
           }
 
-          if (
-            cacheTime &&
-            _cacheKey &&
-            (!requestConfig.skipCache ||
-              !requestConfig.skipCache(output, requestConfig))
-          ) {
-            setCache(_cacheKey, output);
+          if (_cacheKey) {
+            if (
+              cacheTime &&
+              (!skipCache ||
+                !skipCache<ResponseData, RequestBody, QueryParams, PathParams>(
+                  output,
+                  requestConfig,
+                ))
+            ) {
+              setCache(_cacheKey, output);
+            }
+
+            notifySubscribers(_cacheKey, output);
           }
 
           return output;
@@ -278,10 +307,9 @@ export function createRequestHandler(
           >;
 
           // Append additional information to Network, CORS or any other fetch() errors
-          error.status = error?.status || response?.status || 0;
-          error.statusText = error?.statusText || response?.statusText || '';
-          error.config = fetcherConfig;
-          error.request = fetcherConfig;
+          error.status = error.status || response?.status || 0;
+          error.statusText = error.statusText || response?.statusText || '';
+          error.config = error.request = fetcherConfig;
           error.response = response;
 
           // Prepare Extended Response
@@ -292,14 +320,36 @@ export function createRequestHandler(
             RequestBody
           >(response, fetcherConfig, error);
 
-          if (
-            // We check retries provided regardless of the shouldRetry being provided so to avoid infinite loops.
-            // It is a fail-safe so to prevent excessive retry attempts even if custom retry logic suggests a retry.
-            attempt === _retries || // Stop if the maximum retries have been reached
-            !retryOn?.includes(error.status) || // Check if the error status is retryable
-            !shouldRetry ||
-            !(await shouldRetry(output, attempt)) // If shouldRetry is defined, evaluate it
-          ) {
+          let shouldStopRetrying = false;
+
+          // Safety first: always respect max retries
+          // We check retries provided regardless of the shouldRetry being provided so to avoid infinite loops.
+          // It is a fail-safe so to prevent excessive retry attempts even if custom retry logic suggests a retry.
+          if (attempt === _retries) {
+            shouldStopRetrying = true;
+          } else {
+            let customDecision: boolean | null = null;
+
+            // Get custom decision if shouldRetry is provided
+            if (shouldRetry) {
+              const result = await shouldRetry(output, attempt);
+              customDecision = result;
+            }
+
+            // Decision cascade:
+            if (customDecision === true) {
+              // shouldRetry explicitly says retry
+              shouldStopRetrying = false;
+            } else if (customDecision === false) {
+              // shouldRetry explicitly says don't retry
+              shouldStopRetrying = true;
+            } else {
+              // shouldRetry returned undefined/null, fallback to retryOn
+              shouldStopRetrying = !retryOn?.includes(error.status);
+            }
+          }
+
+          if (shouldStopRetrying) {
             if (!isRequestCancelled(error as ResponseError)) {
               logger(mergedConfig, 'FETCH ERROR', error as ResponseError);
             }
@@ -311,7 +361,7 @@ export function createRequestHandler(
             await applyInterceptor(error, handlerConfig.onError);
 
             // Remove the request from the queue
-            removeRequestFromQueue(_cacheKey);
+            abortRequest(_cacheKey);
 
             // Timeouts and request cancellations using AbortController do not throw any errors unless rejectCancelled is true.
             // Only handle the error if the request was not cancelled, or if it was cancelled and rejectCancelled is true.
@@ -319,11 +369,29 @@ export function createRequestHandler(
             const shouldHandleError =
               !isCancelled || mergedConfig.rejectCancelled;
 
+            if (_cacheKey) {
+              if (
+                cacheTime &&
+                mergedConfig.cacheErrors &&
+                (!skipCache ||
+                  !skipCache<
+                    ResponseData,
+                    RequestBody,
+                    QueryParams,
+                    PathParams
+                  >(output, mergedConfig))
+              ) {
+                setCache(_cacheKey, output);
+              }
+
+              notifySubscribers(_cacheKey, output);
+            }
+
             if (shouldHandleError) {
               const errorHandlingStrategy = mergedConfig.strategy;
 
               // Reject the promise
-              if (errorHandlingStrategy === 'reject') {
+              if (errorHandlingStrategy === REJECT) {
                 return Promise.reject(error);
               } // Hang the promise
               else if (errorHandlingStrategy === 'silent') {
@@ -366,23 +434,39 @@ export function createRequestHandler(
       >(response, fetcherConfig);
     };
 
+    // If cache key is specified, wrap the request with in-flight management
+    const doRequestWithInFlight = _cacheKey
+      ? async () => {
+          notifySubscribers(_cacheKey, { isFetching: true });
+
+          return doRequestOnce();
+        }
+      : doRequestOnce;
+
     // If polling is enabled, use withPolling to handle the request
-    const doRequestPromise =
-      pollingInterval > 0
-        ? withPolling<
-            FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>
-          >(
-            doRequestOnce,
-            pollingInterval,
-            mergedConfig.shouldStopPolling,
-            mergedConfig.maxPollingAttempts,
-            mergedConfig.pollingDelay,
-          )
-        : doRequestOnce();
+    const doRequestPromise = withPolling(
+      doRequestWithInFlight,
+      pollingInterval,
+      mergedConfig.shouldStopPolling,
+      mergedConfig.maxPollingAttempts,
+      mergedConfig.pollingDelay,
+    );
 
     // If deduplication is enabled, store the in-flight promise immediately
-    if (_cacheKey && dedupeTime) {
-      setInFlightPromise(_cacheKey, doRequestPromise);
+    if (_cacheKey) {
+      if (dedupeTime) {
+        setInFlightPromise(_cacheKey, doRequestPromise);
+      }
+
+      addRevalidator(
+        _cacheKey,
+        doRequestWithInFlight,
+        undefined,
+        mergedConfig.staleTime,
+        doRequestOnce,
+        !!revalidateOnFocus,
+        !!revalidateOnReconnect,
+      );
     }
 
     return doRequestPromise;
@@ -413,7 +497,7 @@ const isRequestCancelled = (error: ResponseError): boolean => {
  */
 const logger = (
   reqConfig: RequestConfig,
-  ...args: (string | ResponseError<any>)[]
+  ...args: (string | ResponseError)[]
 ): void => {
   const logger = reqConfig.logger;
 
@@ -421,3 +505,18 @@ const logger = (
     logger.warn(...args);
   }
 };
+
+/**
+ * Simple wrapper for request fetching.
+ * It abstracts the creation of RequestHandler, making it easy to perform API requests.
+ *
+ * @param {string | URL | globalThis.Request} url - Request URL.
+ * @param {RequestHandlerConfig} config - Configuration object for the request handler.
+ * @returns {Promise<FetchResponse<ResponseData>>} Response Data.
+ */
+export async function fetchf<ResponseData = DefaultResponse>(
+  url: string,
+  config: RequestHandlerConfig<ResponseData> = {},
+): Promise<FetchResponse<ResponseData>> {
+  return createRequestHandler(config).request<ResponseData>(url);
+}

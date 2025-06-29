@@ -226,6 +226,8 @@ export function replaceUrlPathParams(
   });
 }
 
+export const timeNow = () => Date.now();
+
 /**
  * Checks if a value is JSON serializable.
  *
@@ -241,7 +243,7 @@ export function replaceUrlPathParams(
 export function isJSONSerializable(value: any): boolean {
   const t = typeof value;
 
-  if (t === UNDEFINED || value === null) {
+  if (value === undefined || value === null) {
     return false;
   }
 
@@ -351,3 +353,30 @@ export function processHeaders(
 
   return headersObject;
 }
+
+/**
+ * Determines if the current environment is a browser.
+ *
+ * @returns {boolean} - True if running in a browser environment, false otherwise.
+ */
+export function isBrowser(): boolean {
+  // For node and and some mobile frameworks like React Native, `add/removeEventListener` doesn't exist on window!
+  return (
+    typeof window !== UNDEFINED && typeof window.addEventListener === FUNCTION
+  );
+}
+
+/**
+ * Detects if the user is on a slow network connection
+ * @returns {boolean} True if connection is slow, false otherwise or if detection unavailable
+ */
+export const isSlowConnection = (): boolean => {
+  // Only works in browser environments
+  if (!isBrowser()) {
+    return false;
+  }
+
+  const conn = navigator && (navigator as any).connection;
+
+  return conn && ['slow-2g', '2g', '3g'].includes(conn.effectiveType);
+};

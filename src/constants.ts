@@ -15,3 +15,5 @@ export const CANCELLED_ERROR = 'CanceledError';
 
 export const GET = 'GET';
 export const HEAD = 'HEAD';
+
+export const REJECT = 'reject';

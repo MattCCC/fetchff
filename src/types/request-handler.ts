@@ -39,27 +39,27 @@ export type DefaultResponse = any;
 
 export type NativeFetch = typeof fetch;
 
-export interface FetcherInstance {
-  create: <RequestInstance = CreatedCustomFetcherInstance>(
-    config?: RequestHandlerConfig,
-  ) => RequestInstance;
-}
-
-export interface CreatedCustomFetcherInstance {
-  request<
-    ResponseData = DefaultResponse,
-    QueryParams = DefaultParams,
-    PathParams = DefaultUrlParams,
-    RequestBody = DefaultPayload,
-  >(
-    requestConfig: RequestConfig<
-      ResponseData,
-      QueryParams,
-      PathParams,
-      RequestBody
-    >,
-  ): PromiseLike<FetchResponse<ResponseData>>;
-}
+export type CustomFetcher = <
+  ResponseData = DefaultResponse,
+  RequestBody = DefaultPayload,
+  QueryParams = DefaultParams,
+  PathParams = DefaultUrlParams,
+>(
+  url: string,
+  config?: RequestConfig<
+    ResponseData,
+    QueryParams,
+    PathParams,
+    RequestBody
+  > | null,
+) =>
+  | PromiseLike<
+      FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>
+    >
+  | FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>
+  | Response
+  | PromiseLike<Response>
+  | PromiseLike<unknown>;
 
 export type ErrorHandlingStrategy =
   | 'reject'
@@ -86,6 +86,7 @@ export interface ExtendedResponse<
   > | null;
   headers: HeadersObject & HeadersInit;
   config: RequestConfig<ResponseData, QueryParams, PathParams, RequestBody>;
+  isFetching?: boolean;
 }
 
 /**
@@ -110,7 +111,12 @@ export interface ResponseError<
   statusText: string;
   request: RequestConfig<ResponseData, QueryParams, PathParams, RequestBody>;
   config: RequestConfig<ResponseData, QueryParams, PathParams, RequestBody>;
-  response: FetchResponse<ResponseData, RequestBody> | null;
+  response: FetchResponse<
+    ResponseData,
+    RequestBody,
+    QueryParams,
+    PathParams
+  > | null;
 }
 
 export type RetryFunction<
@@ -119,14 +125,9 @@ export type RetryFunction<
   PathParams = DefaultUrlParams,
   RequestBody = DefaultPayload,
 > = (
-  response: ExtendedResponse<
-    ResponseData,
-    RequestBody,
-    QueryParams,
-    PathParams
-  >,
+  response: FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>,
   attempt: number,
-) => Promise<boolean> | boolean;
+) => Promise<boolean | null> | boolean | null;
 
 export type PollingFunction<
   ResponseData = DefaultResponse,
@@ -138,23 +139,33 @@ export type PollingFunction<
   attempts: number,
 ) => boolean;
 
-export type CacheKeyFunction = (config: FetcherConfig) => string;
+export type CacheKeyFunction = (config: RequestConfig) => string;
 
-export type CacheBusterFunction = (config: FetcherConfig) => boolean;
+export type CacheBusterFunction = (config: RequestConfig) => boolean;
 
-export type CacheSkipFunction = <ResponseData = any, RequestBody = any>(
-  data: ResponseData,
-  config: RequestConfig<ResponseData, any, any, RequestBody>,
+export type CacheSkipFunction<
+  _ResponseData = DefaultResponse,
+  _RequestBody = DefaultPayload,
+  _QueryParams = DefaultParams,
+  _PathParams = DefaultUrlParams,
+> = <
+  ResponseData = _ResponseData,
+  RequestBody = _RequestBody,
+  QueryParams = _QueryParams,
+  PathParams = _PathParams,
+>(
+  response: FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>,
+  config: RequestConfig<ResponseData, QueryParams, PathParams, RequestBody>,
 ) => boolean;
 
 /**
  * Configuration object for retry related options
  */
 export interface RetryOptions<
-  ResponseData,
-  QueryParams,
-  PathParams,
-  RequestBody,
+  ResponseData = DefaultResponse,
+  QueryParams = DefaultParams,
+  PathParams = DefaultUrlParams,
+  RequestBody = DefaultPayload,
 > {
   /**
    * Maximum number of retry attempts.
@@ -203,7 +214,10 @@ export interface RetryOptions<
   retryOn?: number[];
 
   /**
-   * A function to determine whether to retry based on the error and attempt number.
+   * A function that determines whether a failed or successful request should be retried, based on the response and the current attempt number.
+   * Return `true` to retry, or `false` to stop retrying.
+   * @param response - The response object from the failed request.
+   * @param attempt - The current retry attempt number (starting from 1).
    */
   shouldRetry?: RetryFunction<
     ResponseData,
@@ -216,23 +230,33 @@ export interface RetryOptions<
 /**
  * Configuration object for cache related options
  */
-export interface CacheOptions {
+export interface CacheOptions<
+  ResponseData = DefaultResponse,
+  QueryParams = DefaultParams,
+  PathParams = DefaultUrlParams,
+  RequestBody = DefaultPayload,
+> {
   /**
    * Maximum time, in seconds, a cache entry is considered fresh (valid).
    * After this time, the entry may be considered stale (expired).
+   * - Set to `-1` to remove cache as soon as consumer is not using the data (e.g., a component unmounts), it is deleted from cache.
+   * - Set to `0` to disable caching (no cache).
    *
-   * @default 0 (no cache)
+   * @default undefined (no cache)
    */
   cacheTime?: number;
 
   /**
    * Cache key
-   * It provides a way to customize caching behavior dynamically according to different criteria.
-   * @param config - Request configuration.
-   * @default null By default it generates a unique cache key for HTTP requests based on:
-   * Method, URL, Query Params, Dynamic Path Params, mode, credentials, cache, redirect, referrer, integrity, headers and body
+   * Lets you customize how cache entries are identified for requests.
+   * - You can provide a function that returns a cache key string based on the request config.
+   * - You can provide a fixed string to use as the cache key.
+   * - Set to null to use the default cache key generator.
+   *
+   * @param config - The request configuration.
+   * @default null (uses the default cache key generator, which considers: method, URL, query params, path params, mode, credentials, cache, redirect, referrer, integrity, headers, and body)
    */
-  cacheKey?: CacheKeyFunction;
+  cacheKey?: CacheKeyFunction | string | null;
 
   /**
    * Cache Buster Function
@@ -249,7 +273,18 @@ export interface CacheOptions {
    * @param config - Request configuration.
    * @default (response,config)=>false Bypassing cache is disabled by default. Return true to skip cache
    */
-  skipCache?: CacheSkipFunction;
+  skipCache?: CacheSkipFunction<
+    ResponseData,
+    RequestBody,
+    QueryParams,
+    PathParams
+  >;
+
+  /**
+   * If true, error responses (non-2xx) will also be cached.
+   * @default false
+   */
+  cacheErrors?: boolean;
 }
 
 /**
@@ -267,7 +302,7 @@ export interface ExtendedRequestConfig<
     CacheOptions {
   /**
    * Custom error handling strategy for the request.
-   * - `'reject'`: Rejects the promise with an error.
+   * - `'reject'`: Rejects the promise with an error (default).
    * - `'silent'`: Silently handles errors without rejecting.
    * - `'defaultResponse'`: Returns a default response in case of an error.
    * - `'softFail'`: Returns a partial response with error details.
@@ -275,7 +310,7 @@ export interface ExtendedRequestConfig<
   strategy?: ErrorHandlingStrategy;
 
   /**
-   * A default response to return if the request fails and the strategy is set to `'defaultResponse'`.
+   * A default response to return if the request fails
    */
   defaultResponse?: any;
 
@@ -295,6 +330,27 @@ export interface ExtendedRequestConfig<
    * @default false
    */
   rejectCancelled?: boolean;
+
+  /**
+   * If true, automatically revalidates the request when the window regains focus.
+   * @default false
+   */
+  revalidateOnFocus?: boolean;
+
+  /**
+   * If true, automatically revalidates the request when the browser regains network connectivity.
+   * @default false
+   */
+  revalidateOnReconnect?: boolean;
+
+  /**
+   * Whether to automatically run the request as soon as the handler is created.
+   * - If `true`, the request is sent immediately (useful for React/Vue hooks).
+   * - If `false`, you must call a function to trigger the request manually.
+   * Primarily used in UI integrations (e.g., React/Vue hooks); has no effect for direct fetchf() usage.
+   * @default true
+   */
+  immediate?: boolean;
 
   /**
    * An object representing dynamic URL path parameters.
@@ -393,6 +449,12 @@ export interface ExtendedRequestConfig<
   dedupeTime?: number;
 
   /**
+   * Time in milliseconds after which data is considered stale and background revalidation is triggered
+   * @default 0 (data is never considered stale)
+   */
+  staleTime?: number;
+
+  /**
    * The time (in milliseconds) between the end of one polling attempt and the start of the next.
    * Set 0 to disable polling.
    * @default 0 (polling disabled)
@@ -429,12 +491,12 @@ export interface ExtendedRequestConfig<
    * When `null`, the default fetch behavior is used.
    *
    * @example:
-   * const customFetcher: FetcherInstance = { create: () => ({ request: (config) => fetch(config.url) }) };
-   * fetchf('/endpoint', { fetcher: customFetcher });
+   * const customFetcher: CustomFetcher = (url, config) => fetch(url, config);
+   * const data = await fetchf('/endpoint', { fetcher: customFetcher });
    *
    * @default null
    */
-  fetcher?: FetcherInstance | null;
+  fetcher?: CustomFetcher | null;
 
   /**
    * A custom logger instance to handle warnings and errors.
@@ -446,10 +508,10 @@ export interface ExtendedRequestConfig<
    *
    * @default null (Logging is disabled)
    */
-  logger?: Logger | null;
+  logger?: FetcherLogger | null;
 }
 
-export interface Logger {
+export interface FetcherLogger extends Partial<Console> {
   warn(message?: any, ...optionalParams: any[]): void;
   error?(message?: any, ...optionalParams: any[]): void;
 }
@@ -480,7 +542,7 @@ export type FetcherConfig<
 
 export interface RequestHandlerReturnType {
   config: RequestHandlerConfig;
-  getInstance: () => CreatedCustomFetcherInstance | null;
+  getInstance: () => CustomFetcher | null;
   request: <
     ResponseData = DefaultResponse,
     QueryParams = DefaultParams,
@@ -495,5 +557,7 @@ export interface RequestHandlerReturnType {
       RequestBody
     > | null,
     shouldMerge?: boolean,
-  ) => Promise<FetchResponse<ResponseData, RequestBody>>;
+  ) => Promise<
+    FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>
+  >;
 }
