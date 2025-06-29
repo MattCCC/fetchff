@@ -19,11 +19,9 @@ export const INFINITE_CACHE_TIME = -1;
 const refs = new Map<string, number>();
 
 export const incrementRef = (key: string | null) => {
-  if (!key) {
-    return;
+  if (key) {
+    refs.set(key, (refs.get(key) || 0) + 1);
   }
-
-  refs.set(key, (refs.get(key) || 0) + 1);
 };
 
 export const decrementRef = (

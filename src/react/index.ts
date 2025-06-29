@@ -1,4 +1,10 @@
-import { useEffect, useCallback, useSyncExternalStore, useMemo } from 'react';
+import {
+  useEffect,
+  useCallback,
+  useSyncExternalStore,
+  useMemo,
+  useRef,
+} from 'react';
 import {
   fetchf,
   subscribe,
@@ -29,6 +35,11 @@ const DEFAULT_RESULT = {
   config: {},
   headers: {},
 };
+const DEFAULT_REF = [null, {}, null] as [
+  string | null,
+  RequestConfig,
+  string | null,
+];
 
 /**
  * High-performance React hook for fetching data with caching, deduplication, revalidation etc.
@@ -106,6 +117,9 @@ export function useFetcher<
   const dedupeTime = config.dedupeTime ?? DEFAULT_DEDUPE_TIME_MS;
   const cacheTime = config.cacheTime || INFINITE_CACHE_TIME;
 
+  const currentValuesRef = useRef(DEFAULT_REF);
+  currentValuesRef.current = [url, config, cacheKey];
+
   const shouldTriggerOnMount = useMemo(
     () => (config.immediate === undefined ? true : config.immediate),
     [config.immediate],
@@ -168,16 +182,18 @@ export function useFetcher<
 
   const refetch = useCallback(
     async (forceRefresh = true) => {
-      // Truthy check for forceRefresh to ensure it's a boolean. It is useful in onClick handlers so to avoid additional annonymous function calls.
-      const shouldRefresh = !!forceRefresh;
+      const [currUrl, currConfig, currCacheKey] = currentValuesRef.current;
 
-      if (!url) {
+      if (!currUrl) {
         return Promise.resolve(null);
       }
 
+      // Truthy check for forceRefresh to ensure it's a boolean. It is useful in onClick handlers so to avoid additional annonymous function calls.
+      const shouldRefresh = !!forceRefresh;
+
       // Fast path: check cache first if not forcing refresh
-      if (!shouldRefresh && cacheKey) {
-        const cached = getCachedResponse(cacheKey, cacheTime, config);
+      if (!shouldRefresh && currCacheKey) {
+        const cached = getCachedResponse(currCacheKey, cacheTime, currConfig);
 
         if (cached) {
           return Promise.resolve(cached);
@@ -186,11 +202,11 @@ export function useFetcher<
 
       // When manual refetch is triggered, we want to ensure that the cache is busted
       // This can be disabled by passing `refetch(false)`
-      const cacheBuster = shouldRefresh ? () => true : config.cacheBuster;
+      const cacheBuster = shouldRefresh ? () => true : currConfig.cacheBuster;
 
-      return await fetchf(url, {
-        ...config,
-        cacheKey,
+      return await fetchf(currUrl, {
+        ...currConfig,
+        cacheKey: currCacheKey,
         dedupeTime,
         cacheTime,
         cacheBuster,
@@ -199,14 +215,14 @@ export function useFetcher<
         cacheErrors: true,
       });
     },
-    [url, cacheKey, cacheTime, dedupeTime],
+    [cacheTime, dedupeTime],
   );
 
   useEffect(() => {
     // Load the initial data if not already cached and not currently fetching
     if (
-      url &&
       shouldTriggerOnMount &&
+      currentValuesRef.current[0] &&
       !state.data &&
       !state.error &&
       !state.isFetching
@@ -223,9 +239,14 @@ export function useFetcher<
     incrementRef(cacheKey);
 
     return () => {
-      decrementRef(cacheKey, cacheTime, dedupeTime, url);
+      decrementRef(
+        cacheKey,
+        cacheTime,
+        dedupeTime,
+        currentValuesRef.current[0],
+      );
     };
-  }, [url, shouldTriggerOnMount, refetch, cacheKey, cacheTime]);
+  }, [shouldTriggerOnMount, cacheKey, cacheTime]);
 
   const mutate = useCallback<
     UseFetcherResult<
