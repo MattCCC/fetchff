@@ -303,13 +303,8 @@ describe('Real-time & WebSocket Integration Tests', () => {
     it('should handle window focus revalidation', async () => {
       let requestCount = 0;
 
-      global.fetch = jest.fn().mockImplementation((url) => {
+      global.fetch = jest.fn().mockImplementation(() => {
         requestCount++;
-        console.log(
-          '🚀 ~ REQUEST COUNT global.fetch=jest.fn ~ url:',
-          requestCount,
-          url,
-        );
 
         return Promise.resolve({
           ok: true,
@@ -327,7 +322,6 @@ describe('Real-time & WebSocket Integration Tests', () => {
           cacheTime: 500,
         });
 
-        console.log('🚀 ~ FocusComponent ~ data:', data);
         return (
           <div data-testid="focus-status">{data?.status || 'No Status'}</div>
         );
