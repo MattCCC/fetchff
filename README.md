@@ -310,6 +310,25 @@ await mutate('/api/users', updatedData, {
 });
 ```
 
+##### `setCache(key, response)`
+
+Directly set cache data for a specific key. Unlike `mutate()`, this doesn't trigger revalidation by default. This is a low level function to directly set cache data based on particular key. If unsure, use the `mutate()` with `revalidate: false` instead.
+
+**Parameters:**
+
+- `key` (string): The cache key to set. It must match the cache key of the request.
+- `response` (any): The full response object to store in cache
+
+```typescript
+import { setCache } from 'fetchff';
+
+// Set cache data
+setCache('/api/user-profile', userData);
+
+// Set cache for specific endpoint
+setCache('/api/user-settings', userSettings);
+```
+
 ##### `deleteCache(key)`
 
 Remove cached data for a specific cache key. Useful for cache invalidation when you know data is stale.
@@ -1356,7 +1375,7 @@ The following options are available for configuring polling in the `RequestHandl
 
 - **`maxPollingAttempts`**:  
   Type: `number`  
-  Maximum number of polling attempts before stopping. Set to `< 1` for unlimited attempts.  
+  Maximum number of polling attempts before stopping. Set to `0` or negative number for unlimited attempts.  
   _Default:_ `0` (unlimited).
 
 - **`shouldStopPolling`**:  
