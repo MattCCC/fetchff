@@ -508,10 +508,10 @@ export interface ExtendedRequestConfig<
    *
    * @default null (Logging is disabled)
    */
-  logger?: Logger | null;
+  logger?: FetcherLogger | null;
 }
 
-export interface Logger {
+export interface FetcherLogger extends Partial<Console> {
   warn(message?: any, ...optionalParams: any[]): void;
   error?(message?: any, ...optionalParams: any[]): void;
 }
