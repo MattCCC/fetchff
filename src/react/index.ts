@@ -222,7 +222,7 @@ export function useFetcher<
     // Load the initial data if not already cached and not currently fetching
     if (
       shouldTriggerOnMount &&
-      currentValuesRef.current[0] &&
+      url &&
       !state.data &&
       !state.error &&
       !state.isFetching
@@ -239,14 +239,9 @@ export function useFetcher<
     incrementRef(cacheKey);
 
     return () => {
-      decrementRef(
-        cacheKey,
-        cacheTime,
-        dedupeTime,
-        currentValuesRef.current[0],
-      );
+      decrementRef(cacheKey, cacheTime, dedupeTime, url);
     };
-  }, [shouldTriggerOnMount, cacheKey, cacheTime]);
+  }, [url, shouldTriggerOnMount, cacheKey, cacheTime]);
 
   const mutate = useCallback<
     UseFetcherResult<
