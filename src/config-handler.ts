@@ -51,6 +51,20 @@ export const defaultConfig: RequestHandlerConfig = {
 };
 
 /**
+ * Overwrites the default configuration with the provided custom configuration.
+ *
+ * @param {Partial<RequestHandlerConfig>} customConfig - The custom configuration to merge into the default config.
+ * @returns {Partial<RequestHandlerConfig>} - The updated default configuration object.
+ */
+export const setDefaultConfig = (
+  customConfig: Partial<RequestHandlerConfig>,
+): Partial<RequestHandlerConfig> => {
+  Object.assign(defaultConfig, customConfig);
+
+  return defaultConfig;
+};
+
+/**
  * Build request configuration
  *
  * @param {string} url - Request url
