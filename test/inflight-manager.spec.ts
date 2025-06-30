@@ -1,10 +1,27 @@
 import {
-  markInFlight,
+  markInFlight as _markInFlight,
   abortRequest,
   getController,
 } from '../src/inflight-manager';
 
 const createKey = (url: string) => url;
+const markInFlight = async (
+  key: string,
+  url: string,
+  timeout: number | undefined,
+  dedupeTime: number = 0,
+  isCancellable: boolean = false,
+  isTimeoutEnabled: boolean = true,
+): Promise<AbortController> => {
+  return _markInFlight(
+    key,
+    url,
+    timeout,
+    dedupeTime,
+    isCancellable,
+    isTimeoutEnabled,
+  );
+};
 
 describe('InFlight Request Manager', () => {
   beforeAll(() => {

@@ -19,8 +19,16 @@
  */
 
 import { ABORT_ERROR, TIMEOUT_ERROR } from './constants';
-import type { InFlightItem } from './types/inflight-manager';
+import { addTimeout, removeTimeout } from './timeout-wheel';
 import { timeNow } from './utils';
+
+export type InFlightItem = [
+  AbortController, // AbortController for the request
+  boolean, // Whether timeout is enabled for the request
+  number, // Timestamp when the request was marked in-flight
+  boolean, // isCancellable - whether the request can be cancelled
+  Promise<unknown> | null, // Optional in-flight promise for deduplication
+];
 
 const inFlight: Map<string, InFlightItem> = new Map();
 
@@ -39,56 +47,65 @@ export async function markInFlight(
   key: string | null,
   url: string,
   timeout: number | undefined,
-  dedupeTime: number = 0,
-  isCancellable: boolean = false,
-  isTimeoutEnabled: boolean = true,
+  dedupeTime: number,
+  isCancellable: boolean,
+  isTimeoutEnabled: boolean,
 ): Promise<AbortController> {
   if (!key) {
     return new AbortController();
   }
 
   const item = inFlight.get(key);
+  let prevPromise: Promise<unknown> | null = null;
 
+  // Previous request is in-flight, check if we can reuse it
   if (item) {
-    const previousController = item[0];
+    const prevController = item[0];
     const prevIsCancellable = item[3];
 
     // If the request is already in the queue and within the dedupeTime, reuse the existing controller
-    if (!prevIsCancellable && dedupeTime && timeNow() - item[2] < dedupeTime) {
-      return previousController;
+    if (
+      !prevIsCancellable &&
+      timeNow() - item[2] < dedupeTime &&
+      !prevController.signal.aborted
+    ) {
+      return prevController;
     }
 
     // If the request is too old, remove it and proceed to add a new one
     // Abort previous request, if applicable, and continue as usual
     if (prevIsCancellable) {
-      previousController.abort(
+      prevController.abort(
         new DOMException('Aborted due to new request', ABORT_ERROR),
       );
     }
 
-    const timeoutId = item[1];
-
-    if (timeoutId !== null) {
-      clearTimeout(timeoutId);
-    }
-
-    inFlight.delete(key);
+    removeTimeout(key);
+    prevPromise = item[4];
   }
 
   const controller = new AbortController();
 
-  const timeoutId = isTimeoutEnabled
-    ? setTimeout(() => {
-        const error = new DOMException(
-          `${url} aborted due to timeout`,
-          TIMEOUT_ERROR,
+  inFlight.set(key, [
+    controller,
+    isTimeoutEnabled,
+    timeNow(),
+    isCancellable,
+    prevPromise,
+  ]);
+
+  if (isTimeoutEnabled) {
+    addTimeout(
+      key,
+      () => {
+        abortRequest(
+          key,
+          new DOMException(url + ' aborted due to timeout', TIMEOUT_ERROR),
         );
-
-        abortRequest(key, error);
-      }, timeout)
-    : null;
-
-  inFlight.set(key, [controller, timeoutId, timeNow(), isCancellable]);
+      },
+      timeout as number,
+    );
+  }
 
   return controller;
 }
@@ -97,7 +114,8 @@ export async function markInFlight(
  * Removes a request from the queue and clears its timeout.
  *
  * @param key - Unique key for the request.
- * @param {boolean} error - Error payload so to force the request to abort.
+ * @param {boolean} error - Optional error to abort the request with. If null, the request is simply removed but no abort sent.
+ * @returns {Promise<void>} - A promise that resolves when the request is aborted and removed.
  */
 export async function abortRequest(
   key: string | null,
@@ -112,17 +130,13 @@ export async function abortRequest(
 
   if (item) {
     const controller = item[0];
-    const timeoutId = item[1];
 
     // If the request is not yet aborted, abort it with the provided error
-    if (error && !controller.signal.aborted) {
+    if (error) {
       controller.abort(error);
     }
 
-    if (timeoutId !== null) {
-      clearTimeout(timeoutId);
-    }
-
+    removeTimeout(key);
     inFlight.delete(key);
   }
 }
@@ -175,16 +189,20 @@ export function getInFlightPromise<T = unknown>(
     return null;
   }
 
-  const item = inFlight.get(key);
+  const prevReq = inFlight.get(key);
 
   if (
-    item &&
-    item[4] &&
-    timeNow() - item[2] < dedupeTime &&
+    prevReq &&
+    // If the request is in-flight and has a promise
+    prevReq[4] &&
+    // If the request is cancellable, we will not reuse it
+    !prevReq[3] &&
+    // If the request is within the dedupeTime
+    timeNow() - prevReq[2] < dedupeTime &&
     // If one request is cancelled, ALL deduped requests get cancelled
-    !item[0].signal.aborted
+    !prevReq[0].signal.aborted
   ) {
-    return item[4] as Promise<T>;
+    return prevReq[4] as Promise<T>;
   }
 
   return null;

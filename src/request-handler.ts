@@ -187,8 +187,8 @@ export function createRequestHandler(
             _cacheKey,
             url,
             timeout,
-            dedupeTime,
-            cancellable,
+            dedupeTime || 0,
+            !!cancellable,
             // Reset timeouts by default or when retries are ON
             !!(timeout && (!_retries || resetTimeout)),
           );

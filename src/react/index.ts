@@ -25,9 +25,13 @@ import type {
 } from '..';
 import type { UseFetcherResult } from '../types/react-hooks';
 
-import { decrementRef, incrementRef, INFINITE_CACHE_TIME } from './cache-ref';
+import {
+  decrementRef,
+  DEFAULT_DEDUPE_TIME_MS,
+  incrementRef,
+  INFINITE_CACHE_TIME,
+} from './cache-ref';
 
-const DEFAULT_DEDUPE_TIME_MS = 2000;
 const DEFAULT_RESULT = {
   data: null,
   error: null,
