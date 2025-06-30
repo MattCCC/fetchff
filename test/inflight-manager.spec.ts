@@ -189,7 +189,7 @@ describe('InFlight Request Manager', () => {
       2000,
       1000,
     );
-    jest.advanceTimersByTime(1500);
+    jest.advanceTimersByTime(1100);
     expect(controller1).not.toBe(controller2);
     expect(controller1.signal.aborted).toBe(false);
     expect(controller2.signal.aborted).toBe(false);
@@ -367,7 +367,9 @@ describe('InFlight Request Manager', () => {
       1000,
       false,
     );
-    jest.advanceTimersByTime(1500);
+
+    jest.advanceTimersByTime(1200);
+
     const controller2 = await markInFlight(
       key,
       'not-cancel-prev-url',

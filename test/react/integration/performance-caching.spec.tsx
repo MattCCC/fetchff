@@ -15,6 +15,7 @@ import {
   mockFetchResponse,
 } from '../../utils/mockFetchResponse';
 import { useFetcher } from '../../../src/react/index';
+import { clearAllTimeouts } from '../../../src/timeout-wheel';
 
 describe('Performance & Caching Integration Tests', () => {
   beforeEach(() => {
@@ -25,23 +26,28 @@ describe('Performance & Caching Integration Tests', () => {
   afterEach(() => {
     jest.useRealTimers();
     jest.resetAllMocks();
+    clearAllTimeouts();
+    jest.clearAllTimers();
     clearMockResponses();
   });
 
   describe('Performance', () => {
     it('should handle many simultaneous different requests efficiently', async () => {
       jest.useRealTimers();
+      const runs = 100;
 
-      // Mock 100 different endpoints
-      for (let i = 0; i < 100; i++) {
+      // Mock i different endpoints
+      for (let i = 0; i < runs; i++) {
         mockFetchResponse(`/api/perf-${i}`, { body: { id: i } });
       }
 
       const startTime = performance.now();
 
       const ManyRequestsComponent = () => {
-        const requests = Array.from({ length: 100 }, (_, i) => {
-          const response = useFetcher(`/api/perf-${i}`);
+        const requests = Array.from({ length: runs }, (_, i) => {
+          const response = useFetcher(`/api/perf-${i}`, {
+            staleTime: 10000, // Long stale time
+          });
           return response;
         });
 
@@ -56,14 +62,14 @@ describe('Performance & Caching Integration Tests', () => {
 
       await waitFor(() => {
         expect(screen.getByTestId('many-requests')).toHaveTextContent(
-          '100 loaded',
+          runs + ' loaded',
         );
       });
 
       const endTime = performance.now();
       // Should complete within reasonable time
       // It is a basic performance test, not a strict benchmark
-      expect(endTime - startTime).toBeLessThan(350);
+      expect(endTime - startTime).toBeLessThan(250);
     });
 
     it('should not cause unnecessary rerenders with external store', async () => {
@@ -86,13 +92,6 @@ describe('Performance & Caching Integration Tests', () => {
         });
 
         // Track actual data changes (not just rerenders)
-        console.log(
-          '🚀 ~ RenderTrackingComponent ~ data:',
-          testId,
-          isLoading,
-          previousData,
-          data,
-        );
         if (data !== previousData) {
           dataChangeCount++;
           previousData = data;
@@ -137,7 +136,7 @@ describe('Performance & Caching Integration Tests', () => {
 
             <button
               data-testid="change-unrelated-btn"
-              onClick={() => setUnrelatedState(`changed-${Date.now()}`)}
+              onClick={() => setUnrelatedState('changed-' + Date.now())}
             >
               Change Unrelated State
             </button>
@@ -222,21 +221,6 @@ describe('Performance & Caching Integration Tests', () => {
             .textContent || '0',
         ),
       ).toBe(initialDataChangeCount); // Should be 1 (initial load only)
-
-      console.log('🎯 Render Performance Results:', {
-        totalRenders: parseInt(
-          screen.getByTestId('stable-component-render-count').textContent ||
-            '0',
-        ),
-        dataChanges: parseInt(
-          screen.getByTestId('stable-component-data-change-count')
-            .textContent || '0',
-        ),
-        parentRerenders: parseInt(
-          screen.getByTestId('force-rerender-count').textContent || '0',
-        ),
-        ratio: `${parseInt(screen.getByTestId('stable-component-render-count').textContent || '0')} renders / ${parseInt(screen.getByTestId('stable-component-data-change-count').textContent || '0')} data changes`,
-      });
 
       // Assertions for optimal performance
       expect(

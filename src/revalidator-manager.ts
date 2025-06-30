@@ -16,6 +16,7 @@
  * @remarks
  * - Designed to be used in various environments (Deno, Node.js, Bun, Browser, etc.) to ensure cache consistency and freshness.
  */
+import { addTimeout, removeTimeout } from './timeout-wheel';
 import { FetchResponse } from './types';
 import { isBrowser, timeNow } from './utils';
 
@@ -35,7 +36,6 @@ type RevalidatorEntry = [
 
 const DEFAULT_TTL = 3 * 60 * 1000; // Default TTL of 3 minutes
 const revalidators = new Map<string, RevalidatorEntry>();
-const staleTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
 /**
  * Stores global event handlers for cache revalidation events (e.g., focus, online).
@@ -206,11 +206,7 @@ export function addRevalidator(
   }
 
   if (staleTime) {
-    const timer = setTimeout(() => {
-      revalidate(key, true).catch(() => {});
-    }, staleTime);
-
-    staleTimers.set(key, timer);
+    addTimeout('s:' + key, revalidate.bind(null, key, true), staleTime);
   }
 }
 
@@ -218,12 +214,7 @@ export function removeRevalidator(key: string) {
   revalidators.delete(key);
 
   // Clean up stale timer
-  const timer = staleTimers.get(key);
-
-  if (timer) {
-    clearTimeout(timer);
-    staleTimers.delete(key);
-  }
+  removeTimeout('s:' + key);
 }
 
 /**

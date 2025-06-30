@@ -69,7 +69,7 @@ describe('Error Handling Integration Tests', () => {
       );
 
       // Advance time to trigger timeout
-      // jest.advanceTimersByTime(5000);
+      jest.advanceTimersByTime(5000);
 
       await waitFor(() => {
         expect(screen.getByTestId('timeout-error')).toHaveTextContent(

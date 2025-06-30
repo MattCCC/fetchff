@@ -12,9 +12,10 @@
  * @see deleteCache
  */
 
-import { abortRequest, deleteCache } from 'fetchff';
+import { addTimeout, abortRequest, deleteCache } from 'fetchff';
 
 export const INFINITE_CACHE_TIME = -1;
+export const DEFAULT_DEDUPE_TIME_MS = 2000;
 
 const refs = new Map<string, number>();
 
@@ -54,15 +55,19 @@ export const decrementRef = (
       new DOMException('Request to ' + url + ' aborted', 'AbortError'),
     );
 
-    setTimeout(() => {
-      // Check if the reference count is still zero before deleting the cache as it might have been incremented again
-      // This is to ensure that if another increment happens during the timeout, we don't delete the cache prematurely
-      // This is particularly useful in scenarios where multiple components might be using the same cache
-      // entry and we want to avoid unnecessary cache deletions.
-      if (!getRefCount(key)) {
-        deleteCache(key);
-      }
-    }, dedupeTime); // Delay to ensure all operations are complete before deletion
+    addTimeout(
+      'c:' + key,
+      () => {
+        // Check if the reference count is still zero before deleting the cache as it might have been incremented again
+        // This is to ensure that if another increment happens during the timeout, we don't delete the cache prematurely
+        // This is particularly useful in scenarios where multiple components might be using the same cache
+        // entry and we want to avoid unnecessary cache deletions.
+        if (!getRefCount(key)) {
+          deleteCache(key);
+        }
+      },
+      dedupeTime ?? DEFAULT_DEDUPE_TIME_MS,
+    ); // Delay to ensure all operations are complete before deletion
   } else {
     refs.set(key, newCount);
   }
