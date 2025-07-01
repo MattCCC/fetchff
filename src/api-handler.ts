@@ -93,7 +93,14 @@ function createApiFetcher<
       FinalParams<ResponseData, UrlParams, UrlPathParams>,
       FallbackValue<ResponseData, DefaultPayload, RequestBody>
     > = {},
-  ): Promise<FetchResponse<FinalResponse<ResponseData, DefaultResponse>>> {
+  ): Promise<
+    FetchResponse<
+      FinalResponse<ResponseData, DefaultResponse>,
+      FallbackValue<ResponseData, DefaultPayload, RequestBody>,
+      FinalParams<ResponseData, QueryParams_, QueryParams>,
+      FinalParams<ResponseData, UrlParams, UrlPathParams>
+    >
+  > {
     // Use global per-endpoint settings
     const endpointConfig =
       endpoints[endpointName] ||
@@ -124,7 +131,7 @@ function createApiFetcher<
     const responseData = await requestHandler<
       FinalResponse<ResponseData, DefaultResponse>,
       FinalParams<ResponseData, QueryParams_, QueryParams>,
-      FinalParams<ResponseData, UrlParams, UrlParams>,
+      FinalParams<ResponseData, UrlParams, UrlPathParams>,
       FallbackValue<ResponseData, DefaultPayload, RequestBody>
     >(url, mergedConfig);
 
