@@ -112,14 +112,6 @@ function createApiFetcher<
       throw new Error('Protocol-relative URLs are not allowed.');
     }
 
-    // Prevent potential Server-Side Request Forgery attack and leakage of credentials when same instance is used for external requests
-    const isAbsoluteUrl = url.includes('://');
-
-    if (isAbsoluteUrl) {
-      // Retrigger fetch to ensure completely new instance of handler being triggered for external URLs
-      return await fetchf(url, requestConfig);
-    }
-
     const mergedConfig = {
       ...endpointConfig,
       ...requestConfig,
@@ -127,6 +119,14 @@ function createApiFetcher<
 
     mergeConfig('retry', mergedConfig, endpointConfig, requestConfig);
     mergeConfig('headers', mergedConfig, endpointConfig, requestConfig);
+
+    // Prevent potential Server-Side Request Forgery attack and leakage of credentials when same instance is used for external requests
+    const isAbsoluteUrl = url.includes('://');
+
+    if (isAbsoluteUrl) {
+      // Retrigger fetch to ensure completely new instance of handler being triggered for external URLs
+      return await fetchf(url, mergedConfig);
+    }
 
     const responseData = await requestHandler<
       FinalResponse<ResponseData, DefaultResponse>,
