@@ -23,12 +23,6 @@ describe('API Handler', () => {
     done();
   });
 
-  it('getInstance() - should obtain method of the API request provider', () => {
-    const api = createApiFetcher(config);
-
-    expect(typeof api.getInstance()).toBe('function');
-  });
-
   describe('get()', () => {
     it('should trigger request handler for an existent endpoint', async () => {
       const api = createApiFetcher(config);
@@ -66,17 +60,14 @@ describe('API Handler', () => {
         name: 'Mark',
       };
 
-      jest
-        .spyOn(api.requestHandler, 'request')
-        .mockResolvedValueOnce(userDataMock as any);
+      jest.spyOn(api, 'request').mockResolvedValueOnce(userDataMock as any);
 
       const response = await api.getUserByIdAndName({ urlPathParams });
 
-      expect(api.requestHandler.request).toHaveBeenCalledTimes(1);
-      expect(api.requestHandler.request).toHaveBeenCalledWith(
-        '/user-details/:id/:name',
-        { url: '/user-details/:id/:name', urlPathParams },
-      );
+      expect(api.request).toHaveBeenCalledTimes(1);
+      expect(api.request).toHaveBeenCalledWith('getUserByIdAndName', {
+        urlPathParams,
+      });
       expect(response).toBe(userDataMock);
     });
 
@@ -91,20 +82,18 @@ describe('API Handler', () => {
         'Content-Type': 'application/json',
       };
 
-      jest
-        .spyOn(api.requestHandler, 'request')
-        .mockResolvedValueOnce(userDataMock as any);
+      jest.spyOn(api, 'request').mockResolvedValueOnce(userDataMock as any);
 
       const response = await api.getUserByIdAndName({
         urlPathParams,
         headers,
       });
 
-      expect(api.requestHandler.request).toHaveBeenCalledTimes(1);
-      expect(api.requestHandler.request).toHaveBeenCalledWith(
-        '/user-details/:id/:name',
-        { url: '/user-details/:id/:name', headers, urlPathParams },
-      );
+      expect(api.request).toHaveBeenCalledTimes(1);
+      expect(api.request).toHaveBeenCalledWith('getUserByIdAndName', {
+        headers,
+        urlPathParams,
+      });
       expect(response).toBe(userDataMock);
     });
 

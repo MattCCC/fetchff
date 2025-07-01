@@ -273,10 +273,6 @@ You can access `api.config` property directly to modify global headers and other
 
 You can access `api.endpoints` property directly to modify the endpoints list. This can be useful if you want to append or remove global endpoints. This is a property, not a function.
 
-#### `api.getInstance()`
-
-If you initialize API handler with your custom `fetcher`, then this function will return the instance created using `fetcher.create()` function. Your fetcher can include anything. It will be triggering `fetcher.request()` instead of native fetch() that is available by default. It gives you ultimate flexibility on how you want your requests to be made.
-
 </details>
 
 ### Advanced Utilities
@@ -2092,7 +2088,7 @@ For a full list of types and detailed definitions, refer to the [api-handler.ts]
 
 The `fetchf()` function includes types that help configure and manage network requests effectively:
 
-- **`RequestHandlerConfig`**: Main configuration options for the `fetchf()` function, including request settings, interceptors, and retry configurations.
+- **`RequestConfig`**: Main configuration options for the `fetchf()` function, including request settings, interceptors, and retry configurations.
 - **`RetryConfig`**: Configuration options for retry mechanisms, including the number of retries, delay between retries, and backoff strategies.
 - **`CacheConfig`**: Configuration options for caching, including cache time, custom cache keys, and cache invalidation rules.
 - **`PollingConfig`**: Configuration options for polling, including polling intervals and conditions to stop polling.
@@ -2226,7 +2222,7 @@ The `useFetcher(url, config)` hook returns an object with the following properti
   `true` while data is being loaded for the first time or during a fetch.
 - **`isValidating: boolean`**  
   `true` when currently fetching (fetch is in progress).
-- **`config: RequestHandlerConfig`**  
+- **`config: RequestConfig`**  
   The configuration object used for the request.
 - **`headers: Record<string, string>`**  
   Response headers from the last successful request.

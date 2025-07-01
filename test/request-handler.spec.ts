@@ -58,27 +58,18 @@ describe('Request Handler', () => {
       fetchMock.clearHistory();
       fetchMock.removeRoutes();
       jest.useRealTimers();
-    });
-
-    it('should get request instance', () => {
-      const requestHandler = createRequestHandler({ fetcher });
-
-      const response = requestHandler.getInstance();
-
-      expect(response).toBeTruthy();
+      fetcher = jest.fn();
     });
 
     it('should properly hang promise when using Silent strategy', async () => {
+      fetcher = jest.fn().mockRejectedValue(new Error('Request Failed'));
+
       const requestHandler = createRequestHandler({
         fetcher,
         strategy: 'silent',
       });
 
-      (requestHandler.getInstance() as any).request = jest
-        .fn()
-        .mockRejectedValue(new Error('Request Failed'));
-
-      const request = requestHandler.request(apiUrl);
+      const request = requestHandler(apiUrl);
 
       const timeout = new Promise((resolve) => {
         const wait = setTimeout(() => {
@@ -103,9 +94,7 @@ describe('Request Handler', () => {
         strategy: 'reject',
       });
 
-      (requestHandler.getInstance() as any).request = jest
-        .fn()
-        .mockRejectedValue(new Error('Request Failed'));
+      fetchMock.getOnce(apiUrl, 500);
 
       try {
         const response = await (requestHandler as any).delete(apiUrl);
@@ -121,12 +110,10 @@ describe('Request Handler', () => {
         strategy: 'silent',
       });
 
-      (requestHandler.getInstance() as any).request = jest
-        .fn()
-        .mockRejectedValue(new Error('Request Failed'));
+      fetchMock.getOnce(apiUrl, 500);
 
       try {
-        await requestHandler.request(apiUrl, {
+        await requestHandler(apiUrl, {
           strategy: 'reject',
         });
       } catch (error) {
@@ -140,7 +127,7 @@ describe('Request Handler', () => {
         .mockResolvedValue({ data: { foo: 'bar' } });
 
       const handler = createRequestHandler({ fetcher: customFetcher });
-      const result = await handler.request('http://example.com/api/custom');
+      const result = await handler('http://example.com/api/custom');
       expect(customFetcher).toHaveBeenCalled();
       expect(result.data).toEqual({ foo: 'bar' });
     });
@@ -155,7 +142,7 @@ describe('Request Handler', () => {
         () => new Promise(() => {}),
       ); // never resolves
 
-      const promise = handler.request('http://example.com/api/timeout');
+      const promise = handler('http://example.com/api/timeout');
       jest.advanceTimersByTime(1100); // advance enough for timeout to trigger
       await expect(promise).rejects.toThrow();
     });
@@ -170,8 +157,8 @@ describe('Request Handler', () => {
         cacheTime: 60,
         cacheBuster: () => true,
       });
-      await handler.request('http://example.com/api/cache-buster');
-      await handler.request('http://example.com/api/cache-buster');
+      await handler('http://example.com/api/cache-buster');
+      await handler('http://example.com/api/cache-buster');
       expect(callCount).toBe(2);
     });
   });
@@ -215,7 +202,7 @@ describe('Request Handler', () => {
         );
       });
 
-      const promise = handler.request('http://example.com/api/poll');
+      const promise = handler('http://example.com/api/poll');
 
       // Advance timers in steps and allow microtasks to run
       for (let i = 0; i < 10; i++) {
@@ -262,7 +249,7 @@ describe('Request Handler', () => {
       mockDelayInvocation.mockResolvedValue(true);
 
       // Make the request
-      await requestHandler.request('/endpoint');
+      await requestHandler('/endpoint');
 
       // Advance timers to cover the polling interval
       jest.advanceTimersByTime(300); // pollingInterval * 3
@@ -295,7 +282,7 @@ describe('Request Handler', () => {
         body: {},
       });
 
-      await requestHandler.request('/endpoint');
+      await requestHandler('/endpoint');
 
       // Ensure fetch was only called once
       expect(fetchMock.callHistory.calls(baseURL + '/endpoint').length).toBe(1);
@@ -327,11 +314,11 @@ describe('Request Handler', () => {
 
       mockDelayInvocation.mockResolvedValue(true);
 
-      await expect(
-        requestHandler.request(baseURL + '/endpoint'),
-      ).rejects.toMatchObject({
-        status: 500,
-      });
+      await expect(requestHandler(baseURL + '/endpoint')).rejects.toMatchObject(
+        {
+          status: 500,
+        },
+      );
 
       // Ensure fetch was called once (no polling due to error)
       expect(fetchMock.callHistory.calls(baseURL + '/endpoint').length).toBe(1);
@@ -363,7 +350,7 @@ describe('Request Handler', () => {
         body: {},
       });
 
-      await requestHandler.request('/endpoint');
+      await requestHandler('/endpoint');
 
       // Advance timers to cover polling interval
       jest.advanceTimersByTime(300); // pollingInterval * 3
@@ -387,7 +374,7 @@ describe('Request Handler', () => {
 
       fetchMock.getOnce(baseURL + '/endpoint', { status: 200, body: {} });
 
-      await requestHandler.request('/endpoint');
+      await requestHandler('/endpoint');
 
       expect(fetchMock.callHistory.calls(baseURL + '/endpoint').length).toBe(1);
       expect(pollingConfig.shouldStopPolling).toHaveBeenCalledTimes(1);
@@ -453,7 +440,7 @@ describe('Request Handler', () => {
       mockDelayInvocation.mockResolvedValue(true);
 
       // Make the request
-      await expect(requestHandler.request('/endpoint')).resolves.not.toThrow();
+      await expect(requestHandler('/endpoint')).resolves.not.toThrow();
 
       // Advance timers to cover the delay period
       const totalDelay =
@@ -506,7 +493,7 @@ describe('Request Handler', () => {
       mockDelayInvocation.mockResolvedValue(false);
 
       try {
-        await requestHandler.request('/endpoint');
+        await requestHandler('/endpoint');
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
       } catch (_e) {
         //
@@ -548,7 +535,7 @@ describe('Request Handler', () => {
         json: jest.fn().mockResolvedValue({}),
       });
 
-      await expect(requestHandler.request('/endpoint')).rejects.toMatchObject({
+      await expect(requestHandler('/endpoint')).rejects.toMatchObject({
         status: 400,
         json: expect.any(Function),
       });
@@ -577,7 +564,7 @@ describe('Request Handler', () => {
         json: jest.fn().mockResolvedValue({}),
       });
 
-      await expect(requestHandler.request('/endpoint')).rejects.toMatchObject({
+      await expect(requestHandler('/endpoint')).rejects.toMatchObject({
         status: 400,
         json: expect.any(Function),
       });
@@ -613,7 +600,7 @@ describe('Request Handler', () => {
       mockDelayInvocation.mockResolvedValue(false);
 
       try {
-        await requestHandler.request('/endpoint');
+        await requestHandler('/endpoint');
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
       } catch (_e) {
         //
@@ -649,7 +636,7 @@ describe('Request Handler', () => {
         json: jest.fn().mockResolvedValue({}),
       });
 
-      await expect(requestHandler.request('/endpoint')).rejects.toMatchObject({
+      await expect(requestHandler('/endpoint')).rejects.toMatchObject({
         status: 500,
         json: expect.any(Function),
       });
@@ -702,7 +689,7 @@ describe('Request Handler', () => {
       mockDelayInvocation.mockResolvedValue(true);
 
       // Make the request
-      await expect(requestHandler.request('/endpoint')).rejects.toThrow(
+      await expect(requestHandler('/endpoint')).rejects.toThrow(
         'Simulated error in onResponse',
       );
 
@@ -787,7 +774,7 @@ describe('Request Handler', () => {
       mockDelayInvocation.mockResolvedValue(true);
 
       // Make the request
-      const response = await requestHandler.request('/endpoint');
+      const response = await requestHandler('/endpoint');
 
       // Advance timers to cover the delay period
       const totalDelay =
@@ -1155,9 +1142,9 @@ describe('Request Handler', () => {
           throw new Error('Interceptor error');
         },
       });
-      await expect(
-        handler.request('http://example.com/api/err'),
-      ).rejects.toThrow('Interceptor error');
+      await expect(handler('http://example.com/api/err')).rejects.toThrow(
+        'Interceptor error',
+      );
     });
 
     it('should call onError and onResponse hooks', async () => {
@@ -1171,7 +1158,7 @@ describe('Request Handler', () => {
         status: 200,
         body: { foo: 'bar' },
       });
-      await handler.request('http://example.com/api/hook');
+      await handler('http://example.com/api/hook');
       expect(onResponse).toHaveBeenCalled();
 
       fetchMock.getOnce('http://example.com/api/hook-fail', {
@@ -1180,7 +1167,7 @@ describe('Request Handler', () => {
       });
 
       await expect(
-        handler.request('http://example.com/api/hook-fail'),
+        handler('http://example.com/api/hook-fail'),
       ).rejects.toThrow();
       expect(onError).toHaveBeenCalled();
     });
@@ -1194,7 +1181,7 @@ describe('Request Handler', () => {
       const url = '/test-endpoint';
       const params = { key: 'value' };
 
-      await requestHandler.request(url, { params });
+      await requestHandler(url, { params });
 
       expect(spy).toHaveBeenCalledTimes(4);
     });
@@ -1215,7 +1202,7 @@ describe('Request Handler', () => {
         },
       } as RequestConfig;
 
-      await requestHandler.request(url, { ...config, params });
+      await requestHandler(url, { ...config, params });
 
       expect(spy).toHaveBeenCalledTimes(4);
       const lastCall = fetchMock.callHistory.lastCall();
@@ -1243,7 +1230,7 @@ describe('Request Handler', () => {
         },
       };
 
-      const { data, config } = await requestHandler.request(url, {
+      const { data, config } = await requestHandler(url, {
         ...requestConfig,
         params,
       });
@@ -1263,9 +1250,7 @@ describe('Request Handler', () => {
       const params = { key: 'value' };
       const config = {};
 
-      await expect(
-        requestHandler.request(url, { ...config, params }),
-      ).rejects.toThrow(
+      await expect(requestHandler(url, { ...config, params })).rejects.toThrow(
         'https://api.example.com/test-endpoint?key=value failed! Status: 500',
       );
 
@@ -1283,9 +1268,7 @@ describe('Request Handler', () => {
       const params = { key: 'value' };
       const config = {};
 
-      await expect(
-        requestHandler.request(url, { ...config, params }),
-      ).rejects.toThrow(
+      await expect(requestHandler(url, { ...config, params })).rejects.toThrow(
         'https://api.example.com/test-endpoint?key=value failed! Status: 404',
       );
 
@@ -1313,7 +1296,7 @@ describe('Request Handler', () => {
         .fn()
         .mockRejectedValue(new Error('Request Failed'));
 
-      const request = requestHandler.request(apiUrl);
+      const request = requestHandler(apiUrl);
 
       const timeout = new Promise((resolve) => {
         const wait = setTimeout(() => {
@@ -1337,9 +1320,7 @@ describe('Request Handler', () => {
         strategy: 'reject',
       });
 
-      globalThis.fetch = jest
-        .fn()
-        .mockRejectedValue(new Error('Request Failed'));
+      fetchMock.getOnce(apiUrl, 500);
 
       try {
         const response = await (requestHandler as any).delete(apiUrl);
@@ -1354,12 +1335,10 @@ describe('Request Handler', () => {
         strategy: 'silent',
       });
 
-      globalThis.fetch = jest
-        .fn()
-        .mockRejectedValue(new Error('Request Failed'));
+      fetchMock.getOnce(apiUrl, 500);
 
       try {
-        await requestHandler.request(apiUrl, {
+        await requestHandler(apiUrl, {
           strategy: 'reject',
         });
       } catch (error) {
@@ -1437,10 +1416,8 @@ describe('Request Handler', () => {
         body: { username: 'response from second request' },
       });
 
-      const firstRequest = requestHandler.request('https://example.com/first');
-      const secondRequest = requestHandler.request(
-        'https://example.com/second',
-      );
+      const firstRequest = requestHandler('https://example.com/first');
+      const secondRequest = requestHandler('https://example.com/second');
 
       expect(secondRequest).resolves.toMatchObject({
         data: { username: 'response from second request' },
@@ -1467,10 +1444,8 @@ describe('Request Handler', () => {
         body: { data: { message: 'response from second request' } },
       });
 
-      const firstRequest = requestHandler.request('https://example.com/first');
-      const secondRequest = requestHandler.request(
-        'https://example.com/second',
-      );
+      const firstRequest = requestHandler('https://example.com/first');
+      const secondRequest = requestHandler('https://example.com/second');
 
       // Validate both requests resolve successfully without any cancellation
       await expect(firstRequest).resolves.toMatchObject({
@@ -1533,7 +1508,7 @@ describe('Request Handler', () => {
         status: 200,
         body: {},
       });
-      const result = await handler.request('http://example.com/api/empty');
+      const result = await handler('http://example.com/api/empty');
       expect(result.data).toEqual({ foo: 'bar' });
     });
 
@@ -1545,7 +1520,7 @@ describe('Request Handler', () => {
         flattenResponse: false,
       });
 
-      const { data } = await requestHandler.request(apiUrl, {
+      const { data } = await requestHandler(apiUrl, {
         method: 'put',
       });
 
@@ -1562,7 +1537,7 @@ describe('Request Handler', () => {
         flattenResponse: true,
       });
 
-      const { data } = await requestHandler.request(apiUrl, {
+      const { data } = await requestHandler(apiUrl, {
         method: 'patch',
       });
 
@@ -1579,9 +1554,9 @@ describe('Request Handler', () => {
         defaultResponse: null,
       });
 
-      expect(
-        await requestHandler.request(apiUrl, { method: 'head' }),
-      ).toMatchObject({ data: null });
+      expect(await requestHandler(apiUrl, { method: 'head' })).toMatchObject({
+        data: null,
+      });
     });
   });
 
@@ -1618,12 +1593,12 @@ describe('Request Handler', () => {
       });
 
       // First request - should hit the network
-      const firstResponse = await requestHandler.request(apiUrl);
+      const firstResponse = await requestHandler(apiUrl);
       expect(firstResponse.data).toEqual({ value: 'cached' });
       expect(callCount).toBe(1);
 
       // Second request - should return cached data, not hit the network
-      const secondResponse = await requestHandler.request(apiUrl);
+      const secondResponse = await requestHandler(apiUrl);
       expect(secondResponse.data).toEqual({ value: 'cached' });
       expect(callCount).toBe(1);
     });
@@ -1636,8 +1611,8 @@ describe('Request Handler', () => {
       });
 
       const handlerNoCache = createRequestHandler({ cacheTime: 0 });
-      await handlerNoCache.request(apiUrl);
-      await handlerNoCache.request(apiUrl);
+      await handlerNoCache(apiUrl);
+      await handlerNoCache(apiUrl);
       expect(callCount).toBe(2);
     });
 
@@ -1654,10 +1629,10 @@ describe('Request Handler', () => {
       });
 
       const handler = createRequestHandler({ cacheTime: 60 });
-      const respA1 = await handler.request('http://example.com/api/a');
-      const respA2 = await handler.request('http://example.com/api/a');
-      const respB1 = await handler.request('http://example.com/api/b');
-      const respB2 = await handler.request('http://example.com/api/b');
+      const respA1 = await handler('http://example.com/api/a');
+      const respA2 = await handler('http://example.com/api/a');
+      const respB1 = await handler('http://example.com/api/b');
+      const respB2 = await handler('http://example.com/api/b');
       expect(respA1.data).toEqual({ value: 'A' });
       expect(respA2.data).toEqual({ value: 'A' });
       expect(respB1.data).toEqual({ value: 'B' });
@@ -1674,11 +1649,11 @@ describe('Request Handler', () => {
       });
       // Use 1 second for cacheTime to avoid timing issues
       const handler = createRequestHandler({ cacheTime: 1 });
-      const resp1 = await handler.request(apiUrl);
+      const resp1 = await handler(apiUrl);
       expect(resp1.data).toEqual({ value: 'expire' });
       // Simulate cache expiration (advance by 1100ms > 1s)
       jest.advanceTimersByTime(1100);
-      const resp2 = await handler.request(apiUrl, {
+      const resp2 = await handler(apiUrl, {
         // Skip setting cache in the 2nd request
         skipCache: () => true,
       });
@@ -1698,21 +1673,21 @@ describe('Request Handler', () => {
       });
 
       // Provide skipCache that always returns true
-      const resp1 = await handler.request(apiUrl, {
+      const resp1 = await handler(apiUrl, {
         skipCache: () => true,
       });
       expect(resp1.data).toEqual({ value: 'skip' });
       expect(callCount).toBe(1);
 
       // Second request should hit the network again (no cache set)
-      const resp2 = await handler.request(apiUrl, {
+      const resp2 = await handler(apiUrl, {
         skipCache: () => false, // now allow caching
       });
       expect(resp2.data).toEqual({ value: 'skip' });
       expect(callCount).toBe(2);
 
       // Third request should return cached data (cache was set on previous call)
-      const resp3 = await handler.request(apiUrl, {
+      const resp3 = await handler(apiUrl, {
         skipCache: () => false,
       });
       expect(resp3.data).toEqual({ value: 'skip' });
@@ -1731,21 +1706,21 @@ describe('Request Handler', () => {
       });
 
       // Provide skipCache that always returns false
-      const resp1 = await handler.request(apiUrl, {
+      const resp1 = await handler(apiUrl, {
         skipCache: () => false,
       });
       expect(resp1.data).toEqual({ value: 'cache' });
       expect(callCount).toBe(1);
 
       // Second request should return cached data
-      const resp2 = await handler.request(apiUrl, {
+      const resp2 = await handler(apiUrl, {
         skipCache: () => false,
       });
       expect(resp2.data).toEqual({ value: 'cache' });
       expect(callCount).toBe(1);
 
       // Third request should return cached data
-      const resp3 = await handler.request(apiUrl, {
+      const resp3 = await handler(apiUrl, {
         skipCache: () => false,
       });
       expect(resp3.data).toEqual({ value: 'cache' });
@@ -1763,11 +1738,11 @@ describe('Request Handler', () => {
         cacheTime: 60,
       });
 
-      const resp1 = await handler.request(apiUrl);
+      const resp1 = await handler(apiUrl);
       expect(resp1.data).toEqual({ value: 'default' });
       expect(callCount).toBe(1);
 
-      const resp2 = await handler.request(apiUrl);
+      const resp2 = await handler(apiUrl);
       expect(resp2.data).toEqual({ value: 'default' });
       expect(callCount).toBe(1);
     });
@@ -1786,12 +1761,12 @@ describe('Request Handler', () => {
       });
 
       // First request - should hit the network
-      const resp1 = await handler.request(apiUrl);
+      const resp1 = await handler(apiUrl);
       expect(resp1.data).toEqual({ value: 'custom-key' });
       expect(callCount).toBe(1);
 
       // Second request - should return cached data using custom key
-      const resp2 = await handler.request(apiUrl);
+      const resp2 = await handler(apiUrl);
       expect(resp2.data).toEqual({ value: 'custom-key' });
       expect(callCount).toBe(1);
     });
@@ -1811,17 +1786,17 @@ describe('Request Handler', () => {
       });
 
       // First request with one key
-      const resp1 = await handler.request(apiUrl);
+      const resp1 = await handler(apiUrl);
       expect(resp1.data).toEqual({ value: 'custom-key-multi' });
       expect(callCount).toBe(1);
 
       // Second request with a different key (simulate different url)
-      const resp2 = await handler.request(apiUrl + '?v=2');
+      const resp2 = await handler(apiUrl + '?v=2');
       expect(resp2.data).toEqual({ value: 'custom-key-multi' });
       expect(callCount).toBe(2);
 
       // Third request with first key again (should be cached)
-      const resp3 = await handler.request(apiUrl);
+      const resp3 = await handler(apiUrl);
       expect(resp3.data).toEqual({ value: 'custom-key-multi' });
       expect(callCount).toBe(2);
     });

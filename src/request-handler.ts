@@ -1,11 +1,9 @@
 import type {
   DefaultResponse,
-  RequestHandlerConfig,
   RequestConfig,
   RetryOptions,
   FetchResponse,
   RequestHandlerReturnType,
-  CustomFetcher,
 } from './types/request-handler';
 import type {
   DefaultParams,
@@ -33,34 +31,20 @@ import { addRevalidator } from './revalidator-manager';
 /**
  * Create Request Handler
  *
- * @param {RequestHandlerConfig} config - Configuration object for the request handler
+ * @param {RequestConfig} config - Configuration object for the request handler
  * @returns {Object} An object with methods for handling requests
  */
 export function createRequestHandler(
-  config: RequestHandlerConfig | null,
+  config: RequestConfig | null,
 ): RequestHandlerReturnType {
   const sanitizedConfig = config ? sanitizeObject(config) : {};
-  const handlerConfig: RequestHandlerConfig = {
+  const handlerConfig: RequestConfig = {
     ...defaultConfig,
     ...sanitizedConfig,
   };
 
   mergeConfig('retry', handlerConfig, defaultConfig, sanitizedConfig);
   mergeConfig('headers', handlerConfig, defaultConfig, sanitizedConfig);
-
-  /**
-   * Immediately create instance of custom fetcher if it is defined
-   */
-  const requestInstance = sanitizedConfig.fetcher;
-
-  /**
-   * Get Provider Instance
-   *
-   * @returns {CustomFetcher | null} Provider's instance
-   */
-  const getInstance = (): CustomFetcher | null => {
-    return requestInstance || null;
-  };
 
   /**
    * Request function to make HTTP requests with the provided URL and configuration.
@@ -207,7 +191,7 @@ export function createRequestHandler(
           await applyInterceptor(requestConfig, handlerConfig.onRequest);
 
           // Backwards compatibility for custom fetcher
-          const fn = requestInstance || fetcherConfig.fetcher;
+          const fn = handlerConfig.fetcher || fetcherConfig.fetcher;
 
           response = (fn
             ? await fn<ResponseData, RequestBody, QueryParams, PathParams>(
@@ -472,11 +456,7 @@ export function createRequestHandler(
     return doRequestPromise;
   };
 
-  return {
-    getInstance,
-    config: handlerConfig,
-    request,
-  };
+  return request;
 }
 
 /**
@@ -507,16 +487,42 @@ const logger = (
 };
 
 /**
- * Simple wrapper for request fetching.
- * It abstracts the creation of RequestHandler, making it easy to perform API requests.
+ * Sends an HTTP request to the specified URL using the provided configuration and returns a typed response.
  *
- * @param {string | URL | globalThis.Request} url - Request URL.
- * @param {RequestHandlerConfig} config - Configuration object for the request handler.
- * @returns {Promise<FetchResponse<ResponseData>>} Response Data.
+ * @typeParam ResponseData - The expected shape of the response data. Defaults to `DefaultResponse`.
+ * @typeParam RequestBody - The type of the request payload/body. Defaults to `DefaultPayload`.
+ * @typeParam QueryParams - The type of the query parameters. Defaults to `DefaultParams`.
+ * @typeParam PathParams - The type of the path parameters. Defaults to `DefaultUrlParams`.
+ *
+ * @param url - The endpoint URL to which the request will be sent.
+ * @param config - Optional configuration object for the request, including headers, method, body, query, and path parameters.
+ *
+ * @returns A promise that resolves to a `FetchResponse` containing the typed response data and request metadata.
+ *
+ * @example
+ * ```typescript
+ * const { data } = await fetchf<UserData>('/api/user', { method: 'GET' });
+ * console.log(data);
+ * ```
  */
-export async function fetchf<ResponseData = DefaultResponse>(
+export async function fetchf<
+  ResponseData = DefaultResponse,
+  RequestBody = DefaultPayload,
+  QueryParams = DefaultParams,
+  PathParams = DefaultUrlParams,
+>(
   url: string,
-  config: RequestHandlerConfig<ResponseData> = {},
-): Promise<FetchResponse<ResponseData>> {
-  return createRequestHandler(config).request<ResponseData>(url);
+  config: RequestConfig<
+    ResponseData,
+    QueryParams,
+    PathParams,
+    RequestBody
+  > = {},
+): Promise<FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>> {
+  return createRequestHandler(config)<
+    ResponseData,
+    QueryParams,
+    PathParams,
+    RequestBody
+  >(url);
 }

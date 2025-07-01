@@ -2,7 +2,6 @@ import type {
   RequestConfig,
   FetchResponse,
   DefaultResponse,
-  CustomFetcher,
 } from './types/request-handler';
 import type {
   ApiHandlerConfig,
@@ -60,15 +59,6 @@ function createApiFetcher<
 >(config: ApiHandlerConfig<EndpointsMethods>) {
   const endpoints = config.endpoints;
   const requestHandler = createRequestHandler(config);
-
-  /**
-   * Get Custom Fetcher Provider Instance
-   *
-   * @returns {CustomFetcher  | null} Request Handler's Custom Fetcher Instance
-   */
-  function getInstance(): CustomFetcher | null {
-    return requestHandler.getInstance();
-  }
 
   /**
    * Triggered when trying to use non-existent endpoints
@@ -131,7 +121,7 @@ function createApiFetcher<
     mergeConfig('retry', mergedConfig, endpointConfig, requestConfig);
     mergeConfig('headers', mergedConfig, endpointConfig, requestConfig);
 
-    const responseData = await requestHandler.request<
+    const responseData = await requestHandler<
       FinalResponse<ResponseData, DefaultResponse>,
       FinalParams<ResponseData, QueryParams_, QueryParams>,
       FinalParams<ResponseData, UrlParams, UrlParams>,
@@ -144,8 +134,6 @@ function createApiFetcher<
   const apiHandler: ApiHandlerDefaultMethods<EndpointsMethods> = {
     config,
     endpoints,
-    requestHandler,
-    getInstance,
     request,
   };
 

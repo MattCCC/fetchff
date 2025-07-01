@@ -13,7 +13,6 @@ import type {
   HeadersObject,
   Method,
   RequestConfig,
-  RequestHandlerConfig,
 } from './types/request-handler';
 import {
   replaceUrlPathParams,
@@ -25,7 +24,7 @@ import {
 
 const defaultTimeoutMs = (isSlowConnection() ? 60 : 30) * 1000;
 
-export const defaultConfig: RequestHandlerConfig = {
+export const defaultConfig: RequestConfig = {
   method: GET,
   strategy: REJECT,
   timeout: defaultTimeoutMs, // 30 seconds (60 on slow connections)
@@ -56,12 +55,12 @@ export const defaultConfig: RequestHandlerConfig = {
 /**
  * Overwrites the default configuration with the provided custom configuration.
  *
- * @param {Partial<RequestHandlerConfig>} customConfig - The custom configuration to merge into the default config.
- * @returns {Partial<RequestHandlerConfig>} - The updated default configuration object.
+ * @param {Partial<RequestConfig>} customConfig - The custom configuration to merge into the default config.
+ * @returns {Partial<RequestConfig>} - The updated default configuration object.
  */
 export const setDefaultConfig = (
-  customConfig: Partial<RequestHandlerConfig>,
-): Partial<RequestHandlerConfig> => {
+  customConfig: Partial<RequestConfig>,
+): Partial<RequestConfig> => {
   Object.assign(defaultConfig, customConfig);
 
   return defaultConfig;
@@ -159,16 +158,16 @@ const setContentTypeIfNeeded = (
 /**
  * Merges the specified property from the base configuration and the new configuration into the target configuration.
  *
- * @param {K} property - The property key to merge from the base and new configurations. Must be a key of RequestHandlerConfig.
- * @param {RequestHandlerConfig} targetConfig - The configuration object that will receive the merged properties.
- * @param {RequestHandlerConfig} baseConfig - The base configuration object that provides default values.
- * @param {RequestHandlerConfig} newConfig - The new configuration object that contains user-specific settings to merge.
+ * @param {K} property - The property key to merge from the base and new configurations. Must be a key of RequestConfig.
+ * @param {RequestConfig} targetConfig - The configuration object that will receive the merged properties.
+ * @param {RequestConfig} baseConfig - The base configuration object that provides default values.
+ * @param {RequestConfig} newConfig - The new configuration object that contains user-specific settings to merge.
  */
-export const mergeConfig = <K extends keyof RequestHandlerConfig>(
+export const mergeConfig = <K extends keyof RequestConfig>(
   property: K,
-  targetConfig: RequestHandlerConfig,
-  baseConfig: RequestHandlerConfig,
-  newConfig: RequestHandlerConfig,
+  targetConfig: RequestConfig,
+  baseConfig: RequestConfig,
+  newConfig: RequestConfig,
 ) => {
   if (newConfig[property]) {
     targetConfig[property] = {

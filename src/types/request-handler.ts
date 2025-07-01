@@ -540,24 +540,17 @@ export type FetcherConfig<
   url: string;
 };
 
-export interface RequestHandlerReturnType {
-  config: RequestHandlerConfig;
-  getInstance: () => CustomFetcher | null;
-  request: <
-    ResponseData = DefaultResponse,
-    QueryParams = DefaultParams,
-    PathParams = DefaultUrlParams,
-    RequestBody = DefaultPayload,
-  >(
-    url: string,
-    config?: RequestConfig<
-      ResponseData,
-      QueryParams,
-      PathParams,
-      RequestBody
-    > | null,
-    shouldMerge?: boolean,
-  ) => Promise<
-    FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>
-  >;
-}
+export type RequestHandlerReturnType = <
+  ResponseData = DefaultResponse,
+  QueryParams = DefaultParams,
+  PathParams = DefaultUrlParams,
+  RequestBody = DefaultPayload,
+>(
+  url: string,
+  config?: RequestConfig<
+    ResponseData,
+    QueryParams,
+    PathParams,
+    RequestBody
+  > | null,
+) => Promise<FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>>;
