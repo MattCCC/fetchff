@@ -192,12 +192,10 @@ export function getCache<T>(
  * @param {T} data - The data to be cached.
  */
 export function setCache<T = unknown>(key: string, data: T): void {
-  const cacheEntry: CacheEntry<T> = {
+  _cache.set(key, {
     data,
     time: timeNow(),
-  };
-
-  _cache.set(key, cacheEntry);
+  });
 }
 
 /**

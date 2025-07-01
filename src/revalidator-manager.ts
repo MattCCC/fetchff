@@ -18,7 +18,7 @@
  */
 import { addTimeout, removeTimeout } from './timeout-wheel';
 import { FetchResponse } from './types';
-import { isBrowser, timeNow } from './utils';
+import { isBrowser, noop, timeNow } from './utils';
 
 export type RevalidatorFn = () => Promise<FetchResponse | null>;
 
@@ -73,7 +73,7 @@ export function revalidateAll(
     const revalidator = isStaleRevalidation ? entry[4] : entry[0];
 
     if (revalidator) {
-      Promise.resolve(revalidator()).catch(() => {});
+      Promise.resolve(revalidator()).catch(noop);
     }
   });
 }

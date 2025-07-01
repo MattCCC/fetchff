@@ -20,6 +20,8 @@
  * - Automatically stops the internal timer when no timeouts remain.
  */
 
+import { noop } from './utils';
+
 type TimeoutCallback = () => unknown | Promise<unknown>;
 type TimeoutItem = [string, TimeoutCallback]; // [key, callback]
 
@@ -41,7 +43,7 @@ const handleCallback = ([key, callback]: TimeoutItem): void => {
     const result = callback();
     if (result && result instanceof Promise) {
       // Silently ignore async errors to prevent wheel from stopping
-      result.catch(() => {});
+      result.catch(noop);
     }
   } catch {
     // Ignore callback errors to prevent wheel from stopping

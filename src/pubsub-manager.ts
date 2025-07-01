@@ -20,6 +20,8 @@
  * ```
  */
 
+import { noop } from './utils';
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Listener<T = any> = (response: T) => void;
 
@@ -62,7 +64,7 @@ export function notifySubscribers<T>(key: string, response: T) {
 export function subscribe<T>(key: string | null, fn: (response: T) => void) {
   if (!key) {
     // No op if no key is provided
-    return () => {};
+    return noop;
   }
 
   addListener<T>(key, fn);

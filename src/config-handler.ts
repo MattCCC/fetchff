@@ -155,6 +155,19 @@ const setContentTypeIfNeeded = (
   }
 };
 
+export function mergeConfigs(
+  baseConfig: RequestConfig,
+  newConfig: RequestConfig,
+): RequestConfig {
+  const mergedConfig: RequestConfig = Object.assign({}, baseConfig, newConfig);
+
+  // Ensure that retry and headers are merged correctly
+  mergeConfig('retry', mergedConfig, baseConfig, newConfig);
+  mergeConfig('headers', mergedConfig, baseConfig, newConfig);
+
+  return mergedConfig;
+}
+
 /**
  * Merges the specified property from the base configuration and the new configuration into the target configuration.
  *

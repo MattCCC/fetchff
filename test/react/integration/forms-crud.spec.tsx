@@ -522,6 +522,7 @@ describe('Form & CRUD Integration Tests', () => {
 
   describe('Optimistic Updates', () => {
     it('should handle optimistic updates with rollback on error', async () => {
+      console.error = jest.fn();
       let updateAttempt = 0;
 
       global.fetch = jest.fn().mockImplementation((_url, options) => {

@@ -122,22 +122,20 @@ export async function abortRequest(
   error: DOMException | null | string = null,
 ): Promise<void> {
   // If the key is not in the queue, there's nothing to remove
-  if (!key) {
-    return;
-  }
+  if (key) {
+    const item = inFlight.get(key);
 
-  const item = inFlight.get(key);
+    if (item) {
+      const controller = item[0];
 
-  if (item) {
-    const controller = item[0];
+      // If the request is not yet aborted, abort it with the provided error
+      if (error) {
+        controller.abort(error);
+      }
 
-    // If the request is not yet aborted, abort it with the provided error
-    if (error) {
-      controller.abort(error);
+      removeTimeout(key);
+      inFlight.delete(key);
     }
-
-    removeTimeout(key);
-    inFlight.delete(key);
   }
 }
 

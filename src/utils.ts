@@ -228,6 +228,8 @@ export function replaceUrlPathParams(
 
 export const timeNow = () => Date.now();
 
+export const noop = () => {};
+
 /**
  * Checks if a value is JSON serializable.
  *

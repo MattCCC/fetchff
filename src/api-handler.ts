@@ -15,9 +15,8 @@ import type {
   RequestConfigUrlRequired,
   UrlPathParams,
 } from './types/api-handler';
-import { createRequestHandler } from './request-handler';
 import { fetchf } from '.';
-import { mergeConfig } from './config-handler';
+import { mergeConfigs } from './config-handler';
 
 /**
  * Creates an instance of API Handler.
@@ -58,7 +57,6 @@ function createApiFetcher<
   EndpointsSettings = never,
 >(config: ApiHandlerConfig<EndpointsMethods>) {
   const endpoints = config.endpoints;
-  const requestHandler = createRequestHandler(config);
 
   /**
    * Triggered when trying to use non-existent endpoints
@@ -112,27 +110,19 @@ function createApiFetcher<
       throw new Error('Protocol-relative URLs are not allowed.');
     }
 
-    const mergedConfig = {
-      ...endpointConfig,
-      ...requestConfig,
-    };
-
-    mergeConfig('retry', mergedConfig, endpointConfig, requestConfig);
-    mergeConfig('headers', mergedConfig, endpointConfig, requestConfig);
-
     // Prevent potential Server-Side Request Forgery attack and leakage of credentials when same instance is used for external requests
     const isAbsoluteUrl = url.includes('://');
+    const mergedConfig = isAbsoluteUrl
+      ? mergeConfigs(endpointConfig, requestConfig)
+      : mergeConfigs(mergeConfigs(config, endpointConfig), requestConfig);
 
-    if (isAbsoluteUrl) {
-      // Retrigger fetch to ensure completely new instance of handler being triggered for external URLs
-      return await fetchf(url, mergedConfig);
-    }
-
-    const responseData = await requestHandler<
+    // We prevent potential Server-Side Request Forgery attack and leakage of credentials as the same instance is not used for external requests
+    // Retrigger fetch to ensure completely new instance of handler being triggered for external URLs
+    const responseData = await fetchf<
       FinalResponse<ResponseData, DefaultResponse>,
+      FallbackValue<ResponseData, DefaultPayload, RequestBody>,
       FinalParams<ResponseData, QueryParams_, QueryParams>,
-      FinalParams<ResponseData, UrlParams, UrlPathParams>,
-      FallbackValue<ResponseData, DefaultPayload, RequestBody>
+      FinalParams<ResponseData, UrlParams, UrlPathParams>
     >(url, mergedConfig);
 
     return responseData;
