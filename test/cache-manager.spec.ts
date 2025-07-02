@@ -1,6 +1,6 @@
 import {
   generateCacheKey,
-  getCache,
+  getCacheEntry,
   setCache,
   deleteCache,
   getCachedResponse,
@@ -220,39 +220,39 @@ describe('Cache Manager', () => {
     });
   });
 
-  describe('getCache', () => {
+  describe('getCacheEntry', () => {
     afterEach(() => {
       deleteCache('key');
     });
 
     it('should return cache entry if not expired', () => {
       setCache('key', { data: 'test' });
-      const result = getCache('key', 0);
+      const result = getCacheEntry('key', 0);
       expect(result).not.toBeNull();
       expect(result?.data).toEqual({ data: 'test' });
     });
 
     it('should return null and delete cache if expired', () => {
       setCache('key', { data: 'test' });
-      const result = getCache('key', -2);
+      const result = getCacheEntry('key', -2);
       expect(result).toBeNull();
     });
 
     it('should not return null and not delete cache if set to -1 (as long as it is used)', () => {
       setCache('key', { data: 'test' });
-      const result = getCache('key', -1);
+      const result = getCacheEntry('key', -1);
       expect(result).not.toBeNull();
     });
 
     it('should return null if no cache entry exists', () => {
-      const result = getCache('nonExistentKey', 60);
+      const result = getCacheEntry('nonExistentKey', 60);
       expect(result).toBeNull();
     });
 
     it('should delete expired cache entry', () => {
       setCache('key', { data: 'test' });
       deleteCache('key');
-      expect(getCache('key', 60)).toBe(null);
+      expect(getCacheEntry('key', 60)).toBe(null);
     });
   });
 
@@ -264,14 +264,14 @@ describe('Cache Manager', () => {
     it('should set cache with proper data', () => {
       const data = { foo: 'bar' };
       setCache('key', data);
-      const entry = getCache('key', 60);
+      const entry = getCacheEntry('key', 60);
       expect(entry?.data).toEqual(data);
     });
 
     it('should set timestamp when caching data', () => {
       const timestampBefore = Date.now();
       setCache('key', { foo: 'bar' });
-      const entry = getCache('key', 60);
+      const entry = getCacheEntry('key', 60);
       expect(entry?.time).toBeGreaterThanOrEqual(timestampBefore);
     });
   });
@@ -280,12 +280,12 @@ describe('Cache Manager', () => {
     it('should delete cache entry', () => {
       setCache('key', { data: 'test' });
       deleteCache('key');
-      expect(getCache('key', 60)).toBe(null);
+      expect(getCacheEntry('key', 60)).toBe(null);
     });
 
     it('should do nothing if cache key does not exist', () => {
       deleteCache('nonExistentKey');
-      expect(getCache('nonExistentKey', 60)).toBe(null);
+      expect(getCacheEntry('nonExistentKey', 60)).toBe(null);
     });
   });
 
@@ -396,7 +396,7 @@ describe('Cache Manager', () => {
 
       await mutate(cacheKey, newData);
 
-      const updatedCache = getCache(cacheKey);
+      const updatedCache = getCacheEntry(cacheKey);
       expect(updatedCache?.data).toEqual({
         ...initialData,
         data: newData,
@@ -418,7 +418,7 @@ describe('Cache Manager', () => {
 
       await mutate(cacheKey, newData, { revalidate: true });
 
-      const updatedCache = getCache(cacheKey);
+      const updatedCache = getCacheEntry(cacheKey);
       expect(updatedCache?.data).toEqual({
         ...initialData,
         data: newData,

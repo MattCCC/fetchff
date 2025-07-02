@@ -39,7 +39,7 @@ export const BasicComponent = ({
     error,
     headers,
     isLoading,
-    isValidating,
+    isFetching,
     mutate,
     refetch,
     config: requestConfig,
@@ -51,7 +51,7 @@ export const BasicComponent = ({
         {isLoading ? 'Loading...' : 'Not Loading'}
       </div>
       <div data-testid="validating">
-        {isValidating ? 'Validating...' : 'Not Validating'}
+        {isFetching ? 'Validating...' : 'Not Validating'}
       </div>
       <div data-testid="data">
         {data !== null && data !== undefined ? JSON.stringify(data) : 'No Data'}
@@ -168,8 +168,9 @@ export const CacheRetryPollComponent = ({
   enablePolling: boolean;
   retries?: number;
 }) => {
-  const { data, error, isLoading, isValidating, refetch } =
-    useFetcher<TestData>(url, {
+  const { data, error, isLoading, isFetching, refetch } = useFetcher<TestData>(
+    url,
+    {
       cacheTime: 10, // 10 seconds
       dedupeTime: 2, // 2 seconds
       revalidateOnFocus: true,
@@ -181,7 +182,8 @@ export const CacheRetryPollComponent = ({
         retryOn: [500, 502, 503],
       },
       cacheKey: (config) => `complex-${config.url}-${enablePolling}`,
-    });
+    },
+  );
 
   return (
     <div>
@@ -193,7 +195,7 @@ export const CacheRetryPollComponent = ({
         {isLoading ? 'Loading' : 'Not Loading'}
       </div>
       <div data-testid="complex-validating">
-        {isValidating ? 'Validating' : 'Not Validating'}
+        {isFetching ? 'Validating' : 'Not Validating'}
       </div>
       <button onClick={refetch} data-testid="complex-refetch">
         Refetch

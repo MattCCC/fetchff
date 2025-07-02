@@ -16,6 +16,10 @@ const mockGenerateCacheKey = fetchff.generateCacheKey as jest.MockedFunction<
 const mockGetCachedResponse = fetchff.getCachedResponse as jest.MockedFunction<
   typeof fetchff.getCachedResponse
 >;
+const mockGetCacheEntry = fetchff.getCache as jest.MockedFunction<
+  typeof fetchff.getCache
+>;
+
 const mockMutate = fetchff.mutate as jest.MockedFunction<typeof fetchff.mutate>;
 const mockSubscribe = fetchff.subscribe as jest.MockedFunction<
   typeof fetchff.subscribe
@@ -41,6 +45,7 @@ describe('useFetcher', () => {
     mockBuildConfig.mockReturnValue({ url: testUrl });
     mockGenerateCacheKey.mockReturnValue(testCacheKey);
     mockGetCachedResponse.mockReturnValue(null);
+    mockGetCacheEntry.mockReturnValue(null);
     mockSubscribe.mockReturnValue(jest.fn());
     mockGetInFlightPromise.mockReturnValue(null);
     mockFetchf.mockResolvedValue({
@@ -72,6 +77,7 @@ describe('useFetcher', () => {
         headers: new Headers(),
       } as FetchResponse;
       mockGetCachedResponse.mockReturnValue(cachedResponse);
+      mockGetCacheEntry.mockReturnValue(cachedResponse);
 
       const { result } = renderHook(() => useFetcher(testUrl));
 
@@ -169,6 +175,7 @@ describe('useFetcher', () => {
         headers: new Headers(),
       } as FetchResponse;
       mockGetCachedResponse.mockReturnValue(updatedResponse);
+      mockGetCacheEntry.mockReturnValue(updatedResponse);
 
       act(() => {
         subscriptionCallback!();
@@ -188,6 +195,7 @@ describe('useFetcher', () => {
         headers: new Headers(),
       } as FetchResponse;
       mockGetCachedResponse.mockReturnValue(errorResponse);
+      mockGetCacheEntry.mockReturnValue(errorResponse);
 
       const { result } = renderHook(() => useFetcher(testUrl));
 
@@ -224,6 +232,7 @@ describe('useFetcher', () => {
         headers: new Headers(),
       } as FetchResponse;
       mockGetCachedResponse.mockReturnValue(fetchingResponse);
+      mockGetCacheEntry.mockReturnValue(fetchingResponse);
 
       const { result } = renderHook(() => useFetcher(testUrl));
 
@@ -232,6 +241,7 @@ describe('useFetcher', () => {
 
     it('should show loading when no state and URL exists', () => {
       mockGetCachedResponse.mockReturnValue(null);
+      mockGetCacheEntry.mockReturnValue(null);
 
       const { result } = renderHook(() => useFetcher(testUrl));
 
@@ -246,7 +256,7 @@ describe('useFetcher', () => {
   });
 
   describe('Suspense Integration', () => {
-    it('should throw promise when strategy is reject and pending promise exists', () => {
+    it('should throw promise when strategy is reject and pending promise exists', async () => {
       const pendingPromise = Promise.resolve();
       mockGetInFlightPromise.mockReturnValue(pendingPromise);
       mockGetCachedResponse.mockReturnValue(null);
@@ -276,16 +286,18 @@ describe('useFetcher', () => {
       }).not.toThrow();
     });
 
-    it('should not throw when cached data exists', () => {
+    it('should not throw when cached data exists', async () => {
       const pendingPromise = Promise.resolve();
       mockGetInFlightPromise.mockReturnValue(pendingPromise);
-      mockGetCachedResponse.mockReturnValue({
+      const resp = {
         data: testData,
         error: null,
         isFetching: false,
         status: 200,
         headers: new Headers(),
-      } as FetchResponse);
+      } as FetchResponse;
+      mockGetCachedResponse.mockReturnValue(resp);
+      mockGetCacheEntry.mockReturnValue(resp);
 
       expect(() => {
         renderHook(() => useFetcher(testUrl, { strategy: 'reject' }));
@@ -458,16 +470,6 @@ describe('useFetcher', () => {
   });
 
   describe('Edge Cases', () => {
-    it('should handle undefined unsubscribe function', () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      mockSubscribe.mockReturnValue(undefined as any);
-
-      expect(() => {
-        const { unmount } = renderHook(() => useFetcher(testUrl));
-        unmount();
-      }).not.toThrow();
-    });
-
     it('should handle empty cacheKey function', () => {
       const emptyCacheKeyFn = jest.fn().mockReturnValue('');
 

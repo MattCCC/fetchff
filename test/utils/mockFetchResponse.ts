@@ -19,7 +19,8 @@ export const mockFetchResponse = (
   mockResponses.set(urlOverride, configOverride);
 
   // Create or update the global fetch mock
-  global.fetch = jest.fn().mockImplementation((url, config) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const fetchMock = (url: string, config: any) => {
     // Find the mock config for this URL
     const mockConfig = mockResponses.get(url) || {};
 
@@ -57,7 +58,12 @@ export const mockFetchResponse = (
     };
 
     return Promise.resolve(response);
-  });
+  };
+  // @ts-expect-error Global override for fetch for benchmarks
+  global.fetch =
+    typeof jest !== 'undefined'
+      ? jest.fn().mockImplementation(fetchMock)
+      : fetchMock;
 
   return global.fetch;
 };

@@ -20,7 +20,12 @@ import {
 } from './inflight-manager';
 import { ABORT_ERROR, CANCELLED_ERROR, FUNCTION, REJECT } from './constants';
 import { prepareResponse, parseResponseData } from './response-parser';
-import { generateCacheKey, getCachedResponse, setCache } from './cache-manager';
+import {
+  deleteCache,
+  generateCacheKey,
+  getCachedResponse,
+  setCache,
+} from './cache-manager';
 import { buildConfig, defaultConfig, mergeConfigs } from './config-handler';
 import { getRetryAfterMs } from './retry-handler';
 import { withPolling } from './polling-handler';
@@ -251,6 +256,8 @@ export async function request<
               ))
           ) {
             setCache(_cacheKey, output);
+          } else {
+            deleteCache(_cacheKey);
           }
 
           notifySubscribers(_cacheKey, output);
@@ -393,11 +400,16 @@ export async function request<
   // If cache key is specified, wrap the request with in-flight management
   const doRequestWithInFlight = _cacheKey
     ? async () => {
-        notifySubscribers(_cacheKey, {
+        // Optimistic Updates: Reflect that a fetch is happening, so to catch "fetching" state. This can help e.g. with UI updates (e.g., showing loading spinners).
+        const inFlightResponse = {
           isFetching: true,
           data: null,
           error: null,
-        });
+          headers: null,
+        };
+        setCache(_cacheKey, inFlightResponse);
+
+        notifySubscribers(_cacheKey, inFlightResponse);
 
         return doRequestOnce();
       }

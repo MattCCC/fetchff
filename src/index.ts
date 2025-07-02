@@ -16,7 +16,8 @@ export {
 /** Cache management utilities */
 export {
   generateCacheKey, // Generate cache key from URL and config
-  getCachedResponse, // Get cached response for a key
+  getCache, // Get cached response for a key
+  getCachedResponse, // Get cached response with revalidation
   mutate, // Update cache and notify subscribers
   setCache, // Set cache entry directly
   deleteCache, // Delete cache entry

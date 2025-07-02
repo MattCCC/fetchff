@@ -610,7 +610,7 @@ describe('React Integration Tests', () => {
       });
 
       const RevalidationComponent = () => {
-        const { data, isValidating } = useFetcher<TestData>(
+        const { data, isFetching } = useFetcher<TestData>(
           '/api/revalidate-data',
           {
             revalidateOnFocus: true,
@@ -624,7 +624,7 @@ describe('React Integration Tests', () => {
               {data ? JSON.stringify(data) : 'No Data'}
             </div>
             <div data-testid="revalidate-validating">
-              {isValidating ? 'Revalidating...' : 'Not Revalidating'}
+              {isFetching ? 'Revalidating...' : 'Not Revalidating'}
             </div>
           </div>
         );
@@ -680,7 +680,7 @@ describe('React Integration Tests', () => {
         interval: number;
         shouldStop: boolean;
       }) => {
-        const { data, isValidating } = useFetcher<TestData>('/api/poll-data', {
+        const { data, isFetching } = useFetcher<TestData>('/api/poll-data', {
           pollingInterval: interval,
           shouldStopPolling: shouldStop ? () => true : undefined,
         });
@@ -691,7 +691,7 @@ describe('React Integration Tests', () => {
               {data ? JSON.stringify(data) : 'No Data'}
             </div>
             <div data-testid="poll-validating">
-              {isValidating ? 'Polling...' : 'Not Polling'}
+              {isFetching ? 'Polling...' : 'Not Polling'}
             </div>
           </div>
         );
@@ -738,7 +738,7 @@ describe('React Integration Tests', () => {
       });
 
       const ComplexComponent = () => {
-        const { data, error, isValidating } = useFetcher<TestData>(
+        const { data, error, isFetching } = useFetcher<TestData>(
           '/api/complex',
           {
             cacheTime: 10,
@@ -759,7 +759,7 @@ describe('React Integration Tests', () => {
               {error?.message || 'No Error'}
             </div>
             <div data-testid="complex-validating">
-              {isValidating ? 'Validating' : 'Not Validating'}
+              {isFetching ? 'Validating' : 'Not Validating'}
             </div>
           </div>
         );

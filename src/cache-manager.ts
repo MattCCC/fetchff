@@ -168,7 +168,7 @@ function isCacheExpired(timestamp: number, maxStaleTime?: number): boolean {
  * @param {number|undefined} cacheTime - Maximum time to cache entry in seconds. 0 or -1 means no expiration.
  * @returns {CacheEntry<T> | null} - The cache entry if it exists and is not expired, null otherwise.
  */
-export function getCache<T>(
+export function getCacheEntry<T>(
   key: string,
   cacheTime?: number,
 ): CacheEntry<T> | null {
@@ -246,7 +246,7 @@ export async function mutate<
     return null;
   }
 
-  const cachedResponse = getCache<ResponseData>(key);
+  const cachedResponse = getCacheEntry<ResponseData>(key);
 
   if (!cachedResponse) {
     return null;
@@ -306,10 +306,28 @@ export function getCachedResponse<
   }
 
   // Retrieve the cached entry
-  const cachedEntry = getCache<
+  const cachedEntry = getCacheEntry<
     FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>
   >(cacheKey, cacheTime);
 
   // If no cached entry or it is expired, return null
   return cachedEntry ? cachedEntry.data : null;
+}
+
+/**
+ * Retrieves a cached response from the internal cache using the provided key.
+ *
+ * @param key - The unique key identifying the cached entry. If null, returns null.
+ * @returns The cached {@link FetchResponse} if found, otherwise null.
+ */
+export function getCache<ResponseData, RequestBody, QueryParams, PathParams>(
+  key: string | null,
+): FetchResponse<ResponseData, RequestBody, QueryParams, PathParams> | null {
+  if (!key) {
+    return null;
+  }
+
+  const entry = _cache.get(key);
+
+  return entry ? entry.data : null;
 }

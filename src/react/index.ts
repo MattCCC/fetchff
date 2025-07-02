@@ -1,19 +1,13 @@
-import {
-  useEffect,
-  useCallback,
-  useSyncExternalStore,
-  useMemo,
-  useRef,
-} from 'react';
+import { useCallback, useSyncExternalStore, useMemo, useRef } from 'react';
 import {
   fetchf,
   subscribe,
   buildConfig,
   mutate as globalMutate,
-  setCache,
   generateCacheKey,
   getCachedResponse,
   getInFlightPromise,
+  getCache,
 } from 'fetchff';
 import type {
   DefaultParams,
@@ -28,6 +22,7 @@ import type { UseFetcherResult } from '../types/react-hooks';
 import {
   decrementRef,
   DEFAULT_DEDUPE_TIME_MS,
+  getRefCount,
   incrementRef,
   INFINITE_CACHE_TIME,
 } from './cache-ref';
@@ -131,31 +126,57 @@ export function useFetcher<
 
   // Attempt to get the cached response immediately and if not available, return null
   const getSnapshot = useCallback(() => {
-    const cached = getCachedResponse(
+    const cached = getCache<ResponseData, RequestBody, QueryParams, PathParams>(
       cacheKey,
-      // Stale-While-Revalidate Pattern: By setting -1 always return cached data if available (even if stale)
-      INFINITE_CACHE_TIME,
-      config,
     );
 
+    // Only throw for Suspense if we're in 'reject' mode and have no data
+    if (
+      cacheKey &&
+      config.strategy === 'reject' &&
+      (!cached || (!cached.data && !cached.error))
+    ) {
+      const pendingPromise = getInFlightPromise(cacheKey, dedupeTime);
+
+      if (pendingPromise) {
+        throw pendingPromise;
+      }
+    }
+
     return cached;
-  }, [cacheKey, cacheTime]);
+  }, [cacheKey]);
 
   // Subscribe to cache updates for the specific cache key
   const doSubscribe = useCallback(
     (cb: () => void) => {
-      const unsubscribe = subscribe(cacheKey, (data: FetchResponse | null) => {
-        // Optimistic Updates: Reflect that a fetch is happening, so to catch "fetching" state. This can help with UI updates (e.g., showing loading spinners).
-        if (cacheKey && data && data.isFetching) {
-          setCache(cacheKey, data);
+      incrementRef(cacheKey);
+      const shouldFetch =
+        shouldTriggerOnMount && url && cacheKey && getRefCount(cacheKey) === 1; // Check if no existing refs
+
+      // Initial fetch logic
+      if (shouldFetch) {
+        // Stale-While-Revalidate Pattern: By setting -1 always return cached data if available (even if stale)
+        const cached = getCachedResponse(cacheKey, INFINITE_CACHE_TIME, config);
+
+        if (!cached) {
+          // When the component mounts, we want to fetch data if:
+          // 1. URL is provided
+          // 2. shouldTriggerOnMount is true (so the "immediate" isn't specified or is true)
+          // 3. There is no cached data
+          // 4. There is no error
+          // 5. There is no ongoing fetch operation
+          refetch(false);
         }
+      }
 
-        return cb();
-      });
+      const unsubscribe = subscribe(cacheKey, cb);
 
-      return unsubscribe;
+      return () => {
+        decrementRef(cacheKey, cacheTime, dedupeTime, url);
+        unsubscribe();
+      };
     },
-    [cacheKey],
+    [cacheKey, shouldTriggerOnMount, url, dedupeTime, cacheTime],
   );
 
   const state =
@@ -171,18 +192,6 @@ export function useFetcher<
       QueryParams,
       PathParams
     >);
-
-  const isUnresolved = !state.data && !state.error;
-  const isFetching = state.isFetching || false;
-
-  // Handle Suspense outside the snapshot function
-  if (isUnresolved && config.strategy === 'reject') {
-    const pendingPromise = getInFlightPromise(cacheKey, dedupeTime);
-
-    if (pendingPromise) {
-      throw pendingPromise;
-    }
-  }
 
   const refetch = useCallback(
     async (forceRefresh = true) => {
@@ -222,31 +231,6 @@ export function useFetcher<
     [cacheTime, dedupeTime],
   );
 
-  useEffect(() => {
-    // Load the initial data if not already cached and not currently fetching
-    if (
-      shouldTriggerOnMount &&
-      url &&
-      !state.data &&
-      !state.error &&
-      !state.isFetching
-    ) {
-      // When the component mounts, we want to fetch data if:
-      // 1. URL is provided
-      // 2. shouldTriggerOnMount is true (so the "immediate" isn't specified or is true)
-      // 3. There is no cached data
-      // 4. There is no error
-      // 5. There is no ongoing fetch operation
-      refetch(false);
-    }
-
-    incrementRef(cacheKey);
-
-    return () => {
-      decrementRef(cacheKey, cacheTime, dedupeTime, url);
-    };
-  }, [url, shouldTriggerOnMount, cacheKey, cacheTime]);
-
   const mutate = useCallback<
     UseFetcherResult<
       ResponseData,
@@ -261,6 +245,11 @@ export function useFetcher<
     [cacheKey],
   );
 
+  const isUnresolved = !state.data && !state.error;
+  const isFetching = state.isFetching || false;
+  const isLoading =
+    !!url && (isFetching || (isUnresolved && shouldTriggerOnMount));
+
   // Consumers always destructure the return value and use the fields directly, so
   // memoizing the object doesn't change rerender behavior nor improve any performance here
   return {
@@ -268,8 +257,8 @@ export function useFetcher<
     error: state.error,
     config: state.config,
     headers: state.headers,
-    isValidating: isFetching,
-    isLoading: !!url && (isFetching || (isUnresolved && shouldTriggerOnMount)),
+    isFetching,
+    isLoading,
     mutate,
     refetch,
   };

@@ -47,7 +47,7 @@ export interface UseFetcherResult<
    * Indicates if the request is currently validating or fetching data.
    * This is true when the request is in progress, including revalidations.
    */
-  isValidating: boolean;
+  isFetching: boolean;
   /**
    * Indicates if the request is currently loading data.
    * This is true when the request is in progress, including initial fetches.

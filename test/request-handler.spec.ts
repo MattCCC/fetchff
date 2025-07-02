@@ -1659,6 +1659,7 @@ describe('Request Handler', () => {
         skipCache: () => true,
       });
       expect(resp1.data).toEqual({ value: 'skip' });
+      expect(resp1.config).toBeDefined();
       expect(callCount).toBe(1);
 
       // Second request should hit the network again (no cache set)
