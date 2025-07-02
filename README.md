@@ -2220,7 +2220,7 @@ The `useFetcher(url, config)` hook returns an object with the following properti
   Error object if the request failed, otherwise `null`.
 - **`isLoading: boolean`**  
   `true` while data is being loaded for the first time or during a fetch.
-- **`isValidating: boolean`**  
+- **`isFetching: boolean`**  
   `true` when currently fetching (fetch is in progress).
 - **`config: RequestConfig`**  
   The configuration object used for the request.
