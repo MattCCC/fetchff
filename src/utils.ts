@@ -57,15 +57,11 @@ export function shallowSerialize(obj: Record<string, any>): string {
 export function sanitizeObject<T extends Record<string, any>>(
   obj: T,
 ): Partial<T> {
-  if (!obj || typeof obj !== OBJECT || Array.isArray(obj)) {
-    return obj;
-  }
-
   const safeObj = { ...obj };
 
-  dangerousProps.forEach((prop) => {
-    delete safeObj[prop];
-  });
+  delete safeObj.__proto__;
+  delete (safeObj as any).constructor;
+  delete safeObj.prototype;
 
   return safeObj;
 }

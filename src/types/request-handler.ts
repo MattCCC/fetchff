@@ -86,7 +86,7 @@ export interface ExtendedResponse<
   > | null;
   headers: HeadersObject & HeadersInit;
   config: RequestConfig<ResponseData, QueryParams, PathParams, RequestBody>;
-  isFetching?: boolean;
+  isFetching: boolean;
 }
 
 /**

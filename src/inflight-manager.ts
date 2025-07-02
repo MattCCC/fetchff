@@ -41,16 +41,16 @@ const inFlight: Map<string, InFlightItem> = new Map();
  * @param {number} dedupeTime - Deduplication time in milliseconds.
  * @param {boolean} isCancellable - If true, then the previous request with same configuration should be aborted.
  * @param {boolean} isTimeoutEnabled - Whether timeout is enabled.
- * @returns {Promise<AbortController>} - A promise that resolves to an AbortController.
+ * @returns {AbortController} - A promise that resolves to an AbortController.
  */
-export async function markInFlight(
+export function markInFlight(
   key: string | null,
   url: string,
   timeout: number | undefined,
   dedupeTime: number,
   isCancellable: boolean,
   isTimeoutEnabled: boolean,
-): Promise<AbortController> {
+): AbortController {
   if (!key) {
     return new AbortController();
   }

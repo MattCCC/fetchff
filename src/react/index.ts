@@ -115,14 +115,10 @@ export function useFetcher<
   );
   const dedupeTime = config.dedupeTime ?? DEFAULT_DEDUPE_TIME_MS;
   const cacheTime = config.cacheTime || INFINITE_CACHE_TIME;
+  const shouldTriggerOnMount = config.immediate ?? true;
 
   const currentValuesRef = useRef(DEFAULT_REF);
   currentValuesRef.current = [url, config, cacheKey];
-
-  const shouldTriggerOnMount = useMemo(
-    () => (config.immediate === undefined ? true : config.immediate),
-    [config.immediate],
-  );
 
   // Attempt to get the cached response immediately and if not available, return null
   const getSnapshot = useCallback(() => {
@@ -132,8 +128,8 @@ export function useFetcher<
 
     // Only throw for Suspense if we're in 'reject' mode and have no data
     if (
-      cacheKey &&
       config.strategy === 'reject' &&
+      cacheKey &&
       (!cached || (!cached.data && !cached.error))
     ) {
       const pendingPromise = getInFlightPromise(cacheKey, dedupeTime);
@@ -143,7 +139,15 @@ export function useFetcher<
       }
     }
 
-    return cached;
+    return (
+      cached ??
+      (DEFAULT_RESULT as unknown as FetchResponse<
+        ResponseData,
+        RequestBody,
+        QueryParams,
+        PathParams
+      >)
+    );
   }, [cacheKey]);
 
   // Subscribe to cache updates for the specific cache key
@@ -179,19 +183,9 @@ export function useFetcher<
     [cacheKey, shouldTriggerOnMount, url, dedupeTime, cacheTime],
   );
 
-  const state =
-    useSyncExternalStore<FetchResponse<
-      ResponseData,
-      RequestBody,
-      QueryParams,
-      PathParams
-    > | null>(doSubscribe, getSnapshot, getSnapshot) ||
-    (DEFAULT_RESULT as unknown as FetchResponse<
-      ResponseData,
-      RequestBody,
-      QueryParams,
-      PathParams
-    >);
+  const state = useSyncExternalStore<
+    FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>
+  >(doSubscribe, getSnapshot, getSnapshot);
 
   const refetch = useCallback(
     async (forceRefresh = true) => {
@@ -245,15 +239,16 @@ export function useFetcher<
     [cacheKey],
   );
 
-  const isUnresolved = !state.data && !state.error;
-  const isFetching = state.isFetching || false;
+  const data = state.data;
+  const isUnresolved = !data && !state.error;
+  const isFetching = state.isFetching;
   const isLoading =
     !!url && (isFetching || (isUnresolved && shouldTriggerOnMount));
 
   // Consumers always destructure the return value and use the fields directly, so
   // memoizing the object doesn't change rerender behavior nor improve any performance here
   return {
-    data: state.data,
+    data,
     error: state.error,
     config: state.config,
     headers: state.headers,

@@ -32,15 +32,32 @@ import { withPolling } from './polling-handler';
 import { notifySubscribers } from './pubsub-manager';
 import { addRevalidator } from './revalidator-manager';
 
+const inFlightResponse = {
+  isFetching: true,
+  data: null,
+  error: null,
+};
+
 /**
- * Request function to make HTTP requests with the provided URL and configuration.
+ * Sends an HTTP request to the specified URL using the provided configuration and returns a typed response.
  *
- * @param {string} url - Request URL
- * @param {RequestConfig} reqConfig - Request config passed when making the request
- * @throws {ResponseError} If the request fails or is cancelled
- * @returns {Promise<FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>>} Response Data
+ * @typeParam ResponseData - The expected shape of the response data. Defaults to `DefaultResponse`.
+ * @typeParam RequestBody - The type of the request payload/body. Defaults to `DefaultPayload`.
+ * @typeParam QueryParams - The type of the query parameters. Defaults to `DefaultParams`.
+ * @typeParam PathParams - The type of the path parameters. Defaults to `DefaultUrlParams`.
+ *
+ * @param url - The endpoint URL to which the request will be sent.
+ * @param config - Optional configuration object for the request, including headers, method, body, query, and path parameters.
+ *
+ * @returns A promise that resolves to a `FetchResponse` containing the typed response data and request metadata.
+ *
+ * @example
+ * ```typescript
+ * const { data } = await fetchf<UserData>('/api/user', { method: 'GET' });
+ * console.log(data);
+ * ```
  */
-export async function request<
+export async function fetchf<
   ResponseData = DefaultResponse,
   RequestBody = DefaultPayload,
   QueryParams = DefaultParams,
@@ -55,7 +72,9 @@ export async function request<
   > | null = null,
 ): Promise<FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>> {
   const sanitizedReqConfig = reqConfig ? sanitizeObject(reqConfig) : {};
-  const mergedConfig = mergeConfigs(defaultConfig, sanitizedReqConfig);
+  const mergedConfig = reqConfig
+    ? mergeConfigs(defaultConfig, sanitizedReqConfig)
+    : { ...defaultConfig };
   const fetcherConfig = buildConfig(url, mergedConfig);
 
   let response: FetchResponse<
@@ -68,26 +87,28 @@ export async function request<
   const {
     timeout,
     cancellable,
+    cacheKey,
     dedupeTime,
     cacheTime,
-    cacheKey,
     revalidateOnFocus,
     revalidateOnReconnect,
     pollingInterval = 0,
   } = mergedConfig;
 
+  const needsCacheKey = !!(
+    cacheKey ||
+    timeout ||
+    dedupeTime ||
+    cacheTime ||
+    cancellable ||
+    revalidateOnFocus ||
+    revalidateOnReconnect
+  );
+
   let _cacheKey: string | null = null;
 
   // Generate cache key if required
-  if (
-    cacheKey ||
-    cacheTime ||
-    dedupeTime ||
-    cancellable ||
-    timeout ||
-    revalidateOnFocus ||
-    revalidateOnReconnect
-  ) {
+  if (needsCacheKey) {
     _cacheKey = generateCacheKey(fetcherConfig);
   }
 
@@ -132,7 +153,16 @@ export async function request<
   >;
 
   // The actual request logic as a function (one poll attempt, with retries)
-  const doRequestOnce = async () => {
+  const doRequestOnce = async (isStaleRevalidation = false) => {
+    // If cache key is specified, we will handle optimistic updates
+    // and mark the request as in-flight, so to catch "fetching" state.
+    // This is useful for Optimistic UI updates (e.g., showing loading spinners).
+    if (_cacheKey && !isStaleRevalidation) {
+      setCache(_cacheKey, inFlightResponse);
+
+      notifySubscribers(_cacheKey, inFlightResponse);
+    }
+
     let attempt = 0;
     let waitTime: number = delay || 0;
     const _retries = retries > 0 ? retries : 0;
@@ -142,7 +172,7 @@ export async function request<
       const url = fetcherConfig.url as string;
 
       // Add the request to the queue. Make sure to handle deduplication, cancellation, timeouts in accordance to retry settings
-      const controller = await markInFlight(
+      const controller = markInFlight(
         _cacheKey,
         url,
         timeout,
@@ -397,32 +427,18 @@ export async function request<
     );
   };
 
-  // If cache key is specified, wrap the request with in-flight management
-  const doRequestWithInFlight = _cacheKey
-    ? async () => {
-        // Optimistic Updates: Reflect that a fetch is happening, so to catch "fetching" state. This can help e.g. with UI updates (e.g., showing loading spinners).
-        const inFlightResponse = {
-          isFetching: true,
-          data: null,
-          error: null,
-          headers: null,
-        };
-        setCache(_cacheKey, inFlightResponse);
-
-        notifySubscribers(_cacheKey, inFlightResponse);
-
-        return doRequestOnce();
-      }
-    : doRequestOnce;
-
   // If polling is enabled, use withPolling to handle the request
-  const doRequestPromise = withPolling(
-    doRequestWithInFlight,
-    pollingInterval,
-    mergedConfig.shouldStopPolling,
-    mergedConfig.maxPollingAttempts,
-    mergedConfig.pollingDelay,
-  );
+  const doRequestPromise = pollingInterval
+    ? withPolling<
+        FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>
+      >(
+        doRequestOnce,
+        pollingInterval,
+        mergedConfig.shouldStopPolling,
+        mergedConfig.maxPollingAttempts,
+        mergedConfig.pollingDelay,
+      )
+    : doRequestOnce();
 
   // If deduplication is enabled, store the in-flight promise immediately
   if (_cacheKey) {
@@ -432,7 +448,7 @@ export async function request<
 
     addRevalidator(
       _cacheKey,
-      doRequestWithInFlight,
+      doRequestOnce,
       undefined,
       mergedConfig.staleTime,
       doRequestOnce,
@@ -450,9 +466,9 @@ export async function request<
  * @param {ResponseError} error               Error instance
  * @returns {boolean}                        True if request is aborted
  */
-const isRequestCancelled = (error: ResponseError): boolean => {
+function isRequestCancelled(error: ResponseError): boolean {
   return error.name === ABORT_ERROR || error.name === CANCELLED_ERROR;
-};
+}
 
 /**
  * Logs messages or errors using the configured logger's `warn` method.
@@ -460,34 +476,13 @@ const isRequestCancelled = (error: ResponseError): boolean => {
  * @param {RequestConfig} reqConfig - Request config passed when making the request
  * @param {...(string | ResponseError<any>)} args - Messages or errors to log.
  */
-const logger = (
+function logger(
   reqConfig: RequestConfig,
   ...args: (string | ResponseError)[]
-): void => {
+): void {
   const logger = reqConfig.logger;
 
   if (logger && logger.warn) {
     logger.warn(...args);
   }
-};
-
-/**
- * Sends an HTTP request to the specified URL using the provided configuration and returns a typed response.
- *
- * @typeParam ResponseData - The expected shape of the response data. Defaults to `DefaultResponse`.
- * @typeParam RequestBody - The type of the request payload/body. Defaults to `DefaultPayload`.
- * @typeParam QueryParams - The type of the query parameters. Defaults to `DefaultParams`.
- * @typeParam PathParams - The type of the path parameters. Defaults to `DefaultUrlParams`.
- *
- * @param url - The endpoint URL to which the request will be sent.
- * @param config - Optional configuration object for the request, including headers, method, body, query, and path parameters.
- *
- * @returns A promise that resolves to a `FetchResponse` containing the typed response data and request metadata.
- *
- * @example
- * ```typescript
- * const { data } = await fetchf<UserData>('/api/user', { method: 'GET' });
- * console.log(data);
- * ```
- */
-export const fetchf = request;
+}

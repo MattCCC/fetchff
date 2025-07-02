@@ -20,7 +20,9 @@ import { addTimeout, removeTimeout } from './timeout-wheel';
 import { FetchResponse } from './types';
 import { isBrowser, noop, timeNow } from './utils';
 
-export type RevalidatorFn = () => Promise<FetchResponse | null>;
+export type RevalidatorFn = (
+  isStaleRevalidation?: boolean,
+) => Promise<FetchResponse | null>;
 
 type EventType = 'focus' | 'online';
 
@@ -73,7 +75,7 @@ export function revalidateAll(
     const revalidator = isStaleRevalidation ? entry[4] : entry[0];
 
     if (revalidator) {
-      Promise.resolve(revalidator()).catch(noop);
+      Promise.resolve(revalidator(isStaleRevalidation)).catch(noop);
     }
   });
 }
@@ -105,7 +107,7 @@ export async function revalidate<T = unknown>(
 
     // If no revalidator function is registered, return null
     if (revalidator) {
-      return await revalidator();
+      return await revalidator(isStaleRevalidation);
     }
   }
 

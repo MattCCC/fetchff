@@ -114,6 +114,7 @@ export const prepareResponse = <
   if (!response) {
     return {
       ok: false,
+      isFetching: false,
       // Enhance the response with extra information
       error,
       data: defaultResponse ?? null,
@@ -171,6 +172,7 @@ export const prepareResponse = <
       data,
       headers,
       config,
+      isFetching: false,
     };
   }
 
@@ -178,6 +180,7 @@ export const prepareResponse = <
   if (isObject(response)) {
     response.error = error;
     response.headers = headers;
+    response.isFetching = false;
   }
 
   return response;
