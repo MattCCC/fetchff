@@ -306,6 +306,26 @@ await mutate('/api/users', updatedData, {
 });
 ```
 
+##### `getCache(key)`
+
+Directly retrieve cached data for a specific cache key. Useful for reading the current cached response without triggering a network request.
+
+**Parameters:**
+
+- `key` (string): The cache key to retrieve (equivalent to `cacheKey` from request config or `config.cacheKey` from response object)
+
+**Returns:** The cached response object, or `undefined` if not found
+
+```typescript
+import { getCache } from 'fetchff';
+
+// Get cached data for a specific key assuming you set {cacheKey: ''/api/user-profile'} in config
+const cachedResponse = getCache('/api/user-profile');
+if (cachedResponse) {
+  console.log('Cached user profile:', cachedResponse.data);
+}
+```
+
 ##### `setCache(key, response)`
 
 Directly set cache data for a specific key. Unlike `mutate()`, this doesn't trigger revalidation by default. This is a low level function to directly set cache data based on particular key. If unsure, use the `mutate()` with `revalidate: false` instead.
@@ -1506,7 +1526,7 @@ The retry mechanism is configured via the `retry` option when instantiating the 
 If used in conjunction with `shouldRetry`, the `shouldRetry` function takes priority, and falls back to `retryOn` only if it returns `null`.
 
 - **`shouldRetry(response: FetchResponse, currentAttempt: Number) => boolean`**:  
-  Type: `RetryFunction<ResponseData, QueryParams, PathParams, RequestBody>`  
+  Type: `RetryFunction<ResponseData, RequestBody, QueryParams, PathParams>`  
   Function that determines whether a retry should be attempted <b>based on the error</b> or <b>successful response</b> (if `shouldRetry` is provided) object, and the current attempt number. This function receives the error object and the attempt number as arguments. The boolean returned indicates decision. If `true` then it should retry, if `false` then abort and don't retry, if `null` then fallback to `retryOn` status codes check.
   _Default:_ `undefined`.
 
