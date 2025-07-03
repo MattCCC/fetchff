@@ -9,9 +9,6 @@ import type {
   ResponseInterceptor,
 } from '../src/types/interceptor-manager';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type ResponseData = any;
-
 describe('Interceptor Functions', () => {
   const interceptResponse = applyInterceptor;
   const interceptRequest = applyInterceptor;
@@ -55,22 +52,18 @@ describe('Interceptor Functions', () => {
 
   it('should apply response interceptors in order', async () => {
     // Define response interceptors
-    const responseInterceptor1 = async (
-      response: FetchResponse<ResponseData>,
-    ) => {
+    const responseInterceptor1 = async (response: FetchResponse) => {
       const data = await response.json();
       return new Response(JSON.stringify({ ...data, modified: true }), {
         status: response.status,
-      }) as FetchResponse<ResponseData>;
+      }) as FetchResponse;
     };
 
-    const responseInterceptor2 = async (
-      response: FetchResponse<ResponseData>,
-    ) => {
+    const responseInterceptor2 = async (response: FetchResponse) => {
       const data = await response.json();
       return new Response(JSON.stringify({ ...data, furtherModified: true }), {
         status: response.status,
-      }) as FetchResponse<ResponseData>;
+      }) as FetchResponse;
     };
 
     // Register response interceptors directly
@@ -111,9 +104,7 @@ describe('Interceptor Functions', () => {
 
   it('should handle response errors', async () => {
     // Define a response interceptor that throws an error on non-OK response
-    const responseInterceptor = async (
-      response: FetchResponse<ResponseData>,
-    ) => {
+    const responseInterceptor = async (response: FetchResponse) => {
       if (!response.ok) {
         throw new Error('Response Error');
       }

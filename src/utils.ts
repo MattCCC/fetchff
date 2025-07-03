@@ -57,15 +57,11 @@ export function shallowSerialize(obj: Record<string, any>): string {
 export function sanitizeObject<T extends Record<string, any>>(
   obj: T,
 ): Partial<T> {
-  if (!obj || typeof obj !== OBJECT || Array.isArray(obj)) {
-    return obj;
-  }
-
   const safeObj = { ...obj };
 
-  dangerousProps.forEach((prop) => {
-    delete safeObj[prop];
-  });
+  delete safeObj.__proto__;
+  delete (safeObj as any).constructor;
+  delete safeObj.prototype;
 
   return safeObj;
 }
@@ -226,6 +222,10 @@ export function replaceUrlPathParams(
   });
 }
 
+export const timeNow = () => Date.now();
+
+export const noop = () => {};
+
 /**
  * Checks if a value is JSON serializable.
  *
@@ -241,7 +241,7 @@ export function replaceUrlPathParams(
 export function isJSONSerializable(value: any): boolean {
   const t = typeof value;
 
-  if (t === UNDEFINED || value === null) {
+  if (value === undefined || value === null) {
     return false;
   }
 
@@ -351,3 +351,30 @@ export function processHeaders(
 
   return headersObject;
 }
+
+/**
+ * Determines if the current environment is a browser.
+ *
+ * @returns {boolean} - True if running in a browser environment, false otherwise.
+ */
+export function isBrowser(): boolean {
+  // For node and and some mobile frameworks like React Native, `add/removeEventListener` doesn't exist on window!
+  return (
+    typeof window !== UNDEFINED && typeof window.addEventListener === FUNCTION
+  );
+}
+
+/**
+ * Detects if the user is on a slow network connection
+ * @returns {boolean} True if connection is slow, false otherwise or if detection unavailable
+ */
+export const isSlowConnection = (): boolean => {
+  // Only works in browser environments
+  if (!isBrowser()) {
+    return false;
+  }
+
+  const conn = navigator && (navigator as any).connection;
+
+  return conn && ['slow-2g', '2g', '3g'].includes(conn.effectiveType);
+};

@@ -6,10 +6,7 @@ import fetchMock from 'fetch-mock';
 describe('API Handler', () => {
   fetchMock.mockGlobal();
 
-  const fetcher = {
-    create: jest.fn().mockReturnValue({ request: jest.fn() }),
-  };
-
+  const fetcher = jest.fn();
   const apiUrl = 'http://example.com/api/';
   const config = {
     fetcher,
@@ -24,12 +21,6 @@ describe('API Handler', () => {
 
   afterEach((done) => {
     done();
-  });
-
-  it('getInstance() - should obtain method of the API request provider', () => {
-    const api = createApiFetcher(config);
-
-    expect(typeof (api.getInstance() as any).request).toBe('function');
   });
 
   describe('get()', () => {
@@ -69,17 +60,14 @@ describe('API Handler', () => {
         name: 'Mark',
       };
 
-      jest
-        .spyOn(api.requestHandler, 'request')
-        .mockResolvedValueOnce(userDataMock as any);
+      jest.spyOn(api, 'request').mockResolvedValueOnce(userDataMock as any);
 
       const response = await api.getUserByIdAndName({ urlPathParams });
 
-      expect(api.requestHandler.request).toHaveBeenCalledTimes(1);
-      expect(api.requestHandler.request).toHaveBeenCalledWith(
-        '/user-details/:id/:name',
-        { url: '/user-details/:id/:name', urlPathParams },
-      );
+      expect(api.request).toHaveBeenCalledTimes(1);
+      expect(api.request).toHaveBeenCalledWith('getUserByIdAndName', {
+        urlPathParams,
+      });
       expect(response).toBe(userDataMock);
     });
 
@@ -94,20 +82,18 @@ describe('API Handler', () => {
         'Content-Type': 'application/json',
       };
 
-      jest
-        .spyOn(api.requestHandler, 'request')
-        .mockResolvedValueOnce(userDataMock as any);
+      jest.spyOn(api, 'request').mockResolvedValueOnce(userDataMock as any);
 
       const response = await api.getUserByIdAndName({
         urlPathParams,
         headers,
       });
 
-      expect(api.requestHandler.request).toHaveBeenCalledTimes(1);
-      expect(api.requestHandler.request).toHaveBeenCalledWith(
-        '/user-details/:id/:name',
-        { url: '/user-details/:id/:name', headers, urlPathParams },
-      );
+      expect(api.request).toHaveBeenCalledTimes(1);
+      expect(api.request).toHaveBeenCalledWith('getUserByIdAndName', {
+        headers,
+        urlPathParams,
+      });
       expect(response).toBe(userDataMock);
     });
 
