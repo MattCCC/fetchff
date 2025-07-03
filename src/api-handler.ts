@@ -17,6 +17,7 @@ import type {
 } from './types/api-handler';
 import { fetchf } from '.';
 import { mergeConfigs } from './config-handler';
+import { isAbsoluteUrl } from './utils';
 
 /**
  * Creates an instance of API Handler.
@@ -99,11 +100,12 @@ function createApiFetcher<
       FinalParams<ResponseData, UrlParams, UrlPathParams>
     >
   > {
-    // Use global per-endpoint settings
-    const endpointConfig =
-      endpoints[endpointName] ||
+    // Use global and per-endpoint settings
+    const endpointConfig = endpoints[endpointName];
+    const _endpointConfig =
+      endpointConfig ||
       ({ url: String(endpointName) } as RequestConfigUrlRequired);
-    const url = endpointConfig.url;
+    const url = _endpointConfig.url;
 
     // Block Protocol-relative URLs as they could lead to SSRF (Server-Side Request Forgery)
     if (url.startsWith('//')) {
@@ -111,10 +113,12 @@ function createApiFetcher<
     }
 
     // Prevent potential Server-Side Request Forgery attack and leakage of credentials when same instance is used for external requests
-    const isAbsoluteUrl = url.includes('://');
-    const mergedConfig = isAbsoluteUrl
-      ? mergeConfigs(endpointConfig, requestConfig)
-      : mergeConfigs(mergeConfigs(config, endpointConfig), requestConfig);
+    const mergedConfig = isAbsoluteUrl(url)
+      ? // Merge endpoints configs for absolute URLs only if urls match
+        endpointConfig?.url === url
+        ? mergeConfigs(_endpointConfig, requestConfig)
+        : requestConfig
+      : mergeConfigs(mergeConfigs(config, _endpointConfig), requestConfig);
 
     // We prevent potential Server-Side Request Forgery attack and leakage of credentials as the same instance is not used for external requests
     // Retrigger fetch to ensure completely new instance of handler being triggered for external URLs

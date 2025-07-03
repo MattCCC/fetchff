@@ -20,6 +20,7 @@ import {
   isSearchParams,
   isJSONSerializable,
   isSlowConnection,
+  isAbsoluteUrl,
 } from './utils';
 
 const defaultTimeoutMs = (isSlowConnection() ? 60 : 30) * 1000;
@@ -107,7 +108,7 @@ export const buildConfig = (
   // The explicitly passed query params
   const dynamicUrl = replaceUrlPathParams(url, requestConfig.urlPathParams);
   const urlPath = appendQueryParams(dynamicUrl, requestConfig.params);
-  const isFullUrl = urlPath.includes('://');
+  const isFullUrl = isAbsoluteUrl(url);
   const baseURL = isFullUrl
     ? ''
     : requestConfig.baseURL || requestConfig.apiUrl || '';
