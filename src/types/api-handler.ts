@@ -17,7 +17,13 @@ declare const emptyObjectSymbol: unique symbol;
 
 export type EmptyObject = { [emptyObjectSymbol]?: never };
 
-export type DefaultParams = Record<string, unknown>;
+export type DefaultParams =
+  | Record<string, unknown>
+  | URLSearchParams
+  | NameValuePair[]
+  | EmptyObject
+  | null;
+
 export type DefaultUrlParams = Record<string, unknown>;
 export type DefaultPayload = Record<string, any>;
 
@@ -25,6 +31,7 @@ export declare type QueryParams<ParamsType = DefaultParams> =
   | (ParamsType & EmptyObject)
   | URLSearchParams
   | NameValuePair[]
+  | EmptyObject
   | null;
 
 export declare type UrlPathParams<UrlParamsType = DefaultUrlParams> =

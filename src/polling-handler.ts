@@ -14,25 +14,25 @@ import { delayInvocation } from './utils';
  * @returns The final output from the last request.
  */
 export async function withPolling<
-  Output extends FetchResponse<
-    unknown,
-    unknown,
-    unknown,
-    unknown
-  > = FetchResponse<unknown, unknown, unknown, unknown>,
+  ResponseData,
+  RequestBody,
+  QueryParams,
+  PathParams,
 >(
-  doRequestOnce: () => Promise<Output>,
+  doRequestOnce: () => Promise<
+    FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>
+  >,
   pollingInterval?: ExtendedRequestConfig['pollingInterval'],
   shouldStopPolling?: ExtendedRequestConfig['shouldStopPolling'],
   maxAttempts = 0,
   pollingDelay = 0,
-): Promise<Output> {
+): Promise<FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>> {
   if (!pollingInterval) {
     return doRequestOnce();
   }
 
   let pollingAttempt = 0;
-  let output: Output;
+  let output: FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>;
 
   while (maxAttempts === 0 || pollingAttempt < maxAttempts) {
     if (pollingDelay > 0) {
