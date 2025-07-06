@@ -54,9 +54,7 @@ export function shallowSerialize(obj: Record<string, any>): string {
  * @param obj - The object to sanitize
  * @returns A new object without dangerous properties
  */
-export function sanitizeObject<T extends Record<string, any>>(
-  obj: T,
-): Partial<T> {
+export function sanitizeObject<T extends Record<string, any>>(obj: T): T {
   const safeObj = { ...obj };
 
   delete safeObj.__proto__;
@@ -220,6 +218,18 @@ export function replaceUrlPathParams(
 
     return match;
   });
+}
+
+/**
+ * Determines whether the provided URL is absolute.
+ *
+ * An absolute URL contains a scheme (e.g., "http://", "https://").
+ *
+ * @param url - The URL string to check.
+ * @returns `true` if the URL is absolute, otherwise `false`.
+ */
+export function isAbsoluteUrl(url: string): boolean {
+  return url.includes('://');
 }
 
 export const timeNow = () => Date.now();

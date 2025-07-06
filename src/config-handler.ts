@@ -59,13 +59,13 @@ export const defaultConfig: RequestConfig = {
  * @param {Partial<RequestConfig>} customConfig - The custom configuration to merge into the default config.
  * @returns {Partial<RequestConfig>} - The updated default configuration object.
  */
-export const setDefaultConfig = (
+export function setDefaultConfig(
   customConfig: Partial<RequestConfig>,
-): Partial<RequestConfig> => {
+): Partial<RequestConfig> {
   Object.assign(defaultConfig, customConfig);
 
   return defaultConfig;
-};
+}
 
 /**
  * Build request configuration
@@ -74,10 +74,10 @@ export const setDefaultConfig = (
  * @param {RequestConfig} requestConfig - Request config passed when making the request
  * @returns {FetcherConfig} - Provider's instance
  */
-export const buildConfig = (
+export function buildConfig(
   url: string,
   requestConfig: RequestConfig,
-): FetcherConfig => {
+): FetcherConfig {
   let method = requestConfig.method as Method;
   method = method ? (method.toUpperCase() as Method) : GET;
 
@@ -120,7 +120,7 @@ export const buildConfig = (
     credentials,
     body,
   };
-};
+}
 
 /**
  * Ensures the `Content-Type` header is set to `application/json; charset=utf-8`
@@ -132,11 +132,11 @@ export const buildConfig = (
  * @param body - The optional body of the request. If no body is provided and the
  *               method is 'PUT' or 'DELETE', the function exits without modifying headers.
  */
-const setContentTypeIfNeeded = (
+function setContentTypeIfNeeded(
   method: string,
   headers?: HeadersInit | HeadersObject,
   body?: unknown,
-): void => {
+): void {
   if (!headers || (!body && ['PUT', 'DELETE'].includes(method))) {
     return;
   }
@@ -154,7 +154,7 @@ const setContentTypeIfNeeded = (
   ) {
     headers[CONTENT_TYPE] = contentTypeValue;
   }
-};
+}
 
 export function mergeConfigs(
   baseConfig: RequestConfig,
@@ -177,16 +177,16 @@ export function mergeConfigs(
  * @param {RequestConfig} baseConfig - The base configuration object that provides default values.
  * @param {RequestConfig} newConfig - The new configuration object that contains user-specific settings to merge.
  */
-export const mergeConfig = <K extends keyof RequestConfig>(
+export function mergeConfig<K extends keyof RequestConfig>(
   property: K,
   targetConfig: RequestConfig,
   baseConfig: RequestConfig,
   newConfig: RequestConfig,
-) => {
+): void {
   if (newConfig[property]) {
     targetConfig[property] = {
       ...baseConfig[property],
       ...newConfig[property],
     };
   }
-};
+}

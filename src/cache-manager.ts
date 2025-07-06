@@ -8,7 +8,13 @@ import type {
 } from './types/request-handler';
 import type { CacheEntry, MutationSettings } from './types/cache-manager';
 import { GET, STRING, UNDEFINED } from './constants';
-import { isObject, shallowSerialize, sortObject, timeNow } from './utils';
+import {
+  isObject,
+  sanitizeObject,
+  shallowSerialize,
+  sortObject,
+  timeNow,
+} from './utils';
 import { revalidate } from './revalidator-manager';
 import { notifySubscribers } from './pubsub-manager';
 import type { DefaultPayload, DefaultParams, DefaultUrlParams } from './types';
@@ -147,18 +153,36 @@ export function generateCacheKey(options: RequestConfig): string {
 /**
  * Checks if the cache entry is expired based on its timestamp and the maximum stale time.
  *
- * @param {number} timestamp - The timestamp of the cache entry.
+ * @param {number} expiryTime - The timestamp of the cache entry.
  * @param {number|undefined} maxStaleTime - The maximum time in seconds that the cache entry is considered valid.
  * @returns {boolean} - Returns true if the cache entry is expired, false otherwise.
  */
-function isCacheExpired(timestamp: number, maxStaleTime?: number): boolean {
+function isCacheExpired(expiryTime: number, maxStaleTime?: number): boolean {
   // If maxStaleTime is not provided (undefined, null, 0, or -1), the cache entry is considered not expired.
   if (!maxStaleTime || maxStaleTime === INFINITE_CACHE_TIME) {
     return false;
   }
 
-  // Check if the current time exceeds the timestamp by more than maxStaleTime seconds
-  return timeNow() - timestamp > maxStaleTime * 1000;
+  // Check if the current time exceeds the expiry time
+  return timeNow() > expiryTime;
+}
+
+/**
+ * Retrieves a cached response from the internal cache using the provided key.
+ *
+ * @param key - The unique key identifying the cached entry. If null, returns null.
+ * @returns The cached {@link FetchResponse} if found, otherwise null.
+ */
+export function getCache<ResponseData, RequestBody, QueryParams, PathParams>(
+  key: string | null,
+): FetchResponse<ResponseData, RequestBody, QueryParams, PathParams> | null {
+  if (!key) {
+    return null;
+  }
+
+  const entry = _cache.get(key);
+
+  return entry ? entry.data : null;
 }
 
 /**
@@ -186,15 +210,22 @@ export function getCacheEntry<T>(
 }
 
 /**
- * Sets a new cache entry or updates an existing one.
+ * Sets a new cache entry or updates an existing one, with optional TTL (time-to-live).
  *
  * @param {string} key Cache key to utilize
  * @param {T} data - The data to be cached.
+ * @param {number} [ttl] - Optional TTL in seconds. If provided, the cache entry will expire after ttl seconds.
  */
-export function setCache<T = unknown>(key: string, data: T): void {
+export function setCache<T = unknown>(
+  key: string,
+  data: T,
+  ttl: number = 0,
+): void {
+  const time = ttl ? timeNow() + ttl * 1000 : INFINITE_CACHE_TIME; // Use INFINITE_CACHE_TIME for no expiration
+
   _cache.set(key, {
     data,
-    time: timeNow(),
+    time,
   });
 }
 
