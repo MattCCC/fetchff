@@ -97,7 +97,7 @@ describe('Cache Reference Management', () => {
         // Advance timers past dedupeTime
         jest.advanceTimersByTime(dedupeTime);
 
-        expect(mockDeleteCache).toHaveBeenCalledWith(testKey);
+        expect(mockDeleteCache).toHaveBeenCalledWith(testKey, true);
         expect(mockDeleteCache).toHaveBeenCalledTimes(1);
       });
 
@@ -172,7 +172,7 @@ describe('Cache Reference Management', () => {
         // No new increments happen
         jest.advanceTimersByTime(dedupeTime);
 
-        expect(mockDeleteCache).toHaveBeenCalledWith(testKey);
+        expect(mockDeleteCache).toHaveBeenCalledWith(testKey, true);
       });
     });
 
@@ -204,7 +204,7 @@ describe('Cache Reference Management', () => {
         expect(getRefCount(testKey)).toBe(0);
 
         jest.advanceTimersByTime(dedupeTime);
-        expect(mockDeleteCache).toHaveBeenCalledWith(testKey);
+        expect(mockDeleteCache).toHaveBeenCalledWith(testKey, true);
         expect(mockDeleteCache).toHaveBeenCalledTimes(1);
       });
 
@@ -248,7 +248,7 @@ describe('Cache Reference Management', () => {
         jest.advanceTimersByTime(dedupeTime);
 
         // Only testKey2 should be deleted
-        expect(mockDeleteCache).toHaveBeenCalledWith(testKey2);
+        expect(mockDeleteCache).toHaveBeenCalledWith(testKey2, true);
         expect(mockDeleteCache).not.toHaveBeenCalledWith(testKey);
         expect(mockDeleteCache).toHaveBeenCalledTimes(1);
       });
@@ -273,7 +273,7 @@ describe('Cache Reference Management', () => {
         expect(getRefCount(testKey)).toBe(0);
 
         jest.advanceTimersByTime(dedupeTime);
-        expect(mockDeleteCache).toHaveBeenCalledWith(testKey);
+        expect(mockDeleteCache).toHaveBeenCalledWith(testKey, true);
         expect(mockDeleteCache).toHaveBeenCalledTimes(1);
       });
 
@@ -297,7 +297,7 @@ describe('Cache Reference Management', () => {
         // Simulate system clock jumping (timer still fires)
         jest.advanceTimersByTime(dedupeTime);
 
-        expect(mockDeleteCache).toHaveBeenCalledWith(testKey);
+        expect(mockDeleteCache).toHaveBeenCalledWith(testKey, true);
       });
 
       it('should handle very large ref counts', () => {
@@ -320,7 +320,7 @@ describe('Cache Reference Management', () => {
         decrementRef(testKey, INFINITE_CACHE_TIME, dedupeTime);
         jest.advanceTimersByTime(dedupeTime);
 
-        expect(mockDeleteCache).toHaveBeenCalledWith(testKey);
+        expect(mockDeleteCache).toHaveBeenCalledWith(testKey, true);
       });
 
       it('should handle empty string as key gracefully', () => {
@@ -357,7 +357,7 @@ describe('Cache Reference Management', () => {
 
         jest.advanceTimersByTime(dedupeTime);
 
-        expect(mockDeleteCache).toHaveBeenCalledWith(specialKey);
+        expect(mockDeleteCache).toHaveBeenCalledWith(specialKey, true);
       });
     });
   });
@@ -409,7 +409,7 @@ describe('Cache Reference Management', () => {
 
       // Timer should still fire and attempt deletion
       jest.advanceTimersByTime(dedupeTime);
-      expect(mockDeleteCache).toHaveBeenCalledWith(testKey);
+      expect(mockDeleteCache).toHaveBeenCalledWith(testKey, true);
     });
   });
 
@@ -440,7 +440,7 @@ describe('Cache Reference Management', () => {
 
       // Cache should be deleted after timeout
       jest.advanceTimersByTime(dedupeTime);
-      expect(mockDeleteCache).toHaveBeenCalledWith(testKey);
+      expect(mockDeleteCache).toHaveBeenCalledWith(testKey, true);
     });
 
     it('should handle React Strict Mode double mounting', () => {
@@ -460,7 +460,7 @@ describe('Cache Reference Management', () => {
       // Final unmount
       decrementRef(testKey, INFINITE_CACHE_TIME, dedupeTime);
       jest.advanceTimersByTime(dedupeTime);
-      expect(mockDeleteCache).toHaveBeenCalledWith(testKey);
+      expect(mockDeleteCache).toHaveBeenCalledWith(testKey, true);
     });
   });
 });

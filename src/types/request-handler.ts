@@ -77,15 +77,58 @@ export interface ExtendedResponse<
   QueryParams = DefaultParams,
   PathParams = DefaultUrlParams,
 > extends Omit<Response, 'headers'> {
+  /**
+   * Return response data as parsed JSON (default) or the raw response body.
+   */
   data: ResponseData extends [unknown] ? any : ResponseData;
+
+  /**
+   * Error object if the request failed.
+   * This will be `null` if the request was successful.
+   */
   error: ResponseError<
     ResponseData,
     QueryParams,
     PathParams,
     RequestBody
   > | null;
+  /**
+   * Plain headers object containing the response headers.
+   */
   headers: HeadersObject & HeadersInit;
+
+  /**
+   * Request configuration used to make the request.
+   */
   config: RequestConfig<ResponseData, QueryParams, PathParams, RequestBody>;
+
+  /**
+   * Function to mutate the cached data.
+   * It updates the cache with new data and optionally triggers revalidation.
+   *
+   * @param {ResponseData} data - The new data to set in the cache.
+   * @param {MutationSettings} [mutationSettings] - Optional settings for the mutation.
+   *   - `revalidate`: If true, it will trigger a revalidation after mutating the cache.
+   * @returns {Promise<FetchResponse<ResponseData, RequestBody, QueryParams, PathParams> | null>} The updated response or null if no cache key is set.
+   */
+  mutate: (
+    data: FetchResponse<
+      ResponseData,
+      RequestBody,
+      QueryParams,
+      PathParams
+    >['data'],
+    mutationSettings?: MutationSettings,
+  ) => Promise<FetchResponse<
+    ResponseData,
+    RequestBody,
+    QueryParams,
+    PathParams
+  > | null>;
+
+  /**
+   * Indicates whether the request is currently being fetched.
+   */
   isFetching: boolean;
 }
 
@@ -109,6 +152,7 @@ export interface ResponseError<
 > extends Error {
   status: number;
   statusText: string;
+  isCancelled: boolean;
   request: RequestConfig<ResponseData, QueryParams, PathParams, RequestBody>;
   config: RequestConfig<ResponseData, QueryParams, PathParams, RequestBody>;
   response: FetchResponse<
@@ -237,17 +281,30 @@ export interface CacheOptions<
   RequestBody = DefaultPayload,
 > {
   /**
-   * Maximum time, in seconds, a cache entry is considered fresh (valid).
-   * After this time, the entry may be considered stale (expired).
+   * Time in seconds after which the cache entry is removed.
+   * This is the time to live (TTL) for the cache entry.
    * - Set to `-1` to remove cache as soon as consumer is not using the data (e.g., a component unmounts), it is deleted from cache.
-   * - Set to `0` to disable caching (no cache).
+   * - Set to `0` to immediate discard of cache. The cache is immediately discarded, forces fetch every time.
+   * - Set to `undefined` to disable cache (no cache).
    *
    * @default undefined (no cache)
    */
   cacheTime?: number;
 
   /**
-   * Cache key
+   * Time in seconds for which the cache entry is considered valid (fresh).
+   * After this time, the entry may be considered stale (expired) and background revalidation is triggered.
+   * This is implementing the SWR (stale-while-revalidate) pattern.
+   * - Set to a number greater than `0` to specify number of seconds during which cached data is considered "fresh".
+   * - Set to `0` to set data as stale immediately (always eligible to refetch).
+   * - Set to `undefined` to disable SWR pattern (data is never considered stale).
+   *
+   * @default undefined (disable SWR pattern) or 300 (5 minutes) in libraries like React.
+   */
+  staleTime?: number;
+
+  /**
+   * Cache key generator function or string.
    * Lets you customize how cache entries are identified for requests.
    * - You can provide a function that returns a cache key string based on the request config.
    * - You can provide a fixed string to use as the cache key.
@@ -447,12 +504,6 @@ export interface ExtendedRequestConfig<
    * @default 0 (0 milliseconds means no deduplication)
    */
   dedupeTime?: number;
-
-  /**
-   * Time in milliseconds after which data is considered stale and background revalidation is triggered
-   * @default 0 (data is never considered stale)
-   */
-  staleTime?: number;
 
   /**
    * The time (in milliseconds) between the end of one polling attempt and the start of the next.

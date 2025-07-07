@@ -114,7 +114,11 @@ describe('React Integration Tests', () => {
       fireEvent.click(screen.getByTestId('mutate'));
 
       // Should show mutated data immediately
-      expect(screen.getByTestId('data')).toHaveTextContent('{"updated":true}');
+      await waitFor(() => {
+        expect(screen.getByTestId('data')).toHaveTextContent(
+          '{"updated":true}',
+        );
+      });
     });
   });
 

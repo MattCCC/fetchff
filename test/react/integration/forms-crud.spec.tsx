@@ -368,7 +368,6 @@ describe('Form & CRUD Integration Tests', () => {
           });
         }
 
-        console.log('Unexpeced request:', method, url);
         return Promise.reject(
           new Error(`Unexpected request: ${method} ${url}`),
         );
@@ -580,11 +579,20 @@ describe('Form & CRUD Integration Tests', () => {
           strategy: 'softFail',
         });
 
+        // Initialize with server data
         useEffect(() => {
-          if (serverData && !isOptimistic) {
+          if (serverData && !localData) {
             setLocalData(serverData);
           }
-        }, [serverData, isOptimistic]);
+        }, [serverData, localData]);
+
+        // Handle successful update
+        useEffect(() => {
+          if (updateData && !error) {
+            setLocalData(updateData);
+            setIsOptimistic(false);
+          }
+        }, [updateData, error]);
 
         // Handle error - rollback optimistic update
         useEffect(() => {
@@ -593,14 +601,6 @@ describe('Form & CRUD Integration Tests', () => {
             setIsOptimistic(false);
           }
         }, [error, isOptimistic, serverData]);
-
-        // Handle success - confirm optimistic update
-        useEffect(() => {
-          if (updateData && isOptimistic) {
-            setLocalData(updateData);
-            setIsOptimistic(false);
-          }
-        }, [updateData, isOptimistic]);
 
         const handleOptimisticUpdate = () => {
           // Optimistically update UI

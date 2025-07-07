@@ -3,7 +3,6 @@ import {
   fetchf,
   subscribe,
   buildConfig,
-  mutate as globalMutate,
   generateCacheKey,
   getCachedResponse,
   getInFlightPromise,
@@ -27,13 +26,23 @@ import {
   INFINITE_CACHE_TIME,
 } from './cache-ref';
 
+// In React, we use a default stale time of 5 minutes (SWR)
+const DEFAULT_STALE_TIME = 300; // 5 minutes
+
 const DEFAULT_RESULT = {
   data: null,
   error: null,
   isFetching: false,
+  mutate: () => Promise.resolve(null),
   config: {},
   headers: {},
 };
+
+const FETCHING_RESULT = {
+  ...DEFAULT_RESULT,
+  isFetching: true,
+};
+
 const DEFAULT_REF = [null, {}, null] as [
   string | null,
   RequestConfig,
@@ -115,6 +124,7 @@ export function useFetcher<
   );
   const dedupeTime = config.dedupeTime ?? DEFAULT_DEDUPE_TIME_MS;
   const cacheTime = config.cacheTime || INFINITE_CACHE_TIME;
+  const staleTime = config.staleTime ?? DEFAULT_STALE_TIME;
   const shouldTriggerOnMount = config.immediate ?? true;
 
   const currentValuesRef = useRef(DEFAULT_REF);
@@ -130,45 +140,73 @@ export function useFetcher<
     if (
       config.strategy === 'reject' &&
       cacheKey &&
-      (!cached || (!cached.data && !cached.error))
+      (!cached || (!cached.data.data && !cached.data.error))
     ) {
       const pendingPromise = getInFlightPromise(cacheKey, dedupeTime);
 
       if (pendingPromise) {
         throw pendingPromise;
       }
+
+      // If no pending promise but we need to fetch, start fetch and throw the promise
+      if (!cached) {
+        const [currUrl, currConfig, currCacheKey] = currentValuesRef.current;
+
+        if (currUrl) {
+          const fetchPromise = fetchf(currUrl, {
+            ...currConfig,
+            cacheKey: currCacheKey,
+            dedupeTime,
+            cacheTime,
+            staleTime,
+            strategy: 'softFail',
+            cacheErrors: true,
+          });
+
+          throw fetchPromise;
+        }
+      }
     }
 
-    return (
-      cached ??
-      (DEFAULT_RESULT as unknown as FetchResponse<
-        ResponseData,
-        RequestBody,
-        QueryParams,
-        PathParams
-      >)
-    );
+    if (cached) {
+      return cached.data.isFetching
+        ? (FETCHING_RESULT as unknown as FetchResponse<
+            ResponseData,
+            RequestBody,
+            QueryParams,
+            PathParams
+          >)
+        : cached.data;
+    }
+
+    return DEFAULT_RESULT as unknown as FetchResponse<
+      ResponseData,
+      RequestBody,
+      QueryParams,
+      PathParams
+    >;
   }, [cacheKey]);
 
   // Subscribe to cache updates for the specific cache key
   const doSubscribe = useCallback(
     (cb: () => void) => {
       incrementRef(cacheKey);
+
+      // When the component mounts, we want to fetch data if:
+      // 1. URL is provided
+      // 2. shouldTriggerOnMount is true (so the "immediate" isn't specified or is true)
+      // 3. There is no cached data
+      // 4. There is no error
+      // 5. There is no ongoing fetch operation
       const shouldFetch =
         shouldTriggerOnMount && url && cacheKey && getRefCount(cacheKey) === 1; // Check if no existing refs
 
       // Initial fetch logic
       if (shouldFetch) {
-        // Stale-While-Revalidate Pattern: By setting -1 always return cached data if available (even if stale)
-        const cached = getCachedResponse(cacheKey, INFINITE_CACHE_TIME, config);
+        // Stale-While-Revalidate Pattern: Check for both fresh and stale data
+        const cached = getCachedResponse(cacheKey, cacheTime, config);
 
         if (!cached) {
-          // When the component mounts, we want to fetch data if:
-          // 1. URL is provided
-          // 2. shouldTriggerOnMount is true (so the "immediate" isn't specified or is true)
-          // 3. There is no cached data
-          // 4. There is no error
-          // 5. There is no ongoing fetch operation
           refetch(false);
         }
       }
@@ -211,11 +249,12 @@ export function useFetcher<
       // This can be disabled by passing `refetch(false)`
       const cacheBuster = shouldRefresh ? () => true : currConfig.cacheBuster;
 
-      return await fetchf(currUrl, {
+      return fetchf(currUrl, {
         ...currConfig,
         cacheKey: currCacheKey,
         dedupeTime,
         cacheTime,
+        staleTime,
         cacheBuster,
         // Ensure that errors are handled gracefully and not thrown by default
         strategy: 'softFail',
@@ -223,20 +262,6 @@ export function useFetcher<
       });
     },
     [cacheTime, dedupeTime],
-  );
-
-  const mutate = useCallback<
-    UseFetcherResult<
-      ResponseData,
-      RequestBody,
-      QueryParams,
-      PathParams
-    >['mutate']
-  >(
-    async (data, mutationSettings) => {
-      return await globalMutate(cacheKey, data, mutationSettings);
-    },
-    [cacheKey],
   );
 
   const data = state.data;
@@ -254,7 +279,7 @@ export function useFetcher<
     headers: state.headers,
     isFetching,
     isLoading,
-    mutate,
+    mutate: state.mutate,
     refetch,
   };
 }

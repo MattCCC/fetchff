@@ -288,9 +288,8 @@ describe('Performance & Caching Integration Tests', () => {
       });
 
       // Advance time past stale time but within cache time
-      act(() => {
-        jest.advanceTimersByTime(2500);
-      });
+      jest.advanceTimersByTime(2500);
+      jest.runAllTimers();
 
       // Re-render meanwhile (should not influence the results)
       rerender(<StaleWhileRevalidateComponent />);

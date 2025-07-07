@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { mutate } from './cache-manager';
 import {
   APPLICATION_CONTENT_TYPE,
   APPLICATION_JSON,
@@ -23,8 +24,13 @@ import { flattenData, isObject, processHeaders } from './utils';
  * @param response - The Response object to parse.
  * @returns A Promise that resolves to the parsed data.
  */
-export async function parseResponseData<ResponseData = DefaultResponse>(
-  response: FetchResponse<ResponseData>,
+export async function parseResponseData<
+  ResponseData = DefaultResponse,
+  RequestBody = DefaultPayload,
+  QueryParams = DefaultParams,
+  PathParams = DefaultUrlParams,
+>(
+  response: FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>,
 ): Promise<any> {
   // Bail early for HEAD requests or status codes, or any requests that never have a body
   if (!response || !response.body) {
@@ -86,13 +92,13 @@ export async function parseResponseData<ResponseData = DefaultResponse>(
  * @param Response. It may be "null" in case of request being aborted.
  * @param {RequestConfig} config - Request config
  * @param error - whether the response is erroneous
- * @returns {FetchResponse<ResponseData>} Response data
+ * @returns {FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>} Response data
  */
 export const prepareResponse = <
   ResponseData = DefaultResponse,
+  RequestBody = DefaultPayload,
   QueryParams = DefaultParams,
   PathParams = DefaultUrlParams,
-  RequestBody = DefaultPayload,
 >(
   response: FetchResponse<
     ResponseData,
@@ -109,17 +115,25 @@ export const prepareResponse = <
   > | null = null,
 ): FetchResponse<ResponseData, RequestBody, QueryParams, PathParams> => {
   const defaultResponse = config.defaultResponse;
+  const cacheKey = config.cacheKey;
+  const mutatator = mutate.bind(null, cacheKey as string) as FetchResponse<
+    ResponseData,
+    RequestBody,
+    QueryParams,
+    PathParams
+  >['mutate'];
 
   // This may happen when request is cancelled.
   if (!response) {
     return {
       ok: false,
-      isFetching: false,
       // Enhance the response with extra information
       error,
       data: defaultResponse ?? null,
       headers: null,
       config,
+      mutate: mutatator,
+      isFetching: false,
     } as unknown as FetchResponse<
       ResponseData,
       RequestBody,
@@ -127,6 +141,9 @@ export const prepareResponse = <
       PathParams
     >;
   }
+
+  const isNativeResponse =
+    typeof Response === FUNCTION && response instanceof Response;
 
   let data = response.data;
 
@@ -147,7 +164,7 @@ export const prepareResponse = <
   const headers = processHeaders(response.headers);
 
   // Native fetch Response extended by extra information
-  if (typeof Response === FUNCTION && response instanceof Response) {
+  if (isNativeResponse) {
     return {
       body: response.body,
       bodyUsed: response.bodyUsed,
@@ -172,6 +189,7 @@ export const prepareResponse = <
       data,
       headers,
       config,
+      mutate: mutatator,
       isFetching: false,
     };
   }
@@ -181,6 +199,7 @@ export const prepareResponse = <
     response.error = error;
     response.headers = headers;
     response.isFetching = false;
+    response.mutate = mutatator;
   }
 
   return response;

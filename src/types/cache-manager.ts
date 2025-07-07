@@ -1,8 +1,6 @@
 export interface CacheEntry<T> {
   data: T;
   time: number;
-}
-
-export interface MutationSettings {
-  revalidate?: boolean;
+  stale?: number; // Time in milliseconds when the cache entry is considered stale
+  expiry?: number; // Time in milliseconds when the cache entry expires
 }

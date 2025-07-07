@@ -4,9 +4,10 @@ import type {
   CacheKeyFunction,
   DefaultResponse,
   FetchResponse,
+  MutationSettings,
   RequestConfig,
 } from './types/request-handler';
-import type { CacheEntry, MutationSettings } from './types/cache-manager';
+import type { CacheEntry } from './types/cache-manager';
 import { GET, STRING, UNDEFINED } from './constants';
 import {
   isObject,
@@ -18,8 +19,11 @@ import {
 import { revalidate } from './revalidator-manager';
 import { notifySubscribers } from './pubsub-manager';
 import type { DefaultPayload, DefaultParams, DefaultUrlParams } from './types';
+import { removeInFlight } from './inflight-manager';
+import { addTimeout } from './timeout-wheel';
+import { defaultConfig } from './config-handler';
 
-export const INFINITE_CACHE_TIME = -1;
+export const IMMEDIATE_DISCARD_CACHE_TIME = 0; // Use it for cache entries that need to be persistent until unused by components or manually deleted
 
 const _cache = new Map<string, CacheEntry<any>>();
 const DELIMITER = '|';
@@ -40,7 +44,7 @@ const MIN_LENGTH_TO_HASH = 64;
  *   @property {RequestRedirect} [redirect="follow"] - How to handle redirects (e.g., follow, error, manual).
  *   @property {string} [referrer=""] - The referrer URL to send with the request.
  *   @property {string} [integrity=""] - Subresource integrity value (a cryptographic hash for resource validation).
- * @returns {string} - A unique cache key based on the URL and request options. Empty if cache is to be burst.
+ * @returns {string} - A unique cache key string based on the provided options.
  *
  * @example
  * const cacheKey = generateCacheKey({
@@ -71,18 +75,13 @@ export function generateCacheKey(options: RequestConfig): string {
     body = UNDEFINED,
     mode = 'cors',
     credentials = 'same-origin',
-    cache = 'default',
     redirect = 'follow',
     referrer = 'about:client',
     integrity = '',
   } = options;
 
-  // Bail early if cache should be burst
-  if (cache === 'reload') {
-    return '';
-  }
-
   // For GET requests, return early with just the URL as the cache key
+  // FIXME: Think about headers
   if (url && method === GET) {
     return method + DELIMITER + url.replace(/[^\w\-_|]/g, '');
   }
@@ -139,7 +138,6 @@ export function generateCacheKey(options: RequestConfig): string {
     DELIMITER +
     mode +
     credentials +
-    cache +
     redirect +
     referrer +
     integrity +
@@ -151,20 +149,32 @@ export function generateCacheKey(options: RequestConfig): string {
 }
 
 /**
- * Checks if the cache entry is expired based on its timestamp and the maximum stale time.
+ * Checks if the cache entry is expired based on its timestamp and the expiry time.
  *
- * @param {number} expiryTime - The timestamp of the cache entry.
- * @param {number|undefined} maxStaleTime - The maximum time in seconds that the cache entry is considered valid.
+ * @param {CacheEntry<any>} entry - The cache entry to check.
  * @returns {boolean} - Returns true if the cache entry is expired, false otherwise.
  */
-function isCacheExpired(expiryTime: number, maxStaleTime?: number): boolean {
-  // If maxStaleTime is not provided (undefined, null, 0, or -1), the cache entry is considered not expired.
-  if (!maxStaleTime || maxStaleTime === INFINITE_CACHE_TIME) {
+function isCacheExpired(entry: CacheEntry<any>): boolean {
+  // No expiry time means the entry never expires
+  if (!entry.expiry) {
     return false;
   }
 
-  // Check if the current time exceeds the expiry time
-  return timeNow() > expiryTime;
+  return timeNow() > entry.expiry;
+}
+
+/**
+ * Checks if the cache entry is stale based on its timestamp and the stale time.
+ *
+ * @param {CacheEntry<any>} entry - The cache entry to check.
+ * @returns {boolean} - Returns true if the cache entry is stale, false otherwise.
+ */
+function isCacheStale(entry: CacheEntry<any>): boolean {
+  if (!entry.stale) {
+    return false;
+  }
+
+  return timeNow() > entry.stale;
 }
 
 /**
@@ -173,7 +183,12 @@ function isCacheExpired(expiryTime: number, maxStaleTime?: number): boolean {
  * @param key - The unique key identifying the cached entry. If null, returns null.
  * @returns The cached {@link FetchResponse} if found, otherwise null.
  */
-export function getCache<ResponseData, RequestBody, QueryParams, PathParams>(
+export function getCacheData<
+  ResponseData,
+  RequestBody,
+  QueryParams,
+  PathParams,
+>(
   key: string | null,
 ): FetchResponse<ResponseData, RequestBody, QueryParams, PathParams> | null {
   if (!key) {
@@ -189,24 +204,14 @@ export function getCache<ResponseData, RequestBody, QueryParams, PathParams>(
  * Retrieves a cache entry if it exists and is not expired.
  *
  * @param {string} key Cache key to utilize
- * @param {number|undefined} cacheTime - Maximum time to cache entry in seconds. 0 or -1 means no expiration.
  * @returns {CacheEntry<T> | null} - The cache entry if it exists and is not expired, null otherwise.
  */
-export function getCacheEntry<T>(
-  key: string,
-  cacheTime?: number,
-): CacheEntry<T> | null {
-  const entry = _cache.get(key);
-
-  if (entry) {
-    if (!isCacheExpired(entry.time, cacheTime)) {
-      return entry;
-    }
-
-    deleteCache(key);
-  }
-
-  return null;
+export function getCache<ResponseData, RequestBody, QueryParams, PathParams>(
+  key: string | null,
+): CacheEntry<
+  FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>
+> | null {
+  return _cache.get(key as string) || null;
 }
 
 /**
@@ -214,40 +219,65 @@ export function getCacheEntry<T>(
  *
  * @param {string} key Cache key to utilize
  * @param {T} data - The data to be cached.
- * @param {number} [ttl] - Optional TTL in seconds. If provided, the cache entry will expire after ttl seconds.
+ * @param {number} [ttl] - Optional TTL in seconds. If not provided, the cache entry will not expire.
+ * @param {number} [staleTime] - Optional stale time in seconds. If provided, the cache entry will be considered stale after this time.
  */
 export function setCache<T = unknown>(
   key: string,
   data: T,
-  ttl: number = 0,
+  ttl?: number,
+  staleTime?: number,
 ): void {
-  const time = ttl ? timeNow() + ttl * 1000 : INFINITE_CACHE_TIME; // Use INFINITE_CACHE_TIME for no expiration
+  if (ttl === 0) {
+    deleteCache(key);
+    return;
+  }
+
+  const time = timeNow();
+  const ttlMs = ttl ? ttl * 1000 : 0;
 
   _cache.set(key, {
     data,
     time,
+    stale: staleTime !== undefined ? time + staleTime * 1000 : staleTime,
+    expiry: ttl === -1 ? undefined : time + ttlMs,
   });
+
+  if (ttlMs > 0 && ttl != -1) {
+    addTimeout(
+      'c:' + key,
+      () => {
+        deleteCache(key, true);
+      },
+      ttlMs,
+    );
+  }
 }
 
 /**
  * Invalidates (deletes) a cache entry.
  *
  * @param {string} key Cache key to utilize
+ * @param {boolean} [removeExpired=false] - If true, only deletes the cache entry if it is expired or stale.
  */
-export function deleteCache(key: string): void {
+export function deleteCache(key: string, removeExpired: boolean = false): void {
+  if (removeExpired) {
+    const entry = getCache(key);
+
+    // If the entry does not exist, or it is neither expired nor stale, do not delete
+    if (!entry || !isCacheExpired(entry)) {
+      return;
+    }
+  }
+
   _cache.delete(key);
 }
 
 /**
  * Prunes the cache by removing entries that have expired based on the provided cache time.
- * @param cacheTime - The maximum time to cache entry.
  */
-export function pruneCache(cacheTime?: number): void {
-  _cache.forEach((entry, key) => {
-    if (isCacheExpired(entry.time, cacheTime)) {
-      deleteCache(key);
-    }
-  });
+export function pruneCache(): void {
+  _cache.clear();
 }
 
 /**
@@ -277,18 +307,27 @@ export async function mutate<
     return null;
   }
 
-  const cachedResponse = getCacheEntry<ResponseData>(key);
+  const entry = getCache<ResponseData, RequestBody, QueryParams, PathParams>(
+    key,
+  );
 
-  if (!cachedResponse) {
+  if (!entry) {
     return null;
   }
 
-  const updatedResponse: ResponseData = {
-    ...cachedResponse.data,
-    data: newData,
+  const updatedData = isObject(newData) ? sanitizeObject(newData) : newData;
+
+  const updatedResponse = {
+    ...entry.data,
+    data: updatedData,
   };
 
-  setCache(key, updatedResponse);
+  const updatedEntry = {
+    ...entry,
+    data: updatedResponse,
+  };
+
+  _cache.set(key, updatedEntry);
   notifySubscribers(key, updatedResponse);
 
   if (settings && settings.revalidate) {
@@ -331,34 +370,88 @@ export function getCachedResponse<
   }
 
   // Check if cache should be bypassed
-  const buster = requestConfig.cacheBuster;
+  // FIXME: What with default config being passed to the buster in React?
+  const buster = requestConfig.cacheBuster || defaultConfig.cacheBuster;
   if (buster && buster(requestConfig)) {
     return null;
   }
 
+  if (requestConfig.cache && requestConfig.cache === 'reload') {
+    return null; // Skip cache lookup entirely
+  }
+
   // Retrieve the cached entry
-  const cachedEntry = getCacheEntry<
-    FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>
-  >(cacheKey, cacheTime);
+  const entry = getCache<ResponseData, RequestBody, QueryParams, PathParams>(
+    cacheKey,
+  );
 
-  // If no cached entry or it is expired, return null
-  return cachedEntry ? cachedEntry.data : null;
-}
-
-/**
- * Retrieves a cached response from the internal cache using the provided key.
- *
- * @param key - The unique key identifying the cached entry. If null, returns null.
- * @returns The cached {@link FetchResponse} if found, otherwise null.
- */
-export function getCache<ResponseData, RequestBody, QueryParams, PathParams>(
-  key: string | null,
-): FetchResponse<ResponseData, RequestBody, QueryParams, PathParams> | null {
-  if (!key) {
+  if (!entry) {
     return null;
   }
 
-  const entry = _cache.get(key);
+  const isExpired = isCacheExpired(entry);
+  const isStale = isCacheStale(entry);
 
-  return entry ? entry.data : null;
+  // If completely expired, delete and return null
+  if (isExpired) {
+    deleteCache(cacheKey);
+    return null;
+  }
+
+  // If fresh (not stale), return immediately
+  if (!isStale) {
+    return entry.data;
+  }
+
+  // SWR: Data is stale but not expired
+  if (isStale && !isExpired) {
+    // Triggering background revalidation here could cause race conditions
+    // So we return stale data immediately and leave it up to implementers to handle revalidation
+    return entry.data;
+  }
+
+  return null;
+}
+
+/**
+ * Sets or deletes the response cache based on cache settings and notifies subscribers.
+ *
+ * @param {FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>} output - The response to cache.
+ * @param {RequestConfig<ResponseData, QueryParams, PathParams, RequestBody>} requestConfig - The request configuration.
+ * @param {boolean} [isError=false] - Whether the response is an error.
+ */
+export function handleResponseCache<
+  ResponseData = DefaultResponse,
+  RequestBody = DefaultPayload,
+  QueryParams = DefaultParams,
+  PathParams = DefaultUrlParams,
+>(
+  output: FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>,
+  requestConfig: RequestConfig<
+    ResponseData,
+    QueryParams,
+    PathParams,
+    RequestBody
+  >,
+  isError: boolean = false,
+): void {
+  // It is string as it is called once request is made
+  const cacheKey = requestConfig.cacheKey as string;
+
+  if (cacheKey) {
+    const cacheTime = requestConfig.cacheTime;
+    const skipCache = requestConfig.skipCache;
+
+    // Fast path: only set cache if cacheTime is positive and not skipping cache
+    if (
+      cacheTime &&
+      (!isError || requestConfig.cacheErrors) &&
+      !(skipCache && skipCache(output, requestConfig))
+    ) {
+      setCache(cacheKey, output, cacheTime, requestConfig.staleTime);
+    }
+
+    notifySubscribers(cacheKey, output);
+    removeInFlight(cacheKey);
+  }
 }

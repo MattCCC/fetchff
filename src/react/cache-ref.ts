@@ -56,14 +56,14 @@ export const decrementRef = (
     );
 
     addTimeout(
-      'c:' + key,
+      'r:' + key,
       () => {
         // Check if the reference count is still zero before deleting the cache as it might have been incremented again
         // This is to ensure that if another increment happens during the timeout, we don't delete the cache prematurely
         // This is particularly useful in scenarios where multiple components might be using the same cache
         // entry and we want to avoid unnecessary cache deletions.
         if (!getRefCount(key)) {
-          deleteCache(key);
+          deleteCache(key, true);
         }
       },
       dedupeTime ?? DEFAULT_DEDUPE_TIME_MS,

@@ -1053,20 +1053,20 @@ describe('Revalidator Manager', () => {
       const fn2 = jest.fn().mockResolvedValue('fn2');
       const bgFn1 = jest.fn().mockResolvedValue('bg1');
       const bgFn2 = jest.fn().mockResolvedValue('bg2');
-      const staleTime1 = 1000;
-      const staleTime2 = 2000;
+      const staleTime1 = 1;
+      const staleTime2 = 2;
 
       addRevalidator(testKey, fn1, 3 * 60 * 1000, staleTime1, bgFn1);
       addRevalidator(testKey2, fn2, 3 * 60 * 1000, staleTime2, bgFn2);
 
       // Advance time past first staleTime
-      jest.advanceTimersByTime(staleTime1 + 10);
+      jest.advanceTimersByTime(staleTime1 * 1000 + 10);
 
       expect(bgFn1).toHaveBeenCalledTimes(1);
       expect(bgFn2).not.toHaveBeenCalled();
 
       // Advance time past second staleTime
-      jest.advanceTimersByTime(staleTime2 - staleTime1);
+      jest.advanceTimersByTime(staleTime2 * 1000 - staleTime1 * 1000);
 
       expect(bgFn1).toHaveBeenCalledTimes(1);
       expect(bgFn2).toHaveBeenCalledTimes(1);
@@ -1245,7 +1245,7 @@ describe('Revalidator Manager', () => {
 
       const mainFn = jest.fn().mockResolvedValue('main');
       const bgFn = jest.fn().mockResolvedValue('background');
-      const shortStaleTime = 1; // 1ms
+      const shortStaleTime = 0.001; // 1ms
 
       addRevalidator(testKey, mainFn, 3 * 60 * 1000, shortStaleTime, bgFn);
 
