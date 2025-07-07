@@ -55,6 +55,7 @@ const swrBench = {
       const { unmount } = render(<SWRComponent />);
       unmount();
     });
+    cleanup();
 
     deferred.resolve();
   },
@@ -68,6 +69,8 @@ const fetcherBench = {
       const { unmount } = render(<FetcherComponent />);
       unmount();
     });
+
+    cleanup();
 
     deferred.resolve();
   },

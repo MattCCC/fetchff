@@ -72,12 +72,8 @@ export function generateCacheKey(options: RequestConfig): string {
     url = '',
     method = GET,
     headers = null,
-    body = UNDEFINED,
-    mode = 'cors',
+    body = null,
     credentials = 'same-origin',
-    redirect = 'follow',
-    referrer = 'about:client',
-    integrity = '',
   } = options;
 
   // For GET requests, return early with just the URL as the cache key
@@ -136,11 +132,7 @@ export function generateCacheKey(options: RequestConfig): string {
     DELIMITER +
     url +
     DELIMITER +
-    mode +
     credentials +
-    redirect +
-    referrer +
-    integrity +
     DELIMITER +
     headersString +
     DELIMITER +

@@ -1238,21 +1238,16 @@ const { data } = await fetchf('/api/notifications', {
 
 By default, `fetchff` generates a cache key automatically using a combination of the following request properties:
 
-| Property          | Description                                                                               | Default Value    |
-| ----------------- | ----------------------------------------------------------------------------------------- | ---------------- |
-| `method`          | The HTTP method used for the request (e.g., GET, POST).                                   | `'GET'`          |
-| `url`             | The full request URL, including the base URL and endpoint path.                           | `''`             |
-| `headers`         | Request headers, included as a stringified object.                                        |                  |
-| `body`            | The request payload (for POST, PUT, PATCH, etc.), stringified if it's an object or array. |                  |
-| `mode`            | The mode for the request (e.g., 'cors', 'no-cors', 'same-origin').                        | `'cors'`         |
-| `credentials`     | Indicates whether credentials (cookies) are included in the request.                      | `'same-origin'`  |
-| `cache`           | The cache mode for the request (e.g., 'default', 'reload').                               | `'default'`      |
-| `redirect`        | The redirect mode for the request (e.g., 'follow', 'manual', 'error').                    | `'follow'`       |
-| `referrer`        | The referrer of the request.                                                              | `'about:client'` |
-| `integrity`       | Subresource integrity value for the request.                                              | `''`             |
-| `params`          | Query parameters serialized into the URL (objects, arrays, etc. are stringified).         |                  |
-| `urlPathParams`   | Dynamic URL path parameters (e.g., `/user/:id`), stringified and encoded.                 |                  |
-| `withCredentials` | Whether credentials (cookies) are included in the request.                                |                  |
+| Property          | Description                                                                               | Default Value   |
+| ----------------- | ----------------------------------------------------------------------------------------- | --------------- |
+| `method`          | The HTTP method used for the request (e.g., GET, POST).                                   | `'GET'`         |
+| `url`             | The full request URL, including the base URL and endpoint path.                           | `''`            |
+| `headers`         | Request headers, included as a stringified object.                                        |                 |
+| `body`            | The request payload (for POST, PUT, PATCH, etc.), stringified if it's an object or array. |                 |
+| `credentials`     | Indicates whether credentials (cookies) are included in the request.                      | `'same-origin'` |
+| `params`          | Query parameters serialized into the URL (objects, arrays, etc. are stringified).         |                 |
+| `urlPathParams`   | Dynamic URL path parameters (e.g., `/user/:id`), stringified and encoded.                 |                 |
+| `withCredentials` | Whether credentials (cookies) are included in the request.                                |                 |
 
 These properties are combined and hashed to create a unique cache key for each request. This ensures that requests with different parameters, bodies, or headers are cached separately.
 
@@ -2283,7 +2278,26 @@ const { data, error, isLoading } = useFetcher('/api/data', {
 
 ### Conditional Requests
 
-Pass `null` as the URL to skip requests conditionally:
+Only fetch when conditions are met (`immediate` option is `true`):
+
+```tsx
+function ConditionalData({
+  shouldFetch,
+  userId,
+}: {
+  shouldFetch: boolean;
+  userId?: string;
+}) {
+  const { data, isLoading } = useFetcher(`/api/users/${userId}`, {
+    immediate: shouldFetch && !!userId,
+  });
+
+  // Will only fetch when shouldFetch is true and userId exists
+  return <div>{data ? data.name : 'No data'}</div>;
+}
+```
+
+You can also pass `null` as the URL to conditionally skip a request:
 
 ```tsx
 function ConditionalData({
@@ -2301,6 +2315,8 @@ function ConditionalData({
   return <div>{data ? data.name : 'No data'}</div>;
 }
 ```
+
+> **Note:** Passing `null` as the URL to conditionally skip a request is a legacy/deprecated approach (commonly used in SWR plugin). For new code, prefer using the `immediate` option for conditional fetching. The `null` URL method is still supported for backwards compatibility.
 
 ### Dynamic URLs and Parameters
 
