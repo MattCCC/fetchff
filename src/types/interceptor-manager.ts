@@ -11,6 +11,11 @@ import type {
   ResponseError,
 } from './request-handler';
 
+export type InterceptorFunction<T, Args extends any[] = any[]> = (
+  object: T,
+  ...args: Args
+) => Promise<T>;
+
 export type RequestInterceptor<RequestBody = any, ResponseData = any> = (
   config: RequestHandlerConfig<ResponseData, RequestBody>,
 ) =>
@@ -23,8 +28,8 @@ export type ResponseInterceptor<ResponseData = any> = (
   response: FetchResponse<ResponseData>,
 ) =>
   | FetchResponse<ResponseData>
-  | void
   | Promise<FetchResponse<ResponseData>>
+  | void
   | Promise<void>;
 
 export type ErrorInterceptor<
@@ -34,4 +39,14 @@ export type ErrorInterceptor<
   RequestBody = DefaultPayload,
 > = (
   error: ResponseError<ResponseData, QueryParams, PathParams, RequestBody>,
-) => unknown;
+) => void | Promise<void>;
+
+export type RetryInterceptor<
+  ResponseData = DefaultResponse,
+  RequestBody = DefaultPayload,
+  QueryParams = DefaultParams,
+  PathParams = DefaultUrlParams,
+> = (
+  response: FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>,
+  retryAttempt: number,
+) => void | Promise<void>;

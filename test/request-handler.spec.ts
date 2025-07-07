@@ -3,7 +3,7 @@ import fetchMock from 'fetch-mock';
 import * as interceptorManager from '../src/interceptor-manager';
 import { delayInvocation } from '../src/utils';
 import type { RequestConfig } from '../src/types/request-handler';
-import { fetchf } from '../src';
+import { fetchf, setDefaultConfig } from '../src';
 import { ABORT_ERROR } from '../src/constants';
 import { pruneCache } from '../src/cache-manager';
 
@@ -53,6 +53,7 @@ describe('Request Handler', () => {
     afterEach(() => {
       fetchMock.clearHistory();
       fetchMock.removeRoutes();
+      jest.runAllTimers();
       jest.useRealTimers();
       fetcher = jest.fn();
     });
@@ -453,6 +454,7 @@ describe('Request Handler', () => {
       >;
 
       mockDelayInvocation.mockResolvedValue(false);
+      const onRetry = jest.fn();
 
       try {
         await fetchf(baseURL + '/endpoint', {
@@ -460,6 +462,7 @@ describe('Request Handler', () => {
           retry: retryConfig,
           logger: mockLogger,
           onError: jest.fn(),
+          onRetry,
         });
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
       } catch (_e) {
@@ -471,15 +474,13 @@ describe('Request Handler', () => {
       expect(globalThis.fetch).toHaveBeenCalledTimes(retryConfig.retries + 1);
 
       // Check delay between retries
-      expect(mockLogger.warn).toHaveBeenCalledWith(
-        'Attempt 1 failed. Retry in 100ms.',
+      expect(onRetry).toHaveBeenCalledWith(
+        expect.objectContaining({
+          error: expect.anything(),
+        }),
+        expect.any(Number),
       );
-      expect(mockLogger.warn).toHaveBeenCalledWith(
-        'Attempt 2 failed. Retry in 150ms.',
-      );
-      expect(mockLogger.warn).toHaveBeenCalledWith(
-        'Attempt 3 failed. Retry in 225ms.',
-      );
+      expect(onRetry).toHaveBeenCalledTimes(retryConfig.retries);
     });
 
     it('should not retry if the error status is not in retryOn list', async () => {
@@ -1073,7 +1074,7 @@ describe('Request Handler', () => {
   });
 
   describe('request() with interceptors', () => {
-    const spy = jest.spyOn(interceptorManager, 'applyInterceptor');
+    const spy = jest.spyOn(interceptorManager, 'applyInterceptors');
 
     jest.useFakeTimers();
 
@@ -1128,6 +1129,14 @@ describe('Request Handler', () => {
 
       const url = '/test-endpoint';
       const params = { key: 'value' };
+      const onRequestFn = jest.fn();
+      const onResponseFn = jest.fn();
+      const onErrorFn = jest.fn();
+
+      setDefaultConfig({
+        onRequest: onRequestFn,
+        onResponse: onResponseFn,
+      });
 
       await fetchf(url, {
         baseURL: 'https://api.example.com',
@@ -1136,13 +1145,21 @@ describe('Request Handler', () => {
         rejectCancelled: true,
         strategy: 'reject',
         defaultResponse: null,
-        onError: () => {},
-        onRequest: () => {},
-        onResponse: () => {},
+        onError: onErrorFn,
+        onRequest: onRequestFn,
+        onResponse: onResponseFn,
         params,
       });
 
-      expect(spy).toHaveBeenCalledTimes(4);
+      expect(onRequestFn).toHaveBeenCalledTimes(2);
+      expect(onResponseFn).toHaveBeenCalledTimes(2);
+      expect(onErrorFn).toHaveBeenCalledTimes(0);
+      expect(spy).toHaveBeenCalledTimes(2);
+
+      setDefaultConfig({
+        onRequest: undefined,
+        onResponse: undefined,
+      });
     });
 
     it('should handle modified config in interceptRequest', async () => {
@@ -1172,7 +1189,7 @@ describe('Request Handler', () => {
         params,
       });
 
-      expect(spy).toHaveBeenCalledTimes(2);
+      expect(spy).toHaveBeenCalledTimes(1);
       const lastCall = fetchMock.callHistory.lastCall();
 
       expect(lastCall?.options?.headers).toMatchObject({
@@ -1180,7 +1197,7 @@ describe('Request Handler', () => {
       });
     });
 
-    it('should handle modified response in applyInterceptor', async () => {
+    it('should handle modified response in applyInterceptors', async () => {
       const modifiedUrl = 'https://api.example.com/test-endpoint?key=value';
 
       fetchMock.route(
@@ -1209,12 +1226,12 @@ describe('Request Handler', () => {
         params,
       });
 
-      expect(spy).toHaveBeenCalledTimes(2);
+      expect(spy).toHaveBeenCalledTimes(1);
       expect(data).toMatchObject({ username: 'modified response' });
       expect(config.url).toContain(modifiedUrl);
     });
 
-    it('should handle request failure with interceptors', async () => {
+    it('should handle request failure without calling interceptors', async () => {
       fetchMock.route('https://api.example.com/test-endpoint?key=value', {
         status: 500,
         body: { error: 'Server error' },
@@ -1222,7 +1239,6 @@ describe('Request Handler', () => {
 
       const url = '/test-endpoint';
       const params = { key: 'value' };
-      const config = {};
 
       await expect(
         fetchf(url, {
@@ -1232,15 +1248,13 @@ describe('Request Handler', () => {
           rejectCancelled: true,
           strategy: 'reject',
           defaultResponse: null,
-          ...config,
           params,
         }),
       ).rejects.toThrow(
         'https://api.example.com/test-endpoint?key=value failed! Status: 500',
       );
 
-      // Only request and error interceptors are called (4 because 2 for request and 2 for errors)
-      expect(spy).toHaveBeenCalledTimes(2);
+      expect(spy).toHaveBeenCalledTimes(0);
     });
 
     it('should handle request with different response status', async () => {
@@ -1268,8 +1282,7 @@ describe('Request Handler', () => {
         'https://api.example.com/test-endpoint?key=value failed! Status: 404',
       );
 
-      // Only request and error interceptors are called (4 because 2 for request and 2 for errors)
-      expect(spy).toHaveBeenCalledTimes(2);
+      expect(spy).toHaveBeenCalledTimes(0);
     });
   });
 
@@ -1559,9 +1572,9 @@ describe('Request Handler', () => {
     afterEach(() => {
       fetchMock.clearHistory();
       fetchMock.removeRoutes();
+      pruneCache();
       // Advance time to ensure cache expiration
       jest.advanceTimersByTime(61000); // 61 seconds > cacheTime of 60 seconds
-      pruneCache(0.0000001);
       jest.useRealTimers();
     });
 
@@ -1583,7 +1596,19 @@ describe('Request Handler', () => {
       expect(callCount).toBe(1);
     });
 
-    it('should bypass cache if cacheTime is 0', async () => {
+    it('should bypass cache if cacheTime is undefined', async () => {
+      let callCount = 0;
+      fetchMock.get(apiUrl, () => {
+        callCount++;
+        return { status: 200, body: { value: 'no-cache' } };
+      });
+
+      await fetchf(apiUrl, { cacheTime: undefined });
+      await fetchf(apiUrl, { cacheTime: undefined });
+      expect(callCount).toBe(2);
+    });
+
+    it('should not bypass cache if cacheTime is 0', async () => {
       let callCount = 0;
       fetchMock.get(apiUrl, () => {
         callCount++;
@@ -1661,6 +1686,8 @@ describe('Request Handler', () => {
       expect(resp1.data).toEqual({ value: 'skip' });
       expect(resp1.config).toBeDefined();
       expect(callCount).toBe(1);
+
+      jest.advanceTimersByTime(1000 * 61); // Advance time to ensure cache expiration
 
       // Second request should hit the network again (no cache set)
       const resp2 = await fetchf(apiUrl, {

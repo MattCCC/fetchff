@@ -11,6 +11,7 @@ import type {
   ErrorInterceptor,
   RequestInterceptor,
   ResponseInterceptor,
+  RetryInterceptor,
 } from './interceptor-manager';
 
 export type Method =
@@ -165,9 +166,9 @@ export interface ResponseError<
 
 export type RetryFunction<
   ResponseData = DefaultResponse,
+  RequestBody = DefaultPayload,
   QueryParams = DefaultParams,
   PathParams = DefaultUrlParams,
-  RequestBody = DefaultPayload,
 > = (
   response: FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>,
   attempt: number,
@@ -202,14 +203,18 @@ export type CacheSkipFunction<
   config: RequestConfig<ResponseData, QueryParams, PathParams, RequestBody>,
 ) => boolean;
 
+export interface MutationSettings {
+  revalidate?: boolean;
+}
+
 /**
  * Configuration object for retry related options
  */
-export interface RetryOptions<
+export interface RetryConfig<
   ResponseData = DefaultResponse,
+  RequestBody = DefaultPayload,
   QueryParams = DefaultParams,
   PathParams = DefaultUrlParams,
-  RequestBody = DefaultPayload,
 > {
   /**
    * Maximum number of retry attempts.
@@ -265,9 +270,9 @@ export interface RetryOptions<
    */
   shouldRetry?: RetryFunction<
     ResponseData,
+    RequestBody,
     QueryParams,
-    PathParams,
-    RequestBody
+    PathParams
   >;
 }
 
@@ -418,7 +423,7 @@ export interface ExtendedRequestConfig<
   /**
    * Configuration options for retrying failed requests.
    */
-  retry?: RetryOptions<ResponseData, QueryParams_, PathParams, RequestBody>;
+  retry?: RetryConfig<ResponseData, RequestBody, QueryParams_, PathParams>;
 
   /**
    * The URL of the request. This can be a full URL or a relative path combined with `baseURL`.
@@ -492,6 +497,16 @@ export interface ExtendedRequestConfig<
   onError?:
     | ErrorInterceptor<ResponseData, QueryParams_, PathParams, RequestBody>
     | ErrorInterceptor<ResponseData, QueryParams_, PathParams, RequestBody>[];
+
+  /**
+   * A function that is called after each failed request attempt, before the retry delay.
+   * Can be used for logging, side effects, or modifying the response/config before retrying.
+   * @param response - The response object from the failed request.
+   * @param attempt - The current retry attempt number (starting from 0).
+   */
+  onRetry?:
+    | RetryInterceptor<ResponseData, RequestBody, QueryParams, PathParams>
+    | RetryInterceptor<ResponseData, QueryParams_, PathParams, RequestBody>[];
 
   /**
    * The maximum time (in milliseconds) the request can take before automatically being aborted. 0 seconds disables the timeout.
@@ -581,14 +596,15 @@ export type RequestConfig<
 
 export type FetcherConfig<
   ResponseData = any,
+  RequestBody = any,
   QueryParams = any,
   PathParams = any,
-  RequestBody = any,
 > = Omit<
   ExtendedRequestConfig<ResponseData, QueryParams, PathParams, RequestBody>,
   'url'
 > & {
   url: string;
+  cacheKey?: string | null;
 };
 
 export type RequestHandlerReturnType = <
