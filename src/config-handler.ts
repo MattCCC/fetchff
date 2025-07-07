@@ -211,7 +211,10 @@ function mergeInterceptors<
   const newArr = Array.isArray(newInterceptor)
     ? newInterceptor
     : [newInterceptor];
-  targetConfig[property] = baseArr.concat(newArr);
+
+  // This is the only LIFO interceptor, so we apply it after the response is prepared
+  targetConfig[property] =
+    property === 'onResponse' ? newArr.concat(baseArr) : baseArr.concat(newArr);
 }
 
 /**
