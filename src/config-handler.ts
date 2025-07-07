@@ -9,7 +9,6 @@ import {
   REJECT,
 } from './constants';
 import type {
-  FetcherConfig,
   HeadersObject,
   Method,
   RequestConfig,
@@ -77,7 +76,7 @@ export function setDefaultConfig(
 export function buildConfig(
   url: string,
   requestConfig: RequestConfig,
-): FetcherConfig {
+): RequestConfig {
   let method = requestConfig.method as Method;
   method = method ? (method.toUpperCase() as Method) : GET;
 
@@ -158,35 +157,81 @@ function setContentTypeIfNeeded(
 
 export function mergeConfigs(
   baseConfig: RequestConfig,
-  newConfig: RequestConfig,
+  overrideConfig: RequestConfig,
 ): RequestConfig {
-  const mergedConfig: RequestConfig = Object.assign({}, baseConfig, newConfig);
+  const mergedConfig: RequestConfig = Object.assign(
+    {},
+    baseConfig,
+    overrideConfig,
+  );
 
   // Ensure that retry and headers are merged correctly
-  mergeConfig('retry', mergedConfig, baseConfig, newConfig);
-  mergeConfig('headers', mergedConfig, baseConfig, newConfig);
+  mergeConfig('retry', mergedConfig, baseConfig, overrideConfig);
+  mergeConfig('headers', mergedConfig, baseConfig, overrideConfig);
+
+  // Merge interceptors efficiently
+  mergeInterceptors('onRequest', mergedConfig, baseConfig, overrideConfig);
+  mergeInterceptors('onResponse', mergedConfig, baseConfig, overrideConfig);
+  mergeInterceptors('onError', mergedConfig, baseConfig, overrideConfig);
 
   return mergedConfig;
 }
 
 /**
- * Merges the specified property from the base configuration and the new configuration into the target configuration.
+ * Efficiently merges interceptor functions from base and new configs
+ */
+function mergeInterceptors<
+  K extends 'onRequest' | 'onResponse' | 'onError' | 'onRetry',
+>(
+  property: K,
+  targetConfig: RequestConfig,
+  baseConfig: RequestConfig,
+  overrideConfig: RequestConfig,
+): void {
+  const baseInterceptor = baseConfig[property];
+  const newInterceptor = overrideConfig[property];
+
+  if (!baseInterceptor && !newInterceptor) {
+    return;
+  }
+
+  if (!baseInterceptor) {
+    targetConfig[property] = newInterceptor;
+    return;
+  }
+
+  if (!newInterceptor) {
+    targetConfig[property] = baseInterceptor;
+    return;
+  }
+
+  const baseArr = Array.isArray(baseInterceptor)
+    ? baseInterceptor
+    : [baseInterceptor];
+  const newArr = Array.isArray(newInterceptor)
+    ? newInterceptor
+    : [newInterceptor];
+  targetConfig[property] = baseArr.concat(newArr);
+}
+
+/**
+ * Merges the specified property from the base configuration and the override configuration into the target configuration.
  *
- * @param {K} property - The property key to merge from the base and new configurations. Must be a key of RequestConfig.
+ * @param {K} property - The property key to merge from the base and override configurations. Must be a key of RequestConfig.
  * @param {RequestConfig} targetConfig - The configuration object that will receive the merged properties.
  * @param {RequestConfig} baseConfig - The base configuration object that provides default values.
- * @param {RequestConfig} newConfig - The new configuration object that contains user-specific settings to merge.
+ * @param {RequestConfig} overrideConfig - The override configuration object that contains user-specific settings to merge.
  */
 export function mergeConfig<K extends keyof RequestConfig>(
   property: K,
   targetConfig: RequestConfig,
   baseConfig: RequestConfig,
-  newConfig: RequestConfig,
+  overrideConfig: RequestConfig,
 ): void {
-  if (newConfig[property]) {
+  if (overrideConfig[property]) {
     targetConfig[property] = {
       ...baseConfig[property],
-      ...newConfig[property],
+      ...overrideConfig[property],
     };
   }
 }

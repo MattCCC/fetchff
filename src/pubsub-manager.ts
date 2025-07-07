@@ -57,7 +57,13 @@ export function notifySubscribers<T>(key: string, response: T) {
   const fns = listeners.get(key);
 
   if (fns) {
-    fns.forEach((fn) => fn(response));
+    if (fns.size === 1) {
+      // If there's only one listener, call it directly
+      const fn = fns.values().next().value;
+      fn!(response);
+    } else {
+      fns.forEach((fn) => fn(response));
+    }
   }
 }
 

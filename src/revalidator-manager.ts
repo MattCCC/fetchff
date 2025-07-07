@@ -175,7 +175,7 @@ function removeEventHandler(event: EventType) {
  * @param {string} key Cache key to utilize
  * @param {RevalidatorFn} revalidatorFn Main revalidation function (marks in-flight requests)
  * @param {number} [ttl] Time to live in milliseconds (default: 3 minutes)
- * @param {number} [staleTime] Time after which the cache entry is considered stale
+ * @param {number} [staleTime] Time (in seconds) after which the cache entry is considered stale
  * @param {RevalidatorFn} [bgRevalidatorFn] For stale revalidation (does not mark in-flight requests)
  * @param {boolean} [revalidateOnFocus] Whether to revalidate on window focus
  * @param {boolean} [revalidateOnReconnect] Whether to revalidate on network reconnect
@@ -208,7 +208,7 @@ export function addRevalidator(
   }
 
   if (staleTime) {
-    addTimeout('s:' + key, revalidate.bind(null, key, true), staleTime);
+    addTimeout('s:' + key, revalidate.bind(null, key, true), staleTime * 1000);
   }
 }
 
