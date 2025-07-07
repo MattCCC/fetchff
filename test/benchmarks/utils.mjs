@@ -16,7 +16,9 @@ function onComplete() {
   // @ts-expect-error this is a Benchmark.js context
   results.forEach((r) => {
     const name = chalk.yellow(r.name);
-    const ops = chalk.green(`${r.hz.toFixed(2)} ops/sec`);
+    const ops = chalk.green(
+      `${r.hz.toLocaleString('pl-PL', { maximumFractionDigits: 0 })} ops/sec`,
+    );
     const error = chalk.red(`±${r.rme.toFixed(2)}%`);
     const samples = chalk.blue(`(${r.samples} runs sampled)`);
 

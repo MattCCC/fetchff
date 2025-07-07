@@ -34,7 +34,7 @@ describe('Performance & Caching Integration Tests', () => {
   describe('Performance', () => {
     it('should handle many simultaneous different requests efficiently', async () => {
       jest.useRealTimers();
-      const runs = 100;
+      const runs = 150;
 
       // Mock i different endpoints
       for (let i = 0; i < runs; i++) {
@@ -46,7 +46,9 @@ describe('Performance & Caching Integration Tests', () => {
       const ManyRequestsComponent = () => {
         const requests = Array.from({ length: runs }, (_, i) => {
           const response = useFetcher(`/api/perf-${i}`, {
-            staleTime: 10000, // Long stale time
+            // cacheKey: 'key',
+            // timeout: 0,
+            // dedupeTime: 0,
           });
           return response;
         });
