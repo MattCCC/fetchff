@@ -19,6 +19,7 @@ export class FetchError<
   status: number;
   statusText: string;
   config: RequestConfig<ResponseData, QueryParams, PathParams, RequestBody>;
+  isCancelled: boolean;
 
   constructor(
     message: string,
@@ -41,5 +42,6 @@ export class FetchError<
     this.status = response ? response.status : 0;
     this.statusText = response ? response.statusText : '';
     this.config = request;
+    this.isCancelled = false;
   }
 }

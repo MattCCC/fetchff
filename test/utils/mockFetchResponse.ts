@@ -14,6 +14,7 @@ export const mockFetchResponse = (
   urlOverride: string,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   configOverride: any = {},
+  outputError = false,
 ) => {
   // Store the mock config for this URL
   mockResponses.set(urlOverride, configOverride);
@@ -23,17 +24,20 @@ export const mockFetchResponse = (
   const fetchMock = (url: string, config: any) => {
     // Find the mock config for this URL
     const mockConfig = mockResponses.get(url) || {};
+    const hasUrl = mockResponses.has(url);
 
-    if (!mockResponses.has(url)) {
-      console.warn('No mock response configured for URL: ' + url);
+    if (!hasUrl || outputError) {
+      if (!hasUrl) {
+        console.warn('No mock response configured for URL: ' + url);
+      }
 
       return Promise.resolve({
         url,
         ok: false,
-        status: 404,
+        status: config?.status ?? 404,
         headers: { 'Content-Type': 'application/json' },
-        data: null,
-        body: undefined,
+        data: config?.data ?? null,
+        body: config?.body ?? undefined,
         method: config?.method ?? 'GET',
       });
     }
@@ -41,7 +45,7 @@ export const mockFetchResponse = (
     const response = {
       url: url || urlOverride,
       body: mockConfig.body ? JSON.stringify(mockConfig.body) : undefined,
-      data: mockConfig.body ?? undefined,
+      data: mockConfig.body ?? null,
       requestBody: config?.body ?? undefined,
       ok: mockConfig.ok ?? true,
       status: mockConfig.status ?? 200,
@@ -49,11 +53,10 @@ export const mockFetchResponse = (
         config?.headers ?? {
           'Content-Type': 'application/json',
         },
-      method: mockConfig.method ?? config?.method ?? 'GET',
       json: () => Promise.resolve(mockConfig.body),
       text: () =>
         Promise.resolve(mockConfig.body ? JSON.stringify(mockConfig.body) : ''),
-      ...config,
+      config,
       ...mockConfig,
     };
 

@@ -2,13 +2,7 @@
  * @jest-environment jsdom
  */
 import '@testing-library/jest-dom';
-import {
-  render,
-  screen,
-  waitFor,
-  act,
-  fireEvent,
-} from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import React from 'react';
 import {
   clearMockResponses,
@@ -133,17 +127,15 @@ describe('Error Handling Integration Tests', () => {
       });
 
       // Test retry functionality
-      await act(async () => {
-        fireEvent.click(screen.getByTestId('retry-button'));
-      });
+      fireEvent.click(screen.getByTestId('retry-button'));
+      expect(screen.getByTestId('connection-loading')).toHaveTextContent(
+        'Loading...',
+      );
+      jest.runAllTimers();
 
       await waitFor(() => {
         expect(abortSignal).not.toBeNull();
       });
-
-      expect(screen.getByTestId('connection-loading')).toHaveTextContent(
-        'Loading...',
-      );
 
       await waitFor(() => {
         expect(screen.getByTestId('connection-error')).toHaveTextContent(

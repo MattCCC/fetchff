@@ -3,8 +3,11 @@ import type {
   DefaultParams,
   DefaultUrlParams,
 } from './api-handler';
-import type { MutationSettings } from './cache-manager';
-import type { DefaultResponse, FetchResponse } from './request-handler';
+import type {
+  DefaultResponse,
+  FetchResponse,
+  MutationSettings,
+} from './request-handler';
 
 type RefetchFunction<
   ResponseData = DefaultResponse,
