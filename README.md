@@ -314,7 +314,7 @@ Directly retrieve cached data for a specific cache key. Useful for reading the c
 
 - `key` (string): The cache key to retrieve (equivalent to `cacheKey` from request config or `config.cacheKey` from response object)
 
-**Returns:** The cached response object, or `undefined` if not found
+**Returns:** The cached response object, or `null` if not found
 
 ```typescript
 import { getCache } from 'fetchff';
@@ -326,7 +326,7 @@ if (cachedResponse) {
 }
 ```
 
-##### `setCache(key, response)`
+##### `setCache(key, response, ttl, staleTime)`
 
 Directly set cache data for a specific key. Unlike `mutate()`, this doesn't trigger revalidation by default. This is a low level function to directly set cache data based on particular key. If unsure, use the `mutate()` with `revalidate: false` instead.
 
@@ -334,15 +334,17 @@ Directly set cache data for a specific key. Unlike `mutate()`, this doesn't trig
 
 - `key` (string): The cache key to set. It must match the cache key of the request.
 - `response` (any): The full response object to store in cache
+- `ttl` (number, optional): Time to live for the cache entry, in seconds. Determines how long the cached data remains valid before expiring. If not specified, the default `0` value will be used (discard cache immediately), if `-1` specified then the cache will be held until manually removed using `deleteCache(key)` function.
+- `staleTime` (number, optional): Duration, in seconds, for which cached data is considered "fresh" before it becomes eligible for background revalidation. If not specified, the default stale time applies.
 
 ```typescript
 import { setCache } from 'fetchff';
 
-// Set cache data
-setCache('/api/user-profile', userData);
+// Set cache data with custom ttl and staleTime
+setCache('/api/user-profile', userData, 600, 60); // Cache for 10 minutes, fresh for 1 minute
 
-// Set cache for specific endpoint
-setCache('/api/user-settings', userSettings);
+// Set cache for specific endpoint infinitely
+setCache('/api/user-settings', userSettings, -1);
 ```
 
 ##### `deleteCache(key)`

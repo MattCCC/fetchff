@@ -6,7 +6,7 @@ import type {
 } from './types/request-handler';
 import { applyInterceptors } from './interceptor-manager';
 import { handleResponseCache } from './cache-manager';
-import { ABORT_ERROR, CANCELLED_ERROR, REJECT } from './constants';
+import { ABORT_ERROR, REJECT } from './constants';
 import { DefaultParams, DefaultUrlParams, DefaultPayload } from './types';
 
 /**
@@ -100,8 +100,7 @@ export function enhanceError<
   error.statusText = error.statusText || response?.statusText || '';
   error.config = error.request = requestConfig;
   error.response = response;
-  error.isCancelled =
-    error.name === ABORT_ERROR || error.name === CANCELLED_ERROR;
+  error.isCancelled = error.name === ABORT_ERROR;
 }
 
 /**

@@ -236,7 +236,7 @@ export function setCache<T = unknown>(
     expiry: ttl === -1 ? undefined : time + ttlMs,
   });
 
-  if (ttlMs > 0 && ttl != -1) {
+  if (ttlMs > 0 && ttl !== -1) {
     addTimeout(
       'c:' + key,
       () => {
