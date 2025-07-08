@@ -557,7 +557,7 @@ You can also use all native [`fetch()` settings](https://developer.mozilla.org/e
 > - **📶 Polling Configuration** - `pollingInterval`, `pollingDelay`, `maxPollingAttempts`, `shouldStopPolling`
 > - **🗄️ Cache Management** - `cacheKey`, `cacheBuster`, `skipCache`, `cacheErrors`
 > - **✋ Request Cancellation** - `cancellable`, `rejectCancelled`
-> - **🌀 Interceptors** - `onRequest`, `onResponse`, `onError`
+> - **🌀 Interceptors** - `onRequest`, `onResponse`, `onError`, `onRetry`
 > - **🔍 Error Handling** - `strategy`
 
 ### Performance Implications of Settings
@@ -813,27 +813,115 @@ const { data } = await fetchf('https://api.example.com/', {
     console.error('Request failed:', error);
     console.error('Request config:', config);
   },
+  onRetry(response, attempt) {
+    // Log retry attempts for monitoring and debugging
+    console.warn(
+      `Retrying request (attempt ${attempt + 1}):`,
+      response.config.url,
+    );
+
+    // Log error details for failed attempts
+    if (response.error) {
+      console.warn(
+        `Retry reason: ${response.error.status} - ${response.error.statusText}`,
+      );
+    }
+
+    // You can implement custom retry logic or monitoring here
+    // For example, send retry metrics to your analytics service
+  },
+  retry: {
+    retries: 3,
+    delay: 1000,
+    backoff: 1.5,
+  },
 });
 ```
 
 ### Configuration
 
-The following options are available for configuring interceptors in the `RequestHandler`:
+The following options are available for configuring interceptors in the `fetchff` settings:
 
-- **`onRequest`**:  
+- **`onRequest(config) => config`**:  
   Type: `RequestInterceptor | RequestInterceptor[]`  
   A function or an array of functions that are invoked before sending a request. Each function receives the request configuration object as its argument, allowing you to modify request parameters, headers, or other settings.  
-  _Default:_ `(config) => config` (no modification).
+  _Default:_ `undefined` (no modification).
 
-- **`onResponse`**:  
+- **`onResponse(response) => responsee`**:  
   Type: `ResponseInterceptor | ResponseInterceptor[]`  
   A function or an array of functions that are invoked when a response is received. Each function receives the full response object, enabling you to process the response, handle status codes, or parse data as needed.  
-  _Default:_ `(response) => response` (no modification).
+  _Default:_ `undefined` (no modification).
 
-- **`onError`**:  
+- **`onError(error) => error`**:  
   Type: `ErrorInterceptor | ErrorInterceptor[]`  
   A function or an array of functions that handle errors when a request fails. Each function receives the error and request configuration as arguments, allowing you to implement custom error handling logic or logging.  
-  _Default:_ `(error) => error` (no modification).
+  _Default:_ `undefined` (no modification).
+
+- **`onRetry`**:  
+  Type: `RetryInterceptor | RetryInterceptor[]`  
+  A function or an array of functions that are invoked before each retry attempt. Each function receives the response object (containing error information) and the current attempt number as arguments, allowing you to implement custom retry logging, monitoring, or conditional retry logic.  
+  _Default:_ `undefined` (no retry interception).
+
+### Interceptor Execution Order
+
+`fetchff` follows specific execution patterns for interceptor chains:
+
+#### **Request Interceptors: FIFO (First In, First Out)**
+
+Request interceptors execute in the order they are defined - from global to specific:
+
+```typescript
+// Execution order: 1 → 2 → 3 → 4
+const api = createApiFetcher({
+  onRequest: (config) => {
+    /* 1. Global interceptor */
+  },
+  endpoints: {
+    getData: {
+      onRequest: (config) => {
+        /* 2. Endpoint interceptor */
+      },
+    },
+  },
+});
+
+await api.getData({
+  onRequest: (config) => {
+    /* 3. Request interceptor */
+  },
+});
+```
+
+#### **Response Interceptors: LIFO (Last In, First Out)**
+
+Response interceptors execute in reverse order - from specific to global:
+
+```typescript
+// Execution order: 3 → 2 → 1
+const api = createApiFetcher({
+  onResponse: (response) => {
+    /* 3. Global interceptor (executes last) */
+  },
+  endpoints: {
+    getData: {
+      onResponse: (response) => {
+        /* 2. Endpoint interceptor */
+      },
+    },
+  },
+});
+
+await api.getData({
+  onResponse: (response) => {
+    /* 1. Request interceptor (executes first) */
+  },
+});
+```
+
+This pattern ensures that:
+
+- **Request interceptors** can progressively enhance configuration from general to specific
+- **Response interceptors** can process data from specific to general, allowing request-level interceptors to handle the response first before global cleanup or logging
 
 ### How It Works
 
