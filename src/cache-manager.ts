@@ -28,6 +28,7 @@ export const IMMEDIATE_DISCARD_CACHE_TIME = 0; // Use it for cache entries that 
 const _cache = new Map<string, CacheEntry<any>>();
 const DELIMITER = '|';
 const MIN_LENGTH_TO_HASH = 64;
+const CACHE_KEY_SANITIZE_PATTERN = new RegExp('[^\\w\\-_|]', 'g');
 
 /**
  * Generates a unique cache key for a given URL and fetch options, ensuring that key factors
@@ -79,7 +80,7 @@ export function generateCacheKey(options: RequestConfig): string {
   // For GET requests, return early with just the URL as the cache key
   // FIXME: Think about headers
   if (url && method === GET) {
-    return method + DELIMITER + url.replace(/[^\w\-_|]/g, '');
+    return method + DELIMITER + url.replace(CACHE_KEY_SANITIZE_PATTERN, '');
   }
 
   // Sort headers and body + convert sorted to strings for hashing purposes
@@ -137,7 +138,7 @@ export function generateCacheKey(options: RequestConfig): string {
     headersString +
     DELIMITER +
     bodyString
-  ).replace(/[^\w\-_|]/g, ''); // Prevent cache poisoning by removal of anything that isn't letters, numbers, -, _, or |
+  ).replace(CACHE_KEY_SANITIZE_PATTERN, ''); // Prevent cache poisoning by removal of anything that isn't letters, numbers, -, _, or |
 }
 
 /**

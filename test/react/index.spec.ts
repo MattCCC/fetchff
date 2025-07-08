@@ -194,6 +194,15 @@ describe('useFetcher', () => {
         }),
       );
 
+      // Initially should not be loading (POST doesn't auto-trigger)
+      expect(result.current.isLoading).toBe(false);
+      expect(result.current.data).toBeNull();
+
+      // Manually trigger the POST request
+      await act(async () => {
+        await result.current.refetch();
+      });
+
       await waitFor(() => {
         expect(result.current.data).toEqual(testData);
       });
@@ -320,6 +329,15 @@ describe('useFetcher', () => {
       // Change method - should trigger new request
       rerender({ method: 'POST' });
 
+      // Should clear data since cache key changed but POST doesn't auto-trigger
+      expect(result.current.data).toBeNull();
+      expect(result.current.isLoading).toBe(false);
+
+      // Manually trigger POST
+      await act(async () => {
+        await result.current.refetch();
+      });
+
       await waitFor(() => {
         expect(result.current.data).toEqual(testData);
       });
@@ -401,7 +419,8 @@ describe('useFetcher', () => {
       mockFetchResponse(testUrl, { body: testData });
 
       const { result } = renderHook(() =>
-        useFetcher(testUrl, { method: 'POST' }),
+        // POST does not auto-trigger, so we use immediate: true
+        useFetcher(testUrl, { method: 'POST', immediate: true }),
       );
 
       await waitFor(() => {
