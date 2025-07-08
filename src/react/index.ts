@@ -29,25 +29,29 @@ import {
 // In React, we use a default stale time of 5 minutes (SWR)
 const DEFAULT_STALE_TIME = 300; // 5 minutes
 
-const DEFAULT_RESULT = {
+// Pre-allocate objects to avoid GC pressure
+const DEFAULT_RESULT = Object.freeze({
   data: null,
   error: null,
   isFetching: false,
   mutate: () => Promise.resolve(null),
   config: {},
   headers: {},
-};
+});
 
-const FETCHING_RESULT = {
+const FETCHING_RESULT = Object.freeze({
   ...DEFAULT_RESULT,
   isFetching: true,
-};
+});
 
 const DEFAULT_REF = [null, {}, null] as [
   string | null,
   RequestConfig,
   string | null,
 ];
+
+// RFC 7231: GET and HEAD are "safe methods" with no side effects
+const SAFE_METHODS = new Set(['GET', 'HEAD', 'get', 'head']);
 
 /**
  * High-performance React hook for fetching data with caching, deduplication, revalidation etc.
@@ -120,7 +124,10 @@ export function useFetcher<
   const dedupeTime = config.dedupeTime ?? DEFAULT_DEDUPE_TIME_MS;
   const cacheTime = config.cacheTime || INFINITE_CACHE_TIME;
   const staleTime = config.staleTime ?? DEFAULT_STALE_TIME;
-  const shouldTriggerOnMount = config.immediate ?? true;
+
+  // Determine if the fetch should be triggered immediately on mount
+  const shouldTriggerOnMount =
+    config.immediate ?? SAFE_METHODS.has(config.method || 'GET');
 
   const currentValuesRef = useRef(DEFAULT_REF);
   currentValuesRef.current = [url, config, cacheKey];

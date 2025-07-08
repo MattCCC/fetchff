@@ -97,9 +97,7 @@ export async function withRetry<
         if (shouldRetryResult) {
           const onRetry = output.config.onRetry;
 
-          if (onRetry) {
-            applyInterceptors(onRetry, output, attempt);
-          }
+          applyInterceptors(onRetry, output, attempt);
 
           await delayInvocation(waitTime);
           waitTime *= backoff || 1;

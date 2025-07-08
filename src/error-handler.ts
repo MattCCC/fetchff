@@ -60,13 +60,14 @@ export async function withErrorHandling<
   const shouldHandleError = !isCancelled || requestConfig.rejectCancelled;
 
   if (shouldHandleError) {
+    const strategy = requestConfig.strategy;
     // Reject the promise
-    if (requestConfig.strategy === REJECT) {
+    if (strategy === REJECT) {
       return Promise.reject(error);
     }
 
     // Hang the promise
-    if (requestConfig.strategy === 'silent') {
+    if (strategy === 'silent') {
       await new Promise(() => null);
     }
   }

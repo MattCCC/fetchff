@@ -25,7 +25,6 @@ import {
 const defaultTimeoutMs = (isSlowConnection() ? 60 : 30) * 1000;
 
 export const defaultConfig: RequestConfig = {
-  method: GET,
   strategy: REJECT,
   timeout: defaultTimeoutMs, // 30 seconds (60 on slow connections)
   headers: {
