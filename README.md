@@ -1,14 +1,14 @@
 <div align="center">
 <img src="./docs/logo.png" alt="logo" width="380"/>
 
-<h4 align="center">Fast, lightweight (~4 KB gzipped) and reusable data fetching</h4>
+<h4 align="center">Fast, lightweight (~5 KB gzipped) and reusable data fetching</h4>
 
 <i>"fetchff" stands for "fetch fast & flexibly"</i>
 
 [npm-url]: https://npmjs.org/package/fetchff
 [npm-image]: https://img.shields.io/npm/v/fetchff.svg
 
-[![NPM version][npm-image]][npm-url] [![Blazing Fast](https://badgen.now.sh/badge/speed/blazing%20%F0%9F%94%A5/green)](https://github.com/MattCCC/fetchff) [![Code Coverage](https://img.shields.io/badge/coverage-97.48-green)](https://github.com/MattCCC/fetchff) [![npm downloads](https://img.shields.io/npm/dm/fetchff.svg?color=lightblue)](http://npm-stat.com/charts.html?package=fetchff) [![gzip size](https://img.shields.io/bundlephobia/minzip/fetchff)](https://bundlephobia.com/result?p=fetchff) [![snyk](https://snyk.io/test/github/MattCCC/fetchff/badge.svg)](https://security.snyk.io/package/npm/fetchff)
+[![NPM version][npm-image]][npm-url] [![Blazing Fast](https://badgen.now.sh/badge/speed/blazing%20%F0%9F%94%A5/green)](https://github.com/MattCCC/fetchff) [![Code Coverage](https://img.shields.io/badge/coverage-96.93-green)](https://github.com/MattCCC/fetchff) [![npm downloads](https://img.shields.io/npm/dm/fetchff.svg?color=lightblue)](http://npm-stat.com/charts.html?package=fetchff) [![gzip size](https://img.shields.io/bundlephobia/minzip/fetchff)](https://bundlephobia.com/result?p=fetchff) [![snyk](https://snyk.io/test/github/MattCCC/fetchff/badge.svg)](https://security.snyk.io/package/npm/fetchff)
 
 </div>
 
@@ -2640,6 +2640,7 @@ _fetchff uniquely combines advanced input sanitization, prototype pollution prot
 | **Automatically handle 429 Retry-After headers**   | ✅          | --          | --           | --           | --             | --              |
 | **Built-in Input Sanitization**                    | ✅          | --          | --           | --           | --             | --              |
 | **Prototype Pollution Protection**                 | ✅          | --          | --           | --           | --             | --              |
+| **RFC 7231 Safe Methods Auto-execution**           | ✅          | --          | --           | --           | --             | --              |
 | **First Class React Integration**                  | ✅          | --          | --           | --           | --             | ✅              |
 | **Shared cache for React and direct fetches**      | ✅          | --          | --           | --           | --             | --              |
 | **Per-endpoint and per-request config merging**    | ✅          | --          | --           | --           | --             | --              |
@@ -2648,7 +2649,7 @@ _fetchff uniquely combines advanced input sanitization, prototype pollution prot
 | **SWR Pattern Support**                            | ✅          | --          | --           | --           | --             | ✅              |
 | **Revalidation on Tab Focus**                      | ✅          | --          | --           | --           | --             | ✅              |
 | **Revalidation on Network Reconnect**              | ✅          | --          | --           | --           | --             | ✅              |
-| **Minimal Installation Size**                      | 🟢 (4.5 KB) | 🟡 (6.5 KB) | 🟢 (2.21 KB) | 🔴 (13.7 KB) | 🟢 (0 KB)      | 🟡 (6.2 KB)     |
+| **Minimal Installation Size**                      | 🟢 (5.2 KB) | 🟡 (6.5 KB) | 🟢 (2.21 KB) | 🔴 (13.7 KB) | 🟢 (0 KB)      | 🟡 (6.2 KB)     |
 
 ## ✏️ Examples
 
