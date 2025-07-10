@@ -193,6 +193,81 @@ describe('Utils', () => {
   });
 
   describe('isJSONSerializable()', () => {
+    describe('Body instances that should NOT be JSON serializable', () => {
+      it('should return false for FormData', () => {
+        const formData = new FormData();
+        formData.append('key', 'value');
+        expect(isJSONSerializable(formData)).toBe(false);
+      });
+
+      it('should return false for URLSearchParams', () => {
+        const params = new URLSearchParams();
+        params.append('key', 'value');
+        expect(isJSONSerializable(params)).toBe(false);
+      });
+
+      it('should return false for Blob', () => {
+        const blob = new Blob(['content'], { type: 'text/plain' });
+        expect(isJSONSerializable(blob)).toBe(false);
+      });
+
+      it('should return false for File', () => {
+        const file = new File(['content'], 'test.txt', {
+          type: 'text/plain',
+        });
+        expect(isJSONSerializable(file)).toBe(false);
+      });
+
+      it('should return false for ArrayBuffer', () => {
+        const buffer = new ArrayBuffer(8);
+        expect(isJSONSerializable(buffer)).toBe(false);
+      });
+
+      it('should return false for TypedArrays', () => {
+        expect(isJSONSerializable(new Uint8Array([1, 2, 3]))).toBe(false);
+        expect(isJSONSerializable(new Int16Array([1, 2, 3]))).toBe(false);
+        expect(isJSONSerializable(new Float32Array([1.5, 2.5]))).toBe(false);
+        expect(isJSONSerializable(new Uint32Array([1, 2, 3]))).toBe(false);
+      });
+
+      it('should return false for ReadableStream', () => {
+        const stream = new ReadableStream({
+          start(controller) {
+            controller.enqueue('chunk');
+            controller.close();
+          },
+        });
+        expect(isJSONSerializable(stream)).toBe(false);
+      });
+
+      it('should return false for Request object', () => {
+        const request = new Request('https://example.com');
+        expect(isJSONSerializable(request)).toBe(false);
+      });
+
+      it('should return false for Response object', () => {
+        const response = new Response('content');
+        expect(isJSONSerializable(response)).toBe(false);
+      });
+
+      it('should return false for DataView', () => {
+        const buffer = new ArrayBuffer(8);
+        const view = new DataView(buffer);
+        expect(isJSONSerializable(view)).toBe(false);
+      });
+
+      it('should return false for Error objects', () => {
+        expect(isJSONSerializable(new Error('test'))).toBe(false);
+        expect(isJSONSerializable(new TypeError('test'))).toBe(false);
+        expect(isJSONSerializable(new RangeError('test'))).toBe(false);
+      });
+
+      it('should return false for RegExp', () => {
+        expect(isJSONSerializable(/test/g)).toBe(false);
+        expect(isJSONSerializable(new RegExp('test', 'i'))).toBe(false);
+      });
+    });
+
     it('should return false for undefined', () => {
       expect(isJSONSerializable(undefined)).toBe(false);
     });

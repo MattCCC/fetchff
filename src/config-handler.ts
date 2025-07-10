@@ -5,8 +5,9 @@ import {
   STRING,
   CHARSET_UTF_8,
   CONTENT_TYPE,
-  OBJECT,
   REJECT,
+  UNDEFINED,
+  APPLICATION_CONTENT_TYPE,
 } from './constants';
 import type {
   HeadersObject,
@@ -21,6 +22,7 @@ import {
   isSlowConnection,
   isAbsoluteUrl,
   sanitizeObject,
+  isObject,
 } from './utils';
 
 const defaultTimeoutMs = (isSlowConnection() ? 60 : 30) * 1000;
@@ -124,17 +126,12 @@ export function buildFetcherConfig(
     body = requestConfig.body ?? requestConfig.data;
 
     // Automatically stringify request body, if possible and when not dealing with strings
-    if (
-      body &&
-      typeof body !== STRING &&
-      !isSearchParams(body) &&
-      isJSONSerializable(body)
-    ) {
+    if (body && typeof body !== STRING && isJSONSerializable(body)) {
       body = JSON.stringify(body);
     }
   }
 
-  setContentTypeIfNeeded(method, requestConfig.headers, body);
+  setContentTypeIfNeeded(requestConfig.headers, body);
 
   // Native fetch compatible settings
   const credentials = requestConfig.withCredentials
@@ -163,27 +160,47 @@ export function buildFetcherConfig(
  *
  * @param headers - The headers object to modify. Can be an instance of `Headers`
  *                  or a plain object conforming to `HeadersInit`.
- * @param method - The HTTP method of the request (e.g., 'PUT', 'DELETE', etc.).
  * @param body - The optional body of the request. If no body is provided and the
- *               method is 'PUT' or 'DELETE', the function exits without modifying headers.
+ *               method is 'GET' or 'HEAD', the function exits without modifying headers.
  */
 function setContentTypeIfNeeded(
-  method: string,
   headers?: HeadersInit | HeadersObject,
   body?: unknown,
 ): void {
-  if (!headers || (!body && ['PUT', 'DELETE'].includes(method))) {
+  // If no headers are provided, or if the body is not set and the method is PUT or DELETE, do nothing
+  if (!headers || !body) {
     return;
   }
 
-  const contentTypeValue = APPLICATION_JSON + ';' + CHARSET_UTF_8;
+  // Types that should not have Content-Type set (browser handles these)
+  if (
+    body instanceof FormData || // Browser automatically sets multipart/form-data with boundary
+    body instanceof Blob || // Blob/File already have their own MIME types, don't override
+    body instanceof File ||
+    (typeof ReadableStream !== UNDEFINED && body instanceof ReadableStream) // Stream type should be determined by the stream source
+  ) {
+    return;
+  }
+
+  let contentTypeValue: string;
+
+  if (isSearchParams(body)) {
+    contentTypeValue = APPLICATION_CONTENT_TYPE + 'x-www-form-urlencoded';
+  } else if (body instanceof ArrayBuffer || ArrayBuffer.isView(body)) {
+    contentTypeValue = APPLICATION_CONTENT_TYPE + 'octet-stream';
+  } else if (isJSONSerializable(body)) {
+    contentTypeValue = APPLICATION_JSON + ';' + CHARSET_UTF_8;
+  } else {
+    // Do not set Content-Type if content is not recognizable
+    return;
+  }
 
   if (headers instanceof Headers) {
     if (!headers.has(CONTENT_TYPE)) {
       headers.set(CONTENT_TYPE, contentTypeValue);
     }
   } else if (
-    typeof headers === OBJECT &&
+    isObject(headers) &&
     !Array.isArray(headers) &&
     !headers[CONTENT_TYPE]
   ) {

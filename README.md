@@ -777,9 +777,6 @@ const { data } = await fetchf('https://api.example.com/endpoint', {
 
 The `fetchff` plugin automatically injects a set of default headers into every request. These default headers help ensure that requests are consistent and include necessary information for the server to process them correctly.
 
-- **`Content-Type`**: `application/json;charset=utf-8`
-  Specifies that the request body contains JSON data and sets the character encoding to UTF-8.
-
 - **`Accept`**: `application/json, text/plain, */*`
   Indicates the media types that the client is willing to receive from the server. This includes JSON, plain text, and any other types.
 
@@ -788,6 +785,22 @@ The `fetchff` plugin automatically injects a set of default headers into every r
 
 > ⚠️ **Accept-Encoding in Node.js:**  
 > In Node.js, decompression is handled by the fetch implementation, and users should ensure their environment supports the encodings.
+
+- **`Content-Type`**:  
+  Set automatically based on the request body type:
+  - For JSON-serializable bodies (objects, arrays, etc.):  
+    `application/json; charset=utf-8`
+  - For `URLSearchParams`:  
+    `application/x-www-form-urlencoded`
+  - For `ArrayBuffer`/typed arrays:  
+    `application/octet-stream`
+  - For `FormData`, `Blob`, `File`, or `ReadableStream`:  
+    **Not set** as the header is handled automatically by the browser and by Node.js 18+ native fetch.
+
+  The `Content-Type` header is **never overridden** if you set it manually.
+
+**Summary:**  
+You only need to set headers manually if you want to override these defaults. Otherwise, `fetchff` will handle the correct headers for most use cases, including advanced scenarios like file uploads, form submissions, and binary data.
 
 </details>
 

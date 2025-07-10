@@ -265,7 +265,7 @@ export function isJSONSerializable(value: any): boolean {
     return false;
   }
 
-  if (value instanceof Date) {
+  if (value instanceof Date || isSearchParams(value)) {
     return false;
   }
 
