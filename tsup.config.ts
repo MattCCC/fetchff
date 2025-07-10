@@ -7,6 +7,7 @@ export default defineConfig([
     entry: ['src/index.ts'],
     format: ['esm', 'iife'],
     target: 'es2018',
+    bundle: true,
     dts: true,
     clean: true,
     outDir: 'dist/browser',
