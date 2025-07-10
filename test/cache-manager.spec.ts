@@ -85,7 +85,7 @@ describe('Cache Manager', () => {
       } as never);
 
       expect(key).toContain(
-        'GET|httpsapiexamplecomdata|same-origin|1530632817',
+        'GET|httpsapiexamplecomdata|same-origin|accept-encodinggzipdeflatebrcontent-typeapplicationjson',
       );
     });
 

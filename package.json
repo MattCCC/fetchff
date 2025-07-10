@@ -73,7 +73,7 @@
     },
     {
       "path": "dist/browser/index.global.js",
-      "limit": "5.5 KB"
+      "limit": "5.6 KB"
     },
     {
       "path": "dist/node/index.js",

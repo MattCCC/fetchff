@@ -26,6 +26,49 @@ const MIN_LENGTH_TO_HASH = 64;
 const CACHE_KEY_SANITIZE_PATTERN = new RegExp('[^\\w\\-_|]', 'g');
 
 /**
+ * Headers that may affect HTTP response content and should be included in cache key generation.
+ * All header names must be lowercase to match normalized request headers.
+ */
+const CACHE_KEY_HEADER_WHITELIST = new Set([
+  // Content negotiation
+  'accept', // Affects response format (e.g. JSON, HTML)
+  'accept-language', // Affects localization of the response
+  'accept-encoding', // Affects response compression (e.g. gzip, br)
+
+  // Authentication
+  'authorization', // Affects access to protected resources
+
+  // Request body metadata
+  'content-type', // Affects how the request body is interpreted
+
+  // Request context hints
+  'x-requested-with', // Commonly used to distinguish AJAX requests
+
+  // Optional headers
+  'referer', // May influence behavior in some APIs
+  'origin', // Relevant in CORS or tenant-specific APIs
+  'user-agent', // Included only for reason if server returns client-specific content
+
+  // Cookies — only if server uses session-based responses
+  'cookie', // Can fragment cache heavily; use only if necessary
+
+  // Custom headers that may affect response content
+  'x-api-key', // Token-based access, often affects authorization
+  'x-requested-with', // AJAX requests (used historically for distinguishing frontend calls)
+  'x-client-id', // Per-client/partner identity; often used in multi-tenant APIs
+  'x-tenant-id', // Multi-tenant segmentation; often changes response per tenant
+  'x-user-id', // Explicit user context (less common, but may exist)
+
+  'x-app-version', // Used for version-specific behavior (e.g. mobile apps)
+  'x-feature-flag', // Controls feature rollout behavior server-side
+  'x-device-id', // Used when response varies per device/app instance
+  'x-platform', // e.g. 'ios', 'android', 'web' — used in apps that serve different content
+
+  'x-session-id', // Only if backend uses it to affect the response directly (rare)
+  'x-locale', // Sometimes used in addition to or instead of `accept-language`
+]);
+
+/**
  * Generates a unique cache key for a given URL and fetch options, ensuring that key factors
  * like method, headers, body, and other options are included in the cache key.
  * Headers and other objects are sorted by key to ensure consistent cache keys.
@@ -83,6 +126,8 @@ export function generateCacheKey(
       obj = headers as Record<string, string>;
     }
 
+    // Filter headers to only include those that affect request identity
+    // Include only headers that affect request identity, not execution behavior
     const keys = Object.keys(obj);
     const len = keys.length;
 
@@ -93,7 +138,9 @@ export function generateCacheKey(
 
     let str = '';
     for (let i = 0; i < len; ++i) {
-      str += keys[i] + ':' + obj[keys[i]] + ';';
+      if (CACHE_KEY_HEADER_WHITELIST.has(keys[i].toLowerCase())) {
+        str += keys[i] + ':' + obj[keys[i]] + ';';
+      }
     }
 
     if (str.length > MIN_LENGTH_TO_HASH) {

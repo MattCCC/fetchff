@@ -1336,14 +1336,52 @@ By default, `fetchff` generates a cache key automatically using a combination of
 | ----------------- | ----------------------------------------------------------------------------------------- | --------------- |
 | `method`          | The HTTP method used for the request (e.g., GET, POST).                                   | `'GET'`         |
 | `url`             | The full request URL, including the base URL and endpoint path.                           | `''`            |
-| `headers`         | Request headers, included as a stringified object.                                        |                 |
+| `headers`         | Request headers, **filtered to include only cache-relevant headers** (see below).         |                 |
 | `body`            | The request payload (for POST, PUT, PATCH, etc.), stringified if it's an object or array. |                 |
 | `credentials`     | Indicates whether credentials (cookies) are included in the request.                      | `'same-origin'` |
 | `params`          | Query parameters serialized into the URL (objects, arrays, etc. are stringified).         |                 |
 | `urlPathParams`   | Dynamic URL path parameters (e.g., `/user/:id`), stringified and encoded.                 |                 |
 | `withCredentials` | Whether credentials (cookies) are included in the request.                                |                 |
 
-These properties are combined and hashed to create a unique cache key for each request. This ensures that requests with different parameters, bodies, or headers are cached separately.
+#### Header Filtering for Cache Keys
+
+To ensure stable cache keys and prevent unnecessary cache misses, `fetchff` only includes headers that affect response content in cache key generation. The following headers are included:
+
+**Content Negotiation:**
+
+- `accept` - Affects response format (JSON, HTML, etc.)
+- `accept-language` - Affects localization of response
+- `accept-encoding` - Affects response compression
+
+**Authentication & Authorization:**
+
+- `authorization` - Affects access to protected resources
+- `x-api-key` - Token-based access control
+- `cookie` - Session-based authentication
+
+**Request Context:**
+
+- `content-type` - Affects how request body is interpreted
+- `origin` - Relevant for CORS or tenant-specific APIs
+- `referer` - May influence API behavior
+- `user-agent` - Only if server returns client-specific content
+
+**Custom Headers:**
+
+- `x-requested-with` - Distinguishes AJAX requests
+- `x-client-id` - Per-client/partner identity
+- `x-tenant-id` - Multi-tenant segmentation
+- `x-user-id` - Explicit user context
+- `x-app-version` - Version-specific behavior
+- `x-feature-flag` - Feature rollout controls
+- `x-device-id` - Device-specific responses
+- `x-platform` - Platform-specific content (iOS, Android, web)
+- `x-session-id` - Session-specific responses
+- `x-locale` - Locale-specific content
+
+Headers like `user-agent`, `accept-encoding`, `connection`, `cache-control`, tracking IDs, and proxy-related headers are **excluded** from cache key generation as they don't affect the actual response content.
+
+These properties are combined and hashed to create a unique cache key for each request. This ensures that requests with different parameters, bodies, or cache-relevant headers are cached separately while maintaining stable cache keys across requests that only differ in non-essential headers. If that does not suffice, you can always use `cacheKey` (string | function) and supply it to particular requests. You can also build your own `cacheKey` function and simply update defaults to reflect it in all requests. Auto key generation would be entirely skipped in such scenarios.
 
 </details>
 
