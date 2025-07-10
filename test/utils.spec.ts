@@ -8,6 +8,15 @@ import {
   sanitizeObject,
 } from '../src/utils';
 
+(global as any).File = class File {
+  name: string;
+  type: string;
+  constructor(_parts: any[], name: string, options: any = {}) {
+    this.name = name;
+    this.type = options.type || '';
+  }
+};
+
 describe('Utils', () => {
   console.warn = jest.fn();
 
