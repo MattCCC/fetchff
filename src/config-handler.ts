@@ -78,15 +78,15 @@ export function getDefaultConfig(): RequestConfig {
 }
 
 /**
- * Build request configuration
- *
+ * Build request configuration from defaults and overrides.
+ * This function merges the default configuration with the provided request configuration,
  * @param {string} url - Request url
- * @param {RequestConfig} requestConfig - Request config passed when making the request
- * @returns {FetcherConfig} - Provider's instance
+ * @param {RequestConfig<ResponseData, QueryParams, PathParams, RequestBody> | null | undefined} reqConfig - Request configuration
+ * @return {RequestConfig<ResponseData, QueryParams, PathParams, RequestBody>} - Merged request configuration
  */
 export function buildConfig<ResponseData, RequestBody, QueryParams, PathParams>(
   url: string,
-  reqConfig: RequestConfig<
+  reqConfig?: RequestConfig<
     ResponseData,
     QueryParams,
     PathParams,
@@ -94,7 +94,7 @@ export function buildConfig<ResponseData, RequestBody, QueryParams, PathParams>(
   > | null,
 ): RequestConfig<ResponseData, QueryParams, PathParams, RequestBody> {
   if (!reqConfig) {
-    return buildFetcherConfig(url, defaultConfig);
+    return buildFetcherConfig(url, getDefaultConfig());
   }
 
   const sanitized = sanitizeObject(reqConfig);
@@ -103,6 +103,13 @@ export function buildConfig<ResponseData, RequestBody, QueryParams, PathParams>(
   return buildFetcherConfig(url, merged);
 }
 
+/**
+ * Builds the fetcher configuration by setting the method, body, headers, and URL.
+ * It also handles query parameters and path parameters. This fn mutates the passed `requestConfig` object.
+ * @param {string} url - The endpoint URL to which the request will be sent.
+ * @param {RequestConfig} requestConfig - The request configuration object containing method, body, headers, and other options.
+ * @return {RequestConfig} - The modified request configuration object with the URL, method, body, and headers set appropriately.
+ **/
 export function buildFetcherConfig(
   url: string,
   requestConfig: RequestConfig,
@@ -142,13 +149,12 @@ export function buildFetcherConfig(
     ? ''
     : requestConfig.baseURL || requestConfig.apiUrl || '';
 
-  return {
-    ...requestConfig,
-    url: baseURL + urlPath,
-    method,
-    credentials,
-    body,
-  };
+  requestConfig.url = baseURL + urlPath;
+  requestConfig.method = method;
+  requestConfig.credentials = credentials;
+  requestConfig.body = body;
+
+  return requestConfig;
 }
 
 /**

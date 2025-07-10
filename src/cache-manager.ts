@@ -143,11 +143,7 @@ export function generateCacheKey(
       }
     }
 
-    if (str.length > MIN_LENGTH_TO_HASH) {
-      str = hash(str);
-    }
-
-    headersString = str;
+    headersString = hash(str);
   }
 
   // For GET requests, return early with shorter cache key
@@ -267,10 +263,13 @@ export function getCacheData<
  */
 export function getCache<ResponseData, RequestBody, QueryParams, PathParams>(
   key: string | null,
-): CacheEntry<
-  FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>
-> | null {
-  return _cache.get(key as string) || null;
+):
+  | CacheEntry<
+      FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>
+    >
+  | null
+  | undefined {
+  return _cache.get(key as string);
 }
 
 /**

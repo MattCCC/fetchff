@@ -68,9 +68,7 @@ describe('Cache Manager', () => {
         }),
       } as never);
 
-      expect(key).toContain(
-        'accept-encodinggzipdeflatebrcontent-typeapplicationjson',
-      );
+      expect(key).toContain('1306150308');
     });
 
     it('should generate a cache key for basic GET request with sorted hashed headers', () => {
@@ -85,7 +83,7 @@ describe('Cache Manager', () => {
       } as never);
 
       expect(key).toContain(
-        'GET|httpsapiexamplecomdata|same-origin|accept-encodinggzipdeflatebrcontent-typeapplicationjson',
+        'GET|httpsapiexamplecomdata|same-origin|1306150308',
       );
     });
 
@@ -96,7 +94,7 @@ describe('Cache Manager', () => {
         headers: { 'Content-Type': 'application/json' },
       });
       expect(key).toContain(
-        'POST|httpsapiexamplecomdata|same-origin|Content-Typeapplicationjson|',
+        'POST|httpsapiexamplecomdata|same-origin|395078312|',
       );
     });
 
@@ -246,18 +244,18 @@ describe('Cache Manager', () => {
     it('should delete cache entry', () => {
       setCache('key', { data: 'test' });
       deleteCache('key');
-      expect(getCache('key')).toBe(null);
+      expect(getCache('key')).toBeUndefined();
     });
 
     it('should do nothing if cache key does not exist', () => {
       deleteCache('nonExistentKey');
-      expect(getCache('nonExistentKey')).toBe(null);
+      expect(getCache('nonExistentKey')).toBeUndefined();
     });
 
     it('should delete cache entry when removeExpired is false (default)', () => {
       setCache('key', { data: 'test' });
       deleteCache('key', false); // Explicitly pass false
-      expect(getCache('key')).toBe(null);
+      expect(getCache('key')).toBeUndefined();
     });
 
     it('should not delete cache entry when removeExpired is true and entry is not expired', () => {
@@ -271,14 +269,14 @@ describe('Cache Manager', () => {
       setCache('key', { data: 'test' }, IMMEDIATE_DISCARD_CACHE_TIME); // No TTL = IMMEDIATE_DISCARD_CACHE_TIME
       deleteCache('key', true); // Should delete since IMMEDIATE_DISCARD_CACHE_TIME entries are considered expired when removeExpired is true
       jest.advanceTimersByTime(1000); // Fast-forward time to ensure cache is considered expired
-      expect(getCache('key')).toBe(null);
+      expect(getCache('key')).toBeUndefined();
     });
 
     it('should delete expired cache entry when removeExpired is true', () => {
       // Create an entry that's already expired by using a past timestamp
       setCache('key', { data: 'test' }, -5000); // Set with negative TTL to simulate expiration
       deleteCache('key', true);
-      expect(getCache('key')).toBe(null);
+      expect(getCache('key')).toBeUndefined();
     });
   });
 
