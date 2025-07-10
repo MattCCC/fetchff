@@ -9,19 +9,14 @@ import type {
 } from './types/request-handler';
 import type { CacheEntry } from './types/cache-manager';
 import { GET, STRING, UNDEFINED } from './constants';
-import {
-  isObject,
-  sanitizeObject,
-  shallowSerialize,
-  sortObject,
-  timeNow,
-} from './utils';
+import { isObject, sanitizeObject, sortObject, timeNow } from './utils';
 import { revalidate } from './revalidator-manager';
 import { notifySubscribers } from './pubsub-manager';
 import type { DefaultPayload, DefaultParams, DefaultUrlParams } from './types';
 import { removeInFlight } from './inflight-manager';
 import { addTimeout } from './timeout-wheel';
 import { defaultConfig } from './config-handler';
+import { processHeaders } from './utils';
 
 export const IMMEDIATE_DISCARD_CACHE_TIME = 0; // Use it for cache entries that need to be persistent until unused by components or manually deleted
 
@@ -35,16 +30,12 @@ const CACHE_KEY_SANITIZE_PATTERN = new RegExp('[^\\w\\-_|]', 'g');
  * like method, headers, body, and other options are included in the cache key.
  * Headers and other objects are sorted by key to ensure consistent cache keys.
  *
- * @param {RequestConfig} options - The fetch options that may affect the request. The most important are:
+ * @param {RequestConfig} config - The fetch options that may affect the request. The most important are:
  *   @property {string} [method="GET"] - The HTTP method (GET, POST, etc.).
  *   @property {HeadersInit} [headers={}] - The request headers.
  *   @property {BodyInit | null} [body=""] - The body of the request (only for methods like POST, PUT).
- *   @property {RequestMode} [mode="cors"] - The mode for the request (e.g., cors, no-cors, include).
- *   @property {RequestCredentials} [credentials="include"] - Whether to include credentials like cookies.
+ *   @property {RequestCredentials} [credentials="same-origin"] - Whether to include credentials (include, same-origin, omit).
  *   @property {RequestCache} [cache="default"] - The cache mode (e.g., default, no-store, reload).
- *   @property {RequestRedirect} [redirect="follow"] - How to handle redirects (e.g., follow, error, manual).
- *   @property {string} [referrer=""] - The referrer URL to send with the request.
- *   @property {string} [integrity=""] - Subresource integrity value (a cryptographic hash for resource validation).
  * @returns {string} - A unique cache key string based on the provided options.
  *
  * @example
@@ -58,15 +49,18 @@ const CACHE_KEY_SANITIZE_PATTERN = new RegExp('[^\\w\\-_|]', 'g');
  * });
  * console.log(cacheKey);
  */
-export function generateCacheKey(options: RequestConfig): string {
+export function generateCacheKey(
+  config: RequestConfig,
+  cacheKeyCheck = true,
+): string {
   // This is super fast. Effectively a no-op if cacheKey is
   // a string or a function that returns a string.
-  const key = options.cacheKey;
+  const key = config.cacheKey;
 
-  if (key) {
+  if (key && cacheKeyCheck) {
     return typeof key === STRING
       ? (key as string)
-      : (key as CacheKeyFunction)(options);
+      : (key as CacheKeyFunction)(config);
   }
 
   const {
@@ -75,26 +69,51 @@ export function generateCacheKey(options: RequestConfig): string {
     headers = null,
     body = null,
     credentials = 'same-origin',
-  } = options;
-
-  // For GET requests, return early with just the URL as the cache key
-  // FIXME: Think about headers
-  if (url && method === GET) {
-    return method + DELIMITER + url.replace(CACHE_KEY_SANITIZE_PATTERN, '');
-  }
+  } = config;
 
   // Sort headers and body + convert sorted to strings for hashing purposes
   // Native serializer is on avg. 3.5x faster than a Fast Hash or FNV-1a
   let headersString = '';
   if (headers) {
-    const obj =
-      headers instanceof Headers
-        ? Object.fromEntries((headers as any).entries())
-        : headers;
-    headersString = shallowSerialize(sortObject(obj));
-    if (headersString.length > MIN_LENGTH_TO_HASH) {
-      headersString = hash(headersString);
+    let obj: Record<string, string>;
+
+    if (headers instanceof Headers) {
+      obj = processHeaders(headers);
+    } else {
+      obj = headers as Record<string, string>;
     }
+
+    const keys = Object.keys(obj);
+    const len = keys.length;
+
+    // Sort keys manually for fastest deterministic output
+    if (len > 1) {
+      keys.sort();
+    }
+
+    let str = '';
+    for (let i = 0; i < len; ++i) {
+      str += keys[i] + ':' + obj[keys[i]] + ';';
+    }
+
+    if (str.length > MIN_LENGTH_TO_HASH) {
+      str = hash(str);
+    }
+
+    headersString = str;
+  }
+
+  // For GET requests, return early with shorter cache key
+  if (method === GET) {
+    return (
+      method +
+      DELIMITER +
+      url +
+      DELIMITER +
+      credentials +
+      DELIMITER +
+      headersString
+    ).replace(CACHE_KEY_SANITIZE_PATTERN, '');
   }
 
   let bodyString = '';
@@ -232,11 +251,11 @@ export function setCache<T = unknown>(
   _cache.set(key, {
     data,
     time,
-    stale: staleTime !== undefined ? time + staleTime * 1000 : staleTime,
+    stale: staleTime && staleTime > 0 ? time + staleTime * 1000 : staleTime,
     expiry: ttl === -1 ? undefined : time + ttlMs,
   });
 
-  if (ttlMs > 0 && ttl !== -1) {
+  if (ttlMs > 0) {
     addTimeout(
       'c:' + key,
       () => {
@@ -363,7 +382,6 @@ export function getCachedResponse<
   }
 
   // Check if cache should be bypassed
-  // FIXME: What with default config being passed to the buster in React?
   const buster = requestConfig.cacheBuster || defaultConfig.cacheBuster;
   if (buster && buster(requestConfig)) {
     return null;
@@ -446,5 +464,11 @@ export function handleResponseCache<
 
     notifySubscribers(cacheKey, output);
     removeInFlight(cacheKey);
+
+    const prevCacheKey = requestConfig._prevKey;
+
+    if (prevCacheKey) {
+      removeInFlight(prevCacheKey);
+    }
   }
 }

@@ -10,7 +10,6 @@ import {
 } from '../src/cache-manager';
 import { RequestConfig } from '../src/index';
 import * as hashM from '../src/hash';
-import * as utils from '../src/utils';
 import * as pubsubManager from '../src/pubsub-manager';
 import * as revalidatorManager from '../src/revalidator-manager';
 import { clearAllTimeouts } from '../src/timeout-wheel';
@@ -77,6 +76,7 @@ describe('Cache Manager', () => {
     it('should generate a cache key for basic GET request with sorted hashed headers', () => {
       const key = generateCacheKey({
         method: 'GET',
+        url: 'https://api.example.com/data',
         headers: new Headers({
           'Content-Type': 'application/json',
           'Accept-Encoding': 'gzip, deflate, br',
@@ -84,12 +84,12 @@ describe('Cache Manager', () => {
         }),
       } as never);
 
-      expect(key).toContain('GET||same-origin|1910039066|');
+      expect(key).toContain(
+        'GET|httpsapiexamplecomdata|same-origin|1530632817',
+      );
     });
 
     it('should generate a cache key with sorted headers', () => {
-      const shallowSerialize = jest.spyOn(utils, 'shallowSerialize');
-
       const key = generateCacheKey({
         url,
         method: 'POST',
@@ -98,9 +98,6 @@ describe('Cache Manager', () => {
       expect(key).toContain(
         'POST|httpsapiexamplecomdata|same-origin|Content-Typeapplicationjson|',
       );
-      expect(shallowSerialize).toHaveBeenCalledWith({
-        'Content-Type': 'application/json',
-      });
     });
 
     it('should hash the longer stringified body if provided', () => {

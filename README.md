@@ -822,6 +822,9 @@ const { data } = await fetchf('https://api.example.com/', {
       response.config.url,
     );
 
+    // Modify config for the upcoming retry request
+    response.config.headers['Authorization'] = 'Bearer your-new-token';
+
     // Log error details for failed attempts
     if (response.error) {
       console.warn(
@@ -846,10 +849,10 @@ The following options are available for configuring interceptors in the `fetchff
 
 - **`onRequest(config) => config`**:  
   Type: `RequestInterceptor | RequestInterceptor[]`  
-  A function or an array of functions that are invoked before sending a request. Each function receives the request configuration object as its argument, allowing you to modify request parameters, headers, or other settings.  
+  A function or an array of functions that are invoked before sending a request. Each function receives the request configuration object as its argument, allowing you to modify request parameters, headers, or other settings.
   _Default:_ `undefined` (no modification).
 
-- **`onResponse(response) => responsee`**:  
+- **`onResponse(response) => response`**:  
   Type: `ResponseInterceptor | ResponseInterceptor[]`  
   A function or an array of functions that are invoked when a response is received. Each function receives the full response object, enabling you to process the response, handle status codes, or parse data as needed.  
   _Default:_ `undefined` (no modification).
@@ -859,10 +862,12 @@ The following options are available for configuring interceptors in the `fetchff
   A function or an array of functions that handle errors when a request fails. Each function receives the error and request configuration as arguments, allowing you to implement custom error handling logic or logging.  
   _Default:_ `undefined` (no modification).
 
-- **`onRetry`**:  
+- **`onRetry(response, attempt) => response`**:  
   Type: `RetryInterceptor | RetryInterceptor[]`  
   A function or an array of functions that are invoked before each retry attempt. Each function receives the response object (containing error information) and the current attempt number as arguments, allowing you to implement custom retry logging, monitoring, or conditional retry logic.  
   _Default:_ `undefined` (no retry interception).
+
+All interceptors are asynchronous and can modify the provided config or response objects. You don't have to return a value, but if you do, any returned properties will be merged into the original argument.
 
 ### Interceptor Execution Order
 

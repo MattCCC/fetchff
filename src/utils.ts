@@ -10,8 +10,6 @@ import type {
 // Prevent stack overflow with recursion depth limit
 const MAX_DEPTH = 10;
 
-const dangerousProps = ['__proto__', 'constructor', 'prototype'];
-
 export function isSearchParams(data: unknown): boolean {
   return data instanceof URLSearchParams;
 }
@@ -74,18 +72,14 @@ export function sanitizeObject<T extends Record<string, any>>(obj: T): T {
  * @returns {Object} - A new object with keys sorted in ascending order.
  */
 export function sortObject(obj: Record<string, any>): object {
-  const sortedObj = {} as Record<string, string>;
   const keys = Object.keys(obj);
 
   keys.sort();
 
+  const sortedObj = {} as Record<string, string>;
+
   for (let i = 0, len = keys.length; i < len; i++) {
     const key = keys[i];
-
-    // Skip dangerous property names to prevent prototype pollution
-    if (dangerousProps.includes(key)) {
-      continue;
-    }
 
     sortedObj[key] = obj[key];
   }

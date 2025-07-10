@@ -1,6 +1,7 @@
 import { applyInterceptors } from './interceptor-manager';
 import type { FetchResponse, RetryConfig, RetryFunction } from './types';
 import { delayInvocation, timeNow } from './utils';
+import { generateCacheKey } from './cache-manager';
 
 /**
  * Calculates the number of milliseconds to wait before retrying a request,
@@ -86,7 +87,25 @@ export async function withRetry<
   let output: FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>;
 
   while (attempt <= maxRetries) {
-    output = await requestFn(false, attempt); // isStaleRevalidation=false, isFirstAttempt=attempt===0
+    // Subsequent attempts will have output defined, but the first attempt may not.
+    // Let's apply onRetry interceptor and regenerate cache key if ot really changes.
+    if (attempt > 0 && output!) {
+      const cfg = output.config;
+      const onRetry = cfg.onRetry;
+
+      if (onRetry) {
+        await applyInterceptors(onRetry, output, attempt);
+
+        // If the key was automatically generated, we need to regenerate it as config may change.
+        // We don't detect whether config changed for performance reasons.
+        if (cfg._isAutoKey) {
+          cfg._prevKey = cfg.cacheKey as string;
+          cfg.cacheKey = generateCacheKey(cfg, false);
+        }
+      }
+    }
+
+    output = await requestFn(true, attempt); // isStaleRevalidation=false, isFirstAttempt=attempt===0
     const error = output.error;
 
     // Check if we should retry based on successful response
@@ -95,10 +114,6 @@ export async function withRetry<
         const shouldRetryResult = await shouldRetry(output, attempt);
 
         if (shouldRetryResult) {
-          const onRetry = output.config.onRetry;
-
-          applyInterceptors(onRetry, output, attempt);
-
           await delayInvocation(waitTime);
           waitTime *= backoff || 1;
           waitTime = Math.min(waitTime, maxDelay || waitTime);
@@ -133,12 +148,6 @@ export async function withRetry<
       if (retryAfterMs !== null) {
         waitTime = retryAfterMs;
       }
-    }
-
-    const onRetry = output.config.onRetry;
-
-    if (onRetry) {
-      applyInterceptors(onRetry, output, attempt);
     }
 
     await delayInvocation(waitTime);
@@ -199,12 +208,11 @@ export async function getShouldStopRetrying<
   if (shouldRetry) {
     const result = await shouldRetry(output, attempt);
     customDecision = result;
-  }
 
-  // Decision cascade:
-  if (customDecision !== null) {
-    // shouldRetry explicitly says retry or not
-    return !customDecision;
+    // Decision cascade:
+    if (customDecision !== null) {
+      return !customDecision;
+    }
   }
 
   return !(retryOn || []).includes(output.error?.status ?? 0);

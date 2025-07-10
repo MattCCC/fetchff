@@ -1,7 +1,7 @@
-import { buildConfig } from '../src/config-handler';
+import { buildFetcherConfig } from '../src/config-handler';
 import { GET, CONTENT_TYPE } from '../src/constants';
 
-describe('buildConfig() with native fetch()', () => {
+describe('buildFetcherConfig() with native fetch()', () => {
   const contentTypeValue = 'application/json;charset=utf-8';
   const headers = {
     Accept: 'application/json, text/plain, */*',
@@ -10,13 +10,13 @@ describe('buildConfig() with native fetch()', () => {
   };
 
   it('should not differ when the same request is made', () => {
-    const result = buildConfig('https://example.com/api', {
+    const result = buildFetcherConfig('https://example.com/api', {
       method: 'GET',
       data: { foo: 'bar' },
       baseURL: 'abc',
     });
 
-    const result2 = buildConfig('https://example.com/api', {
+    const result2 = buildFetcherConfig('https://example.com/api', {
       method: 'GET',
       data: { foo: 'bar' },
       baseURL: 'abc',
@@ -26,7 +26,7 @@ describe('buildConfig() with native fetch()', () => {
   });
 
   it('should handle GET requests correctly', () => {
-    const result = buildConfig('https://example.com/api', {
+    const result = buildFetcherConfig('https://example.com/api', {
       method: 'GET',
       headers,
       params: { foo: 'bar' },
@@ -40,7 +40,7 @@ describe('buildConfig() with native fetch()', () => {
   });
 
   it('should handle POST requests correctly', () => {
-    const result = buildConfig('https://example.com/api', {
+    const result = buildFetcherConfig('https://example.com/api', {
       method: 'POST',
       data: { foo: 'bar' },
       headers,
@@ -55,7 +55,7 @@ describe('buildConfig() with native fetch()', () => {
   });
 
   it('should handle PUT requests correctly', () => {
-    const result = buildConfig('https://example.com/api', {
+    const result = buildFetcherConfig('https://example.com/api', {
       method: 'PUT',
       data: { foo: 'bar' },
       headers,
@@ -70,7 +70,7 @@ describe('buildConfig() with native fetch()', () => {
   });
 
   it('should handle DELETE requests correctly', () => {
-    const result = buildConfig('https://example.com/api', {
+    const result = buildFetcherConfig('https://example.com/api', {
       method: 'DELETE',
       data: { foo: 'bar' },
       headers,
@@ -94,7 +94,7 @@ describe('buildConfig() with native fetch()', () => {
       ...{ 'X-CustomHeader': 'Some token' },
     };
 
-    const result = buildConfig('https://example.com/api', {
+    const result = buildFetcherConfig('https://example.com/api', {
       ...mergedConfig,
       method: 'POST',
       data: { additional: 'info' },
@@ -113,7 +113,7 @@ describe('buildConfig() with native fetch()', () => {
   });
 
   it('should handle empty data and config', () => {
-    const result = buildConfig('https://example.com/api', {
+    const result = buildFetcherConfig('https://example.com/api', {
       method: 'POST',
       data: null,
     });
@@ -126,7 +126,7 @@ describe('buildConfig() with native fetch()', () => {
   });
 
   it('should handle data as string', () => {
-    const result = buildConfig('https://example.com/api', {
+    const result = buildFetcherConfig('https://example.com/api', {
       method: 'POST',
       data: 'rawData',
     });
@@ -139,7 +139,7 @@ describe('buildConfig() with native fetch()', () => {
   });
 
   it('should correctly append query params for GET-alike methods', () => {
-    const result = buildConfig('https://example.com/api', {
+    const result = buildFetcherConfig('https://example.com/api', {
       method: 'HEAD',
       params: { foo: [1, 2] },
     });
@@ -151,7 +151,7 @@ describe('buildConfig() with native fetch()', () => {
   });
 
   it('should handle POST with query params in config', () => {
-    const result = buildConfig('https://example.com/api', {
+    const result = buildFetcherConfig('https://example.com/api', {
       method: 'POST',
       data: { additional: 'info' },
       params: { foo: 'bar' },
@@ -165,7 +165,7 @@ describe('buildConfig() with native fetch()', () => {
   });
 
   it('should append credentials if flag is used', () => {
-    const result = buildConfig('https://example.com/api', {
+    const result = buildFetcherConfig('https://example.com/api', {
       method: 'POST',
       data: null,
       withCredentials: true,
@@ -180,7 +180,7 @@ describe('buildConfig() with native fetch()', () => {
   });
 
   it('should not append query params to POST requests if body is set as data', () => {
-    const result = buildConfig('https://example.com/api', {
+    const result = buildFetcherConfig('https://example.com/api', {
       method: 'POST',
       data: { foo: 'bar' },
     });
@@ -193,7 +193,7 @@ describe('buildConfig() with native fetch()', () => {
   });
 
   it('should not append body nor data to GET requests', () => {
-    const result = buildConfig('https://example.com/api', {
+    const result = buildFetcherConfig('https://example.com/api', {
       method: 'GET',
       data: { foo: 'bar' },
       body: { additional: 'info' },
@@ -236,7 +236,7 @@ describe('request() Content-Type', () => {
           ? 'should set Content-Type when body is provided or method requires it'
           : 'should not set Content-Type when no body is provided for DELETE or PUT',
         () => {
-          const result = buildConfig(apiUrl, {
+          const result = buildFetcherConfig(apiUrl, {
             method,
             body,
             headers,
@@ -259,7 +259,7 @@ describe('request() Content-Type', () => {
     (method) => {
       it(`should keep custom Content-Type for ${method} method`, () => {
         const customContentType = 'application/x-www-form-urlencoded';
-        const result = buildConfig(apiUrl, {
+        const result = buildFetcherConfig(apiUrl, {
           method,
           headers: { 'Content-Type': customContentType },
         });

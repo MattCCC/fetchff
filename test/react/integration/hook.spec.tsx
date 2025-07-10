@@ -282,8 +282,10 @@ describe('React Integration Tests', () => {
       );
 
       // POST requests should NOT auto-trigger
-      expect(screen.getByTestId('loading')).toHaveTextContent('Not Loading');
-      expect(screen.getByTestId('data')).toHaveTextContent('No Data');
+      await waitFor(() => {
+        expect(screen.getByTestId('loading')).toHaveTextContent('Not Loading');
+        expect(screen.getByTestId('data')).toHaveTextContent('No Data');
+      });
 
       // Click refetch
       fireEvent.click(screen.getByTestId('refetch'));
@@ -334,11 +336,13 @@ describe('React Integration Tests', () => {
       );
 
       // Should not make request when immediate is false
-      expect(screen.getByTestId('switch-loading')).toHaveTextContent(
-        'Not Loading',
-      );
-      expect(screen.getByTestId('switch-data')).toHaveTextContent('No Data');
-      expect(global.fetch).not.toHaveBeenCalled();
+      await waitFor(() => {
+        expect(screen.getByTestId('switch-loading')).toHaveTextContent(
+          'Not Loading',
+        );
+        expect(screen.getByTestId('switch-data')).toHaveTextContent('No Data');
+        expect(global.fetch).not.toHaveBeenCalled();
+      });
 
       // Switch to immediate: true
       rerender(<ImmediateSwitchComponent immediate={true} />);
@@ -352,6 +356,7 @@ describe('React Integration Tests', () => {
 
       expect(global.fetch).toHaveBeenCalledTimes(1);
     });
+
     it('should handle URL path parameters', async () => {
       mockFetchResponse('/api/users/123/posts', {
         body: {

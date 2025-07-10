@@ -20,6 +20,7 @@ import {
   isJSONSerializable,
   isSlowConnection,
   isAbsoluteUrl,
+  sanitizeObject,
 } from './utils';
 
 const defaultTimeoutMs = (isSlowConnection() ? 60 : 30) * 1000;
@@ -60,9 +61,20 @@ export const defaultConfig: RequestConfig = {
 export function setDefaultConfig(
   customConfig: Partial<RequestConfig>,
 ): Partial<RequestConfig> {
-  Object.assign(defaultConfig, customConfig);
+  const sanitized = sanitizeObject(customConfig);
+
+  Object.assign(defaultConfig, sanitized);
 
   return defaultConfig;
+}
+
+/**
+ * Returns a shallow copy of the current default configuration.
+ *
+ * @returns {RequestConfig} - The current default configuration.
+ */
+export function getDefaultConfig(): RequestConfig {
+  return { ...defaultConfig };
 }
 
 /**
@@ -72,7 +84,26 @@ export function setDefaultConfig(
  * @param {RequestConfig} requestConfig - Request config passed when making the request
  * @returns {FetcherConfig} - Provider's instance
  */
-export function buildConfig(
+export function buildConfig<ResponseData, RequestBody, QueryParams, PathParams>(
+  url: string,
+  reqConfig: RequestConfig<
+    ResponseData,
+    QueryParams,
+    PathParams,
+    RequestBody
+  > | null,
+): RequestConfig<ResponseData, QueryParams, PathParams, RequestBody> {
+  if (!reqConfig) {
+    return buildFetcherConfig(url, defaultConfig);
+  }
+
+  const sanitized = sanitizeObject(reqConfig);
+  const merged = mergeConfigs(defaultConfig, sanitized);
+
+  return buildFetcherConfig(url, merged);
+}
+
+export function buildFetcherConfig(
   url: string,
   requestConfig: RequestConfig,
 ): RequestConfig {

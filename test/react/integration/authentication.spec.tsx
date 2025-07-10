@@ -232,6 +232,13 @@ describe('Authentication Integration Tests', () => {
               return false;
             },
           },
+          onRetry(response) {
+            // Update headers with new access token on retry
+            response.config.headers = {
+              ...response.config.headers,
+              Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
+            };
+          },
         });
 
         return (

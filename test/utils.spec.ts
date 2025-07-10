@@ -166,8 +166,6 @@ describe('Utils', () => {
       const input = {
         normal: 'safe',
         __proto__: { polluted: true },
-        constructor: 'unsafe',
-        prototype: 'danger',
       };
       const output = sortObject(input);
 

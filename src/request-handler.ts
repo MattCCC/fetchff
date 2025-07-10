@@ -10,7 +10,7 @@ import type {
 } from './types/api-handler';
 import { applyInterceptors } from './interceptor-manager';
 import { ResponseError } from './errors/response-error';
-import { isObject, sanitizeObject } from './utils';
+import { isObject } from './utils';
 import {
   markInFlight,
   setInFlightPromise,
@@ -18,7 +18,6 @@ import {
 } from './inflight-manager';
 import { parseResponseData, prepareResponse } from './response-parser';
 import { generateCacheKey, getCachedResponse, setCache } from './cache-manager';
-import { buildConfig, defaultConfig, mergeConfigs } from './config-handler';
 import { withRetry } from './retry-handler';
 import { withPolling } from './polling-handler';
 import { notifySubscribers } from './pubsub-manager';
@@ -26,6 +25,7 @@ import { addRevalidator } from './revalidator-manager';
 import { handleResponseCache } from './cache-manager';
 import { enhanceError, withErrorHandling } from './error-handler';
 import { FUNCTION } from './constants';
+import { buildConfig } from './config-handler';
 
 const inFlightResponse = {
   isFetching: true,
@@ -64,7 +64,7 @@ export async function fetchf<
     RequestBody
   > | null = null,
 ): Promise<FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>> {
-  const fetcherConfig = buildFinalConfig<
+  const fetcherConfig = buildConfig<
     ResponseData,
     RequestBody,
     QueryParams,
@@ -134,23 +134,28 @@ export async function fetchf<
     // If cache key is specified, we will handle optimistic updates
     // and mark the request as in-flight, so to catch "fetching" state.
     // This is useful for Optimistic UI updates (e.g., showing loading spinners).
-    if (_cacheKey && !isStaleRevalidation && !attempt) {
-      if (staleTime) {
-        const existingCache = getCachedResponse(
-          _cacheKey,
-          cacheTime,
-          fetcherConfig,
-        );
+    if (!attempt) {
+      if (_cacheKey && !isStaleRevalidation) {
+        if (staleTime) {
+          const existingCache = getCachedResponse(
+            _cacheKey,
+            cacheTime,
+            fetcherConfig,
+          );
 
-        // Don't notify subscribers when cache exists
-        // Let them continue showing stale data during background revalidation
-        if (!existingCache) {
-          setCache(_cacheKey, inFlightResponse, cacheTime, staleTime);
+          // Don't notify subscribers when cache exists
+          // Let them continue showing stale data during background revalidation
+          if (!existingCache) {
+            setCache(_cacheKey, inFlightResponse, cacheTime, staleTime);
+            notifySubscribers(_cacheKey, inFlightResponse);
+          }
+        } else {
           notifySubscribers(_cacheKey, inFlightResponse);
         }
-      } else {
-        notifySubscribers(_cacheKey, inFlightResponse);
       }
+
+      // Attach cache key so that it can be reused in interceptors or in the final response
+      fetcherConfig.cacheKey = _cacheKey;
     }
 
     const url = fetcherConfig.url as string;
@@ -166,15 +171,9 @@ export async function fetchf<
       !!(timeout && (!attempt || resetTimeout)),
     );
 
-    // Attach cache key so that it can be reused in interceptors or in the final response
-    fetcherConfig.cacheKey = _cacheKey;
-
-    // Create a shallow copy to maintain idempotency.
-    // This ensures the original object is not mutated before passing to interceptors or fetchers.
-    const requestConfig =
-      retries > 0 && !fetcherConfig.signal
-        ? { ...fetcherConfig }
-        : fetcherConfig;
+    // Do not create a shallow copy to maintain idempotency here.
+    // This ensures the original object is mutated by interceptors whenever needed, including retry logic.
+    const requestConfig = fetcherConfig;
 
     requestConfig.signal = controller.signal;
 
@@ -318,27 +317,4 @@ export async function fetchf<
   }
 
   return doRequestPromise;
-}
-
-export function buildFinalConfig<
-  ResponseData,
-  RequestBody,
-  QueryParams,
-  PathParams,
->(
-  url: string,
-  reqConfig: RequestConfig<
-    ResponseData,
-    QueryParams,
-    PathParams,
-    RequestBody
-  > | null,
-): RequestConfig<ResponseData, QueryParams, PathParams, RequestBody> {
-  if (!reqConfig) {
-    return buildConfig(url, defaultConfig);
-  }
-
-  const sanitized = sanitizeObject(reqConfig);
-  const merged = mergeConfigs(defaultConfig, sanitized);
-  return buildConfig(url, merged);
 }

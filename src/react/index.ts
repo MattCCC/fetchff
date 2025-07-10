@@ -163,6 +163,7 @@ export function useFetcher<
             staleTime,
             strategy: 'softFail',
             cacheErrors: true,
+            _isAutoKey: !currConfig.cacheKey,
           });
 
           throw fetchPromise;
@@ -261,6 +262,7 @@ export function useFetcher<
         // Ensure that errors are handled gracefully and not thrown by default
         strategy: 'softFail',
         cacheErrors: true,
+        _isAutoKey: !currConfig.cacheKey,
       });
     },
     [cacheTime, dedupeTime],

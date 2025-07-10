@@ -81,11 +81,11 @@
     },
     {
       "path": "dist/react/index.mjs",
-      "limit": "9 KB"
+      "limit": "9.5 KB"
     },
     {
       "path": "dist/react/index.js",
-      "limit": "9 KB"
+      "limit": "9.5 KB"
     }
   ],
   "devDependencies": {

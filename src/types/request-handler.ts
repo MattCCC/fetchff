@@ -267,6 +267,7 @@ export interface RetryConfig<
    * Return `true` to retry, or `false` to stop retrying.
    * @param response - The response object from the failed request.
    * @param attempt - The current retry attempt number (starting from 1).
+   * @returns `true` to retry, `false` to stop retrying, `null` to use default retry logic (retryOn headers check).
    */
   shouldRetry?: RetryFunction<
     ResponseData,
@@ -347,6 +348,18 @@ export interface CacheOptions<
    * @default false
    */
   cacheErrors?: boolean;
+
+  /**
+   * INTERNAL, DO NOT USE.
+   * This is used internally to mark requests that are automatically generated cache keys.
+   */
+  _isAutoKey?: boolean;
+
+  /**
+   * INTERNAL, DO NOT USE.
+   * This is used internally to store the previous cache key.
+   */
+  _prevKey?: string | null;
 }
 
 /**
