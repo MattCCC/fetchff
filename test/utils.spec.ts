@@ -8,9 +8,11 @@ import {
   sanitizeObject,
 } from '../src/utils';
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 (global as any).File = class File {
   name: string;
   type: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   constructor(_parts: any[], name: string, options: any = {}) {
     this.name = name;
     this.type = options.type || '';
