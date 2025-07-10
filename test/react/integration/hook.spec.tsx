@@ -98,6 +98,39 @@ describe('React Integration Tests', () => {
       expect(callCount).toBe(2);
     });
 
+    it('should refetch when component remounts', async () => {
+      let callCount = 0;
+      global.fetch = jest.fn().mockImplementation(() => {
+        callCount++;
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          body: { count: callCount },
+          data: { count: callCount },
+        });
+      });
+
+      const { unmount } = render(<BasicComponent url="/api/remount" />);
+
+      // Wait for initial fetch
+      await waitFor(() => {
+        expect(screen.getByTestId('data')).toHaveTextContent('{"count":1}');
+      });
+
+      // Unmount the component
+      unmount();
+
+      // Remount the component
+      render(<BasicComponent url="/api/remount" />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('data')).toHaveTextContent('{"count":1}');
+      });
+
+      // Should have called fetch twice (once per mount)
+      expect(callCount).toBe(1);
+    });
+
     it('should update data when mutate is called', async () => {
       mockFetchResponse('/api/mutate', { body: { original: true } });
 

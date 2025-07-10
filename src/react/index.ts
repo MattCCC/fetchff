@@ -182,7 +182,9 @@ export function useFetcher<
         : cached.data;
     }
 
-    return DEFAULT_RESULT as unknown as FetchResponse<
+    return (shouldTriggerOnMount
+      ? FETCHING_RESULT
+      : DEFAULT_RESULT) as unknown as FetchResponse<
       ResponseData,
       RequestBody,
       QueryParams,

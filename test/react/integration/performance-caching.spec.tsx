@@ -468,6 +468,229 @@ describe('Performance & Caching Integration Tests', () => {
       // Should have made only 1 request despite 3 components
       expect(requestCount).toBe(1);
     });
+
+    it('should handle multiple components with same cache key efficiently', async () => {
+      jest.useRealTimers();
+
+      const renderCounts = { comp1: 0, comp2: 0, comp3: 0 };
+      let sharedFetchCount = 0;
+
+      global.fetch = jest.fn().mockImplementation(() => {
+        sharedFetchCount++;
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          data: {
+            shared: 'data',
+            fetchCount: sharedFetchCount,
+            timestamp: Date.now(),
+          },
+        });
+      });
+
+      const SharedCacheComponent = ({
+        id,
+      }: {
+        id: keyof typeof renderCounts;
+      }) => {
+        renderCounts[id]++;
+
+        const { data, isLoading } = useFetcher('/api/shared-cache', {
+          cacheTime: 100,
+          dedupeTime: 5000,
+        });
+
+        return (
+          <div data-testid={`shared-${id}`}>
+            <div data-testid={`shared-${id}-renders`}>{renderCounts[id]}</div>
+            <div data-testid={`shared-${id}-data`}>
+              {data ? `${data.shared} (${data.fetchCount})` : 'Loading...'}
+            </div>
+            <div data-testid={`shared-${id}-loading`}>
+              {isLoading ? 'Loading' : 'Loaded'}
+            </div>
+          </div>
+        );
+      };
+
+      render(
+        <div>
+          <SharedCacheComponent id="comp1" />
+          <SharedCacheComponent id="comp2" />
+          <SharedCacheComponent id="comp3" />
+        </div>,
+      );
+
+      // Wait for all components to load
+      await waitFor(() => {
+        expect(screen.getByTestId('shared-comp1-data')).toHaveTextContent(
+          'data (1)',
+        );
+        expect(screen.getByTestId('shared-comp2-data')).toHaveTextContent(
+          'data (1)',
+        );
+        expect(screen.getByTestId('shared-comp3-data')).toHaveTextContent(
+          'data (1)',
+        );
+      });
+
+      // Should have made only 1 fetch despite 3 components
+      expect(sharedFetchCount).toBe(1);
+
+      // Each component should have minimal renders
+      const comp1Renders = parseInt(
+        screen.getByTestId('shared-comp1-renders').textContent || '0',
+      );
+      const comp2Renders = parseInt(
+        screen.getByTestId('shared-comp2-renders').textContent || '0',
+      );
+      const comp3Renders = parseInt(
+        screen.getByTestId('shared-comp3-renders').textContent || '0',
+      );
+
+      // Each component should render minimally (initial + data update)
+      expect(comp1Renders).toBeLessThanOrEqual(3);
+      expect(comp2Renders).toBeLessThanOrEqual(3);
+      expect(comp3Renders).toBeLessThanOrEqual(3);
+      expect(sharedFetchCount).toBe(1);
+
+      // All components should have same data
+      expect(screen.getByTestId('shared-comp1-data').textContent).toBe(
+        screen.getByTestId('shared-comp2-data').textContent,
+      );
+      expect(screen.getByTestId('shared-comp2-data').textContent).toBe(
+        screen.getByTestId('shared-comp3-data').textContent,
+      );
+    });
+
+    it('should only rerender when cache data actually changes', async () => {
+      let renderCount = 0;
+      let fetchCallCount = 0;
+
+      // Mock different responses for each call
+      global.fetch = jest.fn().mockImplementation(() => {
+        fetchCallCount++;
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          data: {
+            message: `Response ${fetchCallCount}`,
+            fetchNumber: fetchCallCount,
+            timestamp: Date.now(),
+          },
+        });
+      });
+
+      const CacheChangeComponent = () => {
+        renderCount++;
+
+        const { data, refetch, mutate } = useFetcher('/api/cache-change-test', {
+          cacheTime: 100,
+          staleTime: 5000,
+        });
+
+        return (
+          <div>
+            <div data-testid="cache-render-count">{renderCount}</div>
+            <div data-testid="cache-fetch-count">{fetchCallCount}</div>
+            <div data-testid="cache-data">
+              {data ? `${data.message} (${data.fetchNumber})` : 'Loading...'}
+            </div>
+
+            <button data-testid="refetch-btn" onClick={() => refetch(true)}>
+              Refetch (Force)
+            </button>
+
+            <button
+              data-testid="refetch-cached-btn"
+              onClick={() => refetch(false)}
+            >
+              Refetch (Use Cache)
+            </button>
+
+            <button
+              data-testid="mutate-btn"
+              onClick={() =>
+                mutate({ message: 'Mutated data', fetchNumber: 999 })
+              }
+            >
+              Mutate Data
+            </button>
+          </div>
+        );
+      };
+
+      render(<CacheChangeComponent />);
+
+      // Wait for initial load
+      await waitFor(() => {
+        expect(screen.getByTestId('cache-data')).toHaveTextContent(
+          'Response 1 (1)',
+        );
+      });
+
+      const getCurrentRenderCount = () =>
+        Number(screen.getByTestId('cache-render-count').textContent || '0');
+      const getCurrentFetchCount = () =>
+        Number(screen.getByTestId('cache-fetch-count').textContent || '0');
+
+      let renderAfterInitialLoad = getCurrentRenderCount();
+
+      // Test 1: Cached refetch should NOT cause rerender (no data change)
+      fireEvent.click(screen.getByTestId('refetch-cached-btn'));
+
+      await act(async () => {
+        jest.advanceTimersByTime(100);
+      });
+
+      expect(getCurrentRenderCount()).toBe(renderAfterInitialLoad); // Same render count
+      expect(getCurrentFetchCount()).toBe(1); // Same fetch count
+
+      // Test 2: Force refetch SHOULD cause rerender (data changes)
+      fireEvent.click(screen.getByTestId('refetch-btn'));
+
+      renderAfterInitialLoad++; // isFetching will increment this
+
+      expect(getCurrentRenderCount()).toBe(renderAfterInitialLoad);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('cache-data')).toHaveTextContent(
+          'Response 2 (2)',
+        );
+      });
+
+      renderAfterInitialLoad++; // Data loaded will increment this
+
+      expect(getCurrentRenderCount()).toBe(renderAfterInitialLoad);
+      expect(getCurrentFetchCount()).toBe(2); // One additional fetch
+
+      let renderAfterRefetch = getCurrentRenderCount();
+
+      // Test 3: Mutate SHOULD cause rerender (data changes)
+      fireEvent.click(screen.getByTestId('mutate-btn'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('cache-data')).toHaveTextContent(
+          'Mutated data (999)',
+        );
+      });
+
+      renderAfterRefetch++; // Mutate will increment this
+
+      expect(getCurrentRenderCount()).toBe(renderAfterRefetch); // One additional render
+      expect(getCurrentFetchCount()).toBe(2); // Same fetch count (mutate doesn't fetch)
+
+      // Final assertion: Renders should be minimal and only when data actually changes
+      // 1. Initial mount and data load (first fetch resolves so "isFetching" is already true as "immediate" is false).
+      // 2. isLoading state change (when refetch is triggered).
+      // 3. Data update after forced refetch (second fetch resolves).
+      // 4. Mutate call (local cache mutation triggers rerender).
+      // 5. Any additional state transitions (such as isLoading toggling back to false).
+      expect(getCurrentRenderCount()).toBeLessThanOrEqual(
+        renderAfterInitialLoad + renderAfterRefetch,
+      );
+      expect(getCurrentRenderCount()).toBeLessThanOrEqual(5);
+    });
   });
 
   describe('Memory Management', () => {
