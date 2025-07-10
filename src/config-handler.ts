@@ -175,8 +175,8 @@ function setContentTypeIfNeeded(
   // Types that should not have Content-Type set (browser handles these)
   if (
     body instanceof FormData || // Browser automatically sets multipart/form-data with boundary
-    body instanceof Blob || // Blob/File already have their own MIME types, don't override
-    body instanceof File ||
+    (typeof Blob !== UNDEFINED && body instanceof Blob) || // Blob/File already have their own MIME types, don't override
+    (typeof File !== UNDEFINED && body instanceof File) ||
     (typeof ReadableStream !== UNDEFINED && body instanceof ReadableStream) // Stream type should be determined by the stream source
   ) {
     return;
