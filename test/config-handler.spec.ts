@@ -216,31 +216,44 @@ describe('request() Content-Type', () => {
     jest.clearAllMocks();
   });
 
-  const headers = {
-    Accept: 'application/json, text/plain, */*',
-    'Accept-Encoding': 'gzip, deflate, br',
-  };
-
   describe.each([
     { method: 'DELETE', body: undefined, expectContentType: false },
-    { method: 'PUT', body: undefined, expectContentType: false },
+    { method: 'DELETE', body: null, expectContentType: false },
     { method: 'DELETE', body: { foo: 'bar' }, expectContentType: true },
+    { method: 'PUT', body: undefined, expectContentType: false },
+    { method: 'PUT', body: null, expectContentType: false },
     { method: 'PUT', body: { foo: 'bar' }, expectContentType: true },
-    { method: 'POST', body: undefined, expectContentType: true },
-    { method: GET, body: undefined, expectContentType: true },
+    { method: 'POST', body: undefined, expectContentType: false },
+    { method: 'POST', body: null, expectContentType: false },
+    { method: 'POST', body: { foo: 'bar' }, expectContentType: true },
+    { method: 'PATCH', body: undefined, expectContentType: false },
+    { method: 'PATCH', body: null, expectContentType: false },
+    { method: 'PATCH', body: { foo: 'bar' }, expectContentType: true },
+    { method: GET, body: undefined, expectContentType: false },
+    { method: GET, body: null, expectContentType: false },
+    { method: GET, body: { foo: 'bar' }, expectContentType: false },
+    { method: 'HEAD', body: undefined, expectContentType: false },
+    { method: 'HEAD', body: null, expectContentType: false },
+    { method: 'HEAD', body: { foo: 'bar' }, expectContentType: false },
   ])(
     '$method request with body: $body',
     ({ method, body, expectContentType }) => {
       it(
         expectContentType
-          ? 'should set Content-Type when body is provided or method requires it'
-          : 'should not set Content-Type when no body is provided for DELETE or PUT',
+          ? 'should set Content-Type when body is provided and method allows it'
+          : 'should not set Content-Type when no body is provided or method does not allow it',
         () => {
-          const result = buildFetcherConfig(apiUrl, {
+          const headers = {
+            Accept: 'application/json, text/plain, */*',
+            'Accept-Encoding': 'gzip, deflate, br',
+          };
+          const cfg = {
             method,
             body,
             headers,
-          });
+          };
+
+          const result = buildFetcherConfig(apiUrl, cfg);
           if (expectContentType) {
             expect(result.headers).toHaveProperty(
               CONTENT_TYPE,
