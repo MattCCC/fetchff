@@ -507,6 +507,9 @@ describe('useFetcher', () => {
     it('should not throw when strategy is not reject', async () => {
       mockFetchResponse(testUrl, { body: testData });
 
+      expect(() => {
+        renderHook(() => useFetcher(testUrl, { strategy: 'softFail' }));
+      }).not.toThrow();
       expect(() => {}).not.toThrow();
 
       await act(async () => {
