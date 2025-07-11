@@ -510,7 +510,6 @@ describe('useFetcher', () => {
       expect(() => {
         renderHook(() => useFetcher(testUrl, { strategy: 'softFail' }));
       }).not.toThrow();
-      expect(() => {}).not.toThrow();
 
       await act(async () => {
         jest.runAllTimers();
