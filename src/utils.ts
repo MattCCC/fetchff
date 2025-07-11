@@ -10,8 +10,6 @@ import type {
 // Prevent stack overflow with recursion depth limit
 const MAX_DEPTH = 10;
 
-const dangerousProps = ['__proto__', 'constructor', 'prototype'];
-
 export function isSearchParams(data: unknown): boolean {
   return data instanceof URLSearchParams;
 }
@@ -54,18 +52,12 @@ export function shallowSerialize(obj: Record<string, any>): string {
  * @param obj - The object to sanitize
  * @returns A new object without dangerous properties
  */
-export function sanitizeObject<T extends Record<string, any>>(
-  obj: T,
-): Partial<T> {
-  if (!obj || typeof obj !== OBJECT || Array.isArray(obj)) {
-    return obj;
-  }
-
+export function sanitizeObject<T extends Record<string, any>>(obj: T): T {
   const safeObj = { ...obj };
 
-  dangerousProps.forEach((prop) => {
-    delete safeObj[prop];
-  });
+  delete safeObj.__proto__;
+  delete (safeObj as any).constructor;
+  delete safeObj.prototype;
 
   return safeObj;
 }
@@ -80,18 +72,14 @@ export function sanitizeObject<T extends Record<string, any>>(
  * @returns {Object} - A new object with keys sorted in ascending order.
  */
 export function sortObject(obj: Record<string, any>): object {
-  const sortedObj = {} as Record<string, string>;
   const keys = Object.keys(obj);
 
   keys.sort();
 
+  const sortedObj = {} as Record<string, string>;
+
   for (let i = 0, len = keys.length; i < len; i++) {
     const key = keys[i];
-
-    // Skip dangerous property names to prevent prototype pollution
-    if (dangerousProps.includes(key)) {
-      continue;
-    }
 
     sortedObj[key] = obj[key];
   }
@@ -227,6 +215,22 @@ export function replaceUrlPathParams(
 }
 
 /**
+ * Determines whether the provided URL is absolute.
+ *
+ * An absolute URL contains a scheme (e.g., "http://", "https://").
+ *
+ * @param url - The URL string to check.
+ * @returns `true` if the URL is absolute, otherwise `false`.
+ */
+export function isAbsoluteUrl(url: string): boolean {
+  return url.includes('://');
+}
+
+export const timeNow = () => Date.now();
+
+export const noop = () => {};
+
+/**
  * Checks if a value is JSON serializable.
  *
  * JSON serializable values include:
@@ -241,7 +245,7 @@ export function replaceUrlPathParams(
 export function isJSONSerializable(value: any): boolean {
   const t = typeof value;
 
-  if (t === UNDEFINED || value === null) {
+  if (value === undefined || value === null) {
     return false;
   }
 
@@ -261,7 +265,7 @@ export function isJSONSerializable(value: any): boolean {
     return false;
   }
 
-  if (value instanceof Date) {
+  if (value instanceof Date || isSearchParams(value)) {
     return false;
   }
 
@@ -304,12 +308,7 @@ export function flattenData(data: any, depth = 0): any {
     return data;
   }
 
-  if (
-    data &&
-    isObject(data) &&
-    typeof data.data !== UNDEFINED &&
-    Object.keys(data).length === 1
-  ) {
+  if (data && isObject(data) && typeof data.data !== UNDEFINED) {
     return flattenData(data.data, depth + 1);
   }
 
@@ -351,3 +350,30 @@ export function processHeaders(
 
   return headersObject;
 }
+
+/**
+ * Determines if the current environment is a browser.
+ *
+ * @returns {boolean} - True if running in a browser environment, false otherwise.
+ */
+export function isBrowser(): boolean {
+  // For node and and some mobile frameworks like React Native, `add/removeEventListener` doesn't exist on window!
+  return (
+    typeof window !== UNDEFINED && typeof window.addEventListener === FUNCTION
+  );
+}
+
+/**
+ * Detects if the user is on a slow network connection
+ * @returns {boolean} True if connection is slow, false otherwise or if detection unavailable
+ */
+export const isSlowConnection = (): boolean => {
+  // Only works in browser environments
+  if (!isBrowser()) {
+    return false;
+  }
+
+  const conn = navigator && (navigator as any).connection;
+
+  return conn && ['slow-2g', '2g', '3g'].includes(conn.effectiveType);
+};

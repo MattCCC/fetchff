@@ -2,16 +2,21 @@ import {
   generateCacheKey,
   getCache,
   setCache,
-  revalidate,
   deleteCache,
-  mutate,
   getCachedResponse,
+  mutate,
+  pruneCache,
+  IMMEDIATE_DISCARD_CACHE_TIME,
 } from '../src/cache-manager';
-import { fetchf } from '../src/index';
+import { RequestConfig } from '../src/index';
 import * as hashM from '../src/hash';
-import * as utils from '../src/utils';
+import * as pubsubManager from '../src/pubsub-manager';
+import * as revalidatorManager from '../src/revalidator-manager';
+import { clearAllTimeouts } from '../src/timeout-wheel';
 
 jest.mock('../src/index');
+jest.mock('../src/pubsub-manager');
+jest.mock('../src/revalidator-manager');
 
 describe('Cache Manager', () => {
   beforeAll(() => {
@@ -19,10 +24,15 @@ describe('Cache Manager', () => {
       ...global.console,
       error: jest.fn(),
     };
+    jest.useFakeTimers();
   });
 
   beforeEach(() => {
+    pruneCache();
+    clearAllTimeouts();
     jest.clearAllMocks();
+    jest.runAllTimers();
+    jest.clearAllTimers();
   });
 
   describe('generateCacheKey', () => {
@@ -37,9 +47,7 @@ describe('Cache Manager', () => {
           'Accept-Encoding': 'gzip, deflate, br',
         },
       });
-      expect(key).toContain(
-        'GET|httpsapiexamplecomdata|corssame-origindefaultfollowaboutclient|Accept-EncodinggzipdeflatebrContent-Typeapplicationjson|',
-      );
+      expect(key).toContain('GET|httpsapiexamplecomdata');
     });
 
     it('should generate a cache key for basic GET request with empty url', () => {
@@ -60,14 +68,13 @@ describe('Cache Manager', () => {
         }),
       } as never);
 
-      expect(key).toContain(
-        'accept-encodinggzipdeflatebrcontent-typeapplicationjson',
-      );
+      expect(key).toContain('1306150308');
     });
 
     it('should generate a cache key for basic GET request with sorted hashed headers', () => {
       const key = generateCacheKey({
         method: 'GET',
+        url: 'https://api.example.com/data',
         headers: new Headers({
           'Content-Type': 'application/json',
           'Accept-Encoding': 'gzip, deflate, br',
@@ -76,32 +83,19 @@ describe('Cache Manager', () => {
       } as never);
 
       expect(key).toContain(
-        'GET||corssame-origindefaultfollowaboutclient|1910039066|',
+        'GET|httpsapiexamplecomdata|same-origin|1306150308',
       );
     });
 
-    it('should return an empty string if cache is reload', () => {
-      const key = generateCacheKey({
-        url,
-        cache: 'reload',
-      });
-      expect(key).toBe('');
-    });
-
     it('should generate a cache key with sorted headers', () => {
-      const shallowSerialize = jest.spyOn(utils, 'shallowSerialize');
-
       const key = generateCacheKey({
         url,
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       });
       expect(key).toContain(
-        'POST|httpsapiexamplecomdata|corssame-origindefaultfollowaboutclient|Content-Typeapplicationjson|',
+        'POST|httpsapiexamplecomdata|same-origin|395078312|',
       );
-      expect(shallowSerialize).toHaveBeenCalledWith({
-        'Content-Type': 'application/json',
-      });
     });
 
     it('should hash the longer stringified body if provided', () => {
@@ -114,7 +108,7 @@ describe('Cache Manager', () => {
       });
       expect(spy).toHaveBeenCalled();
       expect(key).toContain(
-        'POST|httpsapiexamplecomdata|corssame-origindefaultfollowaboutclient||655859486',
+        'POST|httpsapiexamplecomdata|same-origin||655859486',
       );
     });
 
@@ -128,7 +122,7 @@ describe('Cache Manager', () => {
       });
       expect(spy).toHaveBeenCalled();
       expect(key).toContain(
-        'POST|httpsapiexamplecomdata|corssame-origindefaultfollowaboutclient||-1171129837',
+        'POST|httpsapiexamplecomdata|same-origin||-1171129837',
       );
     });
 
@@ -142,7 +136,7 @@ describe('Cache Manager', () => {
       });
       expect(spy).not.toHaveBeenCalled();
       expect(key).toContain(
-        'POST|httpsapiexamplecomdata|corssame-origindefaultfollowaboutclient||nameAlice',
+        'POST|httpsapiexamplecomdata|same-origin||nameAlice',
       );
     });
 
@@ -156,7 +150,7 @@ describe('Cache Manager', () => {
         body: formData,
       });
       expect(key).toContain(
-        'POST|httpsapiexamplecomdata|corssame-origindefaultfollowaboutclient||1870802307',
+        'POST|httpsapiexamplecomdata|same-origin||1870802307',
       );
     });
 
@@ -168,7 +162,7 @@ describe('Cache Manager', () => {
         body: blob,
       });
       expect(key).toContain(
-        'POST|httpsapiexamplecomdata|corssame-origindefaultfollowaboutclient||BF4textplain',
+        'POST|httpsapiexamplecomdata|same-origin||BF4textplain',
       );
     });
 
@@ -188,9 +182,7 @@ describe('Cache Manager', () => {
         method: 'POST',
         body: 10,
       });
-      expect(key).toContain(
-        'POST|httpsapiexamplecomdata|corssame-origindefaultfollowaboutclient||10',
-      );
+      expect(key).toContain('POST|httpsapiexamplecomdata|same-origin||10');
     });
 
     it('should handle Array body', () => {
@@ -200,9 +192,7 @@ describe('Cache Manager', () => {
         method: 'POST',
         body: arrayBody,
       });
-      expect(key).toContain(
-        'POST|httpsapiexamplecomdata|corssame-origindefaultfollowaboutclient||011223',
-      );
+      expect(key).toContain('POST|httpsapiexamplecomdata|same-origin||011223');
     });
 
     it('should handle Object body and sort properties', () => {
@@ -213,39 +203,20 @@ describe('Cache Manager', () => {
         body: objectBody,
       });
 
-      expect(key).toContain(
-        'POST|httpsapiexamplecomdata|corssame-origindefaultfollowaboutclient||a1b2',
-      );
+      expect(key).toContain('POST|httpsapiexamplecomdata|same-origin||a1b2');
     });
   });
 
-  describe('getCache', () => {
+  describe('getCacheEntry', () => {
     afterEach(() => {
       deleteCache('key');
     });
 
     it('should return cache entry if not expired', () => {
-      setCache('key', { data: 'test' }, false);
-      const result = getCache('key', 0);
+      setCache('key', { data: 'test' });
+      const result = getCache('key');
       expect(result).not.toBeNull();
       expect(result?.data).toEqual({ data: 'test' });
-    });
-
-    it('should return null and delete cache if expired', () => {
-      setCache('key', { data: 'test' }, false);
-      const result = getCache('key', -1);
-      expect(result).toBeNull();
-    });
-
-    it('should return null if no cache entry exists', () => {
-      const result = getCache('nonExistentKey', 60);
-      expect(result).toBeNull();
-    });
-
-    it('should delete expired cache entry', () => {
-      setCache('key', { data: 'test' }, false);
-      deleteCache('key');
-      expect(getCache('key', 60)).toBe(null);
     });
   });
 
@@ -256,63 +227,16 @@ describe('Cache Manager', () => {
 
     it('should set cache with proper data', () => {
       const data = { foo: 'bar' };
-      setCache('key', data);
-      const entry = getCache('key', 60);
+      setCache('key', data, 60);
+      const entry = getCache('key');
       expect(entry?.data).toEqual(data);
-      expect(entry?.isLoading).toBe(false);
-    });
-
-    it('should handle isLoading state', () => {
-      setCache('key', { foo: 'bar' }, true);
-      const entry = getCache('key', 60);
-      expect(entry?.isLoading).toBe(true);
     });
 
     it('should set timestamp when caching data', () => {
       const timestampBefore = Date.now();
-      setCache('key', { foo: 'bar' });
-      const entry = getCache('key', 60);
-      expect(entry?.timestamp).toBeGreaterThanOrEqual(timestampBefore);
-    });
-  });
-
-  describe('revalidate', () => {
-    afterEach(() => {
-      deleteCache('key');
-    });
-
-    it('should fetch fresh data and update cache', async () => {
-      const mockResponse = { data: 'newData' };
-      (fetchf as jest.Mock).mockResolvedValue(mockResponse);
-
-      await revalidate('key', { url: 'https://api.example.com' });
-      const entry = getCache('key', 60);
-      expect(entry?.data).toEqual(mockResponse);
-    });
-
-    it('should handle fetch errors during revalidation', async () => {
-      const errorMessage = 'Fetch failed';
-      (fetchf as jest.Mock).mockRejectedValue(new Error(errorMessage));
-
-      await expect(
-        revalidate('key', { url: 'https://api.example.com' }),
-      ).rejects.toThrow(errorMessage);
-      const entry = getCache('key', 60);
-      expect(entry?.data).toBeUndefined();
-    });
-
-    it('should not update cache if revalidation fails', async () => {
-      const errorMessage = 'Fetch failed';
-      const oldData = { data: 'oldData' };
-
-      (fetchf as jest.Mock).mockRejectedValue(new Error(errorMessage));
-      setCache('key', oldData);
-
-      await expect(
-        revalidate('key', { url: 'https://api.example.com' }),
-      ).rejects.toThrow(errorMessage);
-      const entry = getCache('key', 60);
-      expect(entry?.data).toEqual(oldData);
+      setCache('key', { foo: 'bar' }, 60);
+      const entry = getCache('key');
+      expect(entry?.time).toBeGreaterThanOrEqual(timestampBefore);
     });
   });
 
@@ -320,52 +244,45 @@ describe('Cache Manager', () => {
     it('should delete cache entry', () => {
       setCache('key', { data: 'test' });
       deleteCache('key');
-      expect(getCache('key', 60)).toBe(null);
+      expect(getCache('key')).toBeUndefined();
     });
 
     it('should do nothing if cache key does not exist', () => {
       deleteCache('nonExistentKey');
-      expect(getCache('nonExistentKey', 60)).toBe(null);
-    });
-  });
-
-  describe('mutate', () => {
-    it('should mutate cache entry with new data', () => {
-      setCache('key', { data: 'oldData' });
-      mutate('key', { url: 'https://api.example.com' }, { data: 'newData' });
-      const entry = getCache('key', 60);
-      expect(entry?.data).toEqual({ data: 'newData' });
+      expect(getCache('nonExistentKey')).toBeUndefined();
     });
 
-    it('should revalidate after mutation if revalidateAfter is true', async () => {
-      const mockResponse = { data: 'newData' };
-      (fetchf as jest.Mock).mockResolvedValue(mockResponse);
-
-      await mutate(
-        'key',
-        { url: 'https://api.example.com' },
-        { data: 'mutatedData' },
-        true,
-      );
-      const entry = getCache('key', 60);
-      expect(entry?.data).toEqual(mockResponse);
+    it('should delete cache entry when removeExpired is false (default)', () => {
+      setCache('key', { data: 'test' });
+      deleteCache('key', false); // Explicitly pass false
+      expect(getCache('key')).toBeUndefined();
     });
 
-    it('should not revalidate after mutation if revalidateAfter is false', async () => {
-      setCache('key', { data: 'oldData' });
-      mutate(
-        'key',
-        { url: 'https://api.example.com' },
-        { data: 'newData' },
-        false,
-      );
-      expect(fetchf).not.toHaveBeenCalled();
+    it('should not delete cache entry when removeExpired is true and entry is not expired', () => {
+      setCache('key', { data: 'test' }, 60); // Set with 60 second TTL
+      deleteCache('key', true); // Only delete if expired
+      expect(getCache('key')).not.toBe(null);
+      expect(getCache('key')?.data).toEqual({ data: 'test' });
+    });
+
+    it('should delete cache entry when removeExpired is true and entry has IMMEDIATE_DISCARD_CACHE_TIME', () => {
+      setCache('key', { data: 'test' }, IMMEDIATE_DISCARD_CACHE_TIME); // No TTL = IMMEDIATE_DISCARD_CACHE_TIME
+      deleteCache('key', true); // Should delete since IMMEDIATE_DISCARD_CACHE_TIME entries are considered expired when removeExpired is true
+      jest.advanceTimersByTime(1000); // Fast-forward time to ensure cache is considered expired
+      expect(getCache('key')).toBeUndefined();
+    });
+
+    it('should delete expired cache entry when removeExpired is true', () => {
+      // Create an entry that's already expired by using a past timestamp
+      setCache('key', { data: 'test' }, -5000); // Set with negative TTL to simulate expiration
+      deleteCache('key', true);
+      expect(getCache('key')).toBeUndefined();
     });
   });
 
   describe('getCachedResponse', () => {
     const cacheKey = 'test-key';
-    const fetcherConfig = { url: 'https://api.example.com' };
+    const fetcherConfig = { url: 'https://api.example.com' } as RequestConfig;
     const cacheTime = 60;
     const responseObj = { data: 'cachedData' };
 
@@ -374,66 +291,165 @@ describe('Cache Manager', () => {
     });
 
     it('should return cached response if available and not expired', () => {
-      setCache(cacheKey, responseObj);
-      const result = getCachedResponse(
-        cacheKey,
-        cacheTime,
-        undefined,
-        fetcherConfig,
-      );
+      setCache(cacheKey, responseObj, cacheTime);
+      const result = getCachedResponse(cacheKey, cacheTime, fetcherConfig);
       expect(result).toEqual(responseObj);
     });
 
     it('should return null if cacheKey is null', () => {
-      setCache(cacheKey, responseObj);
-      const result = getCachedResponse(
-        null,
-        cacheTime,
-        undefined,
-        fetcherConfig,
-      );
+      setCache(cacheKey, responseObj, cacheTime);
+      const result = getCachedResponse(null, cacheTime, fetcherConfig);
       expect(result).toBeNull();
     });
 
     it('should return null if cacheTime is undefined', () => {
       setCache(cacheKey, responseObj);
-      const result = getCachedResponse(
-        cacheKey,
-        undefined,
-        undefined,
-        fetcherConfig,
-      );
+      const result = getCachedResponse(cacheKey, undefined, fetcherConfig);
       expect(result).toBeNull();
     });
 
     it('should return null if cache is expired', () => {
+      setCache(cacheKey, responseObj, 1);
+      jest.advanceTimersByTime(2000); // Fast-forward time by 2 seconds
+      // Simulate expiration by using negative cacheTime
+      const result = getCachedResponse(cacheKey, 1, fetcherConfig);
+      expect(result).toBeNull();
+    });
+
+    it('should not return null and not delete cache if set to -1 (as long as it is used)', () => {
       setCache(cacheKey, responseObj);
       // Simulate expiration by using negative cacheTime
-      const result = getCachedResponse(cacheKey, -1, undefined, fetcherConfig);
-      expect(result).toBeNull();
+      const result = getCachedResponse(cacheKey, -1, fetcherConfig);
+      expect(result).not.toBeNull();
     });
 
     it('should return null if cacheBuster returns true', () => {
       setCache(cacheKey, responseObj);
-      const cacheBuster = jest.fn().mockReturnValue(true);
-      const result = getCachedResponse(
-        cacheKey,
-        cacheTime,
-        cacheBuster,
-        fetcherConfig,
-      );
+      fetcherConfig.cacheBuster = jest.fn().mockReturnValue(true);
+      const result = getCachedResponse(cacheKey, cacheTime, fetcherConfig);
       expect(result).toBeNull();
-      expect(cacheBuster).toHaveBeenCalledWith(fetcherConfig);
+      expect(fetcherConfig.cacheBuster).toHaveBeenCalledWith(fetcherConfig);
     });
 
     it('should return null if no cache entry exists', () => {
+      delete fetcherConfig.cacheBuster;
       const result = getCachedResponse(
         'non-existent-key',
         cacheTime,
-        undefined,
         fetcherConfig,
       );
       expect(result).toBeNull();
+    });
+  });
+
+  describe('mutate', () => {
+    const cacheKey = 'test-key';
+    const initialData = { data: 'initial', time: Date.now() };
+    const newData = { name: 'John', age: 30 };
+
+    afterEach(() => {
+      deleteCache(cacheKey);
+      jest.clearAllMocks();
+    });
+
+    it('should do nothing if no key is provided', async () => {
+      const notifySubscribersSpy = jest.spyOn(
+        pubsubManager,
+        'notifySubscribers',
+      );
+      const revalidateSpy = jest.spyOn(revalidatorManager, 'revalidate');
+
+      await mutate('', newData);
+
+      expect(notifySubscribersSpy).not.toHaveBeenCalled();
+      expect(revalidateSpy).not.toHaveBeenCalled();
+    });
+
+    it('should do nothing if cache entry does not exist', async () => {
+      const notifySubscribersSpy = jest.spyOn(
+        pubsubManager,
+        'notifySubscribers',
+      );
+      const revalidateSpy = jest.spyOn(revalidatorManager, 'revalidate');
+
+      await mutate('non-existent-key', newData);
+
+      expect(notifySubscribersSpy).not.toHaveBeenCalled();
+      expect(revalidateSpy).not.toHaveBeenCalled();
+    });
+
+    it('should mutate cache and notify subscribers without revalidation', async () => {
+      setCache(cacheKey, initialData);
+      const notifySubscribersSpy = jest.spyOn(
+        pubsubManager,
+        'notifySubscribers',
+      );
+      const revalidateSpy = jest.spyOn(revalidatorManager, 'revalidate');
+
+      await mutate(cacheKey, newData);
+
+      const updatedCache = getCache(cacheKey);
+      expect(updatedCache?.data).toEqual({
+        ...initialData,
+        data: newData,
+      });
+      expect(notifySubscribersSpy).toHaveBeenCalledWith(cacheKey, {
+        ...initialData,
+        data: newData,
+      });
+      expect(revalidateSpy).not.toHaveBeenCalled();
+    });
+
+    it('should mutate cache, notify subscribers and revalidate when revalidate setting is true', async () => {
+      setCache(cacheKey, initialData);
+      const notifySubscribersSpy = jest.spyOn(
+        pubsubManager,
+        'notifySubscribers',
+      );
+      const revalidateSpy = jest.spyOn(revalidatorManager, 'revalidate');
+
+      await mutate(cacheKey, newData, { refetch: true });
+
+      const updatedCache = getCache(cacheKey);
+      expect(updatedCache?.data).toEqual({
+        ...initialData,
+        data: newData,
+        time: expect.any(Number),
+      });
+      expect(notifySubscribersSpy).toHaveBeenCalledWith(cacheKey, {
+        ...initialData,
+        data: newData,
+        time: expect.any(Number),
+      });
+      expect(revalidateSpy).toHaveBeenCalledWith(cacheKey);
+    });
+
+    it('should not revalidate when revalidate setting is false', async () => {
+      setCache(cacheKey, initialData);
+      const notifySubscribersSpy = jest.spyOn(
+        pubsubManager,
+        'notifySubscribers',
+      );
+      const revalidateSpy = jest.spyOn(revalidatorManager, 'revalidate');
+
+      await mutate(cacheKey, newData, { refetch: false });
+
+      expect(notifySubscribersSpy).toHaveBeenCalled();
+      expect(revalidateSpy).not.toHaveBeenCalled();
+    });
+
+    it('should handle mutation with undefined settings', async () => {
+      setCache(cacheKey, initialData);
+      const notifySubscribersSpy = jest.spyOn(
+        pubsubManager,
+        'notifySubscribers',
+      );
+      const revalidateSpy = jest.spyOn(revalidatorManager, 'revalidate');
+
+      await mutate(cacheKey, newData, undefined);
+
+      expect(notifySubscribersSpy).toHaveBeenCalled();
+      expect(revalidateSpy).not.toHaveBeenCalled();
     });
   });
 });

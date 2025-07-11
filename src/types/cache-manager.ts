@@ -1,5 +1,6 @@
 export interface CacheEntry<T> {
   data: T;
-  timestamp: number;
-  isLoading: boolean;
+  time: number;
+  stale?: number; // Time in milliseconds when the cache entry is considered stale
+  expiry?: number; // Time in milliseconds when the cache entry expires
 }
