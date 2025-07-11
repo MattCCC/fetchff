@@ -172,7 +172,7 @@ export function useFetcher<
     }
 
     if (cached) {
-      return cached.data.isFetching
+      return cached.data.isFetching && !config.keepPreviousData
         ? (FETCHING_RESULT as unknown as FetchResponse<
             ResponseData,
             RequestBody,

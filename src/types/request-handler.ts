@@ -422,10 +422,18 @@ export interface ExtendedRequestConfig<
    * Whether to automatically run the request as soon as the handler is created.
    * - If `true`, the request is sent immediately (useful for React/Vue hooks).
    * - If `false`, you must call a function to trigger the request manually.
-   * Primarily used in UI integrations (e.g., React/Vue hooks); has no effect for direct fetchf() usage.
+   * Primarily used in UI frameworks (e.g., React/Vue hooks); has no effect for direct fetchf() usage.
    * @default true
    */
   immediate?: boolean;
+
+  /**
+   * If true, keeps the previous data while fetching new data.
+   * Useful for UI frameworks to avoid showing empty/loading states between requests.
+   * Primarily used in UI frameworks (e.g., React/Vue hooks); has no effect for direct fetchf() usage.
+   * @default false
+   */
+  keepPreviousData?: boolean;
 
   /**
    * An object representing dynamic URL path parameters.
