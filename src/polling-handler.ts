@@ -6,7 +6,7 @@ import { delayInvocation } from './utils';
  * pollingInterval is not set, or maxAttempts is reached.
  *
  * @template Output The type of the output returned by the request function.
- * @param doRequestOnce - The function that performs a single request (with retries).
+ * @param requestFn - The function that performs a single request (with retries).
  * @param pollingInterval - Interval in ms between polling attempts.
  * @param shouldStopPolling - Function to determine if polling should stop.
  * @param maxAttempts - Maximum number of polling attempts, default: 0 (unlimited).
@@ -19,7 +19,10 @@ export async function withPolling<
   QueryParams,
   PathParams,
 >(
-  doRequestOnce: () => Promise<
+  requestFn: (
+    isStaleRevalidation?: boolean,
+    attempt?: number,
+  ) => Promise<
     FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>
   >,
   pollingInterval?: ExtendedRequestConfig['pollingInterval'],
@@ -28,7 +31,7 @@ export async function withPolling<
   pollingDelay = 0,
 ): Promise<FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>> {
   if (!pollingInterval) {
-    return doRequestOnce();
+    return requestFn();
   }
 
   let pollingAttempt = 0;
@@ -39,7 +42,7 @@ export async function withPolling<
       await delayInvocation(pollingDelay);
     }
 
-    output = await doRequestOnce();
+    output = await requestFn();
 
     pollingAttempt++;
 

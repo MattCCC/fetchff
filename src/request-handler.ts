@@ -22,7 +22,6 @@ import { withRetry } from './retry-handler';
 import { withPolling } from './polling-handler';
 import { notifySubscribers } from './pubsub-manager';
 import { addRevalidator } from './revalidator-manager';
-import { handleResponseCache } from './cache-manager';
 import { enhanceError, withErrorHandling } from './error-handler';
 import { FUNCTION } from './constants';
 import { buildConfig } from './config-handler';
@@ -247,10 +246,6 @@ export async function fetchf<
       if (onResponse) {
         await applyInterceptors(onResponse, output);
       }
-
-      if (!retries) {
-        handleResponseCache(output, fetcherConfig);
-      }
     } catch (_error) {
       const error = _error as ResponseError<
         ResponseData,
@@ -282,8 +277,9 @@ export async function fetchf<
   const baseRequest =
     retries > 0 ? () => withRetry(doRequestOnce, retryConfig) : doRequestOnce;
 
-  const requestWithErrorHandling = () =>
+  const requestWithErrorHandling = (isStaleRevalidation = false) =>
     withErrorHandling<ResponseData, RequestBody, QueryParams, PathParams>(
+      isStaleRevalidation,
       baseRequest,
       fetcherConfig,
     );
@@ -297,7 +293,7 @@ export async function fetchf<
         fetcherConfig.maxPollingAttempts,
         fetcherConfig.pollingDelay,
       )
-    : withErrorHandling(baseRequest, fetcherConfig);
+    : requestWithErrorHandling();
 
   // If deduplication is enabled, store the in-flight promise immediately
   if (_cacheKey) {
@@ -307,10 +303,10 @@ export async function fetchf<
 
     addRevalidator(
       _cacheKey,
-      doRequestOnce,
+      requestWithErrorHandling,
       undefined,
       staleTime,
-      doRequestOnce,
+      requestWithErrorHandling,
       !!refetchOnFocus,
       !!refetchOnReconnect,
     );

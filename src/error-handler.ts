@@ -19,7 +19,10 @@ export async function withErrorHandling<
   QueryParams = DefaultParams,
   PathParams = DefaultUrlParams,
 >(
-  requestFn: () => Promise<
+  isStaleRevalidation: boolean,
+  requestFn: (
+    isStaleRevalidation: boolean,
+  ) => Promise<
     FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>
   >,
   requestConfig: RequestConfig<
@@ -29,7 +32,7 @@ export async function withErrorHandling<
     RequestBody
   >,
 ): Promise<FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>> {
-  const output = await requestFn();
+  const output = await requestFn(isStaleRevalidation);
   const error = output.error;
 
   if (!error) {
