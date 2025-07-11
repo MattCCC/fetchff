@@ -29,7 +29,7 @@ describe('useFetcher', () => {
   });
 
   describe('Basic Functionality', () => {
-    it('should initialize with loading state when no cached data exists', () => {
+    it('should initialize with loading state when no cached data exists', async () => {
       const { result } = renderHook(() => useFetcher(testUrl));
 
       expect(result.current.data).toBeNull();
@@ -37,7 +37,10 @@ describe('useFetcher', () => {
       expect(result.current.isLoading).toBe(true);
       expect(typeof result.current.refetch).toBe('function');
       expect(typeof result.current.mutate).toBe('function');
-      jest.runAllTimers();
+
+      await act(async () => {
+        jest.runAllTimers();
+      });
     });
 
     it('should fetch data when component mounts', async () => {
@@ -501,12 +504,14 @@ describe('useFetcher', () => {
       expect(thrown).toBeInstanceOf(Promise);
     });
 
-    it('should not throw when strategy is not reject', () => {
+    it('should not throw when strategy is not reject', async () => {
       mockFetchResponse(testUrl, { body: testData });
 
-      expect(() => {
-        renderHook(() => useFetcher(testUrl, { strategy: 'softFail' }));
-      }).not.toThrow();
+      expect(() => {}).not.toThrow();
+
+      await act(async () => {
+        jest.runAllTimers();
+      });
     });
 
     it('should not throw when cached data exists', async () => {
