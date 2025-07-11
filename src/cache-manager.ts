@@ -41,9 +41,6 @@ const CACHE_KEY_HEADER_WHITELIST = new Set([
   // Request body metadata
   'content-type', // Affects how the request body is interpreted
 
-  // Request context hints
-  'x-requested-with', // Commonly used to distinguish AJAX requests
-
   // Optional headers
   'referer', // May influence behavior in some APIs
   'origin', // Relevant in CORS or tenant-specific APIs
