@@ -46,28 +46,31 @@ export const decrementRef = (
   // If the current reference count is less than 2, we can consider deleting the global cache entry
   // The infinite cache time is a special case where we never delete the cache entry unless the reference count drops to zero.
   // This allows for long-lived cache entries that are only deleted when explicitly no longer needed.
-  if (newCount <= 0 && cacheTime && cacheTime === INFINITE_CACHE_TIME) {
+  if (newCount <= 0) {
     refs.delete(key);
 
-    // Abort any ongoing requests associated with this cache key
-    abortRequest(
-      key,
-      new DOMException('Request to ' + url + ' aborted', 'AbortError'),
-    );
+    if (cacheTime && cacheTime === INFINITE_CACHE_TIME) {
+      // Delay to ensure all operations are complete before deletion
+      addTimeout(
+        'r:' + key,
+        () => {
+          // Abort any ongoing requests associated with this cache key
+          abortRequest(
+            key,
+            new DOMException('Request to ' + url + ' aborted', 'AbortError'),
+          );
 
-    addTimeout(
-      'r:' + key,
-      () => {
-        // Check if the reference count is still zero before deleting the cache as it might have been incremented again
-        // This is to ensure that if another increment happens during the timeout, we don't delete the cache prematurely
-        // This is particularly useful in scenarios where multiple components might be using the same cache
-        // entry and we want to avoid unnecessary cache deletions.
-        if (!getRefCount(key)) {
-          deleteCache(key, true);
-        }
-      },
-      dedupeTime ?? DEFAULT_DEDUPE_TIME_MS,
-    ); // Delay to ensure all operations are complete before deletion
+          // Check if the reference count is still zero before deleting the cache as it might have been incremented again
+          // This is to ensure that if another increment happens during the timeout, we don't delete the cache prematurely
+          // This is particularly useful in scenarios where multiple components might be using the same cache
+          // entry and we want to avoid unnecessary cache deletions.
+          if (!getRefCount(key)) {
+            deleteCache(key, true);
+          }
+        },
+        dedupeTime ?? DEFAULT_DEDUPE_TIME_MS,
+      );
+    }
   } else {
     refs.set(key, newCount);
   }

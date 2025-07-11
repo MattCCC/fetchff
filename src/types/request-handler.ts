@@ -290,7 +290,7 @@ export interface CacheOptions<
    * Time in seconds after which the cache entry is removed.
    * This is the time to live (TTL) for the cache entry.
    * - Set to `-1` to remove cache as soon as consumer is not using the data (e.g., a component unmounts), it is deleted from cache.
-   * - Set to `0` to immediate discard of cache. The cache is immediately discarded, forces fetch every time.
+   * - Set to `0` to immediately discard of cache. The cache is immediately discarded, forces fetch every time.
    * - Set to `undefined` to disable cache (no cache).
    *
    * @default undefined (no cache)

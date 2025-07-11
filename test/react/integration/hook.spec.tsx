@@ -9,6 +9,7 @@ import {
   fireEvent,
   waitFor,
   act,
+  cleanup,
 } from '@testing-library/react';
 import { useFetcher } from '../../../src/react/index';
 import {
@@ -28,6 +29,7 @@ import { generateCacheKey } from 'fetchff/cache-manager';
 import { buildConfig } from 'fetchff/config-handler';
 import { getRefCount, getRefs } from 'fetchff/react/cache-ref';
 import React from 'react';
+import { clearAllTimeouts } from '../../../src/timeout-wheel';
 
 describe('React Integration Tests', () => {
   beforeEach(() => {
@@ -37,7 +39,9 @@ describe('React Integration Tests', () => {
   afterEach(() => {
     jest.useRealTimers();
     jest.resetAllMocks();
+    clearAllTimeouts();
     clearMockResponses();
+    jest.clearAllTimers();
   });
 
   describe('Basic Functionality', () => {
@@ -152,6 +156,8 @@ describe('React Integration Tests', () => {
           '{"updated":true}',
         );
       });
+
+      cleanup();
     });
   });
 
@@ -1404,12 +1410,12 @@ describe('React Integration Tests', () => {
   });
 
   describe('Request Cancellation', () => {
-    it('should cancel in-flight requests when component unmounts', async () => {
+    it('should abort in-flight requests when component unmounts', async () => {
       let abortSignal: AbortSignal | null = null;
       // ✅ Mock that captures signal and responds to abort
       global.fetch = jest.fn().mockImplementation((url, options) => {
         abortSignal = options?.signal;
-        return createAbortableFetchMock(1000)(url, options);
+        return createAbortableFetchMock(6000)(url, options);
       });
 
       const { unmount } = render(<BasicComponent url="/api/slow" />);
@@ -1421,6 +1427,8 @@ describe('React Integration Tests', () => {
 
       // Unmount immediately (synchronously)
       unmount();
+
+      jest.advanceTimersByTime(3000); // Advance time to simulate dedupe time
 
       // Check that abort signal was triggered by unmount
       expect((abortSignal as AbortSignal | null)?.aborted).toBe(true);

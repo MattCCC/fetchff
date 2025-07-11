@@ -123,17 +123,17 @@ export async function abortRequest(
 ): Promise<void> {
   // If the key is not in the queue, there's nothing to remove
   if (key) {
-    // If the request is not yet aborted, abort it with the provided error
-    if (error) {
-      const item = inFlight.get(key);
+    const item = inFlight.get(key);
 
-      if (item) {
+    if (item) {
+      // If the request is not yet aborted, abort it with the provided error
+      if (error) {
         const controller = item[0];
         controller.abort(error);
       }
-    }
 
-    removeInFlight(key);
+      removeInFlight(key);
+    }
   }
 }
 
