@@ -213,9 +213,20 @@ export async function fetchf<
       >;
 
       if (isObject(response)) {
-        // Add more information to response object
+        // Case 1: Native Response instance
         if (typeof Response === FUNCTION && response instanceof Response) {
           response.data = await parseResponseData(response);
+        } else if (fn) {
+          // Case 2: Custom fetcher that returns a response object
+          if (!('data' in response && 'body' in response)) {
+            // Case 3: Raw data, wrap it
+            response = { data: response } as unknown as FetchResponse<
+              ResponseData,
+              RequestBody,
+              QueryParams,
+              PathParams
+            >;
+          }
         }
 
         // Attach config and data to the response

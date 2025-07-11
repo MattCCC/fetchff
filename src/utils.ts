@@ -308,12 +308,7 @@ export function flattenData(data: any, depth = 0): any {
     return data;
   }
 
-  if (
-    data &&
-    isObject(data) &&
-    typeof data.data !== UNDEFINED &&
-    Object.keys(data).length === 1
-  ) {
+  if (data && isObject(data) && typeof data.data !== UNDEFINED) {
     return flattenData(data.data, depth + 1);
   }
 

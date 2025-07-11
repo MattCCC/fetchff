@@ -110,11 +110,11 @@ describe('Request Handler', () => {
         .fn()
         .mockResolvedValue({ data: { foo: 'bar' } });
 
-      const result = await fetchf('http://example.com/api/custom', {
+      const { data } = await fetchf('http://example.com/api/custom', {
         fetcher: customFetcher,
       });
       expect(customFetcher).toHaveBeenCalled();
-      expect(result.data).toEqual({ foo: 'bar' });
+      expect(data).toEqual({ data: { foo: 'bar' } });
     });
 
     it('should abort request on timeout', async () => {
@@ -1525,7 +1525,7 @@ describe('Request Handler', () => {
         method: 'PUT',
       });
 
-      expect(data).toMatchObject(responseMock);
+      expect(data).toMatchObject({ data: responseMock });
     });
 
     it('should handle deeply nested data if data flattening is on', async () => {
