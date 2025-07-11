@@ -1810,6 +1810,7 @@ Error object in `error` looks as follows:
 - **`request`**: Details about the HTTP request that was sent (e.g., URL, method, headers).
 - **`config`**: The configuration object used for the request, including URL, method, headers, and query parameters.
 - **`response`**: The full response object received from the server, including all headers and body.
+- **`isCancelled`**: A boolean property on the error object indicating whether the request was cancelled before completion
 
 </details>
 
