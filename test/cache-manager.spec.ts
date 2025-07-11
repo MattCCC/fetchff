@@ -408,7 +408,7 @@ describe('Cache Manager', () => {
       );
       const revalidateSpy = jest.spyOn(revalidatorManager, 'revalidate');
 
-      await mutate(cacheKey, newData, { revalidate: true });
+      await mutate(cacheKey, newData, { refetch: true });
 
       const updatedCache = getCache(cacheKey);
       expect(updatedCache?.data).toEqual({
@@ -432,7 +432,7 @@ describe('Cache Manager', () => {
       );
       const revalidateSpy = jest.spyOn(revalidatorManager, 'revalidate');
 
-      await mutate(cacheKey, newData, { revalidate: false });
+      await mutate(cacheKey, newData, { refetch: false });
 
       expect(notifySubscribersSpy).toHaveBeenCalled();
       expect(revalidateSpy).not.toHaveBeenCalled();

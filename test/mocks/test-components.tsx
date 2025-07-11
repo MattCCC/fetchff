@@ -173,7 +173,7 @@ export const CacheRetryPollComponent = ({
     {
       cacheTime: 10, // 10 seconds
       dedupeTime: 2, // 2 seconds
-      revalidateOnFocus: true,
+      refetchOnFocus: true,
       pollingInterval: enablePolling ? 1000 : 0,
       retry: {
         retries,

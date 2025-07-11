@@ -388,7 +388,7 @@ export async function mutate<
   _cache.set(key, updatedEntry);
   notifySubscribers(key, updatedResponse);
 
-  if (settings && settings.revalidate) {
+  if (settings && settings.refetch) {
     return await revalidate(key);
   }
 

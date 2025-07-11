@@ -655,7 +655,7 @@ describe('React Integration Tests', () => {
         const { data, isFetching } = useFetcher<TestData>(
           '/api/revalidate-data',
           {
-            revalidateOnFocus: true,
+            refetchOnFocus: true,
             cacheTime: 5,
           },
         );
@@ -785,7 +785,7 @@ describe('React Integration Tests', () => {
           {
             cacheTime: 10,
             dedupeTime: 2,
-            revalidateOnFocus: true,
+            refetchOnFocus: true,
             pollingInterval: 1000,
             retry: { retries: 3, delay: 100, backoff: 2 },
             cacheKey: 'complex-test',

@@ -81,7 +81,7 @@ const SAFE_METHODS = new Set(['GET', 'HEAD', 'get', 'head']);
  * @example
  * ```tsx
  * const { data, error, isLoading, mutate } = useFetcher('/api/data', {
- *   revalidateOnFocus: true,
+ *   refetchOnFocus: true,
  *   cacheTime: 5,
  *   dedupeTime: 2000,
  *   cacheKey: (config) => `custom-cache-key-${config.url}`,

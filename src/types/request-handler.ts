@@ -204,7 +204,7 @@ export type CacheSkipFunction<
 ) => boolean;
 
 export interface MutationSettings {
-  revalidate?: boolean;
+  refetch?: boolean;
 }
 
 /**
@@ -410,13 +410,13 @@ export interface ExtendedRequestConfig<
    * If true, automatically revalidates the request when the window regains focus.
    * @default false
    */
-  revalidateOnFocus?: boolean;
+  refetchOnFocus?: boolean;
 
   /**
    * If true, automatically revalidates the request when the browser regains network connectivity.
    * @default false
    */
-  revalidateOnReconnect?: boolean;
+  refetchOnReconnect?: boolean;
 
   /**
    * Whether to automatically run the request as soon as the handler is created.
@@ -596,6 +596,120 @@ export interface ExtendedRequestConfig<
    * @default null (Logging is disabled)
    */
   logger?: FetcherLogger | null;
+
+  // ==============================================================================
+  // Properties for compatibility with React Query, SWR and other popular libraries
+  // They are marked as deprecated so to ease migration to the new API of fetchff.
+  // ==============================================================================
+
+  /**
+   * @deprecated Use the "immediate" property instead for controlling request execution.
+   * This property is provided for compatibility with React Query.
+   */
+  enabled?: boolean;
+
+  /**
+   * @deprecated Use the "refetchOnFocus" property instead for controlling refetch on window focus.
+   * This property is provided for compatibility with React Query.
+   */
+  refetchOnWindowFocus?: boolean;
+
+  /**
+   * @deprecated Use "onResponse" instead for transforming response data.
+   * This property is provided for compatibility with React Query.
+   */
+  select?: any;
+
+  /**
+   * @deprecated Use "onSuccess" instead for transforming response data.
+   * This property is provided for compatibility with React Query.
+   */
+  onSuccess?: any;
+
+  /**
+   * @deprecated Use "onResponse" or "onError" instead for handling settled requests.
+   * This property is provided for compatibility with React Query.
+   */
+  onSettled?: any;
+
+  /**
+   * @deprecated Use the "strategy: 'reject'" property instead for enabling Suspense mode.
+   * If true, enables Suspense mode for UI frameworks like React.
+   * Suspense mode will throw a promise while loading, allowing components to suspend rendering.
+   * This property is provided for compatibility with React Query.
+   * @default false
+   */
+  suspense?: boolean;
+
+  /**
+   * @deprecated Use "immediate" instead for controlling request execution on component mount.
+   * If true, automatically retries the request when the handler/component mounts.
+   * This property is provided for compatibility with React Query.
+   * @default false
+   */
+  retryOnMount?: boolean;
+
+  /**
+   * @deprecated Use the "pollingInterval" property instead for controlling periodic refetching.
+   * This property is provided for compatibility with React Query.
+   */
+  refetchInterval?: number;
+
+  /**
+   * @deprecated Use "defaultResponse" instead.
+   * If set, provides fallback data to use when the request fails or is loading.
+   * This property is provided for compatibility with React Query.
+   */
+  fallbackData?: any;
+
+  // refetchIntervalInBackground?: boolean;
+  // initialData?: unknown;
+  // isPaused?: boolean;
+  // onLoading?: (data: any) => void;
+  // broadcastChannel?: string;
+  // revalidateOnBlur?: boolean;
+  // revalidateOnVisibilityChange?: boolean;
+  // isLoadingSlow
+
+  // SWR:
+
+  /**
+   * @deprecated Use "dedupeTime" instead for controlling request deduplication.
+   * If set, requests made within this interval (in milliseconds) will be deduplicated.
+   * This property is provided for compatibility with SWR.
+   */
+  dedupingInterval?: number;
+
+  /**
+   * @deprecated Use "pollingInterval" instead for periodic refresh of the request.
+   * If set, enables periodic refresh of the request at the specified interval (in milliseconds).
+   * Useful for polling or auto-refresh scenarios.
+   * This property is provided for compatibility with SWR.
+   */
+  refreshInterval?: number;
+
+  /**
+   * @deprecated Use "pollingInterval" instead for enabling periodic refresh.
+   * If true, enables periodic refresh of the request.
+   * This property is provided for compatibility with SWR.
+   */
+  refreshIntervalEnabled?: boolean;
+
+  /**
+   * @deprecated Use the "refetchOnReconnect" property instead for controlling refetch on reconnect.
+   * This property is provided for compatibility with SWR.
+   */
+  revalidateOnReconnect?: boolean;
+
+  /**
+   * @deprecated Use the "refetchOnFocus" property instead for controlling refetch on window focus.
+   * This property is provided for compatibility with with SWR.
+   */
+  revalidateOnFocus?: boolean;
+
+  // pollingWhenHidden?: boolean;
+  // loadingTimeout?: number;
+  // refreshWhenHidden?: boolean;
 }
 
 export interface FetcherLogger extends Partial<Console> {

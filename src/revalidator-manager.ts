@@ -32,8 +32,8 @@ type RevalidatorEntry = [
   number, // ttl
   number?, // staleTime
   RevalidatorFn?, // bgRevalidator
-  boolean?, // revalidateOnFocus
-  boolean?, // revalidateOnReconnect
+  boolean?, // refetchOnFocus
+  boolean?, // refetchOnReconnect
 ];
 
 const DEFAULT_TTL = 3 * 60 * 1000; // Default TTL of 3 minutes
@@ -51,7 +51,7 @@ const eventHandlers = new Map<string, () => void>();
 
 /**
  * Triggers revalidation for all registered entries based on the given event type.
- * For example, if it's a 'focus' event, it will revalidate entries that have the `revalidateOnFocus` flag set.
+ * For example, if it's a 'focus' event, it will revalidate entries that have the `refetchOnFocus` flag set.
  * Updates the timestamp and invokes the revalidator function for each applicable entry.
  *
  * @param type - The type of event that caused the revalidation (e.g., 'focus' or 'online').
@@ -177,8 +177,8 @@ function removeEventHandler(event: EventType) {
  * @param {number} [ttl] Time to live in milliseconds (default: 3 minutes)
  * @param {number} [staleTime] Time (in seconds) after which the cache entry is considered stale
  * @param {RevalidatorFn} [bgRevalidatorFn] For stale revalidation (does not mark in-flight requests)
- * @param {boolean} [revalidateOnFocus] Whether to revalidate on window focus
- * @param {boolean} [revalidateOnReconnect] Whether to revalidate on network reconnect
+ * @param {boolean} [refetchOnFocus] Whether to revalidate on window focus
+ * @param {boolean} [refetchOnReconnect] Whether to revalidate on network reconnect
  */
 export function addRevalidator(
   key: string,
@@ -186,8 +186,8 @@ export function addRevalidator(
   ttl?: number,
   staleTime?: number,
   bgRevalidatorFn?: RevalidatorFn, // For stale revalidation (does not mark in-flight requests)
-  revalidateOnFocus?: boolean,
-  revalidateOnReconnect?: boolean,
+  refetchOnFocus?: boolean,
+  refetchOnReconnect?: boolean,
 ) {
   revalidators.set(key, [
     revalidatorFn,
@@ -195,15 +195,15 @@ export function addRevalidator(
     ttl ?? DEFAULT_TTL,
     staleTime,
     bgRevalidatorFn,
-    revalidateOnFocus,
-    revalidateOnReconnect,
+    refetchOnFocus,
+    refetchOnReconnect,
   ]);
 
-  if (revalidateOnFocus) {
+  if (refetchOnFocus) {
     addEventHandler('focus');
   }
 
-  if (revalidateOnReconnect) {
+  if (refetchOnReconnect) {
     addEventHandler('online');
   }
 
@@ -233,12 +233,9 @@ export function startRevalidatorCleanup(
     const now = timeNow();
 
     revalidators.forEach(
-      (
-        [, lastUsed, ttl, , , revalidateOnFocus, revalidateOnReconnect],
-        key,
-      ) => {
+      ([, lastUsed, ttl, , , refetchOnFocus, refetchOnReconnect], key) => {
         // Skip focus-only or reconnect-only revalidators to keep them alive
-        if (revalidateOnFocus || revalidateOnReconnect) {
+        if (refetchOnFocus || refetchOnReconnect) {
           return;
         }
 

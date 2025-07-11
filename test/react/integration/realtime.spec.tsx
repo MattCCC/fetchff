@@ -267,7 +267,7 @@ describe('Real-time & WebSocket Integration Tests', () => {
 
       const FocusRevalidationComponent = () => {
         const { data } = useFetcher('/api/content', {
-          revalidateOnFocus: true,
+          refetchOnFocus: true,
           cacheTime: 1000,
         });
 
@@ -318,7 +318,7 @@ describe('Real-time & WebSocket Integration Tests', () => {
 
       const FocusComponent = () => {
         const { data } = useFetcher('/api/status', {
-          revalidateOnFocus: true,
+          refetchOnFocus: true,
           cacheTime: 500,
         });
 

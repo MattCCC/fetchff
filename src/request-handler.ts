@@ -78,8 +78,8 @@ export async function fetchf<
     dedupeTime,
     cacheTime,
     staleTime,
-    revalidateOnFocus,
-    revalidateOnReconnect,
+    refetchOnFocus,
+    refetchOnReconnect,
     pollingInterval = 0,
   } = fetcherConfig;
   const isCacheEnabled = cacheTime !== undefined || staleTime !== undefined;
@@ -90,8 +90,8 @@ export async function fetchf<
     dedupeTime ||
     isCacheEnabled ||
     cancellable ||
-    revalidateOnFocus ||
-    revalidateOnReconnect
+    refetchOnFocus ||
+    refetchOnReconnect
   );
 
   let _cacheKey: string | null = null;
@@ -311,8 +311,8 @@ export async function fetchf<
       undefined,
       staleTime,
       doRequestOnce,
-      !!revalidateOnFocus,
-      !!revalidateOnReconnect,
+      !!refetchOnFocus,
+      !!refetchOnReconnect,
     );
   }
 

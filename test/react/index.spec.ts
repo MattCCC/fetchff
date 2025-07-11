@@ -157,7 +157,7 @@ describe('useFetcher', () => {
 
       // Call mutate with revalidate
       await act(async () => {
-        await result.current.mutate(mutatedData, { revalidate: true });
+        await result.current.mutate(mutatedData, { refetch: true });
       });
 
       // Should show revalidated data

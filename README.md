@@ -547,8 +547,8 @@ You can also use all native [`fetch()` settings](https://developer.mozilla.org/e
 | dedupeTime                 | `number`                                                                                               | `0`               | Time window, in milliseconds, during which identical requests are deduplicated (treated as single request). If set to `0`, deduplication is disabled.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | cacheTime                  | `number`                                                                                               | `undefined`       | Specifies the duration, in seconds, for which a cache entry is considered "fresh." Once this time has passed, the entry is considered stale and may be refreshed with a new request. Set to -1 for indefinite cache. By default no caching.                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | staleTime                  | `number`                                                                                               | `undefined`       | Specifies the duration, in seconds, for which cached data is considered "fresh." During this period, cached data will be returned immediately, but a background revalidation (network request) will be triggered to update the cache. If set to `0`, background revalidation is disabled and revalidation is triggered on every access.                                                                                                                                                                                                                                                                                                                     |
-| revalidateOnFocus          | `boolean`                                                                                              | `false`           | When set to `true`, automatically revalidates (refetches) data when the browser window regains focus. **Note: This bypasses the cache and always makes a fresh network request** to ensure users see the most up-to-date data when they return to your application from another tab or window. Particularly useful for applications that display real-time or frequently changing data, but should be used judiciously to avoid unnecessary network traffic.                                                                                                                                                                                                |
-| revalidateOnReconnect      | `boolean`                                                                                              | `false`           | When set to `true`, automatically revalidates (refetches) data when the browser regains internet connectivity after being offline. **This uses background revalidation to silently update data** without showing loading states to users. Helps ensure your application displays fresh data after network interruptions. Works by listening to the browser's `online` event.                                                                                                                                                                                                                                                                                |
+| refetchOnFocus             | `boolean`                                                                                              | `false`           | When set to `true`, automatically revalidates (refetches) data when the browser window regains focus. **Note: This bypasses the cache and always makes a fresh network request** to ensure users see the most up-to-date data when they return to your application from another tab or window. Particularly useful for applications that display real-time or frequently changing data, but should be used judiciously to avoid unnecessary network traffic.                                                                                                                                                                                                |
+| refetchOnReconnect         | `boolean`                                                                                              | `false`           | When set to `true`, automatically revalidates (refetches) data when the browser regains internet connectivity after being offline. **This uses background revalidation to silently update data** without showing loading states to users. Helps ensure your application displays fresh data after network interruptions. Works by listening to the browser's `online` event.                                                                                                                                                                                                                                                                                |
 | logger                     | `Logger`                                                                                               | `null`            | You can additionally specify logger object with your custom logger to automatically log the errors to the console. It should contain at least `error` and `warn` functions.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | fetcher                    | `CustomFetcher`                                                                                        | `undefined`       | A custom fetcher function. By default, the native `fetch()` is used.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 
@@ -969,22 +969,22 @@ This pattern ensures that:
 
 ### Focus Revalidation
 
-When `revalidateOnFocus` is enabled, requests are automatically triggered when the browser window regains focus (e.g., when users switch back to your tab).
+When `refetchOnFocus` is enabled, requests are automatically triggered when the browser window regains focus (e.g., when users switch back to your tab).
 
 ```typescript
 const { data } = await fetchf('/api/user-profile', {
-  revalidateOnFocus: true, // Revalidate when window gains focus
+  refetchOnFocus: true, // Revalidate when window gains focus
   cacheTime: 300, // Cache for 5 minutes, but still revalidate on focus
 });
 ```
 
 ### Network Reconnection Revalidation
 
-The `revalidateOnReconnect` feature automatically revalidates data when the browser detects that internet connectivity has been restored after being offline.
+The `refetchOnReconnect` feature automatically revalidates data when the browser detects that internet connectivity has been restored after being offline.
 
 ```typescript
 const { data } = await fetchf('/api/notifications', {
-  revalidateOnReconnect: true, // Revalidate when network reconnects
+  refetchOnReconnect: true, // Revalidate when network reconnects
   cacheTime: 600, // Cache for 10 minutes, but revalidate when back online
 });
 ```
@@ -1032,23 +1032,23 @@ import { createApiFetcher } from 'fetchff';
 const api = createApiFetcher({
   baseURL: 'https://api.example.com',
   // Global settings apply to all endpoints
-  revalidateOnFocus: true,
-  revalidateOnReconnect: true,
+  refetchOnFocus: true,
+  refetchOnReconnect: true,
   cacheTime: 300, // Cache for 5 minutes
   staleTime: 60, // Consider fresh for 1 minute, then background revalidate
   endpoints: {
     getCriticalData: {
       url: '/critical-data',
       // Override global settings for specific endpoints
-      revalidateOnFocus: true,
-      revalidateOnReconnect: true,
+      refetchOnFocus: true,
+      refetchOnReconnect: true,
       staleTime: 30, // More aggressive background revalidation for critical data
     },
     getStaticData: {
       url: '/static-data',
       // Disable revalidation for static data
-      revalidateOnFocus: false,
-      revalidateOnReconnect: false,
+      refetchOnFocus: false,
+      refetchOnReconnect: false,
       staleTime: 3600, // Background revalidate after 1 hour
     },
   },
@@ -1079,8 +1079,8 @@ const api = createApiFetcher({
    const { data } = await fetchf('/api/live-data', {
      cacheTime: 300, // Cache for 5 minutes
      staleTime: 30, // Consider fresh for 30 seconds
-     revalidateOnFocus: true, // Also revalidate on focus
-     revalidateOnReconnect: true,
+     refetchOnFocus: true, // Also revalidate on focus
+     refetchOnReconnect: true,
    });
    ```
 
@@ -1091,14 +1091,14 @@ const api = createApiFetcher({
    const { data: notifications } = await fetchf('/api/notifications', {
      cacheTime: 600, // Cache for 10 minutes
      staleTime: 60, // Background revalidate after 1 minute
-     revalidateOnFocus: true,
+     refetchOnFocus: true,
    });
 
    // Good: Less frequent updates for semi-static data
    const { data: userProfile } = await fetchf('/api/profile', {
      cacheTime: 1800, // Cache for 30 minutes
      staleTime: 600, // Background revalidate after 10 minutes
-     revalidateOnReconnect: true,
+     refetchOnReconnect: true,
    });
    ```
 
@@ -1107,16 +1107,16 @@ const api = createApiFetcher({
    ```typescript
    // Good: Enable for critical, changing data
    const { data: userNotifications } = await fetchf('/api/notifications', {
-     revalidateOnFocus: true,
-     revalidateOnReconnect: true,
+     refetchOnFocus: true,
+     refetchOnReconnect: true,
    });
 
    // Avoid: Don't enable for static configuration data
    const { data: appConfig } = await fetchf('/api/config', {
      cacheTime: 3600, // Cache for 1 hour
      staleTime: 0, // Disable background revalidation
-     revalidateOnFocus: false,
-     revalidateOnReconnect: false,
+     refetchOnFocus: false,
+     refetchOnReconnect: false,
    });
    ```
 
@@ -2407,7 +2407,7 @@ const { data, error, isLoading } = useFetcher('/api/data', {
   dedupeTime: 2000,
 
   // Revalidate when window regains focus
-  revalidateOnFocus: true,
+  refetchOnFocus: true,
 
   // Don't fetch immediately (useful for POST requests; React specific)
   immediate: false,
@@ -2632,7 +2632,7 @@ const { data: feed } = useFetcher('/api/feed', { cacheTime: 30 });
 
 ```tsx
 const { data } = useFetcher('/api/critical-data', {
-  revalidateOnFocus: true,
+  refetchOnFocus: true,
 });
 ```
 
@@ -3360,7 +3360,7 @@ const fetchUserDashboard = async (userId: string) => {
     staleTime: 60, // Background revalidate after 1 minute
     cacheKey: `user-dashboard-${userId}`, // Custom cache key
     skipCache: (response) => response.status === 503, // Skip caching on service unavailable
-    revalidateOnFocus: true, // Refresh when user returns to tab
+    refetchOnFocus: true, // Refresh when user returns to tab
   });
 };
 
