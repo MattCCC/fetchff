@@ -4,6 +4,8 @@
 
 // To run this benchmark, use the following command:
 // npx tsx test/benchmarks/concurrent.bench.jsx
+// Remember to install the necessary dependencies first:
+// npm install -D @tanstack/react-query swr
 import { JSDOM } from 'jsdom';
 
 // Setup jsdom environment before React & RTL imports

@@ -161,6 +161,10 @@ export const prepareResponse = <
     response.data = data = flattenData(data);
   }
 
+  if (config.select) {
+    response.data = data = config.select(data);
+  }
+
   const headers = processHeaders(response.headers);
 
   // Native fetch Response extended by extra information

@@ -396,6 +396,14 @@ export interface ExtendedRequestConfig<
   flattenResponse?: boolean;
 
   /**
+   * Function to transform or select a subset of the response data before it is returned.
+   * This is called with the raw response data and should return the transformed data.
+   * @param data - The raw response data.
+   * @returns The transformed or selected data.
+   */
+  select?: <T = ResponseData, R = T>(data: T) => R;
+
+  /**
    * If true, the ongoing previous requests will be automatically cancelled.
    * @default false
    */
@@ -527,8 +535,8 @@ export interface ExtendedRequestConfig<
    * @param attempt - The current retry attempt number (starting from 0).
    */
   onRetry?:
-    | RetryInterceptor<ResponseData, RequestBody, QueryParams, PathParams>
-    | RetryInterceptor<ResponseData, QueryParams_, PathParams, RequestBody>[];
+    | RetryInterceptor<ResponseData, RequestBody, QueryParams_, PathParams>
+    | RetryInterceptor<ResponseData, RequestBody, QueryParams_, PathParams>[];
 
   /**
    * The maximum time (in milliseconds) the request can take before automatically being aborted. 0 seconds disables the timeout.
@@ -614,12 +622,6 @@ export interface ExtendedRequestConfig<
    * This property is provided for compatibility with React Query.
    */
   refetchOnWindowFocus?: boolean;
-
-  /**
-   * @deprecated Use "onResponse" instead for transforming response data.
-   * This property is provided for compatibility with React Query.
-   */
-  select?: any;
 
   /**
    * @deprecated Use "onSuccess" instead for transforming response data.
