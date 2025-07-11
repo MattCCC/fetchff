@@ -1,8 +1,8 @@
 // This is just a raw comparison benchmark for the `useFetcher` hook
-// against the `useSWR` hook from the SWR library (cold starts).
+// against the `useQuery` hook from React Query (cold starts).
 
 // To run this benchmark, use the following command:
-// npx tsx test/benchmarks/swr.bench.jsx
+// npx tsx test/benchmarks/rq.bench.jsx
 import { JSDOM } from 'jsdom';
 import React from 'react';
 
@@ -13,7 +13,12 @@ global.document = dom.window.document;
 
 import Benchmark from 'benchmark';
 import { onComplete } from './utils.mjs';
-import useSWR from 'swr';
+import {
+  QueryClient,
+  QueryClientProvider,
+  useQuery,
+} from '@tanstack/react-query';
+
 import { useFetcher } from '../../src/react/index'; // Ensure this path is correct for your setup
 import { act, cleanup, render } from '@testing-library/react';
 
@@ -31,13 +36,8 @@ global.fetch = () =>
     },
   });
 const fetcher = (url) => fetch(url).then(async (res) => await res.json());
-let i = 0;
 let j = 0;
-function SWRComponent() {
-  i++;
-  const { data } = useSWR('https://localhost/posts/' + i, fetcher, {});
-  return <div data-testid="many-requests">{data} loaded</div>;
-}
+let k = 0;
 
 function FetcherComponent() {
   j++;
@@ -45,23 +45,18 @@ function FetcherComponent() {
   return <div data-testid="many-requests">{data} loaded</div>;
 }
 
+function ReactQueryComponent() {
+  k++;
+  const { data } = useQuery({
+    queryKey: [`https://localhost/posts/${k}`],
+    queryFn: fetcher.bind(null, 'https://localhost/posts/' + k),
+  });
+  return <div data-testid="many-requests">{data} loaded</div>;
+}
+
 const suite = new Benchmark.Suite();
 const settings = {
   defer: true,
-};
-
-const swrBench = {
-  ...settings,
-  fn: async (deferred) => {
-    // Render the component inside benchmarked function
-    await act(async () => {
-      const { unmount } = render(<SWRComponent />);
-      unmount();
-    });
-    cleanup();
-
-    deferred.resolve();
-  },
 };
 
 const fetcherBench = {
@@ -79,9 +74,30 @@ const fetcherBench = {
   },
 };
 
+const queryClient = new QueryClient();
+
+const reactQueryBench = {
+  ...settings,
+  fn: async (deferred) => {
+    // Render the component inside benchmarked function
+    await act(async () => {
+      const { unmount } = render(
+        <QueryClientProvider client={queryClient}>
+          <ReactQueryComponent />
+        </QueryClientProvider>,
+      );
+
+      unmount();
+    });
+
+    cleanup();
+    deferred.resolve();
+  },
+};
+
 suite
   .add('useFetcher', fetcherBench)
-  .add('useSWR', swrBench)
+  .add('useQuery', reactQueryBench)
   .on('start', function () {
     console.log('Time per single mount/fetch/unmount:');
   })

@@ -386,6 +386,7 @@ export interface ExtendedRequestConfig<
 
   /**
    * A default response to return if the request fails
+   * @default undefined
    */
   defaultResponse?: any;
 
