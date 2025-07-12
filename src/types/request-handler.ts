@@ -543,22 +543,27 @@ export interface ExtendedRequestConfig<
    * A function or array of functions to intercept the request before it is sent.
    */
   onRequest?:
-    | RequestInterceptor<RequestBody, ResponseData>
-    | RequestInterceptor<RequestBody, ResponseData>[];
+    | RequestInterceptor<ResponseData, RequestBody, QueryParams_, PathParams>
+    | RequestInterceptor<ResponseData, RequestBody, QueryParams_, PathParams>[];
 
   /**
    * A function or array of functions to intercept the response before it is resolved.
    */
   onResponse?:
-    | ResponseInterceptor<ResponseData>
-    | ResponseInterceptor<ResponseData>[];
+    | ResponseInterceptor<ResponseData, RequestBody, QueryParams_, PathParams>
+    | ResponseInterceptor<
+        ResponseData,
+        RequestBody,
+        QueryParams_,
+        PathParams
+      >[];
 
   /**
    * A function to handle errors that occur during the request or response processing.
    */
   onError?:
-    | ErrorInterceptor<ResponseData, QueryParams_, PathParams, RequestBody>
-    | ErrorInterceptor<ResponseData, QueryParams_, PathParams, RequestBody>[];
+    | ErrorInterceptor<ResponseData, RequestBody, QueryParams_, PathParams>
+    | ErrorInterceptor<ResponseData, RequestBody, QueryParams_, PathParams>[];
 
   /**
    * A function that is called after each failed request attempt, before the retry delay.
@@ -763,11 +768,6 @@ export interface FetcherLogger extends Partial<Console> {
   warn(message?: any, ...optionalParams: any[]): void;
   error?(message?: any, ...optionalParams: any[]): void;
 }
-
-export type RequestHandlerConfig<
-  ResponseData = any,
-  RequestBody = any,
-> = RequestConfig<ResponseData, any, any, RequestBody>;
 
 export type RequestConfig<
   ResponseData = any,

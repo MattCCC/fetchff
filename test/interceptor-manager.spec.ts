@@ -1,17 +1,17 @@
 import { ExtendedResponse } from '../src';
-import type { RequestHandlerConfig } from '../src/types/request-handler';
+import type { RequestConfig } from '../src/types/request-handler';
 import { applyInterceptors } from '../src/interceptor-manager';
 
 describe('applyInterceptors', () => {
   it('should apply single interceptor to request config', async () => {
-    const requestInterceptor = async (config: RequestHandlerConfig) => {
+    const requestInterceptor = async (config: RequestConfig) => {
       return {
         ...config,
         headers: { ...config.headers, Authorization: 'Bearer token' },
       };
     };
 
-    const initialConfig: RequestHandlerConfig = { method: 'GET' };
+    const initialConfig: RequestConfig = { method: 'GET' };
 
     await applyInterceptors(requestInterceptor, initialConfig);
 
@@ -24,14 +24,14 @@ describe('applyInterceptors', () => {
   });
 
   it('should apply array of interceptors in order', async () => {
-    const requestInterceptor1 = async (config: RequestHandlerConfig) => {
+    const requestInterceptor1 = async (config: RequestConfig) => {
       return {
         ...config,
         headers: { ...config.headers, Authorization: 'Bearer token' },
       };
     };
 
-    const requestInterceptor2 = async (config: RequestHandlerConfig) => {
+    const requestInterceptor2 = async (config: RequestConfig) => {
       return {
         ...config,
         headers: { ...config.headers, 'Custom-Header': 'HeaderValue' },
@@ -39,7 +39,7 @@ describe('applyInterceptors', () => {
     };
 
     const interceptors = [requestInterceptor1, requestInterceptor2];
-    const initialConfig: RequestHandlerConfig = { method: 'GET' };
+    const initialConfig: RequestConfig = { method: 'GET' };
 
     await applyInterceptors(interceptors, initialConfig);
 
@@ -54,7 +54,7 @@ describe('applyInterceptors', () => {
 
   it('should pass additional arguments to interceptors', async () => {
     const interceptorWithArgs = async (
-      data: RequestHandlerConfig,
+      data: RequestConfig,
       url: string,
       method: string,
     ) => {
@@ -66,7 +66,7 @@ describe('applyInterceptors', () => {
       };
     };
 
-    const initialConfig: RequestHandlerConfig = { method: 'GET' };
+    const initialConfig: RequestConfig = { method: 'GET' };
 
     await applyInterceptors(
       interceptorWithArgs,
@@ -85,7 +85,7 @@ describe('applyInterceptors', () => {
   });
 
   it('should handle undefined interceptors', async () => {
-    const initialConfig: RequestHandlerConfig = { method: 'GET' };
+    const initialConfig: RequestConfig = { method: 'GET' };
     const originalConfig = { ...initialConfig };
 
     await applyInterceptors(undefined, initialConfig);
@@ -98,7 +98,7 @@ describe('applyInterceptors', () => {
       return undefined;
     };
 
-    const initialConfig: RequestHandlerConfig = { method: 'GET' };
+    const initialConfig: RequestConfig = { method: 'GET' };
     const originalConfig = { ...initialConfig };
 
     await applyInterceptors(interceptorReturningUndefined, initialConfig);
@@ -111,7 +111,7 @@ describe('applyInterceptors', () => {
       return null;
     };
 
-    const initialConfig: RequestHandlerConfig = { method: 'GET' };
+    const initialConfig: RequestConfig = { method: 'GET' };
     const originalConfig = { ...initialConfig };
 
     await applyInterceptors(interceptorReturningNull, initialConfig);
@@ -120,7 +120,7 @@ describe('applyInterceptors', () => {
   });
 
   it('should handle empty array of interceptors', async () => {
-    const initialConfig: RequestHandlerConfig = { method: 'GET' };
+    const initialConfig: RequestConfig = { method: 'GET' };
     const originalConfig = { ...initialConfig };
 
     await applyInterceptors([], initialConfig);
@@ -133,7 +133,7 @@ describe('applyInterceptors', () => {
       return 'invalid return';
     };
 
-    const initialConfig: RequestHandlerConfig = { method: 'GET' };
+    const initialConfig: RequestConfig = { method: 'GET' };
     const originalConfig = { ...initialConfig };
 
     await applyInterceptors(interceptorReturningString, initialConfig);
@@ -160,7 +160,7 @@ describe('applyInterceptors', () => {
       throw new Error('Interceptor Error');
     };
 
-    const initialConfig: RequestHandlerConfig = { method: 'GET' };
+    const initialConfig: RequestConfig = { method: 'GET' };
 
     await expect(
       applyInterceptors(failingInterceptor, initialConfig),
@@ -168,7 +168,7 @@ describe('applyInterceptors', () => {
   });
 
   it('should handle errors in array interceptors', async () => {
-    const workingInterceptor = async (config: RequestHandlerConfig) => {
+    const workingInterceptor = async (config: RequestConfig) => {
       return { ...config, headers: { ...config.headers, Working: 'true' } };
     };
 
@@ -177,7 +177,7 @@ describe('applyInterceptors', () => {
     };
 
     const interceptors = [workingInterceptor, failingInterceptor];
-    const initialConfig: RequestHandlerConfig = { method: 'GET' };
+    const initialConfig: RequestConfig = { method: 'GET' };
 
     await expect(
       applyInterceptors(interceptors, initialConfig),
@@ -237,7 +237,7 @@ describe('applyInterceptors', () => {
   });
 
   it('should handle multiple interceptors with mixed success and failure patterns', async () => {
-    const successInterceptor = async (config: RequestHandlerConfig) => {
+    const successInterceptor = async (config: RequestConfig) => {
       return { ...config, success: true };
     };
 
@@ -249,7 +249,7 @@ describe('applyInterceptors', () => {
       return null;
     };
 
-    const anotherSuccessInterceptor = async (config: RequestHandlerConfig) => {
+    const anotherSuccessInterceptor = async (config: RequestConfig) => {
       return { ...config, finalStep: true };
     };
 
@@ -260,7 +260,7 @@ describe('applyInterceptors', () => {
       anotherSuccessInterceptor,
     ];
 
-    const initialConfig: RequestHandlerConfig = { method: 'GET' };
+    const initialConfig: RequestConfig = { method: 'GET' };
 
     await applyInterceptors(interceptors, initialConfig);
 
