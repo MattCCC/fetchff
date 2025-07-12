@@ -21,7 +21,14 @@
     "noImplicitReturns": true,
     "noImplicitUseStrict": false,
     "noFallthroughCasesInSwitch": true,
-    "lib": ["esnext", "ES2018", "dom"]
+    "lib": ["esnext", "ES2018", "dom"],
+    "baseUrl": ".",
+    "paths": {
+      "react": ["../node_modules/react"],
+      "react-dom": ["../node_modules/react-dom"],
+      "fetchff/*": ["../src/*"],
+      "fetchff": ["../src/index.ts"]
+    }
   },
   "exclude": ["demo", "scripts", "node_modules"]
 }

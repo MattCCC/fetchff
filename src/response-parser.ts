@@ -1,8 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { mutate } from './cache-manager';
 import {
   APPLICATION_CONTENT_TYPE,
   APPLICATION_JSON,
   CONTENT_TYPE,
+  FUNCTION,
   OBJECT,
 } from './constants';
 import {
@@ -14,7 +16,7 @@ import {
   DefaultUrlParams,
   DefaultPayload,
 } from './types';
-import { flattenData, processHeaders } from './utils';
+import { flattenData, isObject, processHeaders } from './utils';
 
 /**
  * Parses the response data based on the Content-Type header.
@@ -22,11 +24,16 @@ import { flattenData, processHeaders } from './utils';
  * @param response - The Response object to parse.
  * @returns A Promise that resolves to the parsed data.
  */
-export async function parseResponseData<ResponseData = DefaultResponse>(
-  response: FetchResponse<ResponseData>,
+export async function parseResponseData<
+  ResponseData = DefaultResponse,
+  RequestBody = DefaultPayload,
+  QueryParams = DefaultParams,
+  PathParams = DefaultUrlParams,
+>(
+  response: FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>,
 ): Promise<any> {
   // Bail early for HEAD requests or status codes, or any requests that never have a body
-  if (!response?.body) {
+  if (!response || !response.body) {
     return null;
   }
 
@@ -83,15 +90,15 @@ export async function parseResponseData<ResponseData = DefaultResponse>(
  * Prepare response object with additional information.
  *
  * @param Response. It may be "null" in case of request being aborted.
- * @param {RequestConfig} requestConfig - Request config
+ * @param {RequestConfig} config - Request config
  * @param error - whether the response is erroneous
- * @returns {FetchResponse<ResponseData>} Response data
+ * @returns {FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>} Response data
  */
 export const prepareResponse = <
   ResponseData = DefaultResponse,
+  RequestBody = DefaultPayload,
   QueryParams = DefaultParams,
   PathParams = DefaultUrlParams,
-  RequestBody = DefaultPayload,
 >(
   response: FetchResponse<
     ResponseData,
@@ -99,20 +106,22 @@ export const prepareResponse = <
     QueryParams,
     PathParams
   > | null,
-  requestConfig: RequestConfig<
-    ResponseData,
-    QueryParams,
-    PathParams,
-    RequestBody
-  >,
+  config: RequestConfig<ResponseData, QueryParams, PathParams, RequestBody>,
   error: ResponseError<
     ResponseData,
+    RequestBody,
     QueryParams,
-    PathParams,
-    RequestBody
+    PathParams
   > | null = null,
 ): FetchResponse<ResponseData, RequestBody, QueryParams, PathParams> => {
-  const defaultResponse = requestConfig.defaultResponse ?? null;
+  const defaultResponse = config.defaultResponse;
+  const cacheKey = config.cacheKey;
+  const mutatator = mutate.bind(null, cacheKey as string) as FetchResponse<
+    ResponseData,
+    RequestBody,
+    QueryParams,
+    PathParams
+  >['mutate'];
 
   // This may happen when request is cancelled.
   if (!response) {
@@ -120,9 +129,11 @@ export const prepareResponse = <
       ok: false,
       // Enhance the response with extra information
       error,
-      data: defaultResponse,
+      data: defaultResponse ?? null,
       headers: null,
-      config: requestConfig,
+      config,
+      mutate: mutatator,
+      isFetching: false,
     } as unknown as FetchResponse<
       ResponseData,
       RequestBody,
@@ -131,50 +142,69 @@ export const prepareResponse = <
     >;
   }
 
+  const isNativeResponse =
+    typeof Response === FUNCTION && response instanceof Response;
+
   let data = response.data;
 
   // Set the default response if the provided data is an empty object
   if (
-    data === undefined ||
-    data === null ||
-    (typeof data === OBJECT && Object.keys(data).length === 0)
+    defaultResponse !== undefined &&
+    (data === undefined ||
+      data === null ||
+      (typeof data === OBJECT && Object.keys(data).length === 0))
   ) {
-    data = defaultResponse;
+    response.data = data = defaultResponse;
   }
 
-  if (requestConfig.flattenResponse) {
-    response.data = flattenData(data);
+  if (config.flattenResponse) {
+    response.data = data = flattenData(data);
+  }
+
+  if (config.select) {
+    response.data = data = config.select(data);
+  }
+
+  const headers = processHeaders(response.headers);
+
+  // Native fetch Response extended by extra information
+  if (isNativeResponse) {
+    return {
+      body: response.body,
+      bodyUsed: response.bodyUsed,
+      ok: response.ok,
+      redirected: response.redirected,
+      type: response.type,
+      url: response.url,
+      status: response.status,
+      statusText: response.statusText,
+
+      // Convert methods to use arrow functions to preserve correct return types
+      blob: () => response.blob(),
+      json: () => response.json(),
+      text: () => response.text(),
+      clone: () => response.clone(),
+      arrayBuffer: () => response.arrayBuffer(),
+      formData: () => response.formData(),
+      bytes: () => response.bytes(),
+
+      // Enhance the response with extra information
+      error,
+      data,
+      headers,
+      config,
+      mutate: mutatator,
+      isFetching: false,
+    };
   }
 
   // If it's a custom fetcher, and it does not return any Response instance, it may have its own internal handler
-  if (!(response instanceof Response)) {
-    return response;
+  if (isObject(response)) {
+    response.error = error;
+    response.headers = headers;
+    response.isFetching = false;
+    response.mutate = mutatator;
   }
 
-  // Native fetch Response extended by extra information
-  return {
-    body: response.body,
-    bodyUsed: response.bodyUsed,
-    ok: response.ok,
-    redirected: response.redirected,
-    type: response.type,
-    url: response.url,
-    status: response.status,
-    statusText: response.statusText,
-
-    // Convert methods to use arrow functions to preserve correct return types
-    blob: () => response.blob(),
-    json: () => response.json(),
-    text: () => response.text(),
-    clone: () => response.clone(),
-    arrayBuffer: () => response.arrayBuffer(),
-    formData: () => response.formData(),
-    bytes: () => response.bytes(),
-
-    // Enhance the response with extra information
-    error,
-    data,
-    headers: processHeaders(response.headers),
-    config: requestConfig,
-  };
+  return response;
 };

@@ -136,11 +136,11 @@ async function example3() {
   }
 
   // Overwrite response of existing endpoint
-  const { data: book1 } = await api.fetchBook<NewBook>(
-    { newBook: true },
+  const { data: book1 } = await api.fetchBook<NewBook, BookQueryParams>({
+    params: { newBook: true },
     // @ts-expect-error should verify that bookId cannot be text
-    { bookId: 'text' },
-  );
+    urlPathParams: { bookId: 'text' },
+  });
 
   // Overwrite response and query params of existing endpoint
   const { data: book11 } = await api.fetchBook<NewBook, NewBookQueryParams>({

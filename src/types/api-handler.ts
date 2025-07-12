@@ -1,10 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type {
   RequestConfig,
-  RequestHandlerConfig,
   FetchResponse,
-  RequestHandlerReturnType,
-  CreatedCustomFetcherInstance,
   DefaultResponse,
   ExtendedRequestConfig,
 } from './request-handler';
@@ -19,7 +16,13 @@ declare const emptyObjectSymbol: unique symbol;
 
 export type EmptyObject = { [emptyObjectSymbol]?: never };
 
-export type DefaultParams = Record<string, unknown>;
+export type DefaultParams =
+  | Record<string, unknown>
+  | URLSearchParams
+  | NameValuePair[]
+  | EmptyObject
+  | null;
+
 export type DefaultUrlParams = Record<string, unknown>;
 export type DefaultPayload = Record<string, any>;
 
@@ -27,6 +30,7 @@ export declare type QueryParams<ParamsType = DefaultParams> =
   | (ParamsType & EmptyObject)
   | URLSearchParams
   | NameValuePair[]
+  | EmptyObject
   | null;
 
 export declare type UrlPathParams<UrlParamsType = DefaultUrlParams> =
@@ -67,11 +71,18 @@ interface EndpointFunction<
   <Resp = never, QueryParams = never, UrlParams = never, RequestBody = never>(
     requestConfig?: ExtendedRequestConfig<
       FallbackValue<Resp, ResponseData>,
+      FallbackValue<Resp, RequestBody, RequestBody_>,
       FinalParams<Resp, QueryParams, QueryParams_>,
-      FinalParams<Resp, UrlParams, PathParams>,
-      FallbackValue<Resp, RequestBody_, RequestBody>
+      FinalParams<Resp, UrlParams, PathParams>
     >,
-  ): Promise<FetchResponse<FallbackValue<Resp, ResponseData>>>;
+  ): Promise<
+    FetchResponse<
+      FallbackValue<Resp, ResponseData>,
+      FallbackValue<Resp, RequestBody, RequestBody_>,
+      FinalParams<Resp, QueryParams, QueryParams_>,
+      FinalParams<Resp, UrlParams, PathParams>
+    >
+  >;
 }
 
 export interface RequestEndpointFunction<EndpointsMethods> {
@@ -81,14 +92,21 @@ export interface RequestEndpointFunction<EndpointsMethods> {
     UrlParams = never,
     RequestBody = never,
   >(
-    endpointName: keyof EndpointsMethods | string,
+    endpointNameOrUrl: keyof EndpointsMethods | string,
     requestConfig?: RequestConfig<
       FinalResponse<ResponseData, DefaultResponse>,
       FinalParams<ResponseData, QueryParams_, QueryParams>,
       FinalParams<ResponseData, UrlParams, UrlPathParams>,
       FallbackValue<ResponseData, DefaultPayload, RequestBody>
     >,
-  ): Promise<FetchResponse<FinalResponse<ResponseData, DefaultResponse>>>;
+  ): Promise<
+    FetchResponse<
+      FinalResponse<ResponseData, DefaultResponse>,
+      FallbackValue<ResponseData, DefaultPayload, RequestBody>,
+      FinalParams<ResponseData, QueryParams_, QueryParams>,
+      FinalParams<ResponseData, UrlParams, UrlPathParams>
+    >
+  >;
 }
 
 /**
@@ -132,9 +150,10 @@ type EndpointsRecord<EndpointsMethods> = {
     : EndpointsMethods[K] extends Endpoint<
           infer ResponseData,
           infer QueryParams,
-          infer UrlPathParams
+          infer UrlPathParams,
+          infer RequestBody
         >
-      ? Endpoint<ResponseData, QueryParams, UrlPathParams> // Method is an Endpoint type
+      ? Endpoint<ResponseData, QueryParams, UrlPathParams, RequestBody> // Method is an Endpoint type
       : EndpointDefaults; // Fallback to default Endpoint type
 };
 
@@ -201,8 +220,6 @@ export type ApiHandlerMethods<
 export type ApiHandlerDefaultMethods<EndpointsMethods> = {
   config: ApiHandlerConfig<EndpointsMethods>;
   endpoints: EndpointsConfig<EndpointsMethods>;
-  requestHandler: RequestHandlerReturnType;
-  getInstance: () => CreatedCustomFetcherInstance | null;
   request: RequestEndpointFunction<EndpointsMethods>;
 };
 
@@ -211,8 +228,7 @@ export type ApiHandlerDefaultMethods<EndpointsMethods> = {
  *
  * @template EndpointsMethods - The object containing endpoint method definitions.
  */
-export interface ApiHandlerConfig<EndpointsMethods>
-  extends RequestHandlerConfig {
+export interface ApiHandlerConfig<EndpointsMethods> extends RequestConfig {
   apiUrl: string;
   endpoints: EndpointsConfig<EndpointsMethods>;
 }

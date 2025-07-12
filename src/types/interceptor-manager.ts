@@ -7,31 +7,56 @@ import type {
 import type {
   DefaultResponse,
   FetchResponse,
-  RequestHandlerConfig,
+  RequestConfig,
   ResponseError,
 } from './request-handler';
 
-export type RequestInterceptor<RequestBody = any, ResponseData = any> = (
-  config: RequestHandlerConfig<ResponseData, RequestBody>,
+export type InterceptorFunction<T, Args extends any[] = any[]> = (
+  object: T,
+  ...args: Args
+) => Promise<T>;
+
+export type RequestInterceptor<
+  ResponseData = DefaultResponse,
+  RequestBody = DefaultPayload,
+  QueryParams = DefaultParams,
+  PathParams = DefaultUrlParams,
+> = (
+  config: RequestConfig<ResponseData, RequestBody, QueryParams, PathParams>,
 ) =>
-  | RequestHandlerConfig<ResponseData, RequestBody>
+  | RequestConfig<ResponseData, RequestBody, QueryParams, PathParams>
   | void
-  | Promise<RequestHandlerConfig<ResponseData, RequestBody>>
+  | Promise<RequestConfig<ResponseData, RequestBody, QueryParams, PathParams>>
   | Promise<void>;
 
-export type ResponseInterceptor<ResponseData = any> = (
-  response: FetchResponse<ResponseData>,
+export type ResponseInterceptor<
+  ResponseData = DefaultResponse,
+  RequestBody = DefaultPayload,
+  QueryParams = DefaultParams,
+  PathParams = DefaultUrlParams,
+> = (
+  response: FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>,
 ) =>
-  | FetchResponse<ResponseData>
+  | FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>
+  | Promise<FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>>
   | void
-  | Promise<FetchResponse<ResponseData>>
   | Promise<void>;
 
 export type ErrorInterceptor<
   ResponseData = DefaultResponse,
+  RequestBody = DefaultPayload,
   QueryParams = DefaultParams,
   PathParams = DefaultUrlParams,
-  RequestBody = DefaultPayload,
 > = (
-  error: ResponseError<ResponseData, QueryParams, PathParams, RequestBody>,
-) => unknown;
+  error: ResponseError<ResponseData, RequestBody, QueryParams, PathParams>,
+) => void | Promise<void>;
+
+export type RetryInterceptor<
+  ResponseData = DefaultResponse,
+  RequestBody = DefaultPayload,
+  QueryParams = DefaultParams,
+  PathParams = DefaultUrlParams,
+> = (
+  response: FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>,
+  retryAttempt: number,
+) => void | Promise<void>;

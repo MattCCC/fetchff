@@ -17,6 +17,13 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "noEmit": true
+    "noEmit": true,
+    "baseUrl": ".",
+    "jsx": "react-jsx",
+    "types": ["node", "jest", "@testing-library/jest-dom"],
+    "paths": {
+      "fetchff/*": ["./src/*"],
+      "fetchff": ["./src/index.ts"]
+    }
   }
 }

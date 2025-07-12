@@ -1,42 +1,59 @@
 import {
-  queueRequest,
-  removeRequestFromQueue,
+  markInFlight as _markInFlight,
+  abortRequest,
   getController,
-} from '../src/queue-manager';
+} from '../src/inflight-manager';
 
 const createKey = (url: string) => url;
+const markInFlight = async (
+  key: string,
+  url: string,
+  timeout: number | undefined,
+  dedupeTime: number = 0,
+  isCancellable: boolean = false,
+  isTimeoutEnabled: boolean = true,
+): Promise<AbortController> => {
+  return _markInFlight(
+    key,
+    url,
+    timeout,
+    dedupeTime,
+    isCancellable,
+    isTimeoutEnabled,
+  );
+};
 
-describe('Request Queue Manager', () => {
+describe('InFlight Request Manager', () => {
   beforeAll(() => {
     jest.useFakeTimers();
   });
 
   it('should add and retrieve a request correctly', async () => {
     const key = createKey('https://example.com');
-    const controller = await queueRequest(key, 'https://example.com', 1000);
+    const controller = await markInFlight(key, 'https://example.com', 1000);
     const retrievedController = await getController(key);
     expect(retrievedController).toBe(controller);
   });
 
   it('should remove a request from the queue', async () => {
     const key = createKey('https://example.com');
-    await queueRequest(key, 'https://example.com', 1000);
-    await removeRequestFromQueue(key);
+    await markInFlight(key, 'https://example.com', 1000);
+    await abortRequest(key);
     const retrievedController = await getController(key);
     expect(retrievedController).toBeUndefined();
   });
 
   it('should handle removing a non-existent request', async () => {
     const key = createKey('https://example.com');
-    await expect(removeRequestFromQueue(key)).resolves.not.toThrow();
+    await expect(abortRequest(key)).resolves.not.toThrow();
   });
 
   it('should handle multiple concurrent requests correctly', async () => {
     const key1 = createKey('https://example1.com');
     const key2 = createKey('https://example2.com');
     const [controller1, controller2] = await Promise.all([
-      queueRequest(key1, 'https://example1.com', 1000),
-      queueRequest(key2, 'https://example2.com', 1000),
+      markInFlight(key1, 'https://example1.com', 1000),
+      markInFlight(key2, 'https://example2.com', 1000),
     ]);
     const [retrievedController1, retrievedController2] = await Promise.all([
       getController(key1),
@@ -44,16 +61,16 @@ describe('Request Queue Manager', () => {
     ]);
     expect(retrievedController1).toBe(controller1);
     expect(retrievedController2).toBe(controller2);
-    await removeRequestFromQueue(key1);
-    await removeRequestFromQueue(key2);
+    await abortRequest(key1);
+    await abortRequest(key2);
   });
 
   it('should handle concurrent requests with different configurations separately', async () => {
     const key1 = createKey('https://example.com/a');
     const key2 = createKey('https://example.com/b');
     const [controller1, controller2] = await Promise.all([
-      queueRequest(key1, 'https://example.com/a', 2000),
-      queueRequest(key2, 'https://example.com/b', 2000),
+      markInFlight(key1, 'https://example.com/a', 2000),
+      markInFlight(key2, 'https://example.com/b', 2000),
     ]);
     jest.advanceTimersByTime(2000);
     expect(controller1).toBeDefined();
@@ -64,17 +81,17 @@ describe('Request Queue Manager', () => {
   it('should abort request due to timeout and remove it from queue', async () => {
     const key = createKey('https://example.com');
     const timeout = 1000;
-    await queueRequest(key, 'https://example.com', timeout);
+    await markInFlight(key, 'https://example.com', timeout);
     jest.advanceTimersByTime(timeout);
     const controller = await getController(key);
     expect(controller).toBeUndefined();
-    await removeRequestFromQueue(key);
+    await abortRequest(key);
   });
 
   it('should queue multiple operations on the same request key correctly', async () => {
     const key = createKey('https://example.com');
-    const firstRequestPromise = queueRequest(key, 'https://example.com', 2000);
-    const secondRequestPromise = queueRequest(key, 'https://example.com', 2000);
+    const firstRequestPromise = markInFlight(key, 'https://example.com', 2000);
+    const secondRequestPromise = markInFlight(key, 'https://example.com', 2000);
     jest.advanceTimersByTime(500);
     expect(await getController(key)).toBeTruthy();
     jest.advanceTimersByTime(1500);
@@ -86,7 +103,7 @@ describe('Request Queue Manager', () => {
 
   it('should clear timeout and abort request on removal', async () => {
     const key = createKey('https://example.com');
-    await queueRequest(key, 'https://example.com', 1000);
+    await markInFlight(key, 'https://example.com', 1000);
     jest.advanceTimersByTime(1500);
     const retrievedController = await getController(key);
     expect(retrievedController).toBeUndefined();
@@ -94,23 +111,23 @@ describe('Request Queue Manager', () => {
 
   it('should deduplicate same requests within dedupeTime', async () => {
     const key = 'dedupe-key';
-    const controller1 = await queueRequest(key, 'dedupe-url', 2000, 1000);
-    const controller2 = await queueRequest(key, 'dedupe-url', 2000, 1000);
+    const controller1 = await markInFlight(key, 'dedupe-url', 2000, 1000);
+    const controller2 = await markInFlight(key, 'dedupe-url', 2000, 1000);
     jest.advanceTimersByTime(500);
     expect(controller1).toBe(controller2);
   });
 
   it('should not deduplicate requests if dedupeTime is 0', async () => {
     const key = 'dedupe-key-0';
-    const controller1 = await queueRequest(key, 'dedupe-url-0', 1000, 0);
-    const controller2 = await queueRequest(key, 'dedupe-url-0', 1000, 0);
+    const controller1 = await markInFlight(key, 'dedupe-url-0', 1000, 0);
+    const controller2 = await markInFlight(key, 'dedupe-url-0', 1000, 0);
     jest.advanceTimersByTime(1000);
     expect(controller1).not.toBe(controller2);
   });
 
   it('should not abort the request when timeout is disabled', async () => {
     const key = 'timeout-disabled';
-    const controller = await queueRequest(
+    const controller = await markInFlight(
       key,
       'timeout-disabled-url',
       0,
@@ -120,28 +137,28 @@ describe('Request Queue Manager', () => {
     );
     jest.advanceTimersByTime(1000);
     expect(controller.signal.aborted).toBe(false);
-    await removeRequestFromQueue(key, null);
+    await abortRequest(key, null);
   });
 
   it('should handle multiple distinct requests separately', async () => {
     const keyA = 'distinct-a';
     const keyB = 'distinct-b';
-    const controllerA = await queueRequest(keyA, 'distinct-a-url', 1000, 1000);
-    const controllerB = await queueRequest(keyB, 'distinct-b-url', 1000, 1000);
+    const controllerA = await markInFlight(keyA, 'distinct-a-url', 1000, 1000);
+    const controllerB = await markInFlight(keyB, 'distinct-b-url', 1000, 1000);
     jest.advanceTimersByTime(1000);
     expect(controllerA).not.toBe(controllerB);
   });
 
   it('should handle both timeout and cancellation correctly', async () => {
     const key = 'timeout-cancel';
-    const controller1 = await queueRequest(
+    const controller1 = await markInFlight(
       key,
       'timeout-cancel-url',
       1000,
       1000,
       true,
     );
-    const controller2 = await queueRequest(
+    const controller2 = await markInFlight(
       key,
       'timeout-cancel-url',
       1000,
@@ -155,14 +172,14 @@ describe('Request Queue Manager', () => {
 
   it('should handle requests with the same configuration but different options correctly', async () => {
     const key = 'same-config-diff-options';
-    const controller1 = await queueRequest(
+    const controller1 = await markInFlight(
       key,
       'same-config-diff-options-url',
       2000,
       1000,
       true,
     );
-    const controller2 = await queueRequest(
+    const controller2 = await markInFlight(
       key,
       'same-config-diff-options-url',
       2000,
@@ -177,19 +194,19 @@ describe('Request Queue Manager', () => {
   it('should handle request configuration changes correctly', async () => {
     const key1 = 'config-change-1';
     const key2 = 'config-change-2';
-    const controller1 = await queueRequest(
+    const controller1 = await markInFlight(
       key1,
       'config-change-1-url',
       2000,
       1000,
     );
-    const controller2 = await queueRequest(
+    const controller2 = await markInFlight(
       key2,
       'config-change-2-url',
       2000,
       1000,
     );
-    jest.advanceTimersByTime(1500);
+    jest.advanceTimersByTime(1100);
     expect(controller1).not.toBe(controller2);
     expect(controller1.signal.aborted).toBe(false);
     expect(controller2.signal.aborted).toBe(false);
@@ -197,21 +214,21 @@ describe('Request Queue Manager', () => {
 
   it('should cancel all previous requests if they are cancellable and deduplication time is not yet passed', async () => {
     const key = 'cancel-prev-not-passed';
-    const controller1 = await queueRequest(
+    const controller1 = await markInFlight(
       key,
       'cancel-prev-not-passed-url',
       2000,
       1000,
       true,
     );
-    const controller2 = await queueRequest(
+    const controller2 = await markInFlight(
       key,
       'cancel-prev-not-passed-url',
       2000,
       1000,
       true,
     );
-    const controller3 = await queueRequest(
+    const controller3 = await markInFlight(
       key,
       'cancel-prev-not-passed-url',
       2000,
@@ -229,21 +246,21 @@ describe('Request Queue Manager', () => {
 
   it('should cancel all previous requests if they are cancellable and deduplication time is passed', async () => {
     const key = 'cancel-prev-passed';
-    const controller1 = await queueRequest(
+    const controller1 = await markInFlight(
       key,
       'cancel-prev-passed-url',
       2000,
       1000,
       true,
     );
-    const controller2 = await queueRequest(
+    const controller2 = await markInFlight(
       key,
       'cancel-prev-passed-url',
       2000,
       1000,
       true,
     );
-    const controller3 = await queueRequest(
+    const controller3 = await markInFlight(
       key,
       'cancel-prev-passed-url',
       2000,
@@ -261,21 +278,21 @@ describe('Request Queue Manager', () => {
 
   it('should cancel all requests if they are cancellable and timeout is passed', async () => {
     const key = 'cancel-all-timeout';
-    const controller1 = await queueRequest(
+    const controller1 = await markInFlight(
       key,
       'cancel-all-timeout-url',
       2000,
       1000,
       true,
     );
-    const controller2 = await queueRequest(
+    const controller2 = await markInFlight(
       key,
       'cancel-all-timeout-url',
       2000,
       1000,
       true,
     );
-    const controller3 = await queueRequest(
+    const controller3 = await markInFlight(
       key,
       'cancel-all-timeout-url',
       2000,
@@ -293,21 +310,21 @@ describe('Request Queue Manager', () => {
 
   it('should not cancel any request if not cancellable and deduplication time is not yet passed', async () => {
     const key = 'not-cancel-not-passed';
-    const controller1 = await queueRequest(
+    const controller1 = await markInFlight(
       key,
       'not-cancel-not-passed-url',
       2000,
       1000,
       false,
     );
-    const controller2 = await queueRequest(
+    const controller2 = await markInFlight(
       key,
       'not-cancel-not-passed-url',
       2000,
       1000,
       false,
     );
-    const controller3 = await queueRequest(
+    const controller3 = await markInFlight(
       key,
       'not-cancel-not-passed-url',
       2000,
@@ -325,7 +342,7 @@ describe('Request Queue Manager', () => {
 
   it('should not cancel any request if not cancellable and deduplication time is passed for each request', async () => {
     const key = 'not-cancel-passed';
-    const controller1 = await queueRequest(
+    const controller1 = await markInFlight(
       key,
       'not-cancel-passed-url',
       20000,
@@ -333,7 +350,7 @@ describe('Request Queue Manager', () => {
       false,
     );
     jest.advanceTimersByTime(1500);
-    const controller2 = await queueRequest(
+    const controller2 = await markInFlight(
       key,
       'not-cancel-passed-url',
       20000,
@@ -341,7 +358,7 @@ describe('Request Queue Manager', () => {
       false,
     );
     jest.advanceTimersByTime(1500);
-    const controller3 = await queueRequest(
+    const controller3 = await markInFlight(
       key,
       'not-cancel-passed-url',
       20000,
@@ -360,15 +377,17 @@ describe('Request Queue Manager', () => {
 
   it('should not cancel the previous requests if they are not cancellable', async () => {
     const key = 'not-cancel-prev';
-    const controller1 = await queueRequest(
+    const controller1 = await markInFlight(
       key,
       'not-cancel-prev-url',
       2000,
       1000,
       false,
     );
-    jest.advanceTimersByTime(1500);
-    const controller2 = await queueRequest(
+
+    jest.advanceTimersByTime(1200);
+
+    const controller2 = await markInFlight(
       key,
       'not-cancel-prev-url',
       2000,
