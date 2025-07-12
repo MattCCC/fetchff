@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type {
   RequestConfig,
-  RequestHandlerConfig,
   FetchResponse,
   DefaultResponse,
   ExtendedRequestConfig,
@@ -72,9 +71,9 @@ interface EndpointFunction<
   <Resp = never, QueryParams = never, UrlParams = never, RequestBody = never>(
     requestConfig?: ExtendedRequestConfig<
       FallbackValue<Resp, ResponseData>,
+      FallbackValue<Resp, RequestBody, RequestBody_>,
       FinalParams<Resp, QueryParams, QueryParams_>,
-      FinalParams<Resp, UrlParams, PathParams>,
-      FallbackValue<Resp, RequestBody, RequestBody_>
+      FinalParams<Resp, UrlParams, PathParams>
     >,
   ): Promise<
     FetchResponse<
@@ -93,7 +92,7 @@ export interface RequestEndpointFunction<EndpointsMethods> {
     UrlParams = never,
     RequestBody = never,
   >(
-    endpointName: keyof EndpointsMethods | string,
+    endpointNameOrUrl: keyof EndpointsMethods | string,
     requestConfig?: RequestConfig<
       FinalResponse<ResponseData, DefaultResponse>,
       FinalParams<ResponseData, QueryParams_, QueryParams>,
@@ -229,8 +228,7 @@ export type ApiHandlerDefaultMethods<EndpointsMethods> = {
  *
  * @template EndpointsMethods - The object containing endpoint method definitions.
  */
-export interface ApiHandlerConfig<EndpointsMethods>
-  extends RequestHandlerConfig {
+export interface ApiHandlerConfig<EndpointsMethods> extends RequestConfig {
   apiUrl: string;
   endpoints: EndpointsConfig<EndpointsMethods>;
 }

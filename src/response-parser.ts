@@ -109,9 +109,9 @@ export const prepareResponse = <
   config: RequestConfig<ResponseData, QueryParams, PathParams, RequestBody>,
   error: ResponseError<
     ResponseData,
+    RequestBody,
     QueryParams,
-    PathParams,
-    RequestBody
+    PathParams
   > | null = null,
 ): FetchResponse<ResponseData, RequestBody, QueryParams, PathParams> => {
   const defaultResponse = config.defaultResponse;

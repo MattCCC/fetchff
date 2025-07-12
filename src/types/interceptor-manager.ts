@@ -34,11 +34,11 @@ export type ResponseInterceptor<ResponseData = any> = (
 
 export type ErrorInterceptor<
   ResponseData = DefaultResponse,
+  RequestBody = DefaultPayload,
   QueryParams = DefaultParams,
   PathParams = DefaultUrlParams,
-  RequestBody = DefaultPayload,
 > = (
-  error: ResponseError<ResponseData, QueryParams, PathParams, RequestBody>,
+  error: ResponseError<ResponseData, RequestBody, QueryParams, PathParams>,
 ) => void | Promise<void>;
 
 export type RetryInterceptor<

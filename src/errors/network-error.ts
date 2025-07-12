@@ -9,10 +9,10 @@ import type {
 
 export class NetworkError<
   ResponseData = DefaultResponse,
+  RequestBody = DefaultPayload,
   QueryParams = DefaultParams,
   PathParams = DefaultUrlParams,
-  RequestBody = DefaultPayload,
-> extends FetchError<ResponseData, QueryParams, PathParams, RequestBody> {
+> extends FetchError<ResponseData, RequestBody, QueryParams, PathParams> {
   constructor(
     message: string,
     request: RequestConfig<ResponseData, QueryParams, PathParams, RequestBody>,

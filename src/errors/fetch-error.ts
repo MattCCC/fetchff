@@ -12,9 +12,9 @@ import type {
  */
 export class FetchError<
   ResponseData = DefaultResponse,
+  RequestBody = DefaultPayload,
   QueryParams = DefaultParams,
   PathParams = DefaultUrlParams,
-  RequestBody = DefaultPayload,
 > extends Error {
   status: number;
   statusText: string;

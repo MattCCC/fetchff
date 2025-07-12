@@ -1768,9 +1768,9 @@ interface FetchResponse<
   data: ResponseData | null; // The parsed response data, or null/defaultResponse if unavailable
   error: ResponseError<
     ResponseData,
+    RequestBody,
     QueryParams,
-    PathParams,
-    RequestBody
+    PathParams
   > | null; // Error details if the request failed, otherwise null
   config: RequestConfig; // The configuration used for the request
   status: number; // HTTP status code
@@ -1801,7 +1801,7 @@ The whole response of the native `fetch()` is attached as well.
 
 Error object in `error` looks as follows:
 
-- **Type**: `ResponseError<ResponseData, QueryParams, PathParams, RequestBody> | null`
+- **Type**: `ResponseError<ResponseData, RequestBody, QueryParams, PathParams> | null`
 
 - An object with details about any error that occurred or `null` otherwise.
 - **`name`**: The name of the error, that is `ResponseError`.

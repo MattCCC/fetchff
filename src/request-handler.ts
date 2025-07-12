@@ -260,9 +260,9 @@ export async function fetchf<
     } catch (_error) {
       const error = _error as ResponseError<
         ResponseData,
+        RequestBody,
         QueryParams,
-        PathParams,
-        RequestBody
+        PathParams
       >;
 
       // Append additional information to Network, CORS or any other fetch() errors

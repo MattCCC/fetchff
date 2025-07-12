@@ -89,9 +89,9 @@ export interface ExtendedResponse<
    */
   error: ResponseError<
     ResponseData,
+    RequestBody,
     QueryParams,
-    PathParams,
-    RequestBody
+    PathParams
   > | null;
   /**
    * Plain headers object containing the response headers.
@@ -147,9 +147,9 @@ export type FetchResponse<
 
 export interface ResponseError<
   ResponseData = DefaultResponse,
+  RequestBody = DefaultPayload,
   QueryParams = DefaultParams,
   PathParams = DefaultUrlParams,
-  RequestBody = DefaultPayload,
 > extends Error {
   status: number;
   statusText: string;
@@ -176,17 +176,41 @@ export type RetryFunction<
 
 export type PollingFunction<
   ResponseData = DefaultResponse,
+  RequestBody = DefaultPayload,
   QueryParams = DefaultParams,
   PathParams = DefaultUrlParams,
-  RequestBody = DefaultPayload,
 > = (
   response: FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>,
   attempts: number,
 ) => boolean;
 
-export type CacheKeyFunction = (config: RequestConfig) => string;
+export type CacheKeyFunction<
+  _ResponseData = DefaultResponse,
+  _RequestBody = DefaultPayload,
+  _QueryParams = DefaultParams,
+  _PathParams = DefaultUrlParams,
+> = <
+  ResponseData = _ResponseData,
+  RequestBody = _RequestBody,
+  QueryParams = _QueryParams,
+  PathParams = _PathParams,
+>(
+  config: RequestConfig<ResponseData, QueryParams, PathParams, RequestBody>,
+) => string;
 
-export type CacheBusterFunction = (config: RequestConfig) => boolean;
+export type CacheBusterFunction<
+  _ResponseData = DefaultResponse,
+  _RequestBody = DefaultPayload,
+  _QueryParams = DefaultParams,
+  _PathParams = DefaultUrlParams,
+> = <
+  ResponseData = _ResponseData,
+  RequestBody = _RequestBody,
+  QueryParams = _QueryParams,
+  PathParams = _PathParams,
+>(
+  config: RequestConfig<ResponseData, QueryParams, PathParams, RequestBody>,
+) => boolean;
 
 export type CacheSkipFunction<
   _ResponseData = DefaultResponse,
@@ -319,7 +343,10 @@ export interface CacheOptions<
    * @param config - The request configuration.
    * @default null (uses the default cache key generator, which considers: method, URL, query params, path params, mode, credentials, cache, redirect, referrer, integrity, headers, and body)
    */
-  cacheKey?: CacheKeyFunction | string | null;
+  cacheKey?:
+    | CacheKeyFunction<ResponseData, RequestBody, QueryParams, PathParams>
+    | string
+    | null;
 
   /**
    * Cache Buster Function
@@ -327,7 +354,12 @@ export interface CacheOptions<
    * @param config - Request configuration.
    * @default (config)=>false Busting cache is disabled by default. Return true to change that
    */
-  cacheBuster?: CacheBusterFunction;
+  cacheBuster?: CacheBusterFunction<
+    ResponseData,
+    RequestBody,
+    QueryParams,
+    PathParams
+  >;
 
   /**
    * Skip Cache Function
@@ -363,16 +395,16 @@ export interface CacheOptions<
 }
 
 /**
- * ExtendedRequestConfig<ResponseData = any, RequestBody = any>
+ * ExtendedRequestConfig<ResponseData, RequestBody, QueryParams, PathParams>
  *
  * This interface extends the standard `RequestInit` from the Fetch API, providing additional options
  * for handling requests, including custom error handling strategies, request interception, and more.
  */
 export interface ExtendedRequestConfig<
   ResponseData = any,
+  RequestBody = any,
   QueryParams_ = any,
   PathParams = any,
-  RequestBody = any,
 > extends Omit<RequestInit, 'body'>,
     CacheOptions {
   /**
@@ -401,7 +433,7 @@ export interface ExtendedRequestConfig<
    * @param data - The raw response data.
    * @returns The transformed or selected data.
    */
-  select?: <T = ResponseData, R = T>(data: T) => R;
+  select?: <T = ResponseData, R = any>(data: T) => R;
 
   /**
    * If true, the ongoing previous requests will be automatically cancelled.
@@ -577,9 +609,9 @@ export interface ExtendedRequestConfig<
    */
   shouldStopPolling?: PollingFunction<
     ResponseData,
+    RequestBody,
     QueryParams_,
-    PathParams,
-    RequestBody
+    PathParams
   >;
 
   /**
@@ -710,6 +742,18 @@ export interface ExtendedRequestConfig<
    */
   revalidateOnFocus?: boolean;
 
+  /**
+   * @deprecated Use the "fetcher" property instead for providing a custom fetch function.
+   * This property is provided for compatibility with React Query.
+   */
+  queryFn?: CustomFetcher | null;
+
+  /**
+   * @deprecated Use the "cacheKey" property instead for customizing cache identification.
+   * This property is provided for compatibility with React Query and SWR.
+   */
+  queryKey?: string | null;
+
   // pollingWhenHidden?: boolean;
   // loadingTimeout?: number;
   // refreshWhenHidden?: boolean;
@@ -730,7 +774,7 @@ export type RequestConfig<
   QueryParams = any,
   PathParams = any,
   RequestBody = any,
-> = ExtendedRequestConfig<ResponseData, QueryParams, PathParams, RequestBody>;
+> = ExtendedRequestConfig<ResponseData, RequestBody, QueryParams, PathParams>;
 
 export type FetcherConfig<
   ResponseData = any,
@@ -738,7 +782,7 @@ export type FetcherConfig<
   QueryParams = any,
   PathParams = any,
 > = Omit<
-  ExtendedRequestConfig<ResponseData, QueryParams, PathParams, RequestBody>,
+  ExtendedRequestConfig<ResponseData, RequestBody, QueryParams, PathParams>,
   'url'
 > & {
   url: string;
