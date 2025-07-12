@@ -137,6 +137,9 @@ export interface ExtendedResponse<
  * Represents the response from a `fetchf()` request.
  *
  * @template ResponseData - The type of the data returned in the response.
+ * @template RequestBody - The type of the request body sent in the request.
+ * @template QueryParams - The type of the query parameters used in the request.
+ * @template PathParams - The type of the path parameters used in the request.
  */
 export type FetchResponse<
   ResponseData = any,
@@ -788,18 +791,3 @@ export type FetcherConfig<
   url: string;
   cacheKey?: string | null;
 };
-
-export type RequestHandlerReturnType = <
-  ResponseData = DefaultResponse,
-  QueryParams = DefaultParams,
-  PathParams = DefaultUrlParams,
-  RequestBody = DefaultPayload,
->(
-  url: string,
-  config?: RequestConfig<
-    ResponseData,
-    QueryParams,
-    PathParams,
-    RequestBody
-  > | null,
-) => Promise<FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>>;
