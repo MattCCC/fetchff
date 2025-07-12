@@ -74,9 +74,16 @@ interface EndpointFunction<
       FallbackValue<Resp, ResponseData>,
       FinalParams<Resp, QueryParams, QueryParams_>,
       FinalParams<Resp, UrlParams, PathParams>,
-      FallbackValue<Resp, RequestBody_, RequestBody>
+      FallbackValue<Resp, RequestBody, RequestBody_>
     >,
-  ): Promise<FetchResponse<FallbackValue<Resp, ResponseData>>>;
+  ): Promise<
+    FetchResponse<
+      FallbackValue<Resp, ResponseData>,
+      FallbackValue<Resp, RequestBody, RequestBody_>,
+      FinalParams<Resp, QueryParams, QueryParams_>,
+      FinalParams<Resp, UrlParams, PathParams>
+    >
+  >;
 }
 
 export interface RequestEndpointFunction<EndpointsMethods> {
@@ -93,7 +100,14 @@ export interface RequestEndpointFunction<EndpointsMethods> {
       FinalParams<ResponseData, UrlParams, UrlPathParams>,
       FallbackValue<ResponseData, DefaultPayload, RequestBody>
     >,
-  ): Promise<FetchResponse<FinalResponse<ResponseData, DefaultResponse>>>;
+  ): Promise<
+    FetchResponse<
+      FinalResponse<ResponseData, DefaultResponse>,
+      FallbackValue<ResponseData, DefaultPayload, RequestBody>,
+      FinalParams<ResponseData, QueryParams_, QueryParams>,
+      FinalParams<ResponseData, UrlParams, UrlPathParams>
+    >
+  >;
 }
 
 /**
@@ -137,9 +151,10 @@ type EndpointsRecord<EndpointsMethods> = {
     : EndpointsMethods[K] extends Endpoint<
           infer ResponseData,
           infer QueryParams,
-          infer UrlPathParams
+          infer UrlPathParams,
+          infer RequestBody
         >
-      ? Endpoint<ResponseData, QueryParams, UrlPathParams> // Method is an Endpoint type
+      ? Endpoint<ResponseData, QueryParams, UrlPathParams, RequestBody> // Method is an Endpoint type
       : EndpointDefaults; // Fallback to default Endpoint type
 };
 
