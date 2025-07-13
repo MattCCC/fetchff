@@ -3573,6 +3573,8 @@ function notifyAdmins(healthData: any) {
 
 Integrate `fetchff` with React Query to streamline your data fetching:
 
+> **Note:** Official support for `useFetcher(url, config)` is here. Check React Integration section above to get an idea how to use it instead of SWR.
+
 ```tsx
 import { createApiFetcher } from 'fetchff';
 import { useQuery } from '@tanstack/react-query';
@@ -3604,6 +3606,8 @@ export const useProfile = (id: string) => {
   <br>
 
 Combine `fetchff` with SWR for efficient data fetching and caching.
+
+> **Note:** Official support for `useFetcher(url, config)` is here. Check React Integration section above to get an idea how to use it instead of SWR.
 
 Single calls:
 
