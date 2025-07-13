@@ -1,9 +1,9 @@
+import type { DefaultRequestTypes } from './request-handler';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type {
   RequestConfig,
   FetchResponse,
   DefaultResponse,
-  ExtendedRequestConfig,
 } from './request-handler';
 
 // Common type definitions
@@ -17,13 +17,13 @@ declare const emptyObjectSymbol: unique symbol;
 export type EmptyObject = { [emptyObjectSymbol]?: never };
 
 export type DefaultParams =
-  | Record<string, unknown>
+  | Record<string, any>
   | URLSearchParams
   | NameValuePair[]
   | EmptyObject
   | null;
 
-export type DefaultUrlParams = Record<string, unknown>;
+export type DefaultUrlParams = Record<string, any>;
 export type DefaultPayload = Record<string, any>;
 
 export declare type QueryParams<ParamsType = DefaultParams> =
@@ -46,115 +46,133 @@ export declare type BodyPayload<PayloadType = DefaultPayload> =
   | PayloadType[]
   | null;
 
-// Helper types declared outside the interface
-export type FallbackValue<T, U, D = T> = [T] extends [never] ? U : D;
-
-export type FinalResponse<Response, ResponseData> = FallbackValue<
-  Response,
-  ResponseData
->;
-
-export type FinalParams<Response, ParamsType, DefaultParams> = [
-  ParamsType,
-] extends [never]
-  ? DefaultParams
-  : [Response] extends [never]
-    ? DefaultParams
-    : ParamsType | EmptyObject;
-
-interface EndpointFunction<
-  ResponseData,
-  QueryParams_,
-  PathParams,
-  RequestBody_,
-> {
-  <Resp = never, QueryParams = never, UrlParams = never, RequestBody = never>(
-    requestConfig?: ExtendedRequestConfig<
-      FallbackValue<Resp, ResponseData>,
-      FallbackValue<Resp, RequestBody, RequestBody_>,
-      FinalParams<Resp, QueryParams, QueryParams_>,
-      FinalParams<Resp, UrlParams, PathParams>
-    >,
-  ): Promise<
-    FetchResponse<
-      FallbackValue<Resp, ResponseData>,
-      FallbackValue<Resp, RequestBody, RequestBody_>,
-      FinalParams<Resp, QueryParams, QueryParams_>,
-      FinalParams<Resp, UrlParams, PathParams>
-    >
-  >;
-}
-
-export interface RequestEndpointFunction<EndpointsMethods> {
-  <
-    ResponseData = never,
-    QueryParams_ = never,
-    UrlParams = never,
-    RequestBody = never,
-  >(
-    endpointNameOrUrl: keyof EndpointsMethods | string,
-    requestConfig?: RequestConfig<
-      FinalResponse<ResponseData, DefaultResponse>,
-      FinalParams<ResponseData, QueryParams_, QueryParams>,
-      FinalParams<ResponseData, UrlParams, UrlPathParams>,
-      FallbackValue<ResponseData, DefaultPayload, RequestBody>
-    >,
-  ): Promise<
-    FetchResponse<
-      FinalResponse<ResponseData, DefaultResponse>,
-      FallbackValue<ResponseData, DefaultPayload, RequestBody>,
-      FinalParams<ResponseData, QueryParams_, QueryParams>,
-      FinalParams<ResponseData, UrlParams, UrlPathParams>
-    >
-  >;
-}
+type EndpointDefaults = Endpoint<DefaultRequestTypes>;
 
 /**
- * Represents an API endpoint handler with support for customizable query parameters, URL path parameters,
- * and request configuration.
+ * Represents an API endpoint definition with optional type parameters for various request and response components.
  *
- * The overloads allow customization of the returned data type (`ReturnedData`), query parameters (`T`),
- * and URL path parameters (`T2`).
- *
- * @template ResponseData - The type of the response data (default: `DefaultResponse`).
- * @template QueryParams - The type of the query parameters (default: `QueryParams`).
- * @template PathParams - The type of the URL path parameters (default: `UrlPathParams`).
- * @template RequestBody - The type of the Requesty Body (default: `BodyPayload`).
+ * @template T - An object that can specify the following optional properties:
+ *   @property response - The expected response type returned by the endpoint (default: `DefaultResponse`).
+ *   @property body - The type of the request body accepted by the endpoint (default: `BodyPayload`).
+ *   @property params - The type of the query parameters accepted by the endpoint (default: `QueryParams`).
+ *   @property urlPathParams - The type of the path parameters accepted by the endpoint (default: `UrlPathParams`).
  *
  * @example
- *  interface EndpointsMethods {
- *    getUser: Endpoint<UserResponse>;
- *    getPosts: Endpoint<PostsResponse, PostsQueryParams, PostsUrlPathParams, PostsRequestBody>;
+ *  interface EndpointTypes {
+ *    getUser: Endpoint<{ response: UserResponse }>;
+ *    getPosts: Endpoint<{
+ *      response: PostsResponse;
+ *      params: PostsQueryParams;
+ *      urlPathParams: PostsUrlPathParams;
+ *      body: PostsRequestBody;
+ *    }>;
  *  }
  */
-export declare type Endpoint<
-  ResponseData = DefaultResponse,
-  QueryParams_ = QueryParams,
-  PathParams = UrlPathParams,
-  RequestBody = BodyPayload,
-> = EndpointFunction<ResponseData, QueryParams_, PathParams, RequestBody>;
+export type Endpoint<T extends DefaultRequestTypes = DefaultRequestTypes> =
+  EndpointFunction<T>;
 
-// Setting 'unknown here lets us infer typings for non-predefined endpoints with dynamically set generic response data
-type EndpointDefaults = Endpoint<DefaultResponse>;
+type MergeEndpointShape<
+  O extends Partial<DefaultRequestTypes>,
+  T extends DefaultRequestTypes,
+> = {
+  response: O extends { response: infer R }
+    ? R
+    : T extends { response: infer R }
+      ? R
+      : DefaultResponse;
+  body: O extends { body: infer B }
+    ? B
+    : T extends { body: infer B }
+      ? B
+      : BodyPayload;
+  params: O extends { params: infer P }
+    ? P
+    : T extends { params: infer P }
+      ? P
+      : QueryParams;
+  urlPathParams: O extends { urlPathParams: infer U }
+    ? U
+    : T extends { urlPathParams: infer U }
+      ? U
+      : UrlPathParams;
+};
 
-type AFunction = (...args: any[]) => any;
+interface EndpointFunction<
+  T extends Partial<DefaultRequestTypes> = DefaultRequestTypes,
+> {
+  // eslint-disable-next-line @typescript-eslint/no-empty-object-type
+  <O extends Partial<DefaultRequestTypes> = {}>(
+    requestConfig?: RequestConfig<
+      MergeEndpointShape<O, T>['response'],
+      MergeEndpointShape<O, T>['params'],
+      MergeEndpointShape<O, T>['urlPathParams'],
+      MergeEndpointShape<O, T>['body']
+    >,
+  ): Promise<
+    FetchResponse<
+      MergeEndpointShape<O, T>['response'],
+      MergeEndpointShape<O, T>['body'],
+      MergeEndpointShape<O, T>['params'],
+      MergeEndpointShape<O, T>['urlPathParams']
+    >
+  >;
+}
+
+export interface RequestEndpointFunction<EndpointTypes> {
+  // eslint-disable-next-line @typescript-eslint/no-empty-object-type
+  <O extends Partial<DefaultRequestTypes> = {}>(
+    endpointNameOrUrl: keyof EndpointTypes | string,
+    requestConfig?: RequestConfig<
+      MergeEndpointShape<O, DefaultRequestTypes>['response'],
+      MergeEndpointShape<O, DefaultRequestTypes>['params'],
+      MergeEndpointShape<O, DefaultRequestTypes>['urlPathParams'],
+      MergeEndpointShape<O, DefaultRequestTypes>['body']
+    >,
+  ): Promise<
+    FetchResponse<
+      MergeEndpointShape<O, DefaultRequestTypes>['response'],
+      MergeEndpointShape<O, DefaultRequestTypes>['body'],
+      MergeEndpointShape<O, DefaultRequestTypes>['params'],
+      MergeEndpointShape<O, DefaultRequestTypes>['urlPathParams']
+    >
+  >;
+}
+
+type MergeWithEndpointDef<
+  EndpointTypes,
+  K extends keyof EndpointTypes,
+  O extends Partial<DefaultRequestTypes>,
+> = MergeEndpointShape<
+  O,
+  EndpointTypes[K] extends Endpoint<infer S> ? S : DefaultRequestTypes
+>;
+
+type EndpointMethod<EndpointTypes, K extends keyof EndpointTypes> = <
+  // eslint-disable-next-line @typescript-eslint/no-empty-object-type
+  O extends Partial<DefaultRequestTypes> = {},
+>(
+  requestConfig?: RequestConfig<
+    MergeWithEndpointDef<EndpointTypes, K, O>['response'],
+    MergeWithEndpointDef<EndpointTypes, K, O>['params'],
+    MergeWithEndpointDef<EndpointTypes, K, O>['urlPathParams'],
+    MergeWithEndpointDef<EndpointTypes, K, O>['body']
+  >,
+) => Promise<
+  FetchResponse<
+    MergeWithEndpointDef<EndpointTypes, K, O>['response'],
+    MergeWithEndpointDef<EndpointTypes, K, O>['body'],
+    MergeWithEndpointDef<EndpointTypes, K, O>['params'],
+    MergeWithEndpointDef<EndpointTypes, K, O>['urlPathParams']
+  >
+>;
 
 /**
- * Maps the method names from `EndpointsMethods` to their corresponding `Endpoint` type definitions.
+ * Maps the method names from `EndpointTypes` to their corresponding `Endpoint` type definitions.
  *
- * @template EndpointsMethods - The object containing endpoint method definitions.
+ * @template EndpointTypes - The object containing endpoint method definitions.
  */
-type EndpointsRecord<EndpointsMethods> = {
-  [K in keyof EndpointsMethods]: EndpointsMethods[K] extends AFunction
-    ? EndpointsMethods[K] // Map function signatures directly
-    : EndpointsMethods[K] extends Endpoint<
-          infer ResponseData,
-          infer QueryParams,
-          infer UrlPathParams,
-          infer RequestBody
-        >
-      ? Endpoint<ResponseData, QueryParams, UrlPathParams, RequestBody> // Method is an Endpoint type
-      : EndpointDefaults; // Fallback to default Endpoint type
+type EndpointsRecord<EndpointTypes> = {
+  [K in keyof EndpointTypes]: EndpointMethod<EndpointTypes, K>;
 };
 
 /**
@@ -175,53 +193,54 @@ export type RequestConfigUrlRequired = Omit<RequestConfig, 'url'> & {
 /**
  * Configuration for API endpoints, where each key is an endpoint name or string, and the value is the request configuration.
  *
- * @template EndpointsMethods - The object containing endpoint method definitions.
+ * @template EndpointTypes - The object containing endpoint method definitions.
  */
-export type EndpointsConfig<EndpointsMethods> = Record<
-  keyof EndpointsMethods | string,
+export type EndpointsConfig<EndpointTypes> = Record<
+  keyof EndpointTypes | string,
   RequestConfigUrlRequired
 >;
 
 /**
- * Part of the endpoints configuration, derived from `EndpointsSettings` based on the `EndpointsMethods`.
+ * Part of the endpoints configuration, derived from `EndpointsSettings` based on the `EndpointTypes`.
  *
  * This type handles defaulting to endpoints configuration when particular Endpoints Methods are not provided.
  *
  * @template EndpointsSettings - The configuration object for endpoints.
- * @template EndpointsMethods - The object containing endpoint method definitions.
+ * @template EndpointTypes - The object containing endpoint method definitions.
  */
-type EndpointsConfigPart<EndpointsSettings, EndpointsMethods extends object> = [
+type EndpointsConfigPart<EndpointsSettings, EndpointTypes extends object> = [
   EndpointsSettings,
 ] extends [never]
   ? unknown
-  : DefaultEndpoints<Omit<EndpointsSettings, keyof EndpointsMethods>>;
+  : DefaultEndpoints<Omit<EndpointsSettings, keyof EndpointTypes>>;
 
 /**
  * Provides the methods available from the API handler, combining endpoint record types, endpoints configuration,
  * and default methods.
  *
- * @template EndpointsMethods - The object containing endpoint method definitions.
+ * @template EndpointTypes - The object containing endpoint method definitions.
  * @template EndpointsSettings - The configuration object for endpoints.
  */
 export type ApiHandlerMethods<
-  EndpointsMethods extends object,
+  EndpointTypes extends object,
   EndpointsSettings,
-> = EndpointsRecord<EndpointsMethods> & // Provided interface
-  EndpointsConfigPart<EndpointsSettings, EndpointsMethods> & // Derived defaults from 'endpoints'
-  ApiHandlerDefaultMethods<EndpointsMethods>; // Returned API Handler methods
+> = EndpointsRecord<EndpointTypes> & // Provided interface
+  EndpointsConfigPart<EndpointsSettings, EndpointTypes> & // Derived defaults from 'endpoints'
+  ApiHandlerDefaultMethods<EndpointTypes>; // Returned API Handler methods
 
 /**
  * Defines the default methods available within the API handler.
  *
  * This includes configuration, endpoint settings, request handler, instance retrieval, and a generic request method.
  *
- * @template EndpointsMethods - The object containing endpoint method definitions.
+ * @template EndpointTypes - The object containing endpoint method definitions.
  */
-export type ApiHandlerDefaultMethods<EndpointsMethods> = {
-  config: ApiHandlerConfig<EndpointsMethods>;
-  endpoints: EndpointsConfig<EndpointsMethods>;
-  request: RequestEndpointFunction<EndpointsMethods>;
+export type ApiHandlerDefaultMethods<EndpointTypes> = {
+  config: ApiHandlerConfig<EndpointTypes>;
+  endpoints: EndpointsConfig<EndpointTypes>;
+  request: RequestEndpointFunction<EndpointTypes>;
 };
+
 
 /**
  * Configuration for the API handler, including API URL and endpoints.

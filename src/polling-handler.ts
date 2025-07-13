@@ -1,4 +1,4 @@
-import type { ExtendedRequestConfig, FetchResponse } from './types';
+import type { RequestConfig, FetchResponse } from './types';
 import { delayInvocation } from './utils';
 
 /**
@@ -25,8 +25,8 @@ export async function withPolling<
   ) => Promise<
     FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>
   >,
-  pollingInterval?: ExtendedRequestConfig['pollingInterval'],
-  shouldStopPolling?: ExtendedRequestConfig['shouldStopPolling'],
+  pollingInterval?: RequestConfig['pollingInterval'],
+  shouldStopPolling?: RequestConfig['shouldStopPolling'],
   maxAttempts = 0,
   pollingDelay = 0,
 ): Promise<FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>> {

@@ -40,6 +40,38 @@ export type DefaultResponse = any;
 
 export type NativeFetch = typeof fetch;
 
+/**
+ * A short-hand type to create a generic request structure with customizable types for response data, request body, query parameters, and URL path parameters.
+ *
+ * @template ResponseData - The type of the response data. Defaults to `DefaultResponse`.
+ * @template RequestBody - The type of the request body. Defaults to `DefaultPayload`.
+ * @template QueryParams - The type of the query parameters. Defaults to `DefaultParams`.
+ * @template UrlPathParams - The type of the URL path parameters. Defaults to `DefaultUrlParams`.
+ *
+ * @property response - The response data of type `ResponseData`.
+ * @property body - The request body of type `RequestBody`.
+ * @property params - The query parameters of type `QueryParams`.
+ * @property urlPathParams - The URL path parameters of type `UrlPathParams`.
+ */
+export type Req<
+  ResponseData = DefaultResponse,
+  RequestBody = DefaultPayload,
+  QueryParams = DefaultParams,
+  UrlPathParams = DefaultUrlParams,
+> = {
+  response: ResponseData;
+  params: QueryParams;
+  urlPathParams: UrlPathParams;
+  body: RequestBody;
+};
+
+export type DefaultRequestTypes = {
+  response?: DefaultResponse;
+  body?: BodyPayload;
+  params?: QueryParams;
+  urlPathParams?: UrlPathParams;
+};
+
 export type CustomFetcher = <
   ResponseData = DefaultResponse,
   RequestBody = DefaultPayload,
@@ -664,7 +696,7 @@ export interface ExtendedRequestConfig<
   refetchOnWindowFocus?: boolean;
 
   /**
-   * @deprecated Use "onSuccess" instead for transforming response data.
+   * @deprecated Use "onResponse" instead for transforming response data.
    * This property is provided for compatibility with React Query.
    */
   onSuccess?: any;

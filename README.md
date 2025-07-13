@@ -212,7 +212,7 @@ const { data, error } = await api.getUser({
 All the Request Settings can be directly used in the function as global settings for all endpoints. They can be also used within the `endpoints` property (on per-endpoint basis). The exposed `endpoints` property is as follows:
 
 - **`endpoints`**:
-  Type: `EndpointsConfig<EndpointsMethods>`
+  Type: `EndpointsConfig<EndpointTypes>`
   List of your endpoints. Each endpoint is an object that accepts all the Request Settings (see the Basic Settings below). The endpoints are required to be specified.
 
 #### How It Works
@@ -2234,11 +2234,11 @@ The `fetchff` package includes several generic types to handle various aspects o
 
 ### Typings for `createApiFetcher()`
 
-The `createApiFetcher<EndpointsMethods, EndpointsConfiguration>()` function provides a robust set of types to define and manage API interactions.
+The `createApiFetcher<EndpointTypes, EndpointsSettings>()` function provides a robust set of types to define and manage API interactions.
 
 The key types are:
 
-- **`EndpointsMethods`**: Represents the list of API endpoints with their respective settings. It is your own interface that you can pass to this generic. It will be cross-checked against the `endpoints` object in your `createApiFetcher()` configuration.<br><br>Each endpoint can be configured with its own specific settings such as Response Payload, Query Parameters and URL Path Parameters.
+- **`EndpointTypes`**: Represents the list of API endpoints with their respective settings. It is your own interface that you can pass to this generic. It will be cross-checked against the `endpoints` object in your `createApiFetcher()` configuration.<br><br>Each endpoint can be configured with its own specific settings such as Response Payload, Query Parameters and URL Path Parameters.
 - **`Endpoint<ResponseData = DefaultResponse, QueryParams = DefaultParams, PathParams = DefaultUrlParams, RequestBody = DefaultPayload>`**: Represents an API endpoint function, allowing to be defined with optional query parameters, URL path parameters, request configuration (settings), and request body (data).
 - **`EndpointsSettings`**: Configuration for API endpoints, including query parameters, URL path parameters, and additional request configurations. Default is `typeof endpoints`.
 - **`RequestInterceptor`**: Function to modify request configurations before they are sent.
@@ -2906,9 +2906,9 @@ interface EndpointsList {
   fetchBooks: Endpoint<Books, BookQueryParams>;
 }
 
-type EndpointsConfiguration = typeof endpoints;
+type EndpointsSettings = typeof endpoints;
 
-const api = createApiFetcher<EndpointsList, EndpointsConfiguration>({
+const api = createApiFetcher<EndpointsList, EndpointsSettings>({
   baseURL: 'https://example.com/api',
   endpoints,
   strategy: 'softFail',
@@ -2996,9 +2996,9 @@ interface EndpointsList {
   getPosts: Endpoint<PostsResponse, PostsQueryParams, PostsPathParams>;
 }
 
-type EndpointsConfiguration = typeof endpoints;
+type EndpointsSettings = typeof endpoints;
 
-const api = createApiFetcher<EndpointsList, EndpointsConfiguration>({
+const api = createApiFetcher<EndpointsList, EndpointsSettings>({
   baseURL: 'https://example.com/api',
   endpoints,
   onError(error) {

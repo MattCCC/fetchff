@@ -30,6 +30,10 @@ interface UserResponse {
 // Passing QueryParams allows for any params to be passed to the request (no strict typing)
 export interface EndpointsList {
   getUser: Endpoint;
-  updateUserDetails: Endpoint<UserResponse>;
-  getUserByIdAndName: Endpoint<UserResponse, QueryParams, UserURLParams>;
+  updateUserDetails: Endpoint<{ response: UserResponse }>;
+  getUserByIdAndName: Endpoint<{
+    response: UserResponse;
+    params: QueryParams;
+    urlPathParams: UserURLParams;
+  }>;
 }

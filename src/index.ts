@@ -1,5 +1,5 @@
 /** All TypeScript types and interfaces */
-export type * from './types';
+export * from './types';
 
 /** Core fetch function with caching, retries, and revalidation */
 export { fetchf } from './request-handler';
