@@ -11,6 +11,7 @@ export { createApiFetcher } from './api-handler';
 export {
   buildConfig, // Build request configuration from defaults and overrides
   setDefaultConfig, // Set global default configuration for requests
+  getDefaultConfig, // Get the current global default configuration
 } from './config-handler';
 
 /** Cache management utilities */

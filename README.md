@@ -140,6 +140,24 @@ const { data, error } = await fetchf('/api/user-details', {
 
 ### Global Configuration
 
+#### `getDefaultConfig()`
+
+<details>
+  <summary><span style="cursor:pointer">Click to expand</span></summary>
+  <br>
+
+Returns the current global default configuration used for all requests. This is useful for inspecting or debugging the effective global settings.
+
+```typescript
+import { getDefaultConfig } from 'fetchff';
+
+// Retrieve the current global default config
+const config = getDefaultConfig();
+console.log('Current global fetchff config:', config);
+```
+
+</details>
+
 #### `setDefaultConfig(customConfig)`
 
 <details>
