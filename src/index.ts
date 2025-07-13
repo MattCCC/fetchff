@@ -2,7 +2,7 @@
 export * from './types';
 
 /** Core fetch function with caching, retries, and revalidation */
-export { fetchf } from './request-handler';
+export { fetchf, fetchf as fetchff } from './request-handler';
 
 /** Create a configured API fetcher instance */
 export { createApiFetcher } from './api-handler';

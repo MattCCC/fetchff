@@ -121,7 +121,9 @@ yarn add fetchff
 
 #### `fetchf(url, config)`
 
-It is a functional wrapper for `fetch()`. It seamlessly enhances it with additional settings like the retry mechanism and error handling improvements. The `fetchf()` can be used directly as a function, simplifying the usage and making it easier to integrate with functional programming styles. The `fetchf()` makes requests independently of `createApiFetcher()` settings.
+_Alias: `fetchff(url, config)`_
+
+A simple function that wraps the native `fetch()` and adds extra features like retries and better error handling. Use `fetchf()` directly for quick, enhanced requests - no need to set up `createApiFetcher()`. It works independently and is easy to use in any codebase.
 
 #### Example
 
