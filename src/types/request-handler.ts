@@ -67,7 +67,7 @@ export type Req<
 
 export type DefaultRequestTypes = {
   response?: DefaultResponse;
-  body?: BodyPayload;
+  body?: DefaultPayload;
   params?: QueryParams;
   urlPathParams?: UrlPathParams;
 };

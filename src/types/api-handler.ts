@@ -74,10 +74,10 @@ export type Endpoint<T extends DefaultRequestTypes = DefaultRequestTypes> =
 
 // Helper to support 4 generics
 export type EndpointReq<
-  ResponseData = DefaultResponse,
-  RequestBody = DefaultPayload,
-  QueryParams = DefaultParams,
-  UrlPathParams = DefaultUrlParams,
+  ResponseData extends DefaultResponse | undefined = DefaultResponse,
+  RequestBody extends DefaultPayload | undefined = DefaultPayload,
+  QueryParams extends DefaultParams | undefined = DefaultParams,
+  UrlPathParams extends DefaultUrlParams | undefined = DefaultUrlParams,
 > = Endpoint<Req<ResponseData, RequestBody, QueryParams, UrlPathParams>>;
 
 type MergeEndpointShape<

@@ -2235,7 +2235,7 @@ interface AddBookRequest {
   body: AddBookRequestBody;
 }
 
-const { data: bookAddedData } = await fetchff<AddBookRequest>('/api/add-book', {
+const { data: bookAddedData } = await fetchf<AddBookRequest>('/api/add-book', {
   method: 'POST',
 });
 // Your bookAddedData is of type AddBookResponseData
