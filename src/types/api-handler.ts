@@ -241,13 +241,16 @@ export type ApiHandlerDefaultMethods<EndpointTypes> = {
   request: RequestEndpointFunction<EndpointTypes>;
 };
 
+type RequireApiUrlOrBaseURL =
+  | { apiUrl: string; baseURL?: never }
+  | { apiUrl?: never; baseURL: string };
 
 /**
  * Configuration for the API handler, including API URL and endpoints.
  *
- * @template EndpointsMethods - The object containing endpoint method definitions.
+ * @template EndpointTypes - The object containing endpoint method definitions.
  */
-export interface ApiHandlerConfig<EndpointsMethods> extends RequestConfig {
-  apiUrl: string;
-  endpoints: EndpointsConfig<EndpointsMethods>;
-}
+export type ApiHandlerConfig<EndpointTypes> = RequestConfig &
+  RequireApiUrlOrBaseURL & {
+    endpoints: EndpointsConfig<EndpointTypes>;
+  };
