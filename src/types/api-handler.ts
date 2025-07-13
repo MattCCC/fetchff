@@ -1,4 +1,5 @@
 import type { DefaultRequestTypes } from './request-handler';
+import type { Req } from './request-handler';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type {
   RequestConfig,
@@ -70,6 +71,14 @@ type EndpointDefaults = Endpoint<DefaultRequestTypes>;
  */
 export type Endpoint<T extends DefaultRequestTypes = DefaultRequestTypes> =
   EndpointFunction<T>;
+
+// Helper to support 4 generics
+export type EndpointReq<
+  ResponseData = DefaultResponse,
+  RequestBody = DefaultPayload,
+  QueryParams = DefaultParams,
+  UrlPathParams = DefaultUrlParams,
+> = Endpoint<Req<ResponseData, RequestBody, QueryParams, UrlPathParams>>;
 
 type MergeEndpointShape<
   O extends Partial<DefaultRequestTypes>,

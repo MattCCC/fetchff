@@ -1761,9 +1761,9 @@ You can use the `onResponse` interceptor to customize how the response is handle
 ```typescript
 interface FetchResponse<
   ResponseData = any,
+  RequestBody = any,
   QueryParams = any,
   PathParams = any,
-  RequestBody = any,
 > extends Response {
   data: ResponseData | null; // The parsed response data, or null/defaultResponse if unavailable
   error: ResponseError<
@@ -2223,6 +2223,84 @@ if (error) {
 
 The `fetchff` package provides comprehensive TypeScript typings to enhance development experience and ensure type safety. Below are details on the available, exportable types for both `createApiFetcher()` and `fetchf()`.
 
+### Typings for `fetchf()`
+
+The `fetchf()` function includes types that help configure and manage network requests effectively:
+
+```typescript
+interface AddBookRequest {
+  response: AddBookResponseData;
+  params: AddBookQueryParams;
+  urlPathParams: AddBookPathParams;
+  body: AddBookRequestBody;
+}
+
+const { data: bookAddedData } = await fetchff<AddBookRequest>('/api/add-book', {
+  method: 'POST',
+});
+// Your bookAddedData is of type AddBookResponseData
+```
+
+- **`Req<ResponseData, RequestBody, QueryParams, UrlPathParams>`**: Represents a shorter 4-generics version of request object type for endpoints, allowing you to compose the shape of the request payload, query parameters, and path parameters for each request using a couple inline generics e.g. `fetchf<ResponseData, RequestBody, QueryParams, UrlPathParams>()`. While there is no plan for deprecation, this is for compatibility with older versions only. Aim to use the new method with single generic presented above instead. We don't use overload here to keep it all fast and snapy.
+- **`RequestConfig`**: Main configuration options for the `fetchf()` function, including request settings, interceptors, and retry configurations.
+- **`RetryConfig`**: Configuration options for retry mechanisms, including the number of retries, delay between retries, and backoff strategies.
+- **`CacheConfig`**: Configuration options for caching, including cache time, custom cache keys, and cache invalidation rules.
+- **`PollingConfig`**: Configuration options for polling, including polling intervals and conditions to stop polling.
+- **`ErrorStrategy`**: Defines strategies for handling errors, such as rejection, soft fail, default response, and silent modes.
+
+For a complete list of types and their definitions, refer to the [request-handler.ts](https://github.com/MattCCC/fetchff/blob/master/src/types/request-handler.ts) file.
+
+### Typings for `createApiFetcher()`
+
+The `createApiFetcher<EndpointTypes>()` function provides a robust set of types to define and manage API interactions.
+
+- **`EndpointTypes`**: Represents the list of API endpoints with their respective settings. It is your own interface that you can pass to this generic. It will be cross-checked against the `endpoints` object in your `createApiFetcher()` configuration. Each endpoint can be configured with its own specific types such as Response Data Structure, Query Parameters, URL Path Parameters or Request Body. Example:
+
+```typescript
+interface EndpointTypes {
+  fetchBook: Endpoint<{
+    response: Book;
+    params: BookQueryParams;
+    urlPathParams: BookPathParams;
+  }>;
+  // or shorter version: fetchBook: EndpointReq<Book, undefined, BookQueryParams, BookPathParams>;
+  addBook: Endpoint<{
+    response: Book;
+    body: BookBody;
+    params: BookQueryParams;
+    urlPathParams: BookPathParams;
+  }>;
+  // or shorter version: fetchBook: EndpointReq<Book, BookBody, BookQueryParams, BookPathParams>;
+  someOtherEndpoint: Endpoint; // The generic is fully optional but it must be defined for endpoint not to output error
+}
+
+const api = createApiFetcher<EndpointTypes>({
+  baseURL: 'https://example.com/api',
+  endpoints: {
+    fetchBook: {
+      url: '/get-book',
+    },
+    addBook: {
+      url: '/add-book',
+      method: 'POST',
+    },
+  },
+});
+
+const { data: book } = await api.addBook();
+// book will be of type Book
+```
+
+<br>
+
+- **`Endpoint<{response: ResponseData, params: QueryParams, urlPathParams: PathParams, body: RequestBody}>`**: Represents an API endpoint function, allowing to be defined with optional response data (default `DefaultResponse`), query parameters (default `QueryParams`), URL path parameters (default `DefaultUrlParams`), and request body (default `DefaultPayload`).
+- **`RequestInterceptor`**: Function to modify request configurations before they are sent.
+- **`ResponseInterceptor`**: Function to process responses before they are handled by the application.
+- **`ErrorInterceptor`**: Function to handle errors when a request fails.
+- **`CustomFetcher`**: Represents the custom `fetcher` function.
+
+For a full list of types and detailed definitions, refer to the [api-handler.ts](https://github.com/MattCCC/fetchff/blob/master/src/types/api-handler.ts) file.
+
 ### Generic Typings
 
 The `fetchff` package includes several generic types to handle various aspects of API requests and responses:
@@ -2231,34 +2309,6 @@ The `fetchff` package includes several generic types to handle various aspects o
 - **`BodyPayload<PayloadType>`**: Represents the request body. Can be `BodyInit`, an object, an array, a string, or `null`.
 - **`UrlPathParams<UrlParamsType>`**: Represents URL path parameters. Can be an object or `null`.
 - **`DefaultResponse`**: Default response for all requests. Default is: `any`.
-
-### Typings for `createApiFetcher()`
-
-The `createApiFetcher<EndpointTypes, EndpointsSettings>()` function provides a robust set of types to define and manage API interactions.
-
-The key types are:
-
-- **`EndpointTypes`**: Represents the list of API endpoints with their respective settings. It is your own interface that you can pass to this generic. It will be cross-checked against the `endpoints` object in your `createApiFetcher()` configuration.<br><br>Each endpoint can be configured with its own specific settings such as Response Payload, Query Parameters and URL Path Parameters.
-- **`Endpoint<ResponseData = DefaultResponse, QueryParams = DefaultParams, PathParams = DefaultUrlParams, RequestBody = DefaultPayload>`**: Represents an API endpoint function, allowing to be defined with optional query parameters, URL path parameters, request configuration (settings), and request body (data).
-- **`EndpointsSettings`**: Configuration for API endpoints, including query parameters, URL path parameters, and additional request configurations. Default is `typeof endpoints`.
-- **`RequestInterceptor`**: Function to modify request configurations before they are sent.
-- **`ResponseInterceptor`**: Function to process responses before they are handled by the application.
-- **`ErrorInterceptor`**: Function to handle errors when a request fails.
-- **`CustomFetcher`**: Represents the custom `fetcher` function.
-
-For a full list of types and detailed definitions, refer to the [api-handler.ts](https://github.com/MattCCC/fetchff/blob/docs-update/src/types/api-handler.ts) file.
-
-### Typings for `fetchf()`
-
-The `fetchf()` function includes types that help configure and manage network requests effectively:
-
-- **`RequestConfig`**: Main configuration options for the `fetchf()` function, including request settings, interceptors, and retry configurations.
-- **`RetryConfig`**: Configuration options for retry mechanisms, including the number of retries, delay between retries, and backoff strategies.
-- **`CacheConfig`**: Configuration options for caching, including cache time, custom cache keys, and cache invalidation rules.
-- **`PollingConfig`**: Configuration options for polling, including polling intervals and conditions to stop polling.
-- **`ErrorStrategy`**: Defines strategies for handling errors, such as rejection, soft fail, default response, and silent modes.
-
-For a complete list of types and their definitions, refer to the [request-handler.ts](https://github.com/MattCCC/fetchff/blob/docs-update/src/types/request-handler.ts) file.
 
 ### Benefits of Using Typings
 
@@ -2713,7 +2763,7 @@ _fetchff uniquely combines advanced input sanitization, prototype pollution prot
 
 ## ✏️ Examples
 
-Click to expand particular examples below. You can also check [examples.ts](./docs/examples/examples.ts) for more examples of usage.
+Click to expand particular examples below. You can also check [docs/examples/](./docs/examples/) for more examples of usage.
 
 ### All Settings
 
@@ -2901,17 +2951,19 @@ const endpoints = {
 } as const;
 
 // Define endpoints with proper typing
-interface EndpointsList {
-  fetchBook: Endpoint<Book, BookQueryParams, BookPathParams>;
-  fetchBooks: Endpoint<Books, BookQueryParams>;
+interface EndpointTypes {
+  fetchBook: Endpoint<{
+    response: Book;
+    params: BookQueryParams;
+    urlPathParams: BookPathParams;
+  }>;
+  fetchBooks: Endpoint<{ response: Books; params: BookQueryParams }>;
 }
 
-type EndpointsSettings = typeof endpoints;
-
-const api = createApiFetcher<EndpointsList, EndpointsSettings>({
+const api = createApiFetcher<EndpointTypes>({
   baseURL: 'https://example.com/api',
-  endpoints,
   strategy: 'softFail',
+  endpoints,
 });
 
 export { api };
@@ -2934,7 +2986,7 @@ if (book.error) {
   console.log('Book title:', book.data?.title);
 }
 
-// For example, this will cause a TypeScript error - 'rating' doesn't exist in BookQueryParams
+// For example, this will cause a TypeScript error as 'rating' doesn't exist in BookQueryParams
 // const invalidBook = await api.fetchBook({
 //   params: { rating: 5 }
 // });
@@ -2992,13 +3044,15 @@ interface PostsPathParams {
   subject: string;
 }
 
-interface EndpointsList {
-  getPosts: Endpoint<PostsResponse, PostsQueryParams, PostsPathParams>;
+interface EndpointTypes {
+  getPosts: Endpoint<{
+    response: PostsResponse;
+    params: PostsQueryParams;
+    urlPathParams: PostsPathParams;
+  }>;
 }
 
-type EndpointsSettings = typeof endpoints;
-
-const api = createApiFetcher<EndpointsList, EndpointsSettings>({
+const api = createApiFetcher<EndpointTypes>({
   baseURL: 'https://example.com/api',
   endpoints,
   onError(error) {
@@ -3046,14 +3100,14 @@ In the example above we fetch data from an API for user with an ID of 1. We also
   <br>
 
 ```typescript
-import { createApiFetcher, RequestConfig, FetchResponse } from 'fetchff';
+import { createApiFetcher } from 'fetchff';
 
 // Create the API fetcher with the custom fetcher
 const api = createApiFetcher({
   baseURL: 'https://api.example.com/',
   retry: retryConfig,
   // This function will be called whenever a request is being fired.
-  fetcher: async (config: RequestConfig): Promise<FetchResponse> => {
+  async fetcher(config) {
     // Implement your custom fetch logic here
     const response = await fetch(config.url, config);
     // Optionally, process or transform the response
