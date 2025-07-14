@@ -12,13 +12,14 @@ import type {
  */
 export class FetchError<
   ResponseData = DefaultResponse,
+  RequestBody = DefaultPayload,
   QueryParams = DefaultParams,
   PathParams = DefaultUrlParams,
-  RequestBody = DefaultPayload,
 > extends Error {
   status: number;
   statusText: string;
   config: RequestConfig<ResponseData, QueryParams, PathParams, RequestBody>;
+  isCancelled: boolean;
 
   constructor(
     message: string,
@@ -38,8 +39,9 @@ export class FetchError<
     super(message);
 
     this.name = 'FetchError';
-    this.status = response?.status || 0;
-    this.statusText = response?.statusText || '';
+    this.status = response ? response.status : 0;
+    this.statusText = response ? response.statusText : '';
     this.config = request;
+    this.isCancelled = false;
   }
 }

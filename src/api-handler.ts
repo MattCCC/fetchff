@@ -1,54 +1,23 @@
 import type {
-  RequestConfig,
-  FetchResponse,
-  DefaultResponse,
-  CreatedCustomFetcherInstance,
-} from './types/request-handler';
-import type {
   ApiHandlerConfig,
   ApiHandlerDefaultMethods,
   ApiHandlerMethods,
-  DefaultPayload,
-  FallbackValue,
-  FinalParams,
-  FinalResponse,
-  QueryParams,
   RequestConfigUrlRequired,
-  UrlPathParams,
 } from './types/api-handler';
-import { createRequestHandler } from './request-handler';
 import { fetchf } from '.';
-import { mergeConfig } from './config-handler';
+import { mergeConfigs } from './config-handler';
+import { isAbsoluteUrl } from './utils';
 
 /**
  * Creates an instance of API Handler.
- * It creates an API fetcher function using native fetch() or a custom fetcher if it is passed as "fetcher".
- * @url https://github.com/MattCCC/fetchff
+ * It creates an API fetcher function using native fetch() or a custom fetcher if passed as "fetcher".
+ * @see https://github.com/MattCCC/fetchff#configuration
  *
- * @param {Object} config - Configuration object for the API fetcher.
- * @param {string} config.apiUrl - The base URL for the API.
+ * @param {Object} config - Configuration object for the API fetcher (see link above for full options).
  * @param {Object} config.endpoints - An object containing endpoint definitions.
- * @param {number} config.timeout - You can set the timeout for particular request in milliseconds.
- * @param {number} config.cancellable - If true, the ongoing previous requests will be automatically cancelled.
- * @param {number} config.rejectCancelled - If true and request is set to cancellable, a cancelled request promise will be rejected. By default, instead of rejecting the promise, defaultResponse is returned.
- * @param {number} config.timeout - Request timeout
- * @param {number} config.dedupeTime - Time window, in milliseconds, during which identical requests are deduplicated (treated as single request).
- * @param {string} config.strategy - Error Handling Strategy
- * @param {string} config.flattenResponse - Whether to flatten response "data" object within "data". It works only if the response structure includes a single data property.
- * @param {*} config.defaultResponse - Default response when there is no data or when endpoint fails depending on the chosen strategy. It's "null" by default
- * @param {Object} [config.retry] - Options for retrying requests.
- * @param {number} [config.retry.retries=0] - Number of retry attempts. No retries by default.
- * @param {number} [config.retry.delay=1000] - Initial delay between retries in milliseconds.
- * @param {number} [config.retry.backoff=1.5] - Exponential backoff factor.
- * @param {number[]} [config.retry.retryOn=[502, 504, 408]] - HTTP status codes to retry on.
- * @param {RequestInterceptor|RequestInterceptor[]} [config.onRequest] - Optional request interceptor function or an array of functions.
- * These functions will be called with the request configuration object before the request is made. Can be used to modify or log the request configuration.
- * @param {ResponseInterceptor|ResponseInterceptor[]} [config.onResponse] - Optional response interceptor function or an array of functions.
- * These functions will be called with the response object after the response is received. an be used to modify or log the response data.
- * @param {Function} [config.onError] - Optional callback function for handling errors.
+ * @param {string} [config.baseURL] - The base URL for the API.
  * @param {Object} [config.headers] - Optional default headers to include in every request.
- * @param {Object} config.fetcher - The Custom Fetcher instance to use for making requests. It should expose create() and request() functions.
- * @param {*} config.logger - Instance of custom logger. Either class or an object similar to "console". Console is used by default.
+ * @param {Function} [config.onError] - Optional callback function for handling errors.
  * @returns API handler functions and endpoints to call
  *
  * @example
@@ -74,20 +43,10 @@ import { mergeConfig } from './config-handler';
  * const response = await api.getUser({ userId: 1, ratings: [1, 2] })
  */
 function createApiFetcher<
-  EndpointsMethods extends object,
+  EndpointTypes extends object,
   EndpointsSettings = never,
->(config: ApiHandlerConfig<EndpointsMethods>) {
+>(config: ApiHandlerConfig<EndpointTypes>) {
   const endpoints = config.endpoints;
-  const requestHandler = createRequestHandler(config);
-
-  /**
-   * Get Custom Fetcher Provider Instance
-   *
-   * @returns {CreatedCustomFetcherInstance | null} Request Handler's Custom Fetcher Instance
-   */
-  function getInstance(): CreatedCustomFetcherInstance | null {
-    return requestHandler.getInstance();
-  }
 
   /**
    * Triggered when trying to use non-existent endpoints
@@ -101,71 +60,42 @@ function createApiFetcher<
     return Promise.resolve(null);
   }
 
-  /**
-   * Handle Single API Request
-   * It considers settings in following order: per-request settings, global per-endpoint settings, global settings.
-   *
-   * @param {keyof EndpointsMethods | string} endpointName - The name of the API endpoint to call.
-   * @param {EndpointConfig} [requestConfig={}] - Additional configuration for the request.
-   * @returns {Promise<FetchResponse<ResponseData>>} - A promise that resolves with the response from the API provider.
-   */
-  async function request<
-    ResponseData = never,
-    QueryParams_ = never,
-    UrlParams = never,
-    RequestBody = never,
-  >(
-    endpointName: keyof EndpointsMethods | string,
-    requestConfig: RequestConfig<
-      FinalResponse<ResponseData, DefaultResponse>,
-      FinalParams<ResponseData, QueryParams_, QueryParams>,
-      FinalParams<ResponseData, UrlParams, UrlPathParams>,
-      FallbackValue<ResponseData, DefaultPayload, RequestBody>
-    > = {},
-  ): Promise<FetchResponse<FinalResponse<ResponseData, DefaultResponse>>> {
-    // Use global per-endpoint settings
-    const endpointConfig =
-      endpoints[endpointName] ||
-      ({ url: String(endpointName) } as RequestConfigUrlRequired);
-    const url = endpointConfig.url;
-
-    // Block Protocol-relative URLs as they could lead to SSRF (Server-Side Request Forgery)
-    if (url.startsWith('//')) {
-      throw new Error('Protocol-relative URLs are not allowed.');
-    }
-
-    // Prevent potential Server-Side Request Forgery attack and leakage of credentials when same instance is used for external requests
-    const isAbsoluteUrl = url.includes('://');
-
-    if (isAbsoluteUrl) {
-      // Retrigger fetch to ensure completely new instance of handler being triggered for external URLs
-      return await fetchf(url, requestConfig);
-    }
-
-    const mergedConfig = {
-      ...endpointConfig,
-      ...requestConfig,
-    };
-
-    mergeConfig('retry', mergedConfig, endpointConfig, requestConfig);
-    mergeConfig('headers', mergedConfig, endpointConfig, requestConfig);
-
-    const responseData = await requestHandler.request<
-      FinalResponse<ResponseData, DefaultResponse>,
-      FinalParams<ResponseData, QueryParams_, QueryParams>,
-      FinalParams<ResponseData, UrlParams, UrlParams>,
-      FallbackValue<ResponseData, DefaultPayload, RequestBody>
-    >(url, mergedConfig);
-
-    return responseData;
-  }
-
-  const apiHandler: ApiHandlerDefaultMethods<EndpointsMethods> = {
+  const apiHandler: ApiHandlerDefaultMethods<EndpointTypes> = {
     config,
     endpoints,
-    requestHandler,
-    getInstance,
-    request,
+    /**
+     * Handle Single API Request
+     * It considers settings in following order: per-request settings, global per-endpoint settings, global settings.
+     *
+     * @param endpointName - The name of the API endpoint to call.
+     * @param requestConfig - Additional configuration for the request.
+     * @returns A promise that resolves with the response from the API provider.
+     */
+    async request(endpointName, requestConfig = {}) {
+      // Use global and per-endpoint settings
+      const endpointConfig = endpoints[endpointName];
+      const _endpointConfig =
+        endpointConfig ||
+        ({ url: String(endpointName) } as RequestConfigUrlRequired);
+      const url = _endpointConfig.url;
+
+      // Block Protocol-relative URLs as they could lead to SSRF (Server-Side Request Forgery)
+      if (url.startsWith('//')) {
+        throw new Error('Protocol-relative URLs are not allowed.');
+      }
+
+      // Prevent potential Server-Side Request Forgery attack and leakage of credentials when same instance is used for external requests
+      const mergedConfig = isAbsoluteUrl(url)
+        ? // Merge endpoints configs for absolute URLs only if urls match
+          endpointConfig?.url === url
+          ? mergeConfigs(_endpointConfig, requestConfig)
+          : requestConfig
+        : mergeConfigs(mergeConfigs(config, _endpointConfig), requestConfig);
+
+      // We prevent potential Server-Side Request Forgery attack and leakage of credentials as the same instance is not used for external requests
+      // Retrigger fetch to ensure completely new instance of handler being triggered for external URLs
+      return fetchf(url, mergedConfig);
+    },
   };
 
   /**
@@ -173,8 +103,8 @@ function createApiFetcher<
    *
    * @param {*} prop          Caller
    */
-  return new Proxy<ApiHandlerMethods<EndpointsMethods, EndpointsSettings>>(
-    apiHandler as ApiHandlerMethods<EndpointsMethods, EndpointsSettings>,
+  return new Proxy<ApiHandlerMethods<EndpointTypes, EndpointsSettings>>(
+    apiHandler as ApiHandlerMethods<EndpointTypes, EndpointsSettings>,
     {
       get(_target, prop: string) {
         if (prop in apiHandler) {

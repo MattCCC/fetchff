@@ -1,31 +1,82 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { hash } from './hash';
-import { fetchf } from './index';
-import type { FetcherConfig, FetchResponse } from './types/request-handler';
+import type {
+  CacheKeyFunction,
+  DefaultResponse,
+  FetchResponse,
+  MutationSettings,
+  RequestConfig,
+} from './types/request-handler';
 import type { CacheEntry } from './types/cache-manager';
-import { GET, OBJECT, UNDEFINED } from './constants';
-import { shallowSerialize, sortObject } from './utils';
+import { GET, STRING, UNDEFINED } from './constants';
+import { isObject, sanitizeObject, sortObject, timeNow } from './utils';
+import { revalidate } from './revalidator-manager';
+import { notifySubscribers } from './pubsub-manager';
+import type { DefaultPayload, DefaultParams, DefaultUrlParams } from './types';
+import { removeInFlight } from './inflight-manager';
+import { addTimeout } from './timeout-wheel';
+import { defaultConfig } from './config-handler';
+import { processHeaders } from './utils';
 
-const cache = new Map<string, CacheEntry<any>>();
+export const IMMEDIATE_DISCARD_CACHE_TIME = 0; // Use it for cache entries that need to be persistent until unused by components or manually deleted
+
+const _cache = new Map<string, CacheEntry<any>>();
 const DELIMITER = '|';
 const MIN_LENGTH_TO_HASH = 64;
+const CACHE_KEY_SANITIZE_PATTERN = new RegExp('[^\\w\\-_|]', 'g');
+
+/**
+ * Headers that may affect HTTP response content and should be included in cache key generation.
+ * All header names must be lowercase to match normalized request headers.
+ */
+const CACHE_KEY_HEADER_WHITELIST = new Set([
+  // Content negotiation
+  'accept', // Affects response format (e.g. JSON, HTML)
+  'accept-language', // Affects localization of the response
+  'accept-encoding', // Affects response compression (e.g. gzip, br)
+
+  // Authentication
+  'authorization', // Affects access to protected resources
+
+  // Request body metadata
+  'content-type', // Affects how the request body is interpreted
+
+  // Optional headers
+  'referer', // May influence behavior in some APIs
+  'origin', // Relevant in CORS or tenant-specific APIs
+  'user-agent', // Included only for reason if server returns client-specific content
+
+  // Cookies — only if server uses session-based responses
+  'cookie', // Can fragment cache heavily; use only if necessary
+
+  // Custom headers that may affect response content
+  'x-api-key', // Token-based access, often affects authorization
+  'x-requested-with', // AJAX requests (used historically for distinguishing frontend calls)
+  'x-client-id', // Per-client/partner identity; often used in multi-tenant APIs
+  'x-tenant-id', // Multi-tenant segmentation; often changes response per tenant
+  'x-user-id', // Explicit user context (less common, but may exist)
+
+  'x-app-version', // Used for version-specific behavior (e.g. mobile apps)
+  'x-feature-flag', // Controls feature rollout behavior server-side
+  'x-device-id', // Used when response varies per device/app instance
+  'x-platform', // e.g. 'ios', 'android', 'web' — used in apps that serve different content
+
+  'x-session-id', // Only if backend uses it to affect the response directly (rare)
+  'x-locale', // Sometimes used in addition to or instead of `accept-language`
+]);
 
 /**
  * Generates a unique cache key for a given URL and fetch options, ensuring that key factors
  * like method, headers, body, and other options are included in the cache key.
  * Headers and other objects are sorted by key to ensure consistent cache keys.
  *
- * @param options - The fetch options that may affect the request. The most important are:
+ * @param {RequestConfig} config - The fetch options that may affect the request. The most important are:
  *   @property {string} [method="GET"] - The HTTP method (GET, POST, etc.).
  *   @property {HeadersInit} [headers={}] - The request headers.
  *   @property {BodyInit | null} [body=""] - The body of the request (only for methods like POST, PUT).
- *   @property {RequestMode} [mode="cors"] - The mode for the request (e.g., cors, no-cors, include).
- *   @property {RequestCredentials} [credentials="include"] - Whether to include credentials like cookies.
+ *   @property {RequestCredentials} [credentials="same-origin"] - Whether to include credentials (include, same-origin, omit).
  *   @property {RequestCache} [cache="default"] - The cache mode (e.g., default, no-store, reload).
- *   @property {RequestRedirect} [redirect="follow"] - How to handle redirects (e.g., follow, error, manual).
- *   @property {string} [referrer=""] - The referrer URL to send with the request.
- *   @property {string} [integrity=""] - Subresource integrity value (a cryptographic hash for resource validation).
- * @returns {string} - A unique cache key based on the URL and request options. Empty if cache is to be burst.
+ * @returns {string} - A unique cache key string based on the provided options.
  *
  * @example
  * const cacheKey = generateCacheKey({
@@ -38,42 +89,76 @@ const MIN_LENGTH_TO_HASH = 64;
  * });
  * console.log(cacheKey);
  */
-export function generateCacheKey(options: FetcherConfig): string {
+export function generateCacheKey(
+  config: RequestConfig,
+  cacheKeyCheck = true,
+): string {
+  // This is super fast. Effectively a no-op if cacheKey is
+  // a string or a function that returns a string.
+  const key = config.cacheKey;
+
+  if (key && cacheKeyCheck) {
+    return typeof key === STRING
+      ? (key as string)
+      : (key as CacheKeyFunction)(config);
+  }
+
   const {
     url = '',
     method = GET,
     headers = null,
-    body = undefined,
-    mode = 'cors',
+    body = null,
     credentials = 'same-origin',
-    cache = 'default',
-    redirect = 'follow',
-    referrer = 'about:client',
-    integrity = '',
-  } = options;
-
-  // Bail early if cache should be burst
-  if (cache === 'reload') {
-    return '';
-  }
+  } = config;
 
   // Sort headers and body + convert sorted to strings for hashing purposes
   // Native serializer is on avg. 3.5x faster than a Fast Hash or FNV-1a
   let headersString = '';
   if (headers) {
-    const obj =
-      headers instanceof Headers
-        ? Object.fromEntries((headers as any).entries())
-        : headers;
-    headersString = shallowSerialize(sortObject(obj));
-    if (headersString.length > MIN_LENGTH_TO_HASH) {
-      headersString = hash(headersString);
+    let obj: Record<string, string>;
+
+    if (headers instanceof Headers) {
+      obj = processHeaders(headers);
+    } else {
+      obj = headers as Record<string, string>;
     }
+
+    // Filter headers to only include those that affect request identity
+    // Include only headers that affect request identity, not execution behavior
+    const keys = Object.keys(obj);
+    const len = keys.length;
+
+    // Sort keys manually for fastest deterministic output
+    if (len > 1) {
+      keys.sort();
+    }
+
+    let str = '';
+    for (let i = 0; i < len; ++i) {
+      if (CACHE_KEY_HEADER_WHITELIST.has(keys[i].toLowerCase())) {
+        str += keys[i] + ':' + obj[keys[i]] + ';';
+      }
+    }
+
+    headersString = hash(str);
+  }
+
+  // For GET requests, return early with shorter cache key
+  if (method === GET) {
+    return (
+      method +
+      DELIMITER +
+      url +
+      DELIMITER +
+      credentials +
+      DELIMITER +
+      headersString
+    ).replace(CACHE_KEY_SANITIZE_PATTERN, '');
   }
 
   let bodyString = '';
   if (body) {
-    if (typeof body === 'string') {
+    if (typeof body === STRING) {
       bodyString = body.length < MIN_LENGTH_TO_HASH ? body : hash(body); // hash only if large
     } else if (body instanceof FormData) {
       body.forEach((value, key) => {
@@ -92,10 +177,9 @@ export function generateCacheKey(options: FetcherConfig): string {
     } else if (body instanceof ArrayBuffer || ArrayBuffer.isView(body)) {
       bodyString = 'AB' + body.byteLength;
     } else {
-      const o =
-        typeof body === OBJECT
-          ? JSON.stringify(sortObject(body))
-          : String(body);
+      const o = isObject(body)
+        ? JSON.stringify(sortObject(body))
+        : String(body);
 
       bodyString = o.length > MIN_LENGTH_TO_HASH ? hash(o) : o;
     }
@@ -108,101 +192,120 @@ export function generateCacheKey(options: FetcherConfig): string {
     DELIMITER +
     url +
     DELIMITER +
-    mode +
     credentials +
-    cache +
-    redirect +
-    referrer +
-    integrity +
     DELIMITER +
     headersString +
     DELIMITER +
     bodyString
-  ).replace(/[^\w\-_|]/g, ''); // Prevent cache poisoning by removal of anything that isn't letters, numbers, -, _, or |
+  ).replace(CACHE_KEY_SANITIZE_PATTERN, ''); // Prevent cache poisoning by removal of anything that isn't letters, numbers, -, _, or |
 }
 
 /**
- * Checks if the cache entry is expired based on its timestamp and the maximum stale time.
+ * Checks if the cache entry is expired based on its timestamp and the expiry time.
  *
- * @param {number} timestamp - The timestamp of the cache entry.
- * @param {number} maxStaleTime - The maximum stale time in seconds.
+ * @param {CacheEntry<any>} entry - The cache entry to check.
  * @returns {boolean} - Returns true if the cache entry is expired, false otherwise.
  */
-function isCacheExpired(timestamp: number, maxStaleTime: number): boolean {
-  if (!maxStaleTime) {
+function isCacheExpired(entry: CacheEntry<any>): boolean {
+  // No expiry time means the entry never expires
+  if (!entry.expiry) {
     return false;
   }
 
-  return Date.now() - timestamp > maxStaleTime * 1000;
+  return timeNow() > entry.expiry;
+}
+
+/**
+ * Checks if the cache entry is stale based on its timestamp and the stale time.
+ *
+ * @param {CacheEntry<any>} entry - The cache entry to check.
+ * @returns {boolean} - Returns true if the cache entry is stale, false otherwise.
+ */
+function isCacheStale(entry: CacheEntry<any>): boolean {
+  if (!entry.stale) {
+    return false;
+  }
+
+  return timeNow() > entry.stale;
+}
+
+/**
+ * Retrieves a cached response from the internal cache using the provided key.
+ *
+ * @param key - The unique key identifying the cached entry. If null, returns null.
+ * @returns The cached {@link FetchResponse} if found, otherwise null.
+ */
+export function getCacheData<
+  ResponseData,
+  RequestBody,
+  QueryParams,
+  PathParams,
+>(
+  key: string | null,
+): FetchResponse<ResponseData, RequestBody, QueryParams, PathParams> | null {
+  if (!key) {
+    return null;
+  }
+
+  const entry = _cache.get(key);
+
+  return entry ? entry.data : null;
 }
 
 /**
  * Retrieves a cache entry if it exists and is not expired.
  *
  * @param {string} key Cache key to utilize
- * @param {number} cacheTime - Maximum time to cache entry in seconds.
  * @returns {CacheEntry<T> | null} - The cache entry if it exists and is not expired, null otherwise.
  */
-export function getCache<T>(
-  key: string,
-  cacheTime: number,
-): CacheEntry<T> | null {
-  const entry = cache.get(key);
-
-  if (entry) {
-    if (!isCacheExpired(entry.timestamp, cacheTime)) {
-      return entry;
-    }
-
-    deleteCache(key);
-  }
-
-  return null;
+export function getCache<ResponseData, RequestBody, QueryParams, PathParams>(
+  key: string | null,
+):
+  | CacheEntry<
+      FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>
+    >
+  | null
+  | undefined {
+  return _cache.get(key as string);
 }
 
 /**
- * Sets a new cache entry or updates an existing one.
+ * Sets a new cache entry or updates an existing one, with optional TTL (time-to-live).
  *
  * @param {string} key Cache key to utilize
  * @param {T} data - The data to be cached.
- * @param {boolean} isLoading - Indicates if the data is currently being fetched.
+ * @param {number} [ttl] - Optional TTL in seconds. If not provided, the cache entry will not expire.
+ * @param {number} [staleTime] - Optional stale time in seconds. If provided, the cache entry will be considered stale after this time.
  */
 export function setCache<T = unknown>(
   key: string,
   data: T,
-  isLoading: boolean = false,
+  ttl?: number,
+  staleTime?: number,
 ): void {
-  cache.set(key, {
+  if (ttl === 0) {
+    deleteCache(key);
+    return;
+  }
+
+  const time = timeNow();
+  const ttlMs = ttl ? ttl * 1000 : 0;
+
+  _cache.set(key, {
     data,
-    isLoading,
-    timestamp: Date.now(),
+    time,
+    stale: staleTime && staleTime > 0 ? time + staleTime * 1000 : staleTime,
+    expiry: ttl === -1 ? undefined : time + ttlMs,
   });
-}
 
-/**
- * Revalidates a cache entry by fetching fresh data and updating the cache.
- *
- * @param {string} key Cache key to utilize
- * @param {FetcherConfig} config - The request configuration object.
- * @returns {Promise<void>} - A promise that resolves when the revalidation is complete.
- */
-export async function revalidate(
-  key: string,
-  config: FetcherConfig,
-): Promise<void> {
-  try {
-    // Fetch fresh data
-    const newData = await fetchf(config.url, {
-      ...config,
-      cache: 'reload',
-    });
-
-    setCache(key, newData);
-  } catch (error) {
-    console.error(`Error revalidating ${config.url}:`, error);
-
-    // Rethrow the error to forward it
-    throw error;
+  if (ttlMs > 0) {
+    addTimeout(
+      'c:' + key,
+      () => {
+        deleteCache(key, true);
+      },
+      ttlMs,
+    );
   }
 }
 
@@ -210,42 +313,83 @@ export async function revalidate(
  * Invalidates (deletes) a cache entry.
  *
  * @param {string} key Cache key to utilize
+ * @param {boolean} [removeExpired=false] - If true, only deletes the cache entry if it is expired or stale.
  */
-export function deleteCache(key: string): void {
-  cache.delete(key);
+export function deleteCache(key: string, removeExpired: boolean = false): void {
+  if (removeExpired) {
+    const entry = getCache(key);
+
+    // If the entry does not exist, or it is neither expired nor stale, do not delete
+    if (!entry || !isCacheExpired(entry)) {
+      return;
+    }
+  }
+
+  _cache.delete(key);
 }
 
 /**
  * Prunes the cache by removing entries that have expired based on the provided cache time.
- * @param cacheTime - The maximum time to cache entry.
  */
-export function pruneCache(cacheTime: number) {
-  cache.forEach((entry, key) => {
-    if (isCacheExpired(entry.timestamp, cacheTime)) {
-      cache.delete(key);
-    }
-  });
+export function pruneCache(): void {
+  _cache.clear();
 }
 
 /**
  * Mutates a cache entry with new data and optionally revalidates it.
  *
- * @param {string} key Cache key to utilize
- * @param {FetcherConfig} config - The request configuration object.
- * @param {T} newData - The new data to be cached.
- * @param {boolean} revalidateAfter - If true, triggers revalidation after mutation.
+ * @param {string | null} key Cache key to utilize. If null, no mutation occurs.
+ * @param {ResponseData} newData - The new data to be cached.
+ * @param {MutationSettings|undefined} settings - Mutation settings.
  */
-export function mutate<T>(
-  key: string,
-  config: FetcherConfig,
-  newData: T,
-  revalidateAfter: boolean = false,
-): void {
-  setCache(key, newData);
-
-  if (revalidateAfter) {
-    revalidate(key, config);
+export async function mutate<
+  ResponseData = DefaultResponse,
+  RequestBody = DefaultPayload,
+  QueryParams = DefaultParams,
+  PathParams = DefaultUrlParams,
+>(
+  key: string | null,
+  newData: ResponseData,
+  settings?: MutationSettings,
+): Promise<FetchResponse<
+  ResponseData,
+  RequestBody,
+  QueryParams,
+  PathParams
+> | null> {
+  // If no key is provided, do nothing
+  if (!key) {
+    return null;
   }
+
+  const entry = getCache<ResponseData, RequestBody, QueryParams, PathParams>(
+    key,
+  );
+
+  if (!entry) {
+    return null;
+  }
+
+  const updatedData = isObject(newData) ? sanitizeObject(newData) : newData;
+
+  const updatedResponse = {
+    ...entry.data,
+    data: updatedData,
+  };
+
+  const updatedEntry = {
+    ...entry,
+    data: updatedResponse,
+  };
+
+  _cache.set(key, updatedEntry);
+  notifySubscribers(key, updatedResponse);
+
+  if (settings && settings.refetch) {
+    return await revalidate(key);
+  }
+
+  return null;
 }
 
 /**
@@ -257,8 +401,7 @@ export function mutate<T>(
  * @template PathParams - The type of the path parameters.
  * @param {string | null} cacheKey - The cache key to look up.
  * @param {number | undefined} cacheTime - The maximum time to cache entry.
- * @param {(cfg: any) => boolean | undefined} cacheBuster - Optional function to determine if cache should be bypassed.
- * @param {FetcherConfig<ResponseData, QueryParams, PathParams, RequestBody>} fetcherConfig - The fetcher configuration.
+ * @param {RequestConfig<ResponseData, QueryParams, PathParams, RequestBody>} requestConfig - The fetcher configuration.
  * @returns {FetchResponse<ResponseData, RequestBody, QueryParams, PathParams> | null} - The cached response or null.
  */
 export function getCachedResponse<
@@ -269,8 +412,7 @@ export function getCachedResponse<
 >(
   cacheKey: string | null,
   cacheTime: number | undefined,
-  cacheBuster: ((cfg: any) => boolean) | undefined,
-  fetcherConfig: FetcherConfig<
+  requestConfig: RequestConfig<
     ResponseData,
     QueryParams,
     PathParams,
@@ -278,20 +420,98 @@ export function getCachedResponse<
   >,
 ): FetchResponse<ResponseData, RequestBody, QueryParams, PathParams> | null {
   // If cache key or time is not provided, return null
-  if (!cacheTime || !cacheKey) {
+  if (!cacheKey || cacheTime === undefined || cacheTime === null) {
     return null;
   }
 
   // Check if cache should be bypassed
-  if (cacheBuster?.(fetcherConfig)) {
+  const buster = requestConfig.cacheBuster || defaultConfig.cacheBuster;
+  if (buster && buster(requestConfig)) {
     return null;
   }
 
-  // Retrieve the cached entry
-  const cachedEntry = getCache<
-    FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>
-  >(cacheKey, cacheTime);
+  if (requestConfig.cache && requestConfig.cache === 'reload') {
+    return null; // Skip cache lookup entirely
+  }
 
-  // If no cached entry or it is expired, return null
-  return cachedEntry ? cachedEntry.data : null;
+  // Retrieve the cached entry
+  const entry = getCache<ResponseData, RequestBody, QueryParams, PathParams>(
+    cacheKey,
+  );
+
+  if (!entry) {
+    return null;
+  }
+
+  const isExpired = isCacheExpired(entry);
+  const isStale = isCacheStale(entry);
+
+  // If completely expired, delete and return null
+  if (isExpired) {
+    deleteCache(cacheKey);
+    return null;
+  }
+
+  // If fresh (not stale), return immediately
+  if (!isStale) {
+    return entry.data;
+  }
+
+  // SWR: Data is stale but not expired
+  if (isStale && !isExpired) {
+    // Triggering background revalidation here could cause race conditions
+    // So we return stale data immediately and leave it up to implementers to handle revalidation
+    return entry.data;
+  }
+
+  return null;
+}
+
+/**
+ * Sets or deletes the response cache based on cache settings and notifies subscribers.
+ *
+ * @param {FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>} output - The response to cache.
+ * @param {RequestConfig<ResponseData, QueryParams, PathParams, RequestBody>} requestConfig - The request configuration.
+ * @param {boolean} [isError=false] - Whether the response is an error.
+ */
+export function handleResponseCache<
+  ResponseData = DefaultResponse,
+  RequestBody = DefaultPayload,
+  QueryParams = DefaultParams,
+  PathParams = DefaultUrlParams,
+>(
+  output: FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>,
+  requestConfig: RequestConfig<
+    ResponseData,
+    QueryParams,
+    PathParams,
+    RequestBody
+  >,
+  isError: boolean = false,
+): void {
+  // It is string as it is called once request is made
+  const cacheKey = requestConfig.cacheKey as string;
+
+  if (cacheKey) {
+    const cacheTime = requestConfig.cacheTime;
+    const skipCache = requestConfig.skipCache;
+
+    // Fast path: only set cache if cacheTime is positive and not skipping cache
+    if (
+      cacheTime &&
+      (!isError || requestConfig.cacheErrors) &&
+      !(skipCache && skipCache(output, requestConfig))
+    ) {
+      setCache(cacheKey, output, cacheTime, requestConfig.staleTime);
+    }
+
+    notifySubscribers(cacheKey, output);
+    removeInFlight(cacheKey);
+
+    const prevCacheKey = requestConfig._prevKey;
+
+    if (prevCacheKey) {
+      removeInFlight(prevCacheKey);
+    }
+  }
 }

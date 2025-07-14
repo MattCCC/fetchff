@@ -1,15 +1,14 @@
 <div align="center">
 <img src="./docs/logo.png" alt="logo" width="380"/>
 
-<h4 align="center">Fast, lightweight (~4 KB gzipped) and reusable data fetching</h4>
+<h4 align="center">Fast, lightweight (~5 KB gzipped) and reusable data fetching</h4>
 
-<i>The last fetch wrapper you will ever need.</i>
 <i>"fetchff" stands for "fetch fast & flexibly"</i>
 
 [npm-url]: https://npmjs.org/package/fetchff
 [npm-image]: https://img.shields.io/npm/v/fetchff.svg
 
-[![NPM version][npm-image]][npm-url] [![Blazing Fast](https://badgen.now.sh/badge/speed/blazing%20%F0%9F%94%A5/green)](https://github.com/MattCCC/fetchff) [![Code Coverage](https://img.shields.io/badge/coverage-96.81-green)](https://github.com/MattCCC/fetchff) [![npm downloads](https://img.shields.io/npm/dm/fetchff.svg?color=lightblue)](http://npm-stat.com/charts.html?package=fetchff) [![gzip size](https://img.shields.io/bundlephobia/minzip/fetchff)](https://bundlephobia.com/result?p=fetchff) [![snyk](https://snyk.io/test/github/MattCCC/fetchff/badge.svg)](https://security.snyk.io/package/npm/fetchff)
+[![NPM version][npm-image]][npm-url] [![Blazing Fast](https://badgen.now.sh/badge/speed/blazing%20%F0%9F%94%A5/green)](https://github.com/MattCCC/fetchff) [![Code Coverage](https://img.shields.io/badge/coverage-96.93-green)](https://github.com/MattCCC/fetchff) [![npm downloads](https://img.shields.io/npm/dm/fetchff.svg?color=lightblue)](http://npm-stat.com/charts.html?package=fetchff) [![gzip size](https://img.shields.io/bundlephobia/minzip/fetchff)](https://bundlephobia.com/result?p=fetchff) [![snyk](https://snyk.io/test/github/MattCCC/fetchff/badge.svg)](https://security.snyk.io/package/npm/fetchff)
 
 </div>
 
@@ -36,18 +35,15 @@ Also, managing multitude of API connections in large applications can be complex
 To address these challenges, the `fetchf()` provides several enhancements:
 
 1. **Consistent Error Handling:**
-
    - In JavaScript, the native `fetch()` function does not reject the Promise for HTTP error statuses such as 404 (Not Found) or 500 (Internal Server Error). Instead, `fetch()` resolves the Promise with a `Response` object, where the `ok` property indicates the success of the request. If the request encounters a network error or fails due to other issues (e.g., server downtime), `fetch()` will reject the Promise.
    - The `fetchff` plugin aligns error handling with common practices and makes it easier to manage errors consistently by rejecting erroneous status codes.
 
 2. **Enhanced Retry Mechanism:**
-
    - **Retry Configuration:** You can configure the number of retries, delay between retries, and exponential backoff for failed requests. This helps to handle transient errors effectively.
    - **Custom Retry Logic:** The `shouldRetry` asynchronous function allows for custom retry logic based on the error from `response.error` and attempt count, providing flexibility to handle different types of failures.
    - **Retry Conditions:** Errors are only retried based on configurable retry conditions, such as specific HTTP status codes or error types.
 
 3. **Improved Error Visibility:**
-
    - **Error Wrapping:** The `createApiFetcher()` and `fetchf()` wrap errors in a custom `ResponseError` class, which provides detailed information about the request and response. This makes debugging easier and improves visibility into what went wrong.
 
 4. **Extended settings:**
@@ -87,10 +83,11 @@ To address these challenges, the `fetchf()` provides several enhancements:
 - **Smart Retry Mechanism**: Features exponential backoff for intelligent error handling and retry mechanisms.
 - **Request Deduplication**: Set the time during which requests are deduplicated (treated as same request).
 - **Cache Management**: Dynamically manage cache with configurable expiration, custom keys, and selective invalidation.
+- **Network Revalidation**: Automatically revalidate data on window focus and network reconnection for fresh data.
 - **Dynamic URLs Support**: Easily manage routes with dynamic parameters, such as `/user/:userId`.
 - **Error Handling**: Flexible error management at both global and individual request levels.
 - **Request Cancellation**: Utilizes `AbortController` to cancel previous requests automatically.
-- **Timeouts**: Set timeouts globally or per request to prevent hanging operations.
+- **Adaptive Timeouts**: Smart timeout adjustment based on connection speed for optimal user experience.
 - **Fetching Strategies**: Handle failed requests with various strategies - promise rejection, silent hang, soft fail, or default response.
 - **Requests Chaining**: Easily chain multiple requests using promises for complex API interactions.
 - **Native `fetch()` Support**: Utilizes the built-in `fetch()` API, providing a modern and native solution for making HTTP requests.
@@ -122,9 +119,11 @@ yarn add fetchff
 
 ### Standalone usage
 
-#### `fetchf()`
+#### `fetchf(url, config)`
 
-It is a functional wrapper for `fetch()`. It seamlessly enhances it with additional settings like the retry mechanism and error handling improvements. The `fetchf()` can be used directly as a function, simplifying the usage and making it easier to integrate with functional programming styles. The `fetchf()` makes requests independently of `createApiFetcher()` settings.
+_Alias: `fetchff(url, config)`_
+
+A simple function that wraps the native `fetch()` and adds extra features like retries and better error handling. Use `fetchf()` directly for quick, enhanced requests - no need to set up `createApiFetcher()`. It works independently and is easy to use in any codebase.
 
 #### Example
 
@@ -139,9 +138,58 @@ const { data, error } = await fetchf('/api/user-details', {
 });
 ```
 
-### Multiple API Endpoints
+### Global Configuration
 
-#### `createApiFetcher()`
+#### `getDefaultConfig()`
+
+<details>
+  <summary><span style="cursor:pointer">Click to expand</span></summary>
+  <br>
+
+Returns the current global default configuration used for all requests. This is useful for inspecting or debugging the effective global settings.
+
+```typescript
+import { getDefaultConfig } from 'fetchff';
+
+// Retrieve the current global default config
+const config = getDefaultConfig();
+console.log('Current global fetchff config:', config);
+```
+
+</details>
+
+#### `setDefaultConfig(customConfig)`
+
+<details>
+  <summary><span style="cursor:pointer">Click to expand</span></summary>
+  <br>
+
+Allows you to globally override the default configuration for all requests. This is useful for setting application-wide defaults like timeouts, headers, or retry policies.
+
+```typescript
+import { setDefaultConfig } from 'fetchff';
+
+// Set global defaults for all requests
+setDefaultConfig({
+  timeout: 10000, // 10 seconds for all requests
+  headers: {
+    Authorization: 'Bearer your-token',
+  },
+  retry: {
+    retries: 2,
+    delay: 1500,
+  },
+});
+
+// All subsequent requests will use these defaults
+const { data } = await fetchf('/api/data'); // Uses 10s timeout and retry config
+```
+
+</details>
+
+### Instance with many API endpoints
+
+#### `createApiFetcher(config)`
 
 <details>
   <summary><span style="cursor:pointer">Click to expand</span></summary>
@@ -184,7 +232,7 @@ const { data, error } = await api.getUser({
 All the Request Settings can be directly used in the function as global settings for all endpoints. They can be also used within the `endpoints` property (on per-endpoint basis). The exposed `endpoints` property is as follows:
 
 - **`endpoints`**:
-  Type: `EndpointsConfig<EndpointsMethods>`
+  Type: `EndpointsConfig<EndpointTypes>`
   List of your endpoints. Each endpoint is an object that accepts all the Request Settings (see the Basic Settings below). The endpoints are required to be specified.
 
 #### How It Works
@@ -245,9 +293,238 @@ You can access `api.config` property directly to modify global headers and other
 
 You can access `api.endpoints` property directly to modify the endpoints list. This can be useful if you want to append or remove global endpoints. This is a property, not a function.
 
-#### `api.getInstance()`
+</details>
 
-If you initialize API handler with your custom `fetcher`, then this function will return the instance created using `fetcher.create()` function. Your fetcher can include anything. It will be triggering `fetcher.request()` instead of native fetch() that is available by default. It gives you ultimate flexibility on how you want your requests to be made.
+### Advanced Utilities
+
+<details>
+  <summary><span style="cursor:pointer">Click to expand</span></summary>
+  <br>
+
+#### Cache Management
+
+##### `mutate(key, newData, settings)`
+
+Programmatically update cached data without making a network request. Useful for optimistic updates or reflecting changes from other operations.
+
+**Parameters:**
+
+- `key` (string): The cache key to update
+- `newData` (any): The new data to store in cache
+- `settings` (object, optional): Configuration options
+  - `revalidate` (boolean): Whether to trigger background revalidation after update
+
+```typescript
+import { mutate } from 'fetchff';
+
+// Update cache for a specific cache key
+await mutate('/api/users', newUserData);
+
+// Update with options
+await mutate('/api/users', updatedData, {
+  revalidate: true, // Trigger background revalidation
+});
+```
+
+##### `getCache(key)`
+
+Directly retrieve cached data for a specific cache key. Useful for reading the current cached response without triggering a network request.
+
+**Parameters:**
+
+- `key` (string): The cache key to retrieve (equivalent to `cacheKey` from request config or `config.cacheKey` from response object)
+
+**Returns:** The cached response object, or `null` if not found
+
+```typescript
+import { getCache } from 'fetchff';
+
+// Get cached data for a specific key assuming you set {cacheKey: ''/api/user-profile'} in config
+const cachedResponse = getCache('/api/user-profile');
+if (cachedResponse) {
+  console.log('Cached user profile:', cachedResponse.data);
+}
+```
+
+##### `setCache(key, response, ttl, staleTime)`
+
+Directly set cache data for a specific key. Unlike `mutate()`, this doesn't trigger revalidation by default. This is a low level function to directly set cache data based on particular key. If unsure, use the `mutate()` with `revalidate: false` instead.
+
+**Parameters:**
+
+- `key` (string): The cache key to set. It must match the cache key of the request.
+- `response` (any): The full response object to store in cache
+- `ttl` (number, optional): Time to live for the cache entry, in seconds. Determines how long the cached data remains valid before expiring. If not specified, the default `0` value will be used (discard cache immediately), if `-1` specified then the cache will be held until manually removed using `deleteCache(key)` function.
+- `staleTime` (number, optional): Duration, in seconds, for which cached data is considered "fresh" before it becomes eligible for background revalidation. If not specified, the default stale time applies.
+
+```typescript
+import { setCache } from 'fetchff';
+
+// Set cache data with custom ttl and staleTime
+setCache('/api/user-profile', userData, 600, 60); // Cache for 10 minutes, fresh for 1 minute
+
+// Set cache for specific endpoint infinitely
+setCache('/api/user-settings', userSettings, -1);
+```
+
+##### `deleteCache(key)`
+
+Remove cached data for a specific cache key. Useful for cache invalidation when you know data is stale.
+
+**Parameters:**
+
+- `key` (string): The cache key to delete
+
+```typescript
+import { deleteCache } from 'fetchff';
+
+// Delete specific cache entry
+deleteCache('/api/user-profile');
+
+// Delete cache after user logout
+const logout = () => {
+  deleteCache('/api/user/*'); // Delete all user-related cache
+};
+```
+
+#### Revalidation Management
+
+##### `revalidate(key, isStaleRevalidation)`
+
+Manually trigger revalidation for a specific cache entry, forcing a fresh network request to update the cached data.
+
+**Parameters:**
+
+- `key` (string): The cache key to revalidate
+- `isStaleRevalidation` (boolean, optional): Whether this is a background revalidation that doesn't mark as in-flight
+
+```typescript
+import { revalidate } from 'fetchff';
+
+// Revalidate specific cache entry
+await revalidate('/api/user-profile');
+
+// Revalidate with custom cache key
+await revalidate('custom-cache-key');
+
+// Background revalidation (doesn't mark as in-flight)
+await revalidate('/api/user-profile', true);
+```
+
+##### `revalidateAll(type, isStaleRevalidation)`
+
+Trigger revalidation for all cache entries associated with a specific event type (focus or online).
+
+**Parameters:**
+
+- `type` (string): The revalidation event type ('focus' or 'online')
+- `isStaleRevalidation` (boolean, optional): Whether this is a background revalidation
+
+```typescript
+import { revalidateAll } from 'fetchff';
+
+// Manually trigger focus revalidation for all relevant entries
+revalidateAll('focus');
+
+// Manually trigger online revalidation for all relevant entries
+revalidateAll('online');
+```
+
+##### `removeRevalidators(type)`
+
+Clean up revalidation event listeners for a specific event type. Useful for preventing memory leaks when you no longer need automatic revalidation.
+
+**Parameters:**
+
+- `type` (string): The revalidation event type to remove ('focus' or 'online')
+
+```typescript
+import { removeRevalidators } from 'fetchff';
+
+// Remove all focus revalidation listeners
+removeRevalidators('focus');
+
+// Remove all online revalidation listeners
+removeRevalidators('online');
+
+// Typically called during cleanup
+// e.g., in React useEffect cleanup or when unmounting components
+```
+
+#### Pub/Sub System
+
+##### `subscribe(key, callback)`
+
+Subscribe to cache updates and data changes. Receive notifications when specific cache entries are updated.
+
+**Parameters:**
+
+- `key` (string): The cache key to subscribe to
+- `callback` (function): Function called when cache is updated
+  - `response` (any): The full response object
+
+**Returns:** Function to unsubscribe from updates
+
+```typescript
+import { subscribe } from 'fetchff';
+
+// Subscribe to cache changes for a specific key
+const unsubscribe = subscribe('/api/user-data', (response) => {
+  console.log('Cache updated with response:', response);
+  console.log('Response data:', response.data);
+  console.log('Response status:', response.status);
+});
+
+// Clean up subscription when no longer needed
+unsubscribe();
+```
+
+#### Request Management
+
+##### `abortRequest(key, error)`
+
+Programmatically abort in-flight requests for a specific cache key or URL pattern.
+
+**Parameters:**
+
+- `key` (string): The cache key or URL pattern to abort
+- `error` (Error, optional): Custom error to throw for aborted requests
+
+```typescript
+import { abortRequest } from 'fetchff';
+
+// Abort specific request by cache key
+abortRequest('/api/slow-operation');
+
+// Useful for cleanup when component unmounts or route changes
+const cleanup = () => {
+  abortRequest('/api/user-dashboard');
+};
+```
+
+#### Network Detection
+
+##### `isSlowConnection()`
+
+Check if the user is on a slow network connection (2G/3G). Useful for adapting application behavior based on connection speed.
+
+**Parameters:** None
+
+**Returns:** Boolean indicating if connection is slow
+
+```typescript
+import { isSlowConnection } from 'fetchff';
+
+// Check connection speed and adapt behavior
+if (isSlowConnection()) {
+  console.log('User is on a slow connection');
+  // Reduce image quality, disable auto-refresh, etc.
+}
+
+// Use in conditional logic
+const shouldAutoRefresh = !isSlowConnection();
+const imageQuality = isSlowConnection() ? 'low' : 'high';
+```
 
 </details>
 
@@ -275,20 +552,198 @@ You can pass the settings:
 
 You can also use all native [`fetch()` settings](https://developer.mozilla.org/en-US/docs/Web/API/fetch#parameters).
 
-|                            | Type                                                                                                   | Default | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| -------------------------- | ------------------------------------------------------------------------------------------------------ | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| baseURL<br>(alias: apiUrl) | `string`                                                                                               |         | Your API base url.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| url                        | `string`                                                                                               |         | URL path e.g. /user-details/get                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| method                     | `string`                                                                                               | `GET`   | Default request method e.g. GET, POST, DELETE, PUT etc. All methods are supported.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| params                     | `object`<br>`URLSearchParams`<br>`NameValuePair[]`                                                     | `{}`    | Query Parameters - a key-value pairs added to the URL to send extra information with a request. If you pass an object, it will be automatically converted. It works with nested objects, arrays and custom data structures similarly to what `jQuery` used to do in the past. If you use `createApiFetcher()` then it is the first argument of your `api.yourEndpoint()` function. You can still pass configuration in 3rd argument if want to.<br><br>You can pass key-value pairs where the values can be strings, numbers, or arrays. For example, if you pass `{ foo: [1, 2] }`, it will be automatically serialized into `foo[]=1&foo[]=2` in the URL. |
-| body<br>(alias: data)      | `object`<br>`string`<br>`FormData`<br>`URLSearchParams`<br>`Blob`<br>`ArrayBuffer`<br>`ReadableStream` | `{}`    | The body is the data sent with the request, such as JSON, text, or form data, included in the request payload for POST, PUT, or PATCH requests.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| urlPathParams              | `object`                                                                                               | `{}`    | It lets you dynamically replace segments of your URL with specific values in a clear and declarative manner. This feature is especially handy for constructing URLs with variable components or identifiers.<br><br>For example, suppose you need to update user details and have a URL template like `/user-details/update/:userId`. With `urlPathParams`, you can replace `:userId` with a real user ID, such as `123`, resulting in the URL `/user-details/update/123`.                                                                                                                                                                                  |
-| flattenResponse            | `boolean`                                                                                              | `false` | When set to `true`, this option flattens the nested response data. This means you can access the data directly without having to use `response.data.data`. It works only if the response structure includes a single `data` property.                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| defaultResponse            | `any`                                                                                                  | `null`  | Default response when there is no data or when endpoint fails depending on the chosen `strategy`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| withCredentials            | `boolean`                                                                                              | `false` | Indicates whether credentials (such as cookies) should be included with the request. This equals to `credentials: "include"` in native `fetch()`. In Node.js, cookies are not managed automatically. Use a fetch polyfill or library that supports cookies if needed.                                                                                                                                                                                                                                                                                                                                                                                       |
-| timeout                    | `number`                                                                                               | `30000` | You can set a request timeout in milliseconds. By default 30 seconds (30000 ms). The timeout option applies to each individual request attempt including retries and polling. `0` means that the timeout is disabled.                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| logger                     | `Logger`                                                                                               | `null`  | You can additionally specify logger object with your custom logger to automatically log the errors to the console. It should contain at least `error` and `warn` functions.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| fetcher                    | `FetcherInstance`                                                                                      |         | A custom adapter (an instance / object) that exposes `create()` function so to create instance of API Fetcher. The `create()` should return `request()` function that would be used when making the requests. The native `fetch()` is used if the fetcher is not provided.                                                                                                                                                                                                                                                                                                                                                                                  |
+|                            | Type                                                                                                   | Default           | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| -------------------------- | ------------------------------------------------------------------------------------------------------ | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| baseURL<br>(alias: apiUrl) | `string`                                                                                               | `undefined`       | Your API base url.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| url                        | `string`                                                                                               | `undefined`       | URL path e.g. /user-details/get                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| method                     | `string`                                                                                               | `'GET'`           | Default request method e.g. GET, POST, DELETE, PUT etc. All methods are supported.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| params                     | `object`<br>`URLSearchParams`<br>`NameValuePair[]`                                                     | `undefined`       | Query Parameters - a key-value pairs added to the URL to send extra information with a request. If you pass an object, it will be automatically converted. It works with nested objects, arrays and custom data structures similarly to what `jQuery` used to do in the past. If you use `createApiFetcher()` then it is the first argument of your `api.yourEndpoint()` function. You can still pass configuration in 3rd argument if want to.<br><br>You can pass key-value pairs where the values can be strings, numbers, or arrays. For example, if you pass `{ foo: [1, 2] }`, it will be automatically serialized into `foo[]=1&foo[]=2` in the URL. |
+| body<br>(alias: data)      | `object`<br>`string`<br>`FormData`<br>`URLSearchParams`<br>`Blob`<br>`ArrayBuffer`<br>`ReadableStream` | `undefined`       | The body is the data sent with the request, such as JSON, text, or form data, included in the request payload for POST, PUT, or PATCH requests.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| urlPathParams              | `object`                                                                                               | `undefined`       | It lets you dynamically replace segments of your URL with specific values in a clear and declarative manner. This feature is especially handy for constructing URLs with variable components or identifiers.<br><br>For example, suppose you need to update user details and have a URL template like `/user-details/update/:userId`. With `urlPathParams`, you can replace `:userId` with a real user ID, such as `123`, resulting in the URL `/user-details/update/123`.                                                                                                                                                                                  |
+| flattenResponse            | `boolean`                                                                                              | `false`           | When set to `true`, this option flattens the nested response data. This means you can access the data directly without having to use `response.data.data`. It works only if the response structure includes a single `data` property.                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| select                     | `(data: any) => any`                                                                                   | `undefined`       | Function to transform or select a subset of the response data before it is returned. Called with the raw response data and should return the transformed data. Useful for mapping, picking, or shaping the response.                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| defaultResponse            | `any`                                                                                                  | `null`            | Default response when there is no data or when endpoint fails depending on the chosen `strategy`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| withCredentials            | `boolean`                                                                                              | `false`           | Indicates whether credentials (such as cookies) should be included with the request. This equals to `credentials: "include"` in native `fetch()`. In Node.js, cookies are not managed automatically. Use a fetch polyfill or library that supports cookies if needed.                                                                                                                                                                                                                                                                                                                                                                                       |
+| timeout                    | `number`                                                                                               | `30000` / `60000` | You can set a request timeout in milliseconds. **Default is adaptive**: 30 seconds (30000 ms) for normal connections, 60 seconds (60000 ms) on slow connections (2G/3G). The timeout option applies to each individual request attempt including retries and polling. `0` means that the timeout is disabled.                                                                                                                                                                                                                                                                                                                                               |
+| dedupeTime                 | `number`                                                                                               | `0`               | Time window, in milliseconds, during which identical requests are deduplicated (treated as single request). If set to `0`, deduplication is disabled.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| cacheTime                  | `number`                                                                                               | `undefined`       | Specifies the duration, in seconds, for which a cache entry is considered "fresh." Once this time has passed, the entry is considered stale and may be refreshed with a new request. Set to -1 for indefinite cache. By default no caching.                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| staleTime                  | `number`                                                                                               | `undefined`       | Specifies the duration, in seconds, for which cached data is considered "fresh." During this period, cached data will be returned immediately, but a background revalidation (network request) will be triggered to update the cache. If set to `0`, background revalidation is disabled and revalidation is triggered on every access.                                                                                                                                                                                                                                                                                                                     |
+| refetchOnFocus             | `boolean`                                                                                              | `false`           | When set to `true`, automatically revalidates (refetches) data when the browser window regains focus. **Note: This bypasses the cache and always makes a fresh network request** to ensure users see the most up-to-date data when they return to your application from another tab or window. Particularly useful for applications that display real-time or frequently changing data, but should be used judiciously to avoid unnecessary network traffic.                                                                                                                                                                                                |
+| refetchOnReconnect         | `boolean`                                                                                              | `false`           | When set to `true`, automatically revalidates (refetches) data when the browser regains internet connectivity after being offline. **This uses background revalidation to silently update data** without showing loading states to users. Helps ensure your application displays fresh data after network interruptions. Works by listening to the browser's `online` event.                                                                                                                                                                                                                                                                                |
+| logger                     | `Logger`                                                                                               | `null`            | You can additionally specify logger object with your custom logger to automatically log the errors to the console. It should contain at least `error` and `warn` functions.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| fetcher                    | `CustomFetcher`                                                                                        | `undefined`       | A custom fetcher async function. By default, the native `fetch()` is used. If you use your own fetcher, default response parsing e.g. `await response.json()` call will be skipped. Your fetcher should return data.                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+
+> 📋 **Additional Settings Available:**  
+> The table above shows the most commonly used settings. Many more advanced configuration options are available and documented in their respective sections below, including:
+>
+> - **🔄 Retry Mechanism** - `retries`, `delay`, `maxDelay`, `backoff`, `resetTimeout`, `retryOn`, `shouldRetry`
+> - **📶 Polling Configuration** - `pollingInterval`, `pollingDelay`, `maxPollingAttempts`, `shouldStopPolling`
+> - **🗄️ Cache Management** - `cacheKey`, `cacheBuster`, `skipCache`, `cacheErrors`
+> - **✋ Request Cancellation** - `cancellable`, `rejectCancelled`
+> - **🌀 Interceptors** - `onRequest`, `onResponse`, `onError`, `onRetry`
+> - **🔍 Error Handling** - `strategy`
+
+### Performance Implications of Settings
+
+Understanding the performance impact of different settings helps you optimize for your specific use case:
+
+#### **High-Performance Settings**
+
+**Minimize Network Requests:**
+
+```typescript
+// Aggressive caching for static data
+const staticConfig = {
+  cacheTime: 3600, // 1 hour cache
+  staleTime: 1800, // 30 minutes freshness
+  dedupeTime: 10000, // 10 seconds deduplication
+};
+
+// Result: 90%+ reduction in network requests
+```
+
+**Optimize for Mobile/Slow Connections:**
+
+```typescript
+const mobileOptimized = {
+  timeout: 60000, // Longer timeout for slow connections (auto-adaptive)
+  retry: {
+    retries: 5, // More retries for unreliable connections
+    delay: 2000, // Longer initial delay (auto-adaptive)
+    backoff: 2.0, // Aggressive backoff
+  },
+  cacheTime: 900, // Longer cache on mobile
+};
+```
+
+#### **Memory vs Network Trade-offs**
+
+**Memory-Efficient (Low Cache):**
+
+```typescript
+const memoryEfficient = {
+  cacheTime: 60, // Short cache (1 minute)
+  staleTime: undefined, // No stale-while-revalidate
+  dedupeTime: 1000, // Short deduplication
+};
+// Pros: Low memory usage
+// Cons: More network requests, slower perceived performance
+```
+
+**Network-Efficient (High Cache):**
+
+```typescript
+const networkEfficient = {
+  cacheTime: 1800, // Long cache (30 minutes)
+  staleTime: 300, // 5 minutes stale-while-revalidate
+  dedupeTime: 5000, // Longer deduplication
+};
+// Pros: Fewer network requests, faster user experience
+// Cons: Higher memory usage, potentially stale data
+```
+
+#### **Feature Performance Impact**
+
+| Feature                    | Performance Impact                  | Best Use Case                               |
+| -------------------------- | ----------------------------------- | ------------------------------------------- |
+| **Caching**                | ⬇️ 70-90% fewer requests            | Static or semi-static data                  |
+| **Deduplication**          | ⬇️ 50-80% fewer concurrent requests | High-traffic applications                   |
+| **Stale-while-revalidate** | ⬆️ 90% faster perceived loading     | Dynamic data that tolerates brief staleness |
+| **Request cancellation**   | ⬇️ Reduced bandwidth waste          | Search-as-you-type, rapid navigation        |
+| **Retry mechanism**        | ⬆️ 95%+ success rate                | Mission-critical operations                 |
+| **Polling**                | ⬆️ Real-time updates                | Live data monitoring                        |
+
+#### **Adaptive Performance by Connection**
+
+FetchFF automatically adapts timeouts and retry delays based on connection speed:
+
+```typescript
+// Automatic adaptation (no configuration needed)
+const adaptiveRequest = fetchf('/api/data');
+
+// On fast connections (WiFi/4G):
+// - timeout: 30 seconds
+// - retry delay: 1 second → 1.5s → 2.25s...
+// - max retry delay: 30 seconds
+
+// On slow connections (2G/3G):
+// - timeout: 60 seconds
+// - retry delay: 2 seconds → 3s → 4.5s...
+// - max retry delay: 60 seconds
+```
+
+#### **Performance Patterns**
+
+**Progressive Loading (Best UX):**
+
+```typescript
+// Layer 1: Instant response with cache
+const quickData = await fetchf('/api/summary', {
+  cacheTime: 300,
+  staleTime: 60,
+});
+
+// Layer 2: Background enhancement
+fetchf('/api/detailed-data', {
+  strategy: 'silent',
+  cacheTime: 600,
+  onResponse(response) {
+    updateUIWithDetailedData(response.data);
+  },
+});
+```
+
+**Bandwidth-Conscious Loading:**
+
+```typescript
+// Check connection before expensive operations
+import { isSlowConnection } from 'fetchff';
+
+const loadUserDashboard = async () => {
+  const isSlowConn = isSlowConnection();
+
+  // Essential data always loads
+  const userData = await fetchf('/api/user', {
+    cacheTime: isSlowConn ? 600 : 300, // Longer cache on slow connections
+  });
+
+  // Optional data only on fast connections
+  if (!isSlowConn) {
+    fetchf('/api/user/analytics', { strategy: 'silent' });
+    fetchf('/api/user/recommendations', { strategy: 'silent' });
+  }
+};
+```
+
+#### **Performance Monitoring**
+
+Track key metrics to optimize your settings:
+
+```typescript
+const performanceConfig = {
+  onRequest(config) {
+    console.time(`request-${config.url}`);
+  },
+
+  onResponse(response) {
+    console.timeEnd(`request-${response.config.url}`);
+
+    // Track cache hit rate
+    if (response.fromCache) {
+      incrementMetric('cache.hits');
+    } else {
+      incrementMetric('cache.misses');
+    }
+  },
+
+  onError(error) {
+    incrementMetric('requests.failed');
+    console.warn('Request failed:', error.config.url, error.status);
+  },
+};
+```
+
+> ℹ️ **Note:** This is just an example. You need to implement the `incrementMetric` function yourself to record or report performance metrics as needed in your application.
 
 </details>
 
@@ -343,9 +798,6 @@ const { data } = await fetchf('https://api.example.com/endpoint', {
 
 The `fetchff` plugin automatically injects a set of default headers into every request. These default headers help ensure that requests are consistent and include necessary information for the server to process them correctly.
 
-- **`Content-Type`**: `application/json;charset=utf-8`
-  Specifies that the request body contains JSON data and sets the character encoding to UTF-8.
-
 - **`Accept`**: `application/json, text/plain, */*`
   Indicates the media types that the client is willing to receive from the server. This includes JSON, plain text, and any other types.
 
@@ -354,6 +806,22 @@ The `fetchff` plugin automatically injects a set of default headers into every r
 
 > ⚠️ **Accept-Encoding in Node.js:**  
 > In Node.js, decompression is handled by the fetch implementation, and users should ensure their environment supports the encodings.
+
+- **`Content-Type`**:  
+  Set automatically based on the request body type:
+  - For JSON-serializable bodies (objects, arrays, etc.):  
+    `application/json; charset=utf-8`
+  - For `URLSearchParams`:  
+    `application/x-www-form-urlencoded`
+  - For `ArrayBuffer`/typed arrays:  
+    `application/octet-stream`
+  - For `FormData`, `Blob`, `File`, or `ReadableStream`:  
+    **Not set** as the header is handled automatically by the browser and by Node.js 18+ native fetch.
+
+  The `Content-Type` header is **never overridden** if you set it manually.
+
+**Summary:**  
+You only need to set headers manually if you want to override these defaults. Otherwise, `fetchff` will handle the correct headers for most use cases, including advanced scenarios like file uploads, form submissions, and binary data.
 
 </details>
 
@@ -381,27 +849,120 @@ const { data } = await fetchf('https://api.example.com/', {
     console.error('Request failed:', error);
     console.error('Request config:', config);
   },
+  onRetry(response, attempt) {
+    // Log retry attempts for monitoring and debugging
+    console.warn(
+      `Retrying request (attempt ${attempt + 1}):`,
+      response.config.url,
+    );
+
+    // Modify config for the upcoming retry request
+    response.config.headers['Authorization'] = 'Bearer your-new-token';
+
+    // Log error details for failed attempts
+    if (response.error) {
+      console.warn(
+        `Retry reason: ${response.error.status} - ${response.error.statusText}`,
+      );
+    }
+
+    // You can implement custom retry logic or monitoring here
+    // For example, send retry metrics to your analytics service
+  },
+  retry: {
+    retries: 3,
+    delay: 1000,
+    backoff: 1.5,
+  },
 });
 ```
 
 ### Configuration
 
-The following options are available for configuring interceptors in the `RequestHandler`:
+The following options are available for configuring interceptors in the `fetchff` settings:
 
-- **`onRequest`**:  
+- **`onRequest(config) => config`**:  
   Type: `RequestInterceptor | RequestInterceptor[]`  
-  A function or an array of functions that are invoked before sending a request. Each function receives the request configuration object as its argument, allowing you to modify request parameters, headers, or other settings.  
-  _Default:_ `(config) => config` (no modification).
+  A function or an array of functions that are invoked before sending a request. Each function receives the request configuration object as its argument, allowing you to modify request parameters, headers, or other settings.
+  _Default:_ `undefined` (no modification).
 
-- **`onResponse`**:  
+- **`onResponse(response) => response`**:  
   Type: `ResponseInterceptor | ResponseInterceptor[]`  
   A function or an array of functions that are invoked when a response is received. Each function receives the full response object, enabling you to process the response, handle status codes, or parse data as needed.  
-  _Default:_ `(response) => response` (no modification).
+  _Default:_ `undefined` (no modification).
 
-- **`onError`**:  
+- **`onError(error) => error`**:  
   Type: `ErrorInterceptor | ErrorInterceptor[]`  
   A function or an array of functions that handle errors when a request fails. Each function receives the error and request configuration as arguments, allowing you to implement custom error handling logic or logging.  
-  _Default:_ `(error) => error` (no modification).
+  _Default:_ `undefined` (no modification).
+
+- **`onRetry(response, attempt) => response`**:  
+  Type: `RetryInterceptor | RetryInterceptor[]`  
+  A function or an array of functions that are invoked before each retry attempt. Each function receives the response object (containing error information) and the current attempt number as arguments, allowing you to implement custom retry logging, monitoring, or conditional retry logic.  
+  _Default:_ `undefined` (no retry interception).
+
+All interceptors are asynchronous and can modify the provided config or response objects. You don't have to return a value, but if you do, any returned properties will be merged into the original argument.
+
+### Interceptor Execution Order
+
+`fetchff` follows specific execution patterns for interceptor chains:
+
+#### **Request Interceptors: FIFO (First In, First Out)**
+
+Request interceptors execute in the order they are defined - from global to specific:
+
+```typescript
+// Execution order: 1 → 2 → 3 → 4
+const api = createApiFetcher({
+  onRequest: (config) => {
+    /* 1. Global interceptor */
+  },
+  endpoints: {
+    getData: {
+      onRequest: (config) => {
+        /* 2. Endpoint interceptor */
+      },
+    },
+  },
+});
+
+await api.getData({
+  onRequest: (config) => {
+    /* 3. Request interceptor */
+  },
+});
+```
+
+#### **Response Interceptors: LIFO (Last In, First Out)**
+
+Response interceptors execute in reverse order - from specific to global:
+
+```typescript
+// Execution order: 3 → 2 → 1
+const api = createApiFetcher({
+  onResponse: (response) => {
+    /* 3. Global interceptor (executes last) */
+  },
+  endpoints: {
+    getData: {
+      onResponse: (response) => {
+        /* 2. Endpoint interceptor */
+      },
+    },
+  },
+});
+
+await api.getData({
+  onResponse: (response) => {
+    /* 1. Request interceptor (executes first) */
+  },
+});
+```
+
+This pattern ensures that:
+
+- **Request interceptors** can progressively enhance configuration from general to specific
+- **Response interceptors** can process data from specific to general, allowing request-level interceptors to handle the response first before global cleanup or logging
 
 ### How It Works
 
@@ -416,6 +977,173 @@ The following options are available for configuring interceptors in the `Request
 
 4. **Custom Handling**:  
    Each interceptor function provides a flexible way to customize request and response behavior. You can use these functions to integrate with other systems, handle specific cases, or modify requests and responses as needed.
+
+</details>
+
+## 🌐 Network Revalidation
+
+<details>
+  <summary><span style="cursor:pointer">Click to expand</span></summary>
+  <br>
+
+`fetchff` provides intelligent network revalidation features that automatically keep your data fresh based on user interactions and network connectivity. These features help ensure users always see up-to-date information without manual intervention.
+
+### Focus Revalidation
+
+When `refetchOnFocus` is enabled, requests are automatically triggered when the browser window regains focus (e.g., when users switch back to your tab).
+
+```typescript
+const { data } = await fetchf('/api/user-profile', {
+  refetchOnFocus: true, // Revalidate when window gains focus
+  cacheTime: 300, // Cache for 5 minutes, but still revalidate on focus
+});
+```
+
+### Network Reconnection Revalidation
+
+The `refetchOnReconnect` feature automatically revalidates data when the browser detects that internet connectivity has been restored after being offline.
+
+```typescript
+const { data } = await fetchf('/api/notifications', {
+  refetchOnReconnect: true, // Revalidate when network reconnects
+  cacheTime: 600, // Cache for 10 minutes, but revalidate when back online
+});
+```
+
+### Adaptive Timeouts
+
+`fetchff` automatically adjusts request timeouts based on connection speed to provide optimal user experience:
+
+```typescript
+// Automatically uses:
+// - 30 seconds timeout on normal connections
+// - 60 seconds timeout on slow connections (2G/3G)
+const { data } = await fetchf('/api/data');
+
+// You can still override with custom timeout
+const { data: customTimeout } = await fetchf('/api/data', {
+  timeout: 10000, // Force 10 seconds regardless of connection speed
+});
+
+// Check connection speed manually
+import { isSlowConnection } from 'fetchff';
+
+if (isSlowConnection()) {
+  console.log('User is on a slow connection');
+  // Adjust your app behavior accordingly
+}
+```
+
+### How It Works
+
+1. **Event Listeners**: `fetchff` automatically attaches global event listeners for `focus` and `online` events when needed
+2. **Background Revalidation**: Network revalidation uses background requests that don't show loading states to users
+3. **Automatic Cleanup**: Event listeners are properly managed and cleaned up to prevent memory leaks
+4. **Smart Caching**: Revalidation works alongside caching - fresh data updates the cache for future requests
+5. **Stale-While-Revalidate**: Use `staleTime` to control when background revalidation happens automatically
+6. **Connection Awareness**: Automatically detects connection speed and adjusts timeouts for better reliability
+
+### Configuration Options
+
+Both revalidation features can be configured globally or per-request, and work seamlessly with cache timing:
+
+```typescript
+import { createApiFetcher } from 'fetchff';
+
+const api = createApiFetcher({
+  baseURL: 'https://api.example.com',
+  // Global settings apply to all endpoints
+  refetchOnFocus: true,
+  refetchOnReconnect: true,
+  cacheTime: 300, // Cache for 5 minutes
+  staleTime: 60, // Consider fresh for 1 minute, then background revalidate
+  endpoints: {
+    getCriticalData: {
+      url: '/critical-data',
+      // Override global settings for specific endpoints
+      refetchOnFocus: true,
+      refetchOnReconnect: true,
+      staleTime: 30, // More aggressive background revalidation for critical data
+    },
+    getStaticData: {
+      url: '/static-data',
+      // Disable revalidation for static data
+      refetchOnFocus: false,
+      refetchOnReconnect: false,
+      staleTime: 3600, // Background revalidate after 1 hour
+    },
+  },
+});
+```
+
+### Use Cases
+
+**Focus Revalidation** is ideal for:
+
+- Real-time dashboards and analytics
+- Social media feeds and chat applications
+- Financial data and trading platforms
+- Any data that changes frequently while users are away
+
+**Reconnection Revalidation** is perfect for:
+
+- Mobile applications with intermittent connectivity
+- Offline-capable applications
+- Critical data that must be current when online
+- Applications used in areas with unstable internet
+
+### Best Practices
+
+1. **Combine with appropriate cache and stale times**:
+
+   ```typescript
+   const { data } = await fetchf('/api/live-data', {
+     cacheTime: 300, // Cache for 5 minutes
+     staleTime: 30, // Consider fresh for 30 seconds
+     refetchOnFocus: true, // Also revalidate on focus
+     refetchOnReconnect: true,
+   });
+   ```
+
+2. **Use `staleTime` for automatic background updates** - Data stays fresh without user interaction:
+
+   ```typescript
+   // Good: Automatic background revalidation for dynamic data
+   const { data: notifications } = await fetchf('/api/notifications', {
+     cacheTime: 600, // Cache for 10 minutes
+     staleTime: 60, // Background revalidate after 1 minute
+     refetchOnFocus: true,
+   });
+
+   // Good: Less frequent updates for semi-static data
+   const { data: userProfile } = await fetchf('/api/profile', {
+     cacheTime: 1800, // Cache for 30 minutes
+     staleTime: 600, // Background revalidate after 10 minutes
+     refetchOnReconnect: true,
+   });
+   ```
+
+3. **Use selectively** - Don't enable for all requests to avoid unnecessary network traffic:
+
+   ```typescript
+   // Good: Enable for critical, changing data
+   const { data: userNotifications } = await fetchf('/api/notifications', {
+     refetchOnFocus: true,
+     refetchOnReconnect: true,
+   });
+
+   // Avoid: Don't enable for static configuration data
+   const { data: appConfig } = await fetchf('/api/config', {
+     cacheTime: 3600, // Cache for 1 hour
+     staleTime: 0, // Disable background revalidation
+     refetchOnFocus: false,
+     refetchOnReconnect: false,
+   });
+   ```
+
+4. **Consider user experience** - Network revalidation happens silently in the background, providing smooth UX without loading spinners.
+
+> ⚠️ **Browser Support**: These features work in all modern browsers that support the `focus` and `online` events. In server-side environments (Node.js), these options are safely ignored.
 
 </details>
 
@@ -434,10 +1162,12 @@ The following options are available for configuring interceptors in the `Request
 
 ```typescript
 const { data } = await fetchf('https://api.example.com/', {
-  cacheTime: 300, // Cache is valid for 5 minutes
-  cacheKey: (config) => `${config.url}-${config.method}`, // Custom cache key based on URL and method
-  cacheBuster: (config) => config.method === 'POST', // Bust cache for POST requests
-  skipCache: (response, config) => response.status !== 200, // Skip caching on non-200 responses
+  cacheTime: 300, // Cache is valid for 5 minutes, set -1 for indefinite cache. By default no cache.
+  cacheKey: (config) => `${config.url}-${config.method}`, // Custom cache key based on URL and method, default automatically generated
+  cacheBuster: (config) => config.method === 'POST', // Bust cache for POST requests, by default no busting.
+  skipCache: (response, config) => response.status !== 200, // Skip caching on non-200 responses, by default no skipping
+  cacheErrors: false, // Cache error responses as well as successful ones, default false
+  staleTime: 600, // Data is considered fresh for 10 minutes before background revalidation (0 by default, meaning no background revalidation)
 });
 ```
 
@@ -447,13 +1177,27 @@ The caching system can be fine-tuned using the following options when configurin
 
 - **`cacheTime`**:  
   Type: `number`  
-  Specifies the duration, in seconds, for which a cache entry is considered "fresh." Once this time has passed, the entry is considered stale and may be refreshed with a new request.  
-  _Default:_ `0` (no caching).
+  Specifies the duration, in seconds, for which a cache entry is considered "fresh." Once this time has passed, the entry is considered stale and may be refreshed with a new request. Set to -1 for indefinite cache.
+  _Default:_ `undefined` (no caching).
 
 - **`cacheKey`**:  
-  Type: `CacheKeyFunction`  
-  A function used to generate a custom cache key for the request. If not provided, a default key is created by hashing various parts of the request, including `Method`, `URL`, query parameters, and headers.  
-  _Default:_ Auto-generated based on request properties.
+  Type: `CacheKeyFunction | string`  
+  A string or function used to generate a custom cache key for the request cache, deduplication etc. If not provided, a default key is created by hashing various parts of the request, including `Method`, `URL`, query parameters, and headers etc. Providing string can help to greatly improve the performance of the requests, avoid unnecessary request flooding etc.
+
+  You can provide either:
+  - A **string**: Used directly as the cache key for all requests using matching string.
+  - A **function**: Receives the full request config as an argument and should return a unique string key. This allows you to include any relevant part of the request (such as URL, method, params, body, or custom logic) in the cache key.
+
+  **Example:**
+
+  ```typescript
+  cacheKey: (config) =>
+    `${config.method}:${config.url}:${JSON.stringify(config.params)}`;
+  ```
+
+  This flexibility ensures you can control cache granularity—whether you want to cache per endpoint, per user, or based on any other criteria.
+
+  _Default:_ Auto-generated based on request properties (see below).
 
 - **`cacheBuster`**:  
   Type: `CacheBusterFunction`  
@@ -465,22 +1209,213 @@ The caching system can be fine-tuned using the following options when configurin
   A function that determines whether caching should be skipped based on the response. This allows for fine-grained control over whether certain responses are cached or not, such as skipping non-`200` responses.  
   _Default:_ `(response, config) => false` (no skipping).
 
-### How It Works
+- **`cacheErrors`**:  
+  Type: `boolean`  
+  Determines whether error responses (such as HTTP 4xx or 5xx) should also be cached. If set to `true`, both successful and error responses are stored in the cache. If `false`, only successful responses are cached.  
+  _Default:_ `false`.
 
-1. **Request and Cache Check**:  
-   When a request is made, the cache is first checked for an existing entry. If a valid cache entry is found and is still "fresh" (based on `cacheTime`), the cached response is returned immediately. Note that when the native `fetch()` setting called `cache` is set to `reload` the request will automatically skip the internal cache.
+- **`staleTime`**:  
+  Specifies the time in seconds during which cached data is considered "fresh" before it becomes stale and triggers background revalidation (SWR: stale-while-revalidate).
+  - Set to a number greater than `0` to enable SWR: cached data will be served instantly, and a background request will update the cache after this period.
+  - Set to `0` to treat data as stale immediately (always eligible for refetch).
+  - Set to `undefined` to disable SWR: data is never considered stale and background revalidation is not performed.  
+    _Default:_ `undefined` to disable SWR pattern (data is never considered stale) or `300` (5 minutes) in libraries like React.
 
-2. **Cache Key**:  
-   A cache key uniquely identifies each request. By default, the key is generated based on the URL and other relevant request options. Custom keys can be provided using the `cacheKey` function.
+  ### How It Works
+  1. **Cache Lookup**:  
+     When a request is made, `fetchff` first checks the internal cache for a matching entry using the generated cache key. If a valid and "fresh" cache entry exists (within `cacheTime`), the cached response is returned immediately. If the native `fetch()` option `cache: 'reload'` is set, the internal cache is bypassed and a fresh request is made.
 
-3. **Cache Busting**:  
-   If the `cacheBuster` function is defined, it determines whether to invalidate and refresh the cache for specific requests. This is useful for ensuring that certain requests, such as `POST` requests, always fetch new data.
+  2. **Cache Key Generation**:  
+     Each request is uniquely identified by a cache key, which is auto-generated from the URL, method, params, headers, and other relevant options. You can override this by providing a custom `cacheKey` string or function for fine-grained cache control.
 
-4. **Skipping Cache**:  
-   The `skipCache` function provides flexibility in deciding whether to store a response in the cache. For example, you might skip caching responses that have a `4xx` or `5xx` status code.
+  3. **Cache Busting**:  
+     If a `cacheBuster` function is provided, it determines whether to invalidate (bust) the cache for a given request. This is useful for scenarios like forcing fresh data on `POST` requests or after certain actions.
 
-5. **Final Outcome**:  
-   If no valid cache entry is found, or the cache is skipped or busted, the request proceeds to the network, and the response is cached based on the provided configuration.
+  4. **Conditional Caching**:  
+     The `skipCache` function allows you to decide, per response, whether it should be stored in the cache. For example, you can skip caching for error responses (like HTTP 4xx/5xx) or based on custom logic.
+
+  5. **Network Request and Cache Update**:  
+     If no valid cache entry is found, or if caching is skipped or busted, the request is sent to the network. The response is then cached according to your configuration, making it available for future requests.
+
+### 🔄 Cache and Deduplication Integration
+
+Understanding how caching works together with request deduplication is crucial for optimal performance:
+
+#### **Cache-First, Then Deduplication**
+
+```typescript
+// Multiple components requesting the same data
+const userProfile1 = useFetcher('/api/user/123', { cacheTime: 300 });
+const userProfile2 = useFetcher('/api/user/123', { cacheTime: 300 });
+const userProfile3 = useFetcher('/api/user/123', { cacheTime: 300 });
+
+// Flow:
+// 1. First request checks cache → cache miss → network request initiated
+// 2. Second request checks cache → cache miss → joins in-flight request (deduplication)
+// 3. Third request checks cache → cache miss → joins in-flight request (deduplication)
+// 4. When network response arrives → cache is populated → all requests receive same data
+```
+
+#### **Cache Hit Scenarios**
+
+```typescript
+// First request (cache miss - goes to network)
+const request1 = fetchf('/api/data', { cacheTime: 300, dedupeTime: 5000 });
+
+// After 2 seconds - cache hit (no deduplication needed)
+setTimeout(() => {
+  const request2 = fetchf('/api/data', { cacheTime: 300, dedupeTime: 5000 });
+  // Returns cached data immediately, no network request
+}, 2000);
+
+// After 10 minutes - cache expired, new request
+setTimeout(() => {
+  const request3 = fetchf('/api/data', { cacheTime: 300, dedupeTime: 5000 });
+  // Cache expired → new network request → potential for deduplication again
+}, 600000);
+```
+
+#### **Deduplication Window vs Cache Time**
+
+- **`dedupeTime`**: Prevents duplicate requests during a short time window (milliseconds)
+- **`cacheTime`**: Stores successful responses for longer periods (seconds)
+- **Integration**: Deduplication handles concurrent requests, caching handles subsequent requests
+
+```typescript
+const config = {
+  dedupeTime: 2000, // 2 seconds - for rapid concurrent requests
+  cacheTime: 300, // 5 minutes - for longer-term storage
+};
+
+// Timeline example:
+// T+0ms:   Request A initiated → network call starts
+// T+500ms: Request B initiated → joins Request A (deduplication)
+// T+1500ms: Request C initiated → joins Request A (deduplication)
+// T+2500ms: Request D initiated → deduplication window expired, but cache hit!
+// T+6000ms: Request E initiated → cache hit (no network call needed)
+```
+
+### ⏰ Understanding staleTime vs cacheTime
+
+The relationship between `staleTime` and `cacheTime` enables sophisticated data freshness strategies:
+
+#### **Cache States and Timing**
+
+```typescript
+const fetchWithTimings = fetchf('/api/user-feed', {
+  cacheTime: 600, // Cache for 10 minutes
+  staleTime: 60, // Consider fresh for 1 minute
+});
+
+// Data lifecycle:
+// T+0:     Fresh data - served from cache, no background request
+// T+30s:   Still fresh - served from cache, no background request
+// T+90s:   Stale but cached - served from cache + background revalidation
+// T+300s:  Still stale - served from cache + background revalidation
+// T+650s:  Cache expired - network request required, shows loading state
+```
+
+#### **Practical Combinations**
+
+**High-Frequency Updates (Real-time Data)**
+
+```typescript
+const realtimeData = {
+  cacheTime: 30, // Cache for 30 seconds
+  staleTime: 5, // Fresh for 5 seconds only
+  // Result: Frequent background updates, always responsive UI
+};
+```
+
+**Balanced Performance (User Data)**
+
+```typescript
+const userData = {
+  cacheTime: 300, // Cache for 5 minutes
+  staleTime: 60, // Fresh for 1 minute
+  // Result: Good performance + reasonable freshness
+};
+```
+
+**Static Content (Configuration)**
+
+```typescript
+const staticConfig = {
+  cacheTime: 3600, // Cache for 1 hour
+  staleTime: 1800, // Fresh for 30 minutes
+  // Result: Minimal network usage for rarely changing data
+};
+```
+
+#### **Background Revalidation Behavior**
+
+```typescript
+// When staleTime expires but cacheTime hasn't:
+const { data } = await fetchf('/api/notifications', {
+  cacheTime: 600, // 10 minutes total cache
+  staleTime: 120, // 2 minutes of "freshness"
+});
+
+// T+0:     Returns cached data immediately, no background request
+// T+150s:  Returns cached data immediately + triggers background request
+// T+150s:  Background request completes → cache silently updated
+// T+650s:  Cache expired → full loading state + network request
+```
+
+### Auto-Generated Cache Key Properties
+
+By default, `fetchff` generates a cache key automatically using a combination of the following request properties:
+
+| Property          | Description                                                                               | Default Value   |
+| ----------------- | ----------------------------------------------------------------------------------------- | --------------- |
+| `method`          | The HTTP method used for the request (e.g., GET, POST).                                   | `'GET'`         |
+| `url`             | The full request URL, including the base URL and endpoint path.                           | `''`            |
+| `headers`         | Request headers, **filtered to include only cache-relevant headers** (see below).         |                 |
+| `body`            | The request payload (for POST, PUT, PATCH, etc.), stringified if it's an object or array. |                 |
+| `credentials`     | Indicates whether credentials (cookies) are included in the request.                      | `'same-origin'` |
+| `params`          | Query parameters serialized into the URL (objects, arrays, etc. are stringified).         |                 |
+| `urlPathParams`   | Dynamic URL path parameters (e.g., `/user/:id`), stringified and encoded.                 |                 |
+| `withCredentials` | Whether credentials (cookies) are included in the request.                                |                 |
+
+#### Header Filtering for Cache Keys
+
+To ensure stable cache keys and prevent unnecessary cache misses, `fetchff` only includes headers that affect response content in cache key generation. The following headers are included:
+
+**Content Negotiation:**
+
+- `accept` - Affects response format (JSON, HTML, etc.)
+- `accept-language` - Affects localization of response
+- `accept-encoding` - Affects response compression
+
+**Authentication & Authorization:**
+
+- `authorization` - Affects access to protected resources
+- `x-api-key` - Token-based access control
+- `cookie` - Session-based authentication
+
+**Request Context:**
+
+- `content-type` - Affects how request body is interpreted
+- `origin` - Relevant for CORS or tenant-specific APIs
+- `referer` - May influence API behavior
+- `user-agent` - Only if server returns client-specific content
+
+**Custom Headers:**
+
+- `x-requested-with` - Distinguishes AJAX requests
+- `x-client-id` - Per-client/partner identity
+- `x-tenant-id` - Multi-tenant segmentation
+- `x-user-id` - Explicit user context
+- `x-app-version` - Version-specific behavior
+- `x-feature-flag` - Feature rollout controls
+- `x-device-id` - Device-specific responses
+- `x-platform` - Platform-specific content (iOS, Android, web)
+- `x-session-id` - Session-specific responses
+- `x-locale` - Locale-specific content
+
+Headers like `user-agent`, `accept-encoding`, `connection`, `cache-control`, tracking IDs, and proxy-related headers are **excluded** from cache key generation as they don't affect the actual response content.
+
+These properties are combined and hashed to create a unique cache key for each request. This ensures that requests with different parameters, bodies, or cache-relevant headers are cached separately while maintaining stable cache keys across requests that only differ in non-essential headers. If that does not suffice, you can always use `cacheKey` (string | function) and supply it to particular requests. You can also build your own `cacheKey` function and simply update defaults to reflect it in all requests. Auto key generation would be entirely skipped in such scenarios.
 
 </details>
 
@@ -619,7 +1554,7 @@ The following options are available for configuring polling in the `RequestHandl
 
 - **`maxPollingAttempts`**:  
   Type: `number`  
-  Maximum number of polling attempts before stopping. Set to `< 1` for unlimited attempts.  
+  Maximum number of polling attempts before stopping. Set to `0` or negative number for unlimited attempts.  
   _Default:_ `0` (unlimited).
 
 - **`shouldStopPolling`**:  
@@ -659,8 +1594,8 @@ The retry mechanism can be used to handle transient errors and improve the relia
 const { data } = await fetchf('https://api.example.com/', {
   retry: {
     retries: 5,
-    delay: 100,
-    maxDelay: 5000,
+    delay: 100, // Override default adaptive delay (normally 1s/2s based on connection)
+    maxDelay: 5000, // Override default adaptive maxDelay (normally 30s/60s based on connection)
     resetTimeout: true, // Resets the timeout for each retry attempt
     backoff: 1.5,
     retryOn: [500, 503],
@@ -687,6 +1622,11 @@ const { data } = await fetchf('https://api.example.com/', {
 
 In this example, the request will retry only on HTTP status codes 500 and 503, as specified in the `retryOn` array. The `resetTimeout` option ensures that the timeout is restarted for each retry attempt. The custom `shouldRetry` function adds further logic: if the server response contains `{"bookId": "none"}`, a retry is forced. Otherwise, the request will retry only if the current attempt number is less than 3. Although the `retries` option is set to 5, the `shouldRetry` function limits the maximum attempts to 3 (the initial request plus 2 retries).
 
+**Note:** When not overridden, `fetchff` automatically adapts retry delays based on connection speed:
+
+- **Normal connections**: 1s initial delay, 30s max delay
+- **Slow connections (2G/3G)**: 2s initial delay, 60s max delay
+
 Additionally, you can handle "Not Found" (404) responses or other specific status codes in your retry logic. For example, you might want to retry when the status text is "Not Found":
 
 ```typescript
@@ -696,6 +1636,8 @@ shouldRetry(response, attempt) {
     return true;
   }
   // ...other logic
+
+  return null; // Fallback to `retryOn` status code check
 }
 ```
 
@@ -714,13 +1656,13 @@ The retry mechanism is configured via the `retry` option when instantiating the 
 
 - **`delay`**:  
   Type: `number`  
-  Initial delay (in milliseconds) before the first retry attempt. Subsequent retries use an exponentially increasing delay based on the `backoff` parameter.  
-  _Default:_ `1000` (1 second).
+  Initial delay (in milliseconds) before the first retry attempt. **Default is adaptive**: 1 second (1000 ms) for normal connections, 2 seconds (2000 ms) on slow connections (2G/3G). Subsequent retries use an exponentially increasing delay based on the `backoff` parameter.  
+  _Default:_ `1000` / `2000` (adaptive based on connection speed).
 
 - **`maxDelay`**:  
   Type: `number`  
-  Maximum delay (in milliseconds) between retry attempts. The delay will not exceed this value, even if the exponential backoff would suggest a longer delay.  
-  _Default:_ `30000` (30 seconds).
+  Maximum delay (in milliseconds) between retry attempts. **Default is adaptive**: 30 seconds (30000 ms) for normal connections, 60 seconds (60000 ms) on slow connections (2G/3G). The delay will not exceed this value, even if the exponential backoff would suggest a longer delay.  
+  _Default:_ `30000` / `60000` (adaptive based on connection speed).
 
 - **`backoff`**:  
   Type: `number`  
@@ -735,7 +1677,6 @@ The retry mechanism is configured via the `retry` option when instantiating the 
 - **`retryOn`**:  
   Type: `number[]`  
   Array of HTTP status codes that should trigger a retry. By default, retries are triggered for the following status codes:
-
   - `408` - Request Timeout
   - `409` - Conflict
   - `425` - Too Early
@@ -745,17 +1686,18 @@ The retry mechanism is configured via the `retry` option when instantiating the 
   - `503` - Service Unavailable
   - `504` - Gateway Timeout
 
-- **`shouldRetry(response, currentAttempt)`**:  
-  Type: `RetryFunction`  
-  Function that determines whether a retry should be attempted <b>based on the error</b> from <b>response</b> object (accessed by: <b>response.error</b>), and the current attempt number. This function receives the error object and the attempt number as arguments.  
-  _Default:_ Retry up to the number of specified attempts.
+If used in conjunction with `shouldRetry`, the `shouldRetry` function takes priority, and falls back to `retryOn` only if it returns `null`.
+
+- **`shouldRetry(response: FetchResponse, currentAttempt: Number) => boolean`**:  
+  Type: `RetryFunction<ResponseData, RequestBody, QueryParams, PathParams>`  
+  Function that determines whether a retry should be attempted <b>based on the error</b> or <b>successful response</b> (if `shouldRetry` is provided) object, and the current attempt number. This function receives the error object and the attempt number as arguments. The boolean returned indicates decision. If `true` then it should retry, if `false` then abort and don't retry, if `null` then fallback to `retryOn` status codes check.
+  _Default:_ `undefined`.
 
 ### How It Works
 
 1. **Initial Request**: When a request fails, the retry mechanism captures the failure and checks if it should retry based on the `retryOn` configuration and the result of the `shouldRetry` function.
 
 2. **Retry Attempts**: If a retry is warranted:
-
    - The request is retried up to the specified number of attempts (`retries`).
    - Each retry waits for a delay before making the next attempt. The delay starts at the initial `delay` value and increases exponentially based on the `backoff` factor, but will not exceed the `maxDelay`.
    - If `resetTimeout` is enabled, the timeout is reset for each retry attempt.
@@ -839,16 +1781,16 @@ You can use the `onResponse` interceptor to customize how the response is handle
 ```typescript
 interface FetchResponse<
   ResponseData = any,
+  RequestBody = any,
   QueryParams = any,
   PathParams = any,
-  RequestBody = any,
 > extends Response {
   data: ResponseData | null; // The parsed response data, or null/defaultResponse if unavailable
   error: ResponseError<
     ResponseData,
+    RequestBody,
     QueryParams,
-    PathParams,
-    RequestBody
+    PathParams
   > | null; // Error details if the request failed, otherwise null
   config: RequestConfig; // The configuration used for the request
   status: number; // HTTP status code
@@ -879,7 +1821,7 @@ The whole response of the native `fetch()` is attached as well.
 
 Error object in `error` looks as follows:
 
-- **Type**: `ResponseError<ResponseData, QueryParams, PathParams, RequestBody> | null`
+- **Type**: `ResponseError<ResponseData, RequestBody, QueryParams, PathParams> | null`
 
 - An object with details about any error that occurred or `null` otherwise.
 - **`name`**: The name of the error, that is `ResponseError`.
@@ -889,6 +1831,7 @@ Error object in `error` looks as follows:
 - **`request`**: Details about the HTTP request that was sent (e.g., URL, method, headers).
 - **`config`**: The configuration object used for the request, including URL, method, headers, and query parameters.
 - **`response`**: The full response object received from the server, including all headers and body.
+- **`isCancelled`**: A boolean property on the error object indicating whether the request was cancelled before completion
 
 </details>
 
@@ -912,12 +1855,24 @@ The native `fetch()` API function doesn't throw exceptions for HTTP errors like 
 Promises are rejected, and global error handling is triggered. You must use `try/catch` blocks to handle errors.
 
 ```typescript
+import { fetchf } from 'fetchff';
+
 try {
-  const { data } = await fetchf('https://api.example.com/', {
-    strategy: 'reject', // It is default so it does not really needs to be specified
+  const { data } = await fetchf('https://api.example.com/users', {
+    strategy: 'reject', // Default strategy - can be omitted
+    timeout: 5000,
   });
+
+  console.log('Users fetched successfully:', data);
 } catch (error) {
-  console.error(error.status, error.statusText, error.response, error.config);
+  // Handle specific error types
+  if (error.status === 404) {
+    console.error('API endpoint not found');
+  } else if (error.status >= 500) {
+    console.error('Server error:', error.statusText);
+  } else {
+    console.error('Request failed:', error.message);
+  }
 }
 ```
 
@@ -929,12 +1884,29 @@ try {
 > You must always check the error property in the response object to detect and handle errors.
 
 ```typescript
-const { data, error } = await fetchf('https://api.example.com/', {
+import { fetchf } from 'fetchff';
+
+const { data, error } = await fetchf('https://api.example.com/users', {
   strategy: 'softFail',
+  timeout: 5000,
 });
 
 if (error) {
-  console.error(error.status, error.statusText, error.response, error.config);
+  // Handle errors without try/catch
+  console.error('Request failed:', {
+    status: error.status,
+    message: error.message,
+    url: error.config?.url,
+  });
+
+  // Show user-friendly error message
+  if (error.status === 429) {
+    console.log('Rate limited. Please try again later.');
+  } else if (error.status >= 500) {
+    console.log('Server temporarily unavailable. Please try again.');
+  }
+} else {
+  console.log('Users fetched successfully:', data);
 }
 ```
 
@@ -948,14 +1920,31 @@ Check `Response Object` section below to see how `error` object is structured.
 > You must always check the error property in the response object to detect and handle errors.
 
 ```typescript
-const { data, error } = await fetchf('https://api.example.com/', {
-  strategy: 'defaultResponse',
-  defaultResponse: {},
-});
+import { fetchf } from 'fetchff';
+
+const { data, error } = await fetchf(
+  'https://api.example.com/user-preferences',
+  {
+    strategy: 'defaultResponse',
+    defaultResponse: {
+      theme: 'light',
+      language: 'en',
+      notifications: true,
+    },
+    timeout: 5000,
+  },
+);
 
 if (error) {
-  console.error('Request failed', data); // "data" will be equal to {} if there is an error
+  console.warn('Failed to load user preferences, using defaults:', data);
+  // Log error for debugging but continue with default values
+  console.error('Preferences API error:', error.message);
+} else {
+  console.log('User preferences loaded:', data);
 }
+
+// Safe to use data regardless of error state
+document.body.className = data.theme;
 ```
 
 **`silent`**:  
@@ -993,6 +1982,209 @@ myLoadingProcess();
 
 5. **Custom Error Handling**:  
    Depending on the strategy chosen, you can tailor how errors are managed, either by handling them directly within response objects, using default responses, or managing them silently.
+
+### 🎯 Choosing the Right Error Strategy
+
+Understanding when to use each error handling strategy is crucial for building robust applications:
+
+#### **`reject` Strategy - Traditional Error Handling**
+
+**When to Use:**
+
+- Building applications with established error boundaries
+- Need consistent error propagation through promise chains
+- Integration with existing try/catch error handling patterns
+- Critical operations where failures must be explicitly handled
+
+**Best For:**
+
+```typescript
+// API calls where failure must stop execution
+try {
+  const { data } = await fetchf('/api/payment/process', {
+    method: 'POST',
+    body: paymentData,
+    strategy: 'reject', // Default - can be omitted
+  });
+
+  // Only proceed if payment succeeded
+  await processOrderCompletion(data);
+} catch (error) {
+  // Handle payment failure explicitly
+  showPaymentErrorModal(error.message);
+  revertOrderState();
+}
+```
+
+#### **`softFail` Strategy - Graceful Error Handling**
+
+**When to Use:**
+
+- Building user-friendly interfaces that degrade gracefully
+- Multiple API calls where some failures are acceptable
+- React/Vue components that need to handle loading/error states
+- Data fetching where partial failures shouldn't break the UI
+
+**Best For:**
+
+```typescript
+// Dashboard with multiple data sources
+const { data: userStats, error: statsError } = await fetchf('/api/user/stats', {
+  strategy: 'softFail',
+});
+const { data: notifications, error: notifError } = await fetchf('/api/notifications', {
+  strategy: 'softFail',
+});
+
+// Render what we can, gracefully handle what failed
+return (
+  <Dashboard>
+    {userStats && <StatsWidget data={userStats} />}
+    {statsError && <ErrorMessage>Stats temporarily unavailable</ErrorMessage>}
+
+    {notifications && <NotificationsList data={notifications} />}
+    {notifError && <ErrorMessage>Notifications unavailable</ErrorMessage>}
+  </Dashboard>
+);
+```
+
+#### **`defaultResponse` Strategy - Fallback Values**
+
+**When to Use:**
+
+- Optional features that should work even when API fails
+- Configuration or preferences that have sensible defaults
+- Non-critical data that can fall back to static values
+- Progressive enhancement scenarios
+
+**Best For:**
+
+```typescript
+// User preferences with fallbacks
+const { data: preferences } = await fetchf('/api/user/preferences', {
+  strategy: 'defaultResponse',
+  defaultResponse: {
+    theme: 'light',
+    language: 'en',
+    notifications: true,
+    autoSave: false,
+  },
+});
+
+// Safe to use preferences regardless of API status
+applyTheme(preferences.theme);
+setLanguage(preferences.language);
+```
+
+#### **`silent` Strategy - Fire-and-Forget**
+
+**When to Use:**
+
+- Analytics and telemetry data
+- Non-critical background operations
+- Optional data prefetching
+- Logging and monitoring calls
+
+**Best For:**
+
+```typescript
+// Analytics tracking (don't let failures affect user experience)
+const trackUserAction = (action: string, data: any) => {
+  fetchf('/api/analytics/track', {
+    method: 'POST',
+    body: { action, data, timestamp: Date.now() },
+    strategy: 'silent',
+    onError(error) {
+      // Log error for debugging, but don't disrupt user flow
+      console.warn('Analytics tracking failed:', error.message);
+    },
+  });
+
+  // This function never throws, never shows loading states
+  // User interaction continues uninterrupted
+};
+
+// Background data prefetching
+const prefetchNextPage = () => {
+  fetchf('/api/articles/page/2', {
+    strategy: 'silent',
+    cacheTime: 300, // Cache for later use
+  });
+  // No need to await or handle response
+};
+```
+
+### 📊 Performance Strategy Matrix
+
+Choose strategies based on your application's needs:
+
+| Use Case                | Strategy          | Benefits                                          | Trade-offs                              |
+| ----------------------- | ----------------- | ------------------------------------------------- | --------------------------------------- |
+| **Critical Operations** | `reject`          | Explicit error handling, prevents data corruption | Requires try/catch, can break user flow |
+| **UI Components**       | `softFail`        | Graceful degradation, better UX                   | Need to check error property            |
+| **Optional Features**   | `defaultResponse` | Always provides usable data                       | May mask real issues                    |
+| **Background Tasks**    | `silent`          | Never disrupts user experience                    | Errors may go unnoticed                 |
+
+### 🔧 Advanced Strategy Patterns
+
+#### **Hybrid Error Handling**
+
+```typescript
+// Combine strategies for optimal UX
+const fetchUserDashboard = async (userId: string) => {
+  // Critical user data - must succeed
+  const { data: userData } = await fetchf(`/api/users/${userId}`, {
+    strategy: 'reject',
+  });
+
+  // Optional widgets - graceful degradation
+  const { data: stats, error: statsError } = await fetchf(
+    `/api/users/${userId}/stats`,
+    {
+      strategy: 'softFail',
+    },
+  );
+
+  // Preferences with fallbacks
+  const { data: preferences } = await fetchf(
+    `/api/users/${userId}/preferences`,
+    {
+      strategy: 'defaultResponse',
+      defaultResponse: DEFAULT_USER_PREFERENCES,
+    },
+  );
+
+  // Background analytics - fire and forget
+  fetchf('/api/analytics/dashboard-view', {
+    method: 'POST',
+    body: { userId, timestamp: Date.now() },
+    strategy: 'silent',
+  });
+
+  return { userData, stats, statsError, preferences };
+};
+```
+
+#### **Progressive Enhancement**
+
+```typescript
+// Start with defaults, enhance with API data
+const enhanceWithApiData = async () => {
+  // Immediate render with defaults
+  let config = DEFAULT_APP_CONFIG;
+  renderApp(config);
+
+  // Enhance with API data when available
+  const { data: apiConfig } = await fetchf('/api/config', {
+    strategy: 'defaultResponse',
+    defaultResponse: DEFAULT_APP_CONFIG,
+  });
+
+  // Re-render with enhanced config
+  config = { ...config, ...apiConfig };
+  renderApp(config);
+};
+```
 
 #### `onError`
 
@@ -1051,6 +2243,85 @@ if (error) {
 
 The `fetchff` package provides comprehensive TypeScript typings to enhance development experience and ensure type safety. Below are details on the available, exportable types for both `createApiFetcher()` and `fetchf()`.
 
+### Typings for `fetchf<RequestType>()`
+
+The `fetchf()` function includes types that help configure and manage network requests effectively:
+
+```typescript
+interface AddBookRequest {
+  response: AddBookResponseData;
+  params: AddBookQueryParams;
+  urlPathParams: AddBookPathParams;
+  body: AddBookRequestBody;
+}
+
+// You could also use: fetchf<Req<AddBookResponseData>> as a shorthand so not to create additional request interface
+const { data: book } = await fetchf<AddBookRequest>('/api/add-book', {
+  method: 'POST',
+});
+// Your book is of type AddBookResponseData
+```
+
+- **`Req<ResponseData, RequestBody, QueryParams, UrlPathParams>`**: Represents a shorter 4-generics version of request object type for endpoints, allowing you to compose the shape of the request payload, query parameters, and path parameters for each request using a couple inline generics e.g. `fetchf<ResponseData, RequestBody, QueryParams, UrlPathParams>()`. While there is no plan for deprecation, this is for compatibility with older versions only. Aim to use the new method with single generic presented above instead. We don't use overload here to keep it all fast and snappy.
+- **`RequestConfig`**: Main configuration options for the `fetchf()` function, including request settings, interceptors, and retry configurations.
+- **`RetryConfig`**: Configuration options for retry mechanisms, including the number of retries, delay between retries, and backoff strategies.
+- **`CacheConfig`**: Configuration options for caching, including cache time, custom cache keys, and cache invalidation rules.
+- **`PollingConfig`**: Configuration options for polling, including polling intervals and conditions to stop polling.
+- **`ErrorStrategy`**: Defines strategies for handling errors, such as rejection, soft fail, default response, and silent modes.
+
+For a complete list of types and their definitions, refer to the [request-handler.ts](https://github.com/MattCCC/fetchff/blob/master/src/types/request-handler.ts) file.
+
+### Typings for `createApiFetcher()`
+
+The `createApiFetcher<EndpointTypes>()` function provides a robust set of types to define and manage API interactions.
+
+- **`EndpointTypes`**: Represents the list of API endpoints with their respective settings. It is your own interface that you can pass to this generic. It will be cross-checked against the `endpoints` object in your `createApiFetcher()` configuration. Each endpoint can be configured with its own specific types such as Response Data Structure, Query Parameters, URL Path Parameters or Request Body. Example:
+
+```typescript
+interface EndpointTypes {
+  fetchBook: Endpoint<{
+    response: Book;
+    params: BookQueryParams;
+    urlPathParams: BookPathParams;
+  }>;
+  // or shorter version: fetchBook: EndpointReq<Book, undefined, BookQueryParams, BookPathParams>;
+  addBook: Endpoint<{
+    response: Book;
+    body: BookBody;
+    params: BookQueryParams;
+    urlPathParams: BookPathParams;
+  }>;
+  // or shorter version: fetchBook: EndpointReq<Book, BookBody, BookQueryParams, BookPathParams>;
+  someOtherEndpoint: Endpoint; // The generic is fully optional but it must be defined for endpoint not to output error
+}
+
+const api = createApiFetcher<EndpointTypes>({
+  baseURL: 'https://example.com/api',
+  endpoints: {
+    fetchBook: {
+      url: '/get-book',
+    },
+    addBook: {
+      url: '/add-book',
+      method: 'POST',
+    },
+  },
+});
+
+const { data: book } = await api.addBook();
+// book will be of type Book
+```
+
+<br>
+
+- **`Endpoint<{response: ResponseData, params: QueryParams, urlPathParams: PathParams, body: RequestBody}>`**: Represents an API endpoint function, allowing to be defined with optional response data (default `DefaultResponse`), query parameters (default `QueryParams`), URL path parameters (default `DefaultUrlParams`), and request body (default `DefaultPayload`).
+- **`RequestInterceptor`**: Function to modify request configurations before they are sent.
+- **`ResponseInterceptor`**: Function to process responses before they are handled by the application.
+- **`ErrorInterceptor`**: Function to handle errors when a request fails.
+- **`CustomFetcher`**: Represents the custom `fetcher` function.
+
+For a full list of types and detailed definitions, refer to the [api-handler.ts](https://github.com/MattCCC/fetchff/blob/master/src/types/api-handler.ts) file.
+
 ### Generic Typings
 
 The `fetchff` package includes several generic types to handle various aspects of API requests and responses:
@@ -1059,34 +2330,6 @@ The `fetchff` package includes several generic types to handle various aspects o
 - **`BodyPayload<PayloadType>`**: Represents the request body. Can be `BodyInit`, an object, an array, a string, or `null`.
 - **`UrlPathParams<UrlParamsType>`**: Represents URL path parameters. Can be an object or `null`.
 - **`DefaultResponse`**: Default response for all requests. Default is: `any`.
-
-### Typings for `createApiFetcher()`
-
-The `createApiFetcher<EndpointsMethods, EndpointsConfiguration>()` function provides a robust set of types to define and manage API interactions.
-
-The key types are:
-
-- **`EndpointsMethods`**: Represents the list of API endpoints with their respective settings. It is your own interface that you can pass to this generic. It will be cross-checked against the `endpoints` object in your `createApiFetcher()` configuration.<br><br>Each endpoint can be configured with its own specific settings such as Response Payload, Query Parameters and URL Path Parameters.
-- **`Endpoint<ResponseData = DefaultResponse, QueryParams = DefaultParams, PathParams = DefaultUrlParams, RequestBody = DefaultPayload>`**: Represents an API endpoint function, allowing to be defined with optional query parameters, URL path parameters, request configuration (settings), and request body (data).
-- **`EndpointsSettings`**: Configuration for API endpoints, including query parameters, URL path parameters, and additional request configurations. Default is `typeof endpoints`.
-- **`RequestInterceptor`**: Function to modify request configurations before they are sent.
-- **`ResponseInterceptor`**: Function to process responses before they are handled by the application.
-- **`ErrorInterceptor`**: Function to handle errors when a request fails.
-- **`CreatedCustomFetcherInstance`**: Represents the custom `fetcher` instance created by its `create()` function.
-
-For a full list of types and detailed definitions, refer to the [api-handler.ts](https://github.com/MattCCC/fetchff/blob/docs-update/src/types/api-handler.ts) file.
-
-### Typings for `fetchf()`
-
-The `fetchf()` function includes types that help configure and manage network requests effectively:
-
-- **`RequestHandlerConfig`**: Main configuration options for the `fetchf()` function, including request settings, interceptors, and retry configurations.
-- **`RetryConfig`**: Configuration options for retry mechanisms, including the number of retries, delay between retries, and backoff strategies.
-- **`CacheConfig`**: Configuration options for caching, including cache time, custom cache keys, and cache invalidation rules.
-- **`PollingConfig`**: Configuration options for polling, including polling intervals and conditions to stop polling.
-- **`ErrorStrategy`**: Defines strategies for handling errors, such as rejection, soft fail, default response, and silent modes.
-
-For a complete list of types and their definitions, refer to the [request-handler.ts](https://github.com/MattCCC/fetchff/blob/docs-update/src/types/request-handler.ts) file.
 
 ### Benefits of Using Typings
 
@@ -1127,19 +2370,16 @@ const response = await fetchf('/api/users', {
 ### Input Sanitization Features
 
 1. **Object Sanitization**
-
    - All incoming objects are sanitized via the `sanitizeObject` utility
    - Creates shallow copies of input objects with dangerous properties removed
    - Applied automatically to request configurations, headers, and other objects
 
 2. **URL Parameter Safety**
-
    - Path parameters are properly encoded using `encodeURIComponent`
    - Query parameters are safely serialized and encoded
    - Prevents URL injection attacks and ensures valid URL formatting
 
 3. **Data Validation**
-
    - Checks for JSON serializability of request bodies
    - Detects circular references that could cause issues
    - Properly handles different data types (strings, arrays, objects, etc.)
@@ -1175,43 +2415,376 @@ Security is a core design principle of FetchFF, with sanitization mechanisms run
 
 </details>
 
+## ⚛️ React Integration
+
+<details>
+  <summary><span style="cursor:pointer">Click to expand</span></summary>
+  <br>
+
+FetchFF offers a high-performance React hook, `useFetcher(url, config)`, for efficient data fetching in React applications. This hook provides built-in caching, automatic request deduplication, comprehensive state management etc. Its API mirrors the native `fetch` and `fetchf(url, config)` signatures, allowing you to pass all standard and advanced configuration options seamlessly. Designed with React best practices in mind, `useFetcher` ensures optimal performance and a smooth developer experience.
+
+### Basic Usage
+
+```tsx
+import { useFetcher } from 'fetchff/react';
+
+function UserProfile({ userId }: { userId: string }) {
+  const { data, error, isLoading, refetch } = useFetcher(
+    `/api/users/${userId}`,
+  );
+
+  if (isLoading) return <div>Loading...</div>;
+  if (error) return <div>Error: {error.message}</div>;
+
+  return (
+    <div>
+      <h1>{data.name}</h1>
+      <button onClick={refetch}>Refresh</button>
+    </div>
+  );
+}
+```
+
+### Hook API
+
+The `useFetcher(url, config)` hook returns an object with the following properties:
+
+- **`data: ResponseData | null`**  
+  The fetched data, typed as `T` (generic), or `null` if not available.
+- **`error: ResponseError | null`**  
+  Error object if the request failed, otherwise `null`.
+- **`isLoading: boolean`**  
+  `true` while data is being loaded for the first time or during a fetch.
+- **`isFetching: boolean`**  
+  `true` when currently fetching (fetch is in progress).
+- **`config: RequestConfig`**  
+  The configuration object used for the request.
+- **`headers: Record<string, string>`**  
+  Response headers from the last successful request.
+- **`refetch: (forceRefresh: boolean = true) => Promise<FetchResponse<ResponseData, RequestBody, QueryParams, PathParams> | null>`**  
+  Function to manually trigger a new request. It always uses `softFail` strategy and returns a new FetchResponse object. The `forceRefresh` is set to `true` by default - it will bypass cache and force new request and cache refresh.
+- **`mutate: (data: ResponseData, settings: MutationSettings) => Promise<FetchResponse<ResponseData, RequestBody, QueryParams, PathParams> | null>`**  
+  Function to update cached data directly, by passing new data. The `settings` object contains currently `revalidate` (boolean) property. If set to `true`, a new request will be made after cache and component data are updated.
+
+### Configuration Options
+
+All standard FetchFF options are supported, plus React-specific features:
+
+```tsx
+const { data, error, isLoading } = useFetcher('/api/data', {
+  // Cache for 5 minutes
+  cacheTime: 300,
+
+  // Deduplicate requests within 2 seconds
+  dedupeTime: 2000,
+
+  // Revalidate when window regains focus
+  refetchOnFocus: true,
+
+  // Don't fetch immediately (useful for POST requests; React specific)
+  immediate: false,
+
+  // Custom error handling
+  strategy: 'softFail',
+
+  // Request configuration
+  method: 'POST',
+  body: { name: 'John' },
+  headers: { Authorization: 'Bearer token' },
+});
+```
+
+> **Note on `immediate` behavior**: By default, only GET and HEAD requests (RFC 7231 safe methods) trigger automatically when the component mounts. Other HTTP methods like POST, PUT, DELETE require either setting `immediate: true` explicitly or calling `refetch()` manually. This prevents unintended side effects from automatic execution of non-safe HTTP operations.
+
+### Conditional Requests
+
+Only fetch when conditions are met (`immediate` option is `true`):
+
+```tsx
+function ConditionalData({
+  shouldFetch,
+  userId,
+}: {
+  shouldFetch: boolean;
+  userId?: string;
+}) {
+  const { data, isLoading } = useFetcher(`/api/users/${userId}`, {
+    immediate: shouldFetch && !!userId,
+  });
+
+  // Will only fetch when shouldFetch is true and userId exists
+  return <div>{data ? data.name : 'No data'}</div>;
+}
+```
+
+You can also pass `null` as the URL to conditionally skip a request:
+
+```tsx
+function ConditionalData({
+  shouldFetch,
+  userId,
+}: {
+  shouldFetch: boolean;
+  userId?: string;
+}) {
+  const { data, isLoading } = useFetcher(
+    shouldFetch && userId ? `/api/users/${userId}` : null,
+  );
+
+  // Will only fetch when shouldFetch is true and userId exists
+  return <div>{data ? data.name : 'No data'}</div>;
+}
+```
+
+> **Note:** Passing `null` as the URL to conditionally skip a request is a legacy/deprecated approach (commonly used in SWR plugin). For new code, prefer using the `immediate` option for conditional fetching. The `null` URL method is still supported for backwards compatibility.
+
+### Dynamic URLs and Parameters
+
+```tsx
+function SearchResults({ query }: { query: string }) {
+  const { data, isLoading } = useFetcher('/api/search', {
+    params: { q: query, limit: 10 },
+    // Only fetch when query exists
+    immediate: !!query,
+  });
+
+  return (
+    <div>
+      {isLoading && <div>Searching...</div>}
+      {data?.results?.map((item) => (
+        <div key={item.id}>{item.title}</div>
+      ))}
+    </div>
+  );
+}
+```
+
+### Mutations and Cache Updates
+
+```tsx
+function TodoList() {
+  const { data: todos, mutate, refetch } = useFetcher('/api/todos');
+
+  const addTodo = async (text: string) => {
+    // Optimistically update the cache
+    const newTodo = { id: Date.now(), text, completed: false };
+    mutate([...todos, newTodo]);
+
+    try {
+      // Make the actual request
+      await fetchf('/api/todos', {
+        method: 'POST',
+        body: { text },
+      });
+
+      // Revalidate to get the real data
+      refetch();
+    } catch (error) {
+      // Revert on error
+      mutate(todos);
+    }
+  };
+
+  return (
+    <div>
+      {todos?.map((todo) => (
+        <div key={todo.id}>{todo.text}</div>
+      ))}
+      <button onClick={() => addTodo('New todo')}>Add Todo</button>
+    </div>
+  );
+}
+```
+
+### Error Handling
+
+```tsx
+function DataWithErrorHandling() {
+  const { data, error, isLoading, refetch } = useFetcher('/api/data', {
+    retry: {
+      retries: 3,
+      delay: 1000,
+      backoff: 1.5,
+    },
+  });
+
+  if (isLoading) return <div>Loading...</div>;
+
+  if (error) {
+    return (
+      <div>
+        <p>Error: {error.message}</p>
+        <button onClick={refetch}>Try Again</button>
+      </div>
+    );
+  }
+
+  return <div>{JSON.stringify(data)}</div>;
+}
+```
+
+### Suspense Support
+
+Use with React Suspense for declarative loading states:
+
+```tsx
+import { Suspense } from 'react';
+
+function DataComponent() {
+  const { data } = useFetcher('/api/data', {
+    strategy: 'reject', // Required for Suspense
+  });
+
+  return <div>{data.title}</div>;
+}
+
+function App() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <DataComponent />
+    </Suspense>
+  );
+}
+```
+
+### TypeScript Support
+
+Full TypeScript support with automatic type inference:
+
+```tsx
+interface User {
+  id: number;
+  name: string;
+  email: string;
+}
+
+interface UserParams {
+  include?: string[];
+}
+
+function UserComponent({ userId }: { userId: string }) {
+  const { data, error } = useFetcher<User>(`/api/users/${userId}`, {
+    params: { include: ['profile', 'settings'] } as UserParams,
+  });
+
+  // data is automatically typed as User | null
+  // error is typed as ResponseError | null
+
+  return <div>{data?.name}</div>;
+}
+```
+
+### Performance Features
+
+- **Automatic deduplication**: Multiple components requesting the same data share a single request
+- **Smart caching**: Configurable cache with automatic invalidation
+- **Minimal re-renders**: Optimized to prevent unnecessary component updates (relies on native React functionality)
+- **Background revalidation**: Keep data fresh without blocking the UI (use `staleTime` setting to control the time)
+
+### Best Practices
+
+1. **Use conditional requests** for dependent data:
+
+```tsx
+const { data: user } = useFetcher('/api/user');
+const { data: posts } = useFetcher(user ? `/api/users/${user.id}/posts` : null);
+```
+
+2. **Configure appropriate cache times** based on data volatility:
+
+```tsx
+// Static data - cache for 1 hour
+const { data: config } = useFetcher('/api/config', { cacheTime: 3600 });
+
+// Dynamic data - cache for 30 seconds
+const { data: feed } = useFetcher('/api/feed', { cacheTime: 30 });
+```
+
+3. **Use focus revalidation** for critical data:
+
+```tsx
+const { data } = useFetcher('/api/critical-data', {
+  refetchOnFocus: true,
+});
+```
+
+4. **Handle loading and error states** appropriately:
+
+```tsx
+const { data, error, isLoading } = useFetcher('/api/data');
+
+if (isLoading) return <Spinner />;
+if (error) return <ErrorMessage error={error} />;
+return <DataDisplay data={data} />;
+```
+
+5. **Leverage `staleTime` to control background revalidation:**
+
+```tsx
+// Data is considered fresh for 10 minutes; background revalidation happens after
+const { data } = useFetcher('/api/notifications', { staleTime: 600 });
+```
+
+- Use a longer `staleTime` for rarely changing data to minimize unnecessary network requests.
+- Use a shorter `staleTime` for frequently updated data to keep the UI fresh.
+- Setting `staleTime: 0` disables the staleTime (default).
+- Combine `staleTime` with `cacheTime` for fine-grained cache and revalidation control.
+- Adjust `staleTime` per endpoint based on how critical or dynamic the data is.
+
+</details>
+
 ## Comparison with other libraries
 
-| Feature                                            | fetchff     | ofetch      | wretch       | axios        | native fetch() |
-| -------------------------------------------------- | ----------- | ----------- | ------------ | ------------ | -------------- |
-| **Unified API Client**                             | ✅          | --          | --           | --           | --             |
-| **Smart Request Cache**                            | ✅          | --          | --           | --           | --             |
-| **Automatic Request Deduplication**                | ✅          | --          | --           | --           | --             |
-| **Custom Fetching Adapter**                        | ✅          | --          | --           | --           | --             |
-| **Built-in Error Handling**                        | ✅          | --          | ✅           | --           | --             |
-| **Customizable Error Handling**                    | ✅          | --          | ✅           | ✅           | --             |
-| **Retries with exponential backoff**               | ✅          | --          | --           | --           | --             |
-| **Advanced Query Params handling**                 | ✅          | --          | --           | --           | --             |
-| **Custom Retry logic**                             | ✅          | ✅          | ✅           | --           | --             |
-| **Easy Timeouts**                                  | ✅          | ✅          | ✅           | ✅           | --             |
-| **Polling Functionality**                          | ✅          | --          | --           | --           | --             |
-| **Easy Cancellation of stale (previous) requests** | ✅          | --          | --           | --           | --             |
-| **Default Responses**                              | ✅          | --          | --           | --           | --             |
-| **Custom adapters (fetchers)**                     | ✅          | --          | --           | ✅           | --             |
-| **Global Configuration**                           | ✅          | --          | ✅           | ✅           | --             |
-| **TypeScript Support**                             | ✅          | ✅          | ✅           | ✅           | ✅             |
-| **Built-in AbortController Support**               | ✅          | --          | --           | --           | --             |
-| **Request Interceptors**                           | ✅          | ✅          | ✅           | ✅           | --             |
-| **Request and Response Transformation**            | ✅          | ✅          | ✅           | ✅           | --             |
-| **Integration with libraries**                     | ✅          | ✅          | ✅           | ✅           | --             |
-| **Request Queuing**                                | ✅          | --          | --           | --           | --             |
-| **Multiple Fetching Strategies**                   | ✅          | --          | --           | --           | --             |
-| **Dynamic URLs**                                   | ✅          | --          | ✅           | --           | --             |
-| **Automatic Retry on Failure**                     | ✅          | ✅          | --           | ✅           | --             |
-| **Automatically handle 429 Retry-After headers**   | ✅          | --          | --           | --           | --             |
-| **Built-in Input Sanitization**                    | ✅          | --          | --           | --           | --             |
-| **Prototype Pollution Protection**                 | ✅          | --          | --           | --           | --             |
-| **Server-Side Rendering (SSR) Support**            | ✅          | ✅          | --           | --           | --             |
-| **Minimal Installation Size**                      | 🟢 (4.3 KB) | 🟡 (6.5 KB) | 🟢 (2.21 KB) | 🔴 (13.7 KB) | 🟢 (0 KB)      |
+_fetchff uniquely combines advanced input sanitization, prototype pollution protection, unified cache across React and direct fetches, multiple error handling strategies, and a declarative API repository pattern—all in a single lightweight package._
+
+| Feature                                            | fetchff     | ofetch      | wretch       | axios        | native fetch() | swr             |
+| -------------------------------------------------- | ----------- | ----------- | ------------ | ------------ | -------------- | --------------- |
+| **Unified API Client**                             | ✅          | --          | --           | --           | --             | --              |
+| **Smart Request Cache**                            | ✅          | --          | --           | --           | --             | ✅              |
+| **Automatic Request Deduplication**                | ✅          | --          | --           | --           | --             | ✅              |
+| **Revalidation on Window Focus**                   | ✅          | --          | --           | --           | --             | ✅              |
+| **Custom Fetching Adapter**                        | ✅          | --          | --           | --           | --             | ✅              |
+| **Built-in Error Handling**                        | ✅          | --          | ✅           | --           | --             | --              |
+| **Customizable Error Handling**                    | ✅          | --          | ✅           | ✅           | --             | ✅              |
+| **Retries with exponential backoff**               | ✅          | --          | --           | --           | --             | --              |
+| **Advanced Query Params handling**                 | ✅          | --          | --           | --           | --             | --              |
+| **Custom Response Based Retry logic**              | ✅          | ✅          | ✅           | --           | --             | --              |
+| **Easy Timeouts**                                  | ✅          | ✅          | ✅           | ✅           | --             | --              |
+| **Adaptive Timeouts (Connection-aware)**           | ✅          | --          | --           | --           | --             | --              |
+| **Conditional Polling Functionality**              | ✅          | --          | --           | --           | --             | --              |
+| **Easy Cancellation of stale (previous) requests** | ✅          | --          | --           | --           | --             | --              |
+| **Default Responses**                              | ✅          | --          | --           | --           | --             | ✅              |
+| **Custom adapters (fetchers)**                     | ✅          | --          | --           | ✅           | --             | ✅              |
+| **Global Configuration**                           | ✅          | --          | ✅           | ✅           | --             | ✅              |
+| **TypeScript Support**                             | ✅          | ✅          | ✅           | ✅           | ✅             | ✅              |
+| **Built-in AbortController Support**               | ✅          | --          | --           | --           | --             | --              |
+| **Request Interceptors**                           | ✅          | ✅          | ✅           | ✅           | --             | --              |
+| **Safe deduping + cancellation**                   | ✅          | --          | --           | --           | --             | --              |
+| **Response-based polling decisions**               | ✅          | --          | --           | --           | --             | --              |
+| **Request/Response Data Transformation**           | ✅          | ✅          | ✅           | ✅           | --             | --              |
+| **Works with Multiple Frameworks**                 | ✅          | ✅          | ✅           | ✅           | ✅             | --              |
+| **Works across multiple instances or layers**      | ✅          | --          | --           | --           | --             | -- (only React) |
+| **Concurrent Request Deduplication**               | ✅          | --          | --           | --           | --             | ✅              |
+| **Flexible Error Handling Strategies**             | ✅          | --          | ✅           | ✅           | --             | ✅              |
+| **Dynamic URLs with Path and query separation**    | ✅          | --          | ✅           | --           | --             | --              |
+| **Automatic Retry on Failure**                     | ✅          | ✅          | --           | ✅           | --             | ✅              |
+| **Automatically handle 429 Retry-After headers**   | ✅          | --          | --           | --           | --             | --              |
+| **Built-in Input Sanitization**                    | ✅          | --          | --           | --           | --             | --              |
+| **Prototype Pollution Protection**                 | ✅          | --          | --           | --           | --             | --              |
+| **RFC 7231 Safe Methods Auto-execution**           | ✅          | --          | --           | --           | --             | --              |
+| **First Class React Integration**                  | ✅          | --          | --           | --           | --             | ✅              |
+| **Shared cache for React and direct fetches**      | ✅          | --          | --           | --           | --             | --              |
+| **Per-endpoint and per-request config merging**    | ✅          | --          | --           | --           | --             | --              |
+| **Declarative API repository pattern**             | ✅          | --          | --           | --           | --             | --              |
+| **Supports Server-Side Rendering (SSR)**           | ✅          | ✅          | ✅           | ✅           | ✅             | ✅              |
+| **SWR Pattern Support**                            | ✅          | --          | --           | --           | --             | ✅              |
+| **Revalidation on Tab Focus**                      | ✅          | --          | --           | --           | --             | ✅              |
+| **Revalidation on Network Reconnect**              | ✅          | --          | --           | --           | --             | ✅              |
+| **Minimal Installation Size**                      | 🟢 (5.2 KB) | 🟡 (6.5 KB) | 🟢 (2.21 KB) | 🔴 (13.7 KB) | 🟢 (0 KB)      | 🟡 (6.2 KB)     |
 
 ## ✏️ Examples
 
-Click to expand particular examples below. You can also check [examples.ts](./docs/examples/examples.ts) for more examples of usage.
+Click to expand particular examples below. You can also check [docs/examples/](./docs/examples/) for more examples of usage.
 
 ### All Settings
 
@@ -1238,19 +2811,23 @@ const api = createApiFetcher({
   flattenResponse: false, // If true, flatten nested response data.
   defaultResponse: null, // Default response when there is no data or endpoint fails.
   withCredentials: true, // Pass cookies to all requests.
-  timeout: 30000, // Request timeout in milliseconds (30s in this example).
+  timeout: 30000, // Request timeout in milliseconds. Defaults to 30s (60s on slow connections), can be overridden.
   dedupeTime: 0, // Time window, in milliseconds, during which identical requests are deduplicated (treated as single request).
+  immediate: false, // If false, disables automatic request on initialization (useful for POST or conditional requests, React-specific)
+  staleTime: 600, // Data is considered fresh for 10 minutes before background revalidation (disabled by default)
   pollingInterval: 5000, // Interval in milliseconds between polling attempts. Setting 0 disables polling.
   pollingDelay: 1000, // Wait 1 second before beginning each polling attempt
   maxPollingAttempts: 10, // Stop polling after 10 attempts
   shouldStopPolling: (response, attempt) => false, // Function to determine if polling should stop based on the response. Return true to stop polling, or false to continue.
   method: 'get', // Default request method.
   params: {}, // Default params added to all requests.
+  urlPathParams: {}, // Dynamic URL path parameters for replacing segments like /user/:id
   data: {}, // Alias for 'body'. Default data passed to POST, PUT, DELETE and PATCH requests.
   cacheTime: 300, // Cache time in seconds. In this case it is valid for 5 minutes (300 seconds)
   cacheKey: (config) => `${config.url}-${config.method}`, // Custom cache key based on URL and method
   cacheBuster: (config) => config.method === 'POST', // Bust cache for POST requests
   skipCache: (response, config) => response.status !== 200, // Skip caching on non-200 responses
+  cacheErrors: false, // Cache error responses as well as successful ones, default false
   onError(error) {
     // Interceptor on error
     console.error('Request failed', error);
@@ -1274,9 +2851,9 @@ const api = createApiFetcher({
   },
   retry: {
     retries: 3, // Number of retries on failure.
-    delay: 1000, // Initial delay between retries in milliseconds.
+    delay: 1000, // Initial delay between retries in milliseconds. Defaults to 1s (2s on slow connections), can be overridden.
     backoff: 1.5, // Backoff factor for retry delay.
-    maxDelay: 30000, // Maximum delay between retries in milliseconds.
+    maxDelay: 30000, // Maximum delay between retries in milliseconds. Defaults to 30s (60s on slow connections), can be overridden.
     resetTimeout: true, // Reset the timeout when retrying requests.
     retryOn: [408, 409, 425, 429, 500, 502, 503, 504], // HTTP status codes to retry on.
     shouldRetry: async (response, attempts) => {
@@ -1369,11 +2946,12 @@ interface Books {
 }
 
 interface BookQueryParams {
-  newBook: boolean;
+  newBook?: boolean;
+  category?: string;
 }
 
 interface BookPathParams {
-  bookId?: number;
+  bookId: number;
 }
 ```
 
@@ -1384,37 +2962,66 @@ import { createApiFetcher } from 'fetchff';
 
 const endpoints = {
   fetchBooks: {
-    url: 'books',
+    url: '/books',
+    method: 'GET' as const,
   },
   fetchBook: {
-    url: 'books/:bookId',
+    url: '/books/:bookId',
+    method: 'GET' as const,
   },
-};
+} as const;
 
-// No need to specify all endpoints types. For example, the "fetchBooks" is inferred automatically.
-interface EndpointsList {
-  fetchBook: Endpoint<Book, BookQueryParams, BookPathParams>;
+// Define endpoints with proper typing
+interface EndpointTypes {
+  fetchBook: Endpoint<{
+    response: Book;
+    params: BookQueryParams;
+    urlPathParams: BookPathParams;
+  }>;
+  fetchBooks: Endpoint<{ response: Books; params: BookQueryParams }>;
 }
 
-type EndpointsConfiguration = typeof endpoints;
-
-const api = createApiFetcher<EndpointsList, EndpointsConfiguration>({
-  apiUrl: 'https://example.com/api/',
+const api = createApiFetcher<EndpointTypes>({
+  baseURL: 'https://example.com/api',
+  strategy: 'softFail',
   endpoints,
 });
+
+export { api };
+export type { Book, Books, BookQueryParams, BookPathParams };
 ```
 
 ```typescript
+// Usage with full type safety
+import { api, type Book, type Books } from './api';
+
+// Properly typed request with URL params
 const book = await api.fetchBook({
   params: { newBook: true },
   urlPathParams: { bookId: 1 },
 });
 
-// Will return an error since "rating" does not exist in "BookQueryParams"
-const anotherBook = await api.fetchBook({ params: { rating: 5 } });
+if (book.error) {
+  console.error('Failed to fetch book:', book.error.message);
+} else {
+  console.log('Book title:', book.data?.title);
+}
 
-// You can also pass generic type directly to the request
-const books = await api.fetchBooks<Books>();
+// For example, this will cause a TypeScript error as 'rating' doesn't exist in BookQueryParams
+// const invalidBook = await api.fetchBook({
+//   params: { rating: 5 }
+// });
+
+// Generic type can be passed directly for additional type safety
+const books = await api.fetchBooks<Books>({
+  params: { category: 'fiction' },
+});
+
+if (books.error) {
+  console.error('Failed to fetch books:', books.error.message);
+} else {
+  console.log('Total books:', books.data?.totalResults);
+}
 ```
 
 </details>
@@ -1432,13 +3039,11 @@ const endpoints = {
   getPosts: {
     url: '/posts/:subject',
   },
-
   getUser: {
     // Generally there is no need to specify method: 'get' for GET requests as it is default one. It can be adjusted using global "method" setting
     method: 'get',
     url: '/user-details',
   },
-
   updateUserDetails: {
     method: 'post',
     url: '/user-details/update/:userId',
@@ -1446,14 +3051,30 @@ const endpoints = {
   },
 };
 
-interface EndpointsList {
-  getPosts: Endpoint<PostsResponse, PostsQueryParams, PostsPathParams>;
+interface PostsResponse {
+  posts: Array<{ id: number; title: string; content: string }>;
+  totalCount: number;
 }
 
-type EndpointsConfiguration = typeof endpoints;
+interface PostsQueryParams {
+  additionalInfo?: string;
+  limit?: number;
+}
 
-const api = createApiFetcher<EndpointsList, EndpointsConfiguration>({
-  apiUrl: 'https://example.com/api',
+interface PostsPathParams {
+  subject: string;
+}
+
+interface EndpointTypes {
+  getPosts: Endpoint<{
+    response: PostsResponse;
+    params: PostsQueryParams;
+    urlPathParams: PostsPathParams;
+  }>;
+}
+
+const api = createApiFetcher<EndpointTypes>({
+  baseURL: 'https://example.com/api',
   endpoints,
   onError(error) {
     console.log('Request failed', error);
@@ -1464,12 +3085,14 @@ const api = createApiFetcher<EndpointsList, EndpointsConfiguration>({
 });
 
 // Fetch user data - "data" will return data directly
-// GET to: http://example.com/api/user-details?userId=1&ratings[]=1&ratings[]=2
-const { data } = await api.getUser({ params: { userId: 1, ratings: [1, 2] } });
+// GET to: https://example.com/api/user-details?userId=1&ratings[]=1&ratings[]=2
+const { data } = await api.getUser({
+  params: { userId: 1, ratings: [1, 2] },
+});
 
 // Fetch posts - "data" will return data directly
-// GET to: http://example.com/api/posts/myTestSubject?additionalInfo=something
-const { data } = await api.getPosts({
+// GET to: https://example.com/api/posts/test?additionalInfo=something
+const { data: postsData } = await api.getPosts({
   params: { additionalInfo: 'something' },
   urlPathParams: { subject: 'test' },
 });
@@ -1498,29 +3121,19 @@ In the example above we fetch data from an API for user with an ID of 1. We also
   <br>
 
 ```typescript
-import { createApiFetcher, RequestConfig, FetchResponse } from 'fetchff';
-
-// Define the custom fetcher object
-const customFetcher = {
-  create() {
-    // Create instance here. It will be called at the beginning of every request.
-    return {
-      // This function will be called whenever a request is being fired.
-      request: async (config: RequestConfig): Promise<FetchResponse> => {
-        // Implement your custom fetch logic here
-        const response = await fetch(config.url, config);
-        // Optionally, process or transform the response
-        return response;
-      },
-    };
-  },
-};
+import { createApiFetcher } from 'fetchff';
 
 // Create the API fetcher with the custom fetcher
 const api = createApiFetcher({
   baseURL: 'https://api.example.com/',
   retry: retryConfig,
-  fetcher: customFetcher, // Provide the custom fetcher object directly
+  // This function will be called whenever a request is being fired.
+  async fetcher(config) {
+    // Implement your custom fetch logic here
+    const response = await fetch(config.url, config);
+    // Optionally, process or transform the response
+    return response;
+  },
   endpoints: {
     getBooks: {
       url: 'books/all',
@@ -1544,7 +3157,7 @@ const api = createApiFetcher({
 import { createApiFetcher } from 'fetchff';
 
 const api = createApiFetcher({
-  apiUrl: 'https://example.com/api',
+  baseURL: 'https://example.com/api',
   endpoints: {
     sendMessage: {
       method: 'post',
@@ -1563,7 +3176,7 @@ async function sendMessage() {
 
     console.log('Message sent successfully');
   } catch (error) {
-    console.log(error);
+    console.error('Message failed to send:', error.message);
   }
 }
 
@@ -1582,7 +3195,7 @@ sendMessage();
 import { createApiFetcher } from 'fetchff';
 
 const api = createApiFetcher({
-  apiUrl: 'https://example.com/api',
+  baseURL: 'https://example.com/api',
   endpoints: {
     sendMessage: {
       method: 'post',
@@ -1599,9 +3212,9 @@ async function sendMessage() {
   });
 
   if (error) {
-    console.error('Request Error', error);
+    console.error('Request Error', error.message);
   } else {
-    console.log('Message sent successfully');
+    console.log('Message sent successfully:', data);
   }
 }
 
@@ -1620,12 +3233,11 @@ sendMessage();
 import { createApiFetcher } from 'fetchff';
 
 const api = createApiFetcher({
-  apiUrl: 'https://example.com/api',
+  baseURL: 'https://example.com/api',
   endpoints: {
     sendMessage: {
       method: 'post',
       url: '/send-message/:postId',
-
       // You can also specify strategy and other settings in global list of endpoints, but just for this endpoint
       // strategy: 'defaultResponse',
     },
@@ -1633,25 +3245,24 @@ const api = createApiFetcher({
 });
 
 async function sendMessage() {
-  const { data } = await api.sendMessage({
+  const { data, error } = await api.sendMessage({
     body: { message: 'Text' },
     urlPathParams: { postId: 1 },
     strategy: 'defaultResponse',
     // null is a default setting, you can change it to empty {} or anything
-    // defaultResponse: null,
+    defaultResponse: { status: 'failed', message: 'Default response' },
     onError(error) {
       // Callback is still triggered here
-      console.log(error);
+      console.error('API error:', error.message);
     },
   });
 
-  if (data === null) {
-    // Because of the strategy, if API call fails, it will just return null
+  if (error) {
+    console.warn('Message failed to send, using default response:', data);
     return;
   }
 
-  // You can do something with the response here
-  console.log('Message sent successfully');
+  console.log('Message sent successfully:', data);
 }
 
 sendMessage();
@@ -1669,12 +3280,11 @@ sendMessage();
 import { createApiFetcher } from 'fetchff';
 
 const api = createApiFetcher({
-  apiUrl: 'https://example.com/api',
+  baseURL: 'https://example.com/api',
   endpoints: {
     sendMessage: {
       method: 'post',
       url: '/send-message/:postId',
-
       // You can also specify strategy and other settings in here, just for this endpoint
       // strategy: 'silent',
     },
@@ -1687,7 +3297,7 @@ async function sendMessage() {
     urlPathParams: { postId: 1 },
     strategy: 'silent',
     onError(error) {
-      console.log(error);
+      console.error('Silent error logged:', error.message);
     },
   });
 
@@ -1711,7 +3321,7 @@ sendMessage();
 import { createApiFetcher } from 'fetchff';
 
 const api = createApiFetcher({
-  apiUrl: 'https://example.com/api',
+  baseURL: 'https://example.com/api',
   endpoints: {
     sendMessage: {
       method: 'post',
@@ -1721,17 +3331,21 @@ const api = createApiFetcher({
 });
 
 async function sendMessage() {
-  await api.sendMessage({
-    body: { message: 'Text' },
-    urlPathParams: { postId: 1 },
-    onError(error) {
-      console.log('Error', error.message);
-      console.log(error.response);
-      console.log(error.config);
-    },
-  });
+  try {
+    await api.sendMessage({
+      body: { message: 'Text' },
+      urlPathParams: { postId: 1 },
+      onError(error) {
+        console.error('Error intercepted:', error.message);
+        console.error('Response:', error.response);
+        console.error('Config:', error.config);
+      },
+    });
 
-  console.log('Message sent successfully');
+    console.log('Message sent successfully');
+  } catch (error) {
+    console.error('Final error handler:', error.message);
+  }
 }
 
 sendMessage();
@@ -1752,11 +3366,11 @@ import { createApiFetcher } from 'fetchff';
 
 // Initialize API fetcher with endpoints
 const api = createApiFetcher({
+  baseURL: 'https://example.com/api',
   endpoints: {
     getUser: { url: '/user' },
-    createPost: { url: '/post' },
+    createPost: { url: '/post', method: 'POST' },
   },
-  apiUrl: 'https://example.com/api',
 });
 
 async function fetchUserAndCreatePost(userId: number, postData: any) {
@@ -1806,74 +3420,148 @@ app.get('/api/proxy', async (req, res) => {
 
 `fetchff` is designed to seamlessly integrate with any popular frameworks like Next.js, libraries like React, Vue, React Query and SWR. It is written in pure JS so you can effortlessly manage API requests with minimal setup, and without any dependencies.
 
-#### Using with React
+#### Advanced Caching Strategies
 
 <details>
   <summary><span style="cursor:pointer">Click to expand</span></summary>
   <br>
-  You can implement a `useFetcher()` hook to handle the data fetching. Since this package has everything included, you don't really need anything more than a simple hook to utilize.<br><br>
 
-Create `api.ts` file:
+```typescript
+import { fetchf, mutate, deleteCache } from 'fetchff';
 
-```tsx
-import { createApiFetcher } from 'fetchff';
+// Example: User dashboard with smart caching
+const fetchUserDashboard = async (userId: string) => {
+  return await fetchf(`/api/users/${userId}/dashboard`, {
+    cacheTime: 300, // Cache for 5 minutes
+    staleTime: 60, // Background revalidate after 1 minute
+    cacheKey: `user-dashboard-${userId}`, // Custom cache key
+    skipCache: (response) => response.status === 503, // Skip caching on service unavailable
+    refetchOnFocus: true, // Refresh when user returns to tab
+  });
+};
 
-export const api = createApiFetcher({
-  apiUrl: 'https://example.com/api',
-  strategy: 'softFail',
-  endpoints: {
-    getProfile: {
-      url: '/profile/:id',
-    },
-  },
-});
+// Example: Optimistic updates with cache mutations
+const updateUserProfile = async (userId: string, updates: any) => {
+  // Optimistically update cache
+  const currentData = await fetchf(`/api/users/${userId}`);
+  await mutate(`/api/users/${userId}`, { ...currentData.data, ...updates });
+
+  try {
+    // Make actual API call
+    const response = await fetchf(`/api/users/${userId}`, {
+      method: 'PATCH',
+      body: updates,
+    });
+
+    // Update cache with real response
+    await mutate(`/api/users/${userId}`, response.data, { revalidate: true });
+
+    return response;
+  } catch (error) {
+    // Revert cache on error
+    await mutate(`/api/users/${userId}`, currentData.data);
+    throw error;
+  }
+};
+
+// Example: Cache invalidation after user logout
+const logout = async () => {
+  await fetchf('/api/auth/logout', { method: 'POST' });
+
+  // Clear all user-related cache
+  deleteCache('/api/user*');
+  deleteCache('/api/dashboard*');
+};
 ```
 
-Create `useFetcher.ts` file:
+</details>
 
-```tsx
-export const useFetcher = (apiFunction) => {
-  const [data, setData] = useState(null);
-  const [error] = useState(null);
-  const [isLoading, setLoading] = useState(true);
+#### Real-time Polling Implementation
 
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
+<details>
+  <summary><span style="cursor:pointer">Click to expand</span></summary>
+  <br>
 
-      const { data, error } = await apiFunction();
+```typescript
+import { fetchf } from 'fetchff';
 
-      if (error) {
-        setError(error);
-      } else {
-        setData(data);
+// Example: Job status monitoring with intelligent polling
+const monitorJobStatus = async (jobId: string) => {
+  return await fetchf(`/api/jobs/${jobId}/status`, {
+    pollingInterval: 2000, // Poll every 2 seconds
+    pollingDelay: 500, // Wait 500ms before first poll
+    maxPollingAttempts: 30, // Max 30 attempts (1 minute total)
+
+    shouldStopPolling(response, attempt) {
+      // Stop polling when job is complete or failed
+      if (
+        response.data?.status === 'completed' ||
+        response.data?.status === 'failed'
+      ) {
+        return true;
       }
 
-      setLoading(false);
-    };
+      // Stop if we've been polling for too long
+      if (attempt >= 30) {
+        console.warn('Job monitoring timeout after 30 attempts');
+        return true;
+      }
 
-    fetchData();
-  }, [apiFunction]);
+      return false;
+    },
 
-  return { data, error, isLoading, setData };
+    onResponse(response) {
+      console.log(`Job ${jobId} status:`, response.data?.status);
+
+      // Update UI progress if available
+      if (response.data?.progress) {
+        updateProgressBar(response.data.progress);
+      }
+    },
+  });
 };
-```
 
-Call the API in the components:
+// Example: Server health monitoring
+const monitorServerHealth = async () => {
+  return await fetchf('/api/health', {
+    pollingInterval: 30000, // Check every 30 seconds
+    shouldStopPolling(response, attempt) {
+      // Never stop health monitoring (until manually cancelled)
+      return false;
+    },
 
-```tsx
-export const ProfileComponent = ({ id }) => {
-  const {
-    data: profile,
-    error,
-    isLoading,
-  } = useFetcher(() => api.getProfile({ urlPathParams: { id } }));
+    onResponse(response) {
+      const isHealthy = response.data?.status === 'healthy';
+      updateHealthIndicator(isHealthy);
 
-  if (isLoading) return <div>Loading...</div>;
-  if (error) return <div>Error: {error.message}</div>;
+      if (!isHealthy) {
+        console.warn('Server health check failed:', response.data);
+        notifyAdmins(response.data);
+      }
+    },
 
-  return <div>{JSON.stringify(profile)}</div>;
+    onError(error) {
+      console.error('Health check failed:', error.message);
+      updateHealthIndicator(false);
+    },
+  });
 };
+
+// Helper functions (implementation depends on your UI framework)
+function updateProgressBar(progress: number) {
+  // Update progress bar in UI
+  console.log(`Progress: ${progress}%`);
+}
+
+function updateHealthIndicator(isHealthy: boolean) {
+  // Update health indicator in UI
+  console.log(`Server status: ${isHealthy ? 'Healthy' : 'Unhealthy'}`);
+}
+
+function notifyAdmins(healthData: any) {
+  // Send notifications to administrators
+  console.log('Notifying admins about health issue:', healthData);
+}
 ```
 
 </details>
@@ -1886,11 +3574,14 @@ export const ProfileComponent = ({ id }) => {
 
 Integrate `fetchff` with React Query to streamline your data fetching:
 
+> **Note:** Official support for `useFetcher(url, config)` is here. Check React Integration section above to get an idea how to use it instead of SWR.
+
 ```tsx
 import { createApiFetcher } from 'fetchff';
+import { useQuery } from '@tanstack/react-query';
 
 const api = createApiFetcher({
-  apiUrl: 'https://example.com/api',
+  baseURL: 'https://example.com/api',
   endpoints: {
     getProfile: {
       url: '/profile/:id',
@@ -1898,10 +3589,12 @@ const api = createApiFetcher({
   },
 });
 
-export const useProfile = ({ id }) => {
-  return useQuery(['profile', id], () =>
-    api.getProfile({ urlPathParams: { id } }),
-  );
+export const useProfile = (id: string) => {
+  return useQuery({
+    queryKey: ['profile', id],
+    queryFn: () => api.getProfile({ urlPathParams: { id } }),
+    enabled: !!id, // Only fetch when id exists
+  });
 };
 ```
 
@@ -1915,19 +3608,28 @@ export const useProfile = ({ id }) => {
 
 Combine `fetchff` with SWR for efficient data fetching and caching.
 
+> **Note:** Official support for `useFetcher(url, config)` is here. Check React Integration section above to get an idea how to use it instead of SWR.
+
 Single calls:
 
 ```typescript
-const fetchProfile = ({ id }) =>
-  fetchf('https://example.com/api/profile/:id', { urlPathParams: id });
+import { fetchf } from 'fetchff';
+import useSWR from 'swr';
 
-export const useProfile = ({ id }) => {
-  const { data, error } = useSWR(['profile', id], fetchProfile);
+const fetchProfile = (id: string) =>
+  fetchf(`https://example.com/api/profile/${id}`, {
+    strategy: 'softFail',
+  });
+
+export const useProfile = (id: string) => {
+  const { data, error } = useSWR(id ? ['profile', id] : null, () =>
+    fetchProfile(id),
+  );
 
   return {
-    profile: data,
+    profile: data?.data,
     isLoading: !error && !data,
-    isError: error,
+    isError: error || data?.error,
   };
 };
 ```
@@ -1939,7 +3641,7 @@ import { createApiFetcher } from 'fetchff';
 import useSWR from 'swr';
 
 const api = createApiFetcher({
-  apiUrl: 'https://example.com/api',
+  baseURL: 'https://example.com/api',
   endpoints: {
     getProfile: {
       url: '/profile/:id',
@@ -1947,15 +3649,15 @@ const api = createApiFetcher({
   },
 });
 
-export const useProfile = ({ id }) => {
-  const fetcher = () => api.getProfile({ urlPathParams: { id } });
-
-  const { data, error } = useSWR(['profile', id], fetcher);
+export const useProfile = (id: string) => {
+  const { data, error } = useSWR(id ? ['profile', id] : null, () =>
+    api.getProfile({ urlPathParams: { id } }),
+  );
 
   return {
-    profile: data,
+    profile: data?.data,
     isLoading: !error && !data,
-    isError: error,
+    isError: error || data?.error,
   };
 };
 ```
@@ -1973,7 +3675,7 @@ export const useProfile = ({ id }) => {
 import { createApiFetcher } from 'fetchff';
 
 const api = createApiFetcher({
-  apiUrl: 'https://example.com/api',
+  baseURL: 'https://example.com/api',
   strategy: 'softFail',
   endpoints: {
     getProfile: { url: '/profile/:id' },

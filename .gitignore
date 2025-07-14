@@ -110,5 +110,6 @@ package/
 
 dist/*.ts
 dist/**/*.ts
+dist/**/*.mts
 !dist/*.map
 !dist/**/*.map

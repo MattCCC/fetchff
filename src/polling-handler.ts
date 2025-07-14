@@ -1,4 +1,4 @@
-import type { ExtendedRequestConfig, FetchResponse } from './types';
+import type { RequestConfig, FetchResponse } from './types';
 import { delayInvocation } from './utils';
 
 /**
@@ -6,7 +6,7 @@ import { delayInvocation } from './utils';
  * pollingInterval is not set, or maxAttempts is reached.
  *
  * @template Output The type of the output returned by the request function.
- * @param doRequestOnce - The function that performs a single request (with retries).
+ * @param requestFn - The function that performs a single request (with retries).
  * @param pollingInterval - Interval in ms between polling attempts.
  * @param shouldStopPolling - Function to determine if polling should stop.
  * @param maxAttempts - Maximum number of polling attempts, default: 0 (unlimited).
@@ -14,28 +14,35 @@ import { delayInvocation } from './utils';
  * @returns The final output from the last request.
  */
 export async function withPolling<
-  Output extends FetchResponse<
-    unknown,
-    unknown,
-    unknown,
-    unknown
-  > = FetchResponse<unknown, unknown, unknown, unknown>,
+  ResponseData,
+  RequestBody,
+  QueryParams,
+  PathParams,
 >(
-  doRequestOnce: () => Promise<Output>,
-  pollingInterval?: ExtendedRequestConfig['pollingInterval'],
-  shouldStopPolling?: ExtendedRequestConfig['shouldStopPolling'],
+  requestFn: (
+    isStaleRevalidation?: boolean,
+    attempt?: number,
+  ) => Promise<
+    FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>
+  >,
+  pollingInterval?: RequestConfig['pollingInterval'],
+  shouldStopPolling?: RequestConfig['shouldStopPolling'],
   maxAttempts = 0,
   pollingDelay = 0,
-): Promise<Output> {
+): Promise<FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>> {
+  if (!pollingInterval) {
+    return requestFn();
+  }
+
   let pollingAttempt = 0;
-  let output: Output;
+  let output: FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>;
 
   while (maxAttempts === 0 || pollingAttempt < maxAttempts) {
     if (pollingDelay > 0) {
       await delayInvocation(pollingDelay);
     }
 
-    output = await doRequestOnce();
+    output = await requestFn();
 
     pollingAttempt++;
 
