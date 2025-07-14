@@ -1,4 +1,4 @@
-import type { DefaultRequestTypes } from './request-handler';
+import type { DefaultRequestType } from './request-handler';
 import type { Req } from './request-handler';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type {
@@ -47,7 +47,7 @@ export declare type BodyPayload<PayloadType = DefaultPayload> =
   | PayloadType[]
   | null;
 
-type EndpointDefaults = Endpoint<DefaultRequestTypes>;
+type EndpointDefaults = Endpoint<DefaultRequestType>;
 
 /**
  * Represents an API endpoint definition with optional type parameters for various request and response components.
@@ -69,7 +69,7 @@ type EndpointDefaults = Endpoint<DefaultRequestTypes>;
  *    }>;
  *  }
  */
-export type Endpoint<T extends DefaultRequestTypes = DefaultRequestTypes> =
+export type Endpoint<T extends DefaultRequestType = DefaultRequestType> =
   EndpointFunction<T>;
 
 // Helper to support 4 generics
@@ -81,8 +81,8 @@ export type EndpointReq<
 > = Endpoint<Req<ResponseData, RequestBody, QueryParams, UrlPathParams>>;
 
 type MergeEndpointShape<
-  O extends Partial<DefaultRequestTypes>,
-  T extends DefaultRequestTypes,
+  O extends Partial<DefaultRequestType>,
+  T extends DefaultRequestType,
 > = {
   response: O extends { response: infer R }
     ? R
@@ -107,10 +107,10 @@ type MergeEndpointShape<
 };
 
 interface EndpointFunction<
-  T extends Partial<DefaultRequestTypes> = DefaultRequestTypes,
+  T extends Partial<DefaultRequestType> = DefaultRequestType,
 > {
   // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-  <O extends Partial<DefaultRequestTypes> = {}>(
+  <O extends Partial<DefaultRequestType> = {}>(
     requestConfig?: RequestConfig<
       MergeEndpointShape<O, T>['response'],
       MergeEndpointShape<O, T>['params'],
@@ -129,20 +129,20 @@ interface EndpointFunction<
 
 export interface RequestEndpointFunction<EndpointTypes> {
   // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-  <O extends Partial<DefaultRequestTypes> = {}>(
+  <O extends Partial<DefaultRequestType> = {}>(
     endpointNameOrUrl: keyof EndpointTypes | string,
     requestConfig?: RequestConfig<
-      MergeEndpointShape<O, DefaultRequestTypes>['response'],
-      MergeEndpointShape<O, DefaultRequestTypes>['params'],
-      MergeEndpointShape<O, DefaultRequestTypes>['urlPathParams'],
-      MergeEndpointShape<O, DefaultRequestTypes>['body']
+      MergeEndpointShape<O, DefaultRequestType>['response'],
+      MergeEndpointShape<O, DefaultRequestType>['params'],
+      MergeEndpointShape<O, DefaultRequestType>['urlPathParams'],
+      MergeEndpointShape<O, DefaultRequestType>['body']
     >,
   ): Promise<
     FetchResponse<
-      MergeEndpointShape<O, DefaultRequestTypes>['response'],
-      MergeEndpointShape<O, DefaultRequestTypes>['body'],
-      MergeEndpointShape<O, DefaultRequestTypes>['params'],
-      MergeEndpointShape<O, DefaultRequestTypes>['urlPathParams']
+      MergeEndpointShape<O, DefaultRequestType>['response'],
+      MergeEndpointShape<O, DefaultRequestType>['body'],
+      MergeEndpointShape<O, DefaultRequestType>['params'],
+      MergeEndpointShape<O, DefaultRequestType>['urlPathParams']
     >
   >;
 }
@@ -150,15 +150,15 @@ export interface RequestEndpointFunction<EndpointTypes> {
 type MergeWithEndpointDef<
   EndpointTypes,
   K extends keyof EndpointTypes,
-  O extends Partial<DefaultRequestTypes>,
+  O extends Partial<DefaultRequestType>,
 > = MergeEndpointShape<
   O,
-  EndpointTypes[K] extends Endpoint<infer S> ? S : DefaultRequestTypes
+  EndpointTypes[K] extends Endpoint<infer S> ? S : DefaultRequestType
 >;
 
 type EndpointMethod<EndpointTypes, K extends keyof EndpointTypes> = <
   // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-  O extends Partial<DefaultRequestTypes> = {},
+  O extends Partial<DefaultRequestType> = {},
 >(
   requestConfig?: RequestConfig<
     MergeWithEndpointDef<EndpointTypes, K, O>['response'],

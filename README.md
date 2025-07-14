@@ -2243,7 +2243,7 @@ if (error) {
 
 The `fetchff` package provides comprehensive TypeScript typings to enhance development experience and ensure type safety. Below are details on the available, exportable types for both `createApiFetcher()` and `fetchf()`.
 
-### Typings for `fetchf()`
+### Typings for `fetchf<RequestType>()`
 
 The `fetchf()` function includes types that help configure and manage network requests effectively:
 
@@ -2255,13 +2255,14 @@ interface AddBookRequest {
   body: AddBookRequestBody;
 }
 
-const { data: bookAddedData } = await fetchf<AddBookRequest>('/api/add-book', {
+// You could also use: fetchf<Req<AddBookResponseData>> as a shorthand so not to create additional request interface
+const { data: book } = await fetchf<AddBookRequest>('/api/add-book', {
   method: 'POST',
 });
-// Your bookAddedData is of type AddBookResponseData
+// Your book is of type AddBookResponseData
 ```
 
-- **`Req<ResponseData, RequestBody, QueryParams, UrlPathParams>`**: Represents a shorter 4-generics version of request object type for endpoints, allowing you to compose the shape of the request payload, query parameters, and path parameters for each request using a couple inline generics e.g. `fetchf<ResponseData, RequestBody, QueryParams, UrlPathParams>()`. While there is no plan for deprecation, this is for compatibility with older versions only. Aim to use the new method with single generic presented above instead. We don't use overload here to keep it all fast and snapy.
+- **`Req<ResponseData, RequestBody, QueryParams, UrlPathParams>`**: Represents a shorter 4-generics version of request object type for endpoints, allowing you to compose the shape of the request payload, query parameters, and path parameters for each request using a couple inline generics e.g. `fetchf<ResponseData, RequestBody, QueryParams, UrlPathParams>()`. While there is no plan for deprecation, this is for compatibility with older versions only. Aim to use the new method with single generic presented above instead. We don't use overload here to keep it all fast and snappy.
 - **`RequestConfig`**: Main configuration options for the `fetchf()` function, including request settings, interceptors, and retry configurations.
 - **`RetryConfig`**: Configuration options for retry mechanisms, including the number of retries, delay between retries, and backoff strategies.
 - **`CacheConfig`**: Configuration options for caching, including cache time, custom cache keys, and cache invalidation rules.

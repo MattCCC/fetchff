@@ -65,7 +65,7 @@ export type Req<
   body: RequestBody;
 };
 
-export type DefaultRequestTypes = {
+export type DefaultRequestType = {
   response?: DefaultResponse;
   body?: DefaultPayload;
   params?: QueryParams;
