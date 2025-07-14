@@ -1,19 +1,8 @@
 import type {
-  RequestConfig,
-  FetchResponse,
-  DefaultResponse,
-} from './types/request-handler';
-import type {
   ApiHandlerConfig,
   ApiHandlerDefaultMethods,
   ApiHandlerMethods,
-  DefaultPayload,
-  FallbackValue,
-  FinalParams,
-  FinalResponse,
-  QueryParams,
   RequestConfigUrlRequired,
-  UrlPathParams,
 } from './types/api-handler';
 import { fetchf } from '.';
 import { mergeConfigs } from './config-handler';
@@ -54,9 +43,9 @@ import { isAbsoluteUrl } from './utils';
  * const response = await api.getUser({ userId: 1, ratings: [1, 2] })
  */
 function createApiFetcher<
-  EndpointsMethods extends object,
+  EndpointTypes extends object,
   EndpointsSettings = never,
->(config: ApiHandlerConfig<EndpointsMethods>) {
+>(config: ApiHandlerConfig<EndpointTypes>) {
   const endpoints = config.endpoints;
 
   /**
@@ -71,71 +60,42 @@ function createApiFetcher<
     return Promise.resolve(null);
   }
 
-  /**
-   * Handle Single API Request
-   * It considers settings in following order: per-request settings, global per-endpoint settings, global settings.
-   *
-   * @param {keyof EndpointsMethods | string} endpointName - The name of the API endpoint to call.
-   * @param {EndpointConfig} [requestConfig={}] - Additional configuration for the request.
-   * @returns {Promise<FetchResponse<ResponseData>>} - A promise that resolves with the response from the API provider.
-   */
-  async function request<
-    ResponseData = never,
-    QueryParams_ = never,
-    UrlParams = never,
-    RequestBody = never,
-  >(
-    endpointName: keyof EndpointsMethods | string,
-    requestConfig: RequestConfig<
-      FinalResponse<ResponseData, DefaultResponse>,
-      FinalParams<ResponseData, QueryParams_, QueryParams>,
-      FinalParams<ResponseData, UrlParams, UrlPathParams>,
-      FallbackValue<ResponseData, DefaultPayload, RequestBody>
-    > = {},
-  ): Promise<
-    FetchResponse<
-      FinalResponse<ResponseData, DefaultResponse>,
-      FallbackValue<ResponseData, DefaultPayload, RequestBody>,
-      FinalParams<ResponseData, QueryParams_, QueryParams>,
-      FinalParams<ResponseData, UrlParams, UrlPathParams>
-    >
-  > {
-    // Use global and per-endpoint settings
-    const endpointConfig = endpoints[endpointName];
-    const _endpointConfig =
-      endpointConfig ||
-      ({ url: String(endpointName) } as RequestConfigUrlRequired);
-    const url = _endpointConfig.url;
-
-    // Block Protocol-relative URLs as they could lead to SSRF (Server-Side Request Forgery)
-    if (url.startsWith('//')) {
-      throw new Error('Protocol-relative URLs are not allowed.');
-    }
-
-    // Prevent potential Server-Side Request Forgery attack and leakage of credentials when same instance is used for external requests
-    const mergedConfig = isAbsoluteUrl(url)
-      ? // Merge endpoints configs for absolute URLs only if urls match
-        endpointConfig?.url === url
-        ? mergeConfigs(_endpointConfig, requestConfig)
-        : requestConfig
-      : mergeConfigs(mergeConfigs(config, _endpointConfig), requestConfig);
-
-    // We prevent potential Server-Side Request Forgery attack and leakage of credentials as the same instance is not used for external requests
-    // Retrigger fetch to ensure completely new instance of handler being triggered for external URLs
-    const responseData = await fetchf<
-      FinalResponse<ResponseData, DefaultResponse>,
-      FallbackValue<ResponseData, DefaultPayload, RequestBody>,
-      FinalParams<ResponseData, QueryParams_, QueryParams>,
-      FinalParams<ResponseData, UrlParams, UrlPathParams>
-    >(url, mergedConfig);
-
-    return responseData;
-  }
-
-  const apiHandler: ApiHandlerDefaultMethods<EndpointsMethods> = {
+  const apiHandler: ApiHandlerDefaultMethods<EndpointTypes> = {
     config,
     endpoints,
-    request,
+    /**
+     * Handle Single API Request
+     * It considers settings in following order: per-request settings, global per-endpoint settings, global settings.
+     *
+     * @param endpointName - The name of the API endpoint to call.
+     * @param requestConfig - Additional configuration for the request.
+     * @returns A promise that resolves with the response from the API provider.
+     */
+    async request(endpointName, requestConfig = {}) {
+      // Use global and per-endpoint settings
+      const endpointConfig = endpoints[endpointName];
+      const _endpointConfig =
+        endpointConfig ||
+        ({ url: String(endpointName) } as RequestConfigUrlRequired);
+      const url = _endpointConfig.url;
+
+      // Block Protocol-relative URLs as they could lead to SSRF (Server-Side Request Forgery)
+      if (url.startsWith('//')) {
+        throw new Error('Protocol-relative URLs are not allowed.');
+      }
+
+      // Prevent potential Server-Side Request Forgery attack and leakage of credentials when same instance is used for external requests
+      const mergedConfig = isAbsoluteUrl(url)
+        ? // Merge endpoints configs for absolute URLs only if urls match
+          endpointConfig?.url === url
+          ? mergeConfigs(_endpointConfig, requestConfig)
+          : requestConfig
+        : mergeConfigs(mergeConfigs(config, _endpointConfig), requestConfig);
+
+      // We prevent potential Server-Side Request Forgery attack and leakage of credentials as the same instance is not used for external requests
+      // Retrigger fetch to ensure completely new instance of handler being triggered for external URLs
+      return fetchf(url, mergedConfig);
+    },
   };
 
   /**
@@ -143,8 +103,8 @@ function createApiFetcher<
    *
    * @param {*} prop          Caller
    */
-  return new Proxy<ApiHandlerMethods<EndpointsMethods, EndpointsSettings>>(
-    apiHandler as ApiHandlerMethods<EndpointsMethods, EndpointsSettings>,
+  return new Proxy<ApiHandlerMethods<EndpointTypes, EndpointsSettings>>(
+    apiHandler as ApiHandlerMethods<EndpointTypes, EndpointsSettings>,
     {
       get(_target, prop: string) {
         if (prop in apiHandler) {

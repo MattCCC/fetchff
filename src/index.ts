@@ -1,8 +1,8 @@
 /** All TypeScript types and interfaces */
-export type * from './types';
+export * from './types';
 
 /** Core fetch function with caching, retries, and revalidation */
-export { fetchf } from './request-handler';
+export { fetchf, fetchf as fetchff } from './request-handler';
 
 /** Create a configured API fetcher instance */
 export { createApiFetcher } from './api-handler';
@@ -11,6 +11,7 @@ export { createApiFetcher } from './api-handler';
 export {
   buildConfig, // Build request configuration from defaults and overrides
   setDefaultConfig, // Set global default configuration for requests
+  getDefaultConfig, // Get the current global default configuration
 } from './config-handler';
 
 /** Cache management utilities */

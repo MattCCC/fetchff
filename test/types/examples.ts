@@ -3,6 +3,7 @@
  */
 import { createApiFetcher, fetchf } from '../../src';
 import type { Endpoint } from '../../src/types';
+import type { Req } from '../../src/types/request-handler';
 
 const endpoints = {
   ping: { url: 'ping' },
@@ -63,7 +64,7 @@ async function example1() {
   console.log('Example 1', data, apiConfig, endpointsList);
 }
 
-// With passed "typeof endpoints" to createApiFetcher()
+// Without passed "typeof endpoints" to createApiFetcher()
 async function example2() {
   const api = createApiFetcher({
     apiUrl: '',
@@ -78,7 +79,7 @@ async function example2() {
   // @ts-expect-error Endpoint ping2 does not exist
   await api.ping2();
 
-  const { data } = await api.ping<{ dd: string }>();
+  const { data } = await api.ping<{ response: { dd: string } }>();
 
   console.log('Example 2', data, apiConfig, endpointsList);
 }
@@ -87,8 +88,15 @@ async function example2() {
 async function example3() {
   // Note how you do not need to specify all endpoints for typings to work just fine.
   interface Endpoints {
-    fetchBook: Endpoint<Book, BookQueryParams, BookPathParams>;
-    fetchBooks: Endpoint<Books, BooksQueryParams>;
+    fetchBook: Endpoint<{
+      response: Book;
+      params: BookQueryParams;
+      urlPathParams: BookPathParams;
+    }>;
+    fetchBooks: Endpoint<{
+      response: Books;
+      params: BooksQueryParams;
+    }>;
   }
 
   type EndpointsConfiguration = typeof endpoints;
@@ -114,11 +122,11 @@ async function example3() {
   const { data: movies1 } = await api.fetchMovies();
 
   // With dynamically inferred type
-  const { data: movies } = await api.fetchMovies<Movies>();
-  const { data: movies3 }: { data: Movies } = await api.fetchMovies<Movies>();
+  const { data: movies } = await api.fetchMovies<{ response: Movies }>();
+  const { data: movies3 } = await api.fetchMovies<Req<Movies>>();
 
   // With custom params not defined in any interface
-  const { data: movies4 } = await api.fetchMovies({
+  const { data: movies4 }: { data: Movies } = await api.fetchMovies({
     params: {
       all: true,
     },
@@ -136,19 +144,35 @@ async function example3() {
   }
 
   // Overwrite response of existing endpoint
-  const { data: book1 } = await api.fetchBook<NewBook, BookQueryParams>({
+  const { data: book1 } = await api.fetchBook<{
+    response: NewBook;
+    params: BookQueryParams;
+  }>({
     params: { newBook: true },
     // @ts-expect-error should verify that bookId cannot be text
     urlPathParams: { bookId: 'text' },
   });
 
   // Overwrite response and query params of existing endpoint
-  const { data: book11 } = await api.fetchBook<NewBook, NewBookQueryParams>({
+  const { data: book11 } = await api.fetchBook<{
+    response: NewBook;
+    params: NewBookQueryParams;
+  }>({
     params: {
       // @ts-expect-error Should not allow old param
       newBook: true,
       color: 'green',
-      // TODO: @ts-expect-error Should not allow non-existent param
+    },
+  });
+
+  // Overwrite response and query params of existing endpoint
+  const { data: book12 } = await api.fetchBook<{
+    response: NewBook;
+    params: NewBookQueryParams;
+  }>({
+    params: {
+      color: 'green',
+      // @ts-expect-error Should not allow non-existent param
       type: 'red',
     },
   });
@@ -185,6 +209,7 @@ async function example3() {
     book satisfies Book,
     book1 satisfies NewBook,
     book11 satisfies NewBook,
+    book12 satisfies NewBook,
     book2 satisfies Book,
     book3 satisfies Book,
   );
@@ -193,7 +218,10 @@ async function example3() {
 // createApiFetcher() - direct API request() call to a custom endpoint with flattenResponse == true
 async function example4() {
   interface Endpoints {
-    fetchBooks: Endpoint<Books, BooksQueryParams>;
+    fetchBooks: Endpoint<{
+      response: Books;
+      params: BooksQueryParams;
+    }>;
   }
 
   type EndpointsConfiguration = typeof endpoints;
@@ -205,7 +233,7 @@ async function example4() {
   });
 
   // Existing endpoint generic
-  const { data: books } = await api.request<Books>('fetchBooks');
+  const { data: books } = await api.request<{ response: Books }>('fetchBooks');
 
   // Custom URL
   const { data: data1 } = await api.request(
@@ -224,7 +252,7 @@ async function example4() {
   });
 
   // Dynamically added Response to a generic
-  const { data: data2 } = await api.request<OtherEndpointData>(
+  const { data: data2 } = await api.request<{ response: OtherEndpointData }>(
     'https://example.com/api/custom-endpoint',
   );
 
@@ -242,11 +270,11 @@ async function example4() {
     urlparam2: number;
   }
 
-  const { data: books2 } = await api.request<
-    Books,
-    DynamicQueryParams,
-    DynamicUrlParams
-  >('fetchBooks', {
+  const { data: books2 } = await api.request<{
+    response: Books;
+    params: DynamicQueryParams;
+    urlPathParams: DynamicUrlParams;
+  }>('fetchBooks', {
     // Native fetch() setting
     cache: 'no-store',
     // Extended fetch setting
@@ -278,7 +306,10 @@ async function example4() {
 // createApiFetcher() - direct API request() call to a custom endpoint with flattenResponse == false
 async function example5() {
   interface MyEndpoints {
-    fetchBooks: Endpoint<Books, BooksQueryParams>;
+    fetchBooks: Endpoint<{
+      response: Books;
+      params: BooksQueryParams;
+    }>;
   }
 
   type EndpointsConfiguration = typeof endpoints;
@@ -289,13 +320,16 @@ async function example5() {
   });
 
   const { data: books2 } = await api.fetchBooks();
-  const { data: books } = await api.request<Books>('fetchBooks', {});
+  const { data: books } = await api.request<{ response: Books }>(
+    'fetchBooks',
+    {},
+  );
   const { data: data1 } = await api.request(
     'https://example.com/api/custom-endpoint',
   );
 
   // Specify generic
-  const { data: data2 } = await api.request<{ myData: true }>(
+  const { data: data2 } = await api.request<{ response: { myData: true } }>(
     'https://example.com/api/custom-endpoint',
   );
 
