@@ -3,6 +3,15 @@ import type { FetchResponse, RetryConfig, RetryFunction } from './types';
 import { delayInvocation, timeNow } from './utils';
 import { generateCacheKey } from './cache-manager';
 
+function getMsFromHttpDate(dateString: string): number | null {
+  const ms = Date.parse(dateString) - timeNow();
+
+  if (!isNaN(ms)) {
+    return Math.max(0, Math.floor(ms));
+  }
+  return null;
+}
+
 /**
  * Calculates the number of milliseconds to wait before retrying a request,
  * based on the `Retry-After` HTTP header in the provided response.
@@ -17,26 +26,52 @@ import { generateCacheKey } from './cache-manager';
 export function getRetryAfterMs(
   extendedResponse: FetchResponse | null,
 ): number | null {
-  const retryAfter = extendedResponse?.headers?.['retry-after'];
-
-  if (!retryAfter) {
+  if (!extendedResponse) {
     return null;
   }
 
-  // Try parsing as seconds
-  const seconds = Number(retryAfter);
+  const headers = extendedResponse.headers || {};
+  const retryAfter = headers['retry-after'];
 
-  if (!isNaN(seconds) && seconds >= 0) {
-    return seconds * 1000;
+  if (retryAfter) {
+    // Try parsing as seconds
+    const seconds = Number(retryAfter);
+
+    if (!isNaN(seconds) && seconds >= 0) {
+      return seconds * 1000;
+    }
+
+    const ms = getMsFromHttpDate(retryAfter);
+
+    if (ms !== null) {
+      return ms;
+    }
   }
 
-  // Try parsing as HTTP-date
-  const date = new Date(retryAfter);
+  // Headers are already in lowercase
+  const RATELIMIT_RESET = 'ratelimit-reset';
 
-  if (!isNaN(date.getTime())) {
-    const ms = date.getTime() - timeNow();
+  // Unix timestamp when the rate limit window resets (relative to current time)
+  // Fallback to checking 'ratelimit-reset-after' OR 'x-ratelimit-reset-after' headers
+  const rateLimitResetAfter =
+    headers[RATELIMIT_RESET + '-after'] ||
+    headers['x-' + RATELIMIT_RESET + '-after'];
 
-    return ms > 0 ? ms : 0;
+  if (rateLimitResetAfter) {
+    const seconds = Number(rateLimitResetAfter);
+
+    if (!isNaN(seconds)) {
+      return seconds * 1000;
+    }
+  }
+
+  // ISO 8601 datetime when the rate limit resets
+  // Fallback to checking 'ratelimit-reset-at' 'x-ratelimit-reset-at' headers
+  const rateLimitResetAt =
+    headers[RATELIMIT_RESET + '-at'] || headers['x-' + RATELIMIT_RESET + '-at'];
+
+  if (rateLimitResetAt) {
+    return getMsFromHttpDate(rateLimitResetAt);
   }
 
   return null;
@@ -139,8 +174,8 @@ export async function withRetry<
     }
 
     // If we should not stop retrying, continue to the next attempt
-    // If the error status is 429 (Too Many Requests), handle rate limiting
-    if (error.status === 429) {
+    // Handle rate limiting if the error status is 429 (Too Many Requests) or 503 (Service Unavailable)
+    if (error.status === 429 || error.status === 503) {
       // Try to extract the "Retry-After" value from the response headers
       const retryAfterMs = getRetryAfterMs(output);
 
