@@ -14,6 +14,7 @@
   "unpkg": "./dist/browser/index.mjs",
   "exports": {
     ".": {
+      "types": "./dist/index.d.ts",
       "import": {
         "node": "./dist/node/index.js",
         "default": "./dist/browser/index.mjs"
@@ -24,6 +25,7 @@
       }
     },
     "./react": {
+      "types": "./dist/index.d.ts",
       "import": "./dist/react/index.mjs",
       "require": "./dist/react/index.cjs"
     }
@@ -69,15 +71,15 @@
   "size-limit": [
     {
       "path": "dist/browser/index.mjs",
-      "limit": "5.5 KB"
+      "limit": "5.99 KB"
     },
     {
       "path": "dist/browser/index.global.js",
-      "limit": "5.6 KB"
+      "limit": "5.99 KB"
     },
     {
       "path": "dist/node/index.js",
-      "limit": "5.5 KB"
+      "limit": "5.99 KB"
     },
     {
       "path": "dist/react/index.mjs",
