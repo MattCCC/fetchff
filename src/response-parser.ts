@@ -6,6 +6,7 @@ import {
   CONTENT_TYPE,
   FUNCTION,
   OBJECT,
+  STRING,
 } from './constants';
 import {
   DefaultResponse,
@@ -68,18 +69,21 @@ export async function parseResponseData<
       typeof response.blob === FUNCTION
     ) {
       data = await response.blob(); // Parse as blob
-    } else if (mimeType.startsWith('text/')) {
-      data = await response.text(); // Parse as text
     } else {
-      try {
-        const responseClone = response.clone();
+      data = await response.text();
 
-        // Handle edge case of no content type being provided... We assume JSON here.
-        data = await responseClone.json();
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      } catch (_e) {
-        // Handle streams
-        data = await response.text();
+      if (typeof data === STRING) {
+        const trimmed = data.trim();
+        if (
+          (trimmed.startsWith('{') && trimmed.endsWith('}')) ||
+          (trimmed.startsWith('[') && trimmed.endsWith(']'))
+        ) {
+          try {
+            data = JSON.parse(trimmed);
+          } catch {
+            // leave as text if parsing fails
+          }
+        }
       }
     }
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
