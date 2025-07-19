@@ -55,14 +55,19 @@ export async function parseResponseData<
   try {
     if (mimeType.includes(APPLICATION_JSON) || mimeType.includes('+json')) {
       data = await response.json(); // Parse JSON response
-    } else if (mimeType.includes('multipart/form-data')) {
-      data = await response.formData(); // Parse as FormData
-    } else if (mimeType.includes(APPLICATION_CONTENT_TYPE + 'octet-stream')) {
-      data = await response.blob(); // Parse as blob
     } else if (
-      mimeType.includes(APPLICATION_CONTENT_TYPE + 'x-www-form-urlencoded')
+      (mimeType.includes('multipart/form-data') || // Parse as FormData
+        mimeType.includes(
+          APPLICATION_CONTENT_TYPE + 'x-www-form-urlencoded', // Handle URL-encoded forms
+        )) &&
+      typeof response.formData === FUNCTION
     ) {
-      data = await response.formData(); // Handle URL-encoded forms
+      data = await response.formData();
+    } else if (
+      mimeType.includes(APPLICATION_CONTENT_TYPE + 'octet-stream') &&
+      typeof response.blob === FUNCTION
+    ) {
+      data = await response.blob(); // Parse as blob
     } else if (mimeType.startsWith('text/')) {
       data = await response.text(); // Parse as text
     } else {
