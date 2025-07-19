@@ -6,6 +6,7 @@ import {
   CONTENT_TYPE,
   FUNCTION,
   OBJECT,
+  STRING,
 } from './constants';
 import {
   DefaultResponse,
@@ -55,26 +56,34 @@ export async function parseResponseData<
   try {
     if (mimeType.includes(APPLICATION_JSON) || mimeType.includes('+json')) {
       data = await response.json(); // Parse JSON response
-    } else if (mimeType.includes('multipart/form-data')) {
-      data = await response.formData(); // Parse as FormData
-    } else if (mimeType.includes(APPLICATION_CONTENT_TYPE + 'octet-stream')) {
-      data = await response.blob(); // Parse as blob
     } else if (
-      mimeType.includes(APPLICATION_CONTENT_TYPE + 'x-www-form-urlencoded')
+      (mimeType.includes('multipart/form-data') || // Parse as FormData
+        mimeType.includes(
+          APPLICATION_CONTENT_TYPE + 'x-www-form-urlencoded', // Handle URL-encoded forms
+        )) &&
+      typeof response.formData === FUNCTION
     ) {
-      data = await response.formData(); // Handle URL-encoded forms
-    } else if (mimeType.startsWith('text/')) {
-      data = await response.text(); // Parse as text
+      data = await response.formData();
+    } else if (
+      mimeType.includes(APPLICATION_CONTENT_TYPE + 'octet-stream') &&
+      typeof response.blob === FUNCTION
+    ) {
+      data = await response.blob(); // Parse as blob
     } else {
-      try {
-        const responseClone = response.clone();
+      data = await response.text();
 
-        // Handle edge case of no content type being provided... We assume JSON here.
-        data = await responseClone.json();
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      } catch (_e) {
-        // Handle streams
-        data = await response.text();
+      if (typeof data === STRING) {
+        const trimmed = data.trim();
+        if (
+          (trimmed.startsWith('{') && trimmed.endsWith('}')) ||
+          (trimmed.startsWith('[') && trimmed.endsWith(']'))
+        ) {
+          try {
+            data = JSON.parse(trimmed);
+          } catch {
+            // leave as text if parsing fails
+          }
+        }
       }
     }
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
