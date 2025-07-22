@@ -25,7 +25,7 @@
       }
     },
     "./react": {
-      "types": "./dist/index.d.ts",
+      "types": "./dist/react/index.d.ts",
       "import": "./dist/react/index.mjs",
       "require": "./dist/react/index.cjs"
     }

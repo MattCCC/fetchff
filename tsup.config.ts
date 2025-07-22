@@ -37,7 +37,7 @@ export default defineConfig([
     globalName: 'fetchffReact',
     entry: ['src/react/index.ts'],
     target: 'es2018',
-    dts: false,
+    dts: true,
     format: ['esm', 'cjs'],
     outDir: 'dist/react',
     platform: 'neutral',
