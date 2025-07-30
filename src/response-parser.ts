@@ -33,8 +33,8 @@ export async function parseResponseData<
 >(
   response: FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>,
 ): Promise<any> {
-  // Bail early for HEAD requests or status codes, or any requests that never have a body
-  if (!response || !response.body) {
+  // Bail early if response is null or undefined
+  if (!response) {
     return null;
   }
 

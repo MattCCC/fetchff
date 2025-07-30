@@ -140,7 +140,10 @@ export async function withRetry<
       }
     }
 
-    output = await requestFn(true, attempt); // isStaleRevalidation=false, isFirstAttempt=attempt===0
+    // Performance optimization: Call the request function with the current attempt number
+    // If this is the first attempt, we pass `isStaleRevalidation` as `false`,
+    // otherwise we pass `true` to indicate that this is a stale revalidation (no cache hit).
+    output = await requestFn(attempt > 0, attempt);
     const error = output.error;
 
     // Check if we should retry based on successful response
