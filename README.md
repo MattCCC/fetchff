@@ -2467,7 +2467,10 @@ The `useFetcher(url, config)` hook returns an object with the following properti
 - **`headers: Record<string, string>`**  
   Response headers from the last successful request.
 - **`refetch: (forceRefresh: boolean = true, config: RequestConfig = {}) => Promise<FetchResponse<ResponseData, RequestBody, QueryParams, PathParams> | null>`**  
-  Function to manually trigger a new request. It always uses `softFail` strategy and returns a new FetchResponse object. The `forceRefresh` is set to `true` by default - it will bypass cache and force new request and cache refresh. The `config` helps you to modify this particular request without on-fly. This is very useful for high performance dynamic updates without e.g. constant re-renders in case of frontends.
+  Function to manually trigger a new request with the settings from the `useFetcher` hook.
+  - It always uses `softFail` strategy and returns a new FetchResponse object.
+  - The `forceRefresh` is `true` by default - it will bypass cache and force new request and cache refresh.
+  - The `config` helps to modify the request on-fly (e.g. add `body` to POST requests etc.). This is very useful for high performance dynamic updates without triggering re-renders on frontend.
 - **`mutate: (data: ResponseData, settings: MutationSettings) => Promise<FetchResponse<ResponseData, RequestBody, QueryParams, PathParams> | null>`**  
   Function to update cached data directly, by passing new data. The `settings` object contains currently `revalidate` (boolean) property. If set to `true`, a new request will be made after cache and component data are updated.
 
