@@ -7,9 +7,10 @@ import type {
   DefaultResponse,
   FetchResponse,
   MutationSettings,
+  RequestConfig,
 } from './request-handler';
 
-type RefetchFunction<
+export type RefetchFunction<
   ResponseData = DefaultResponse,
   RequestBody = DefaultPayload,
   QueryParams = DefaultParams,
@@ -19,6 +20,12 @@ type RefetchFunction<
   // It comes handy when passing the refetch directly to a click handler.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   forceRefresh?: boolean | any,
+  requestConfig?: RequestConfig<
+    ResponseData,
+    QueryParams,
+    PathParams,
+    RequestBody
+  >,
 ) => Promise<FetchResponse<
   ResponseData,
   RequestBody,

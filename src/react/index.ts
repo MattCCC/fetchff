@@ -17,6 +17,7 @@ import type {
   RequestConfig,
 } from '..';
 import type { UseFetcherResult } from '../types/react-hooks';
+import { RefetchFunction } from '../types/react-hooks';
 
 import {
   decrementRef,
@@ -230,8 +231,10 @@ export function useFetcher<
     FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>
   >(doSubscribe, getSnapshot, getSnapshot);
 
-  const refetch = useCallback(
-    async (forceRefresh = true) => {
+  const refetch = useCallback<
+    RefetchFunction<ResponseData, RequestBody, QueryParams, PathParams>
+  >(
+    async (forceRefresh = true, requestConfig = {}) => {
       const [currUrl, currConfig, currCacheKey] = currentValuesRef.current;
 
       if (!currUrl) {
@@ -264,6 +267,7 @@ export function useFetcher<
         // Ensure that errors are handled gracefully and not thrown by default
         strategy: 'softFail',
         cacheErrors: true,
+        ...requestConfig,
         _isAutoKey: !currConfig.cacheKey,
       });
     },
