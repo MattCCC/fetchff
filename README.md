@@ -1052,7 +1052,7 @@ import { createApiFetcher } from 'fetchff';
 
 const api = createApiFetcher({
   baseURL: 'https://api.example.com',
-  // Global settings apply to all endpoints
+  // You can set all settings globally
   refetchOnFocus: true,
   refetchOnReconnect: true,
   cacheTime: 300, // Cache for 5 minutes
@@ -1097,10 +1097,15 @@ const api = createApiFetcher({
 1. **Combine with appropriate cache and stale times**:
 
    ```typescript
-   const { data } = await fetchf('/api/live-data', {
-     cacheTime: 300, // Cache for 5 minutes
-     staleTime: 30, // Consider fresh for 30 seconds
-     refetchOnFocus: true, // Also revalidate on focus
+   const { data: notifications } = await fetchf('/api/notifications', {
+     cacheTime: 600, // Cache for 10 minutes
+     staleTime: 60, // Background revalidate after 1 minute
+     refetchOnFocus: true,
+   });
+
+   const { data: userProfile } = await fetchf('/api/profile', {
+     cacheTime: 1800, // Cache for 30 minutes
+     staleTime: 600, // Background revalidate after 10 minutes
      refetchOnReconnect: true,
    });
    ```
@@ -1304,7 +1309,7 @@ The relationship between `staleTime` and `cacheTime` enables sophisticated data 
 ```typescript
 const fetchWithTimings = fetchf('/api/user-feed', {
   cacheTime: 600, // Cache for 10 minutes
-  staleTime: 60, // Consider fresh for 1 minute
+  staleTime: 60, // Consider fresh for 1 minute before background revalidation
 });
 
 // Data lifecycle:
@@ -1434,7 +1439,7 @@ These properties are combined and hashed to create a unique cache key for each r
 
 - When a request is made, `fetchff` checks if an identical request (same URL, method, params, and body) is already in progress or was recently completed within the `dedupeTime` window.
 - If such a request exists, the new request will "join" the in-flight request and receive the same response when it completes, rather than triggering a new network call.
-- This mechanism reduces unnecessary network traffic and ensures consistent data across your application.
+- This mechanism reduces unnecessary network traffic and ensures that all consumers receive the same response for identical requests made in quick succession.
 
 ### Configuration
 
@@ -2461,8 +2466,11 @@ The `useFetcher(url, config)` hook returns an object with the following properti
   The configuration object used for the request.
 - **`headers: Record<string, string>`**  
   Response headers from the last successful request.
-- **`refetch: (forceRefresh: boolean = true) => Promise<FetchResponse<ResponseData, RequestBody, QueryParams, PathParams> | null>`**  
-  Function to manually trigger a new request. It always uses `softFail` strategy and returns a new FetchResponse object. The `forceRefresh` is set to `true` by default - it will bypass cache and force new request and cache refresh.
+- **`refetch: (forceRefresh: boolean = true, config: RequestConfig = {}) => Promise<FetchResponse<ResponseData, RequestBody, QueryParams, PathParams> | null>`**  
+  Function to manually trigger a new request with the settings from the `useFetcher` hook.
+  - It always uses `softFail` strategy and returns a new FetchResponse object.
+  - The `forceRefresh` is `true` by default - it will bypass cache and force new request and cache refresh.
+  - The `config` helps to modify the request on-fly (e.g. add `body` to POST requests etc.). This is very useful for high performance dynamic updates without triggering re-renders on frontend.
 - **`mutate: (data: ResponseData, settings: MutationSettings) => Promise<FetchResponse<ResponseData, RequestBody, QueryParams, PathParams> | null>`**  
   Function to update cached data directly, by passing new data. The `settings` object contains currently `revalidate` (boolean) property. If set to `true`, a new request will be made after cache and component data are updated.
 
@@ -2563,7 +2571,7 @@ function SearchResults({ query }: { query: string }) {
 
 ```tsx
 function TodoList() {
-  const { data: todos, mutate, refetch } = useFetcher('/api/todos');
+  const { data: todos = [], mutate, refetch } = useFetcher('/api/todos');
 
   const addTodo = async (text: string) => {
     // Optimistically update the cache

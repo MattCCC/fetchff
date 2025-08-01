@@ -418,7 +418,7 @@ export interface CacheOptions<
 
   /**
    * INTERNAL, DO NOT USE.
-   * This is used internally to mark requests that are automatically generated cache keys.
+   * This is used internally to mark requests that have cache keys generated automatically.
    */
   _isAutoKey?: boolean;
 
