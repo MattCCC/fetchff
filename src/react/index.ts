@@ -16,8 +16,7 @@ import type {
   FetchResponse,
   RequestConfig,
 } from '..';
-import type { UseFetcherResult } from '../types/react-hooks';
-import { RefetchFunction } from '../types/react-hooks';
+import type { RefetchFunction, UseFetcherResult } from '../types/react-hooks';
 
 import {
   decrementRef,
