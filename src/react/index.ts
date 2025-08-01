@@ -260,6 +260,7 @@ export function useFetcher<
       return fetchf(currUrl, {
         ...currConfig,
         cacheKey: currCacheKey,
+        ...requestConfig,
         dedupeTime,
         cacheTime,
         staleTime,
@@ -267,7 +268,6 @@ export function useFetcher<
         // Ensure that errors are handled gracefully and not thrown by default
         strategy: 'softFail',
         cacheErrors: true,
-        ...requestConfig,
         _isAutoKey: !currConfig.cacheKey,
       });
     },
