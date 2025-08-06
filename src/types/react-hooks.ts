@@ -64,14 +64,14 @@ export interface UseFetcherResult<
   /**
    * This is an alias for `isLoading`.
    * Indicates if the request is currently loading data.
-   * @returns true during any request in progress exluding background revalidations.
+   * @returns true during any request in progress excluding background revalidations.
    * @see isLoading
    */
   isFetching: boolean;
 
   /**
    * Indicates if the request is currently loading data.
-   * @returns true during any request in progress exluding background revalidations.
+   * @returns true during any request in progress excluding background revalidations.
    */
   isLoading: boolean;
 

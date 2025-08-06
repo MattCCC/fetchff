@@ -161,7 +161,7 @@ export interface ExtendedResponse<
 
   /**
    * Indicates if the request is currently fetching data.
-   * This is true during any request in progress exluding background revalidations.
+   * This is true during any request in progress excluding background revalidations.
    */
   isFetching: boolean;
 
