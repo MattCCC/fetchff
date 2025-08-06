@@ -143,6 +143,8 @@ export const prepareResponse = <
       config,
       mutate: mutatator,
       isFetching: false,
+      isSuccess: false,
+      isError: true,
     } as unknown as FetchResponse<
       ResponseData,
       RequestBody,
@@ -204,6 +206,8 @@ export const prepareResponse = <
       config,
       mutate: mutatator,
       isFetching: false,
+      isSuccess: response.ok && !error,
+      isError: !!error,
     };
   }
 
@@ -213,6 +217,8 @@ export const prepareResponse = <
     response.headers = headers;
     response.isFetching = false;
     response.mutate = mutatator;
+    response.isSuccess = response.ok && !error;
+    response.isError = !!error;
   }
 
   return response;

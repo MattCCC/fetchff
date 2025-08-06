@@ -565,7 +565,7 @@ You can also use all native [`fetch()` settings](https://developer.mozilla.org/e
 | defaultResponse            | `any`                                                                                                  | `null`            | Default response when there is no data or when endpoint fails depending on the chosen `strategy`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | withCredentials            | `boolean`                                                                                              | `false`           | Indicates whether credentials (such as cookies) should be included with the request. This equals to `credentials: "include"` in native `fetch()`. In Node.js, cookies are not managed automatically. Use a fetch polyfill or library that supports cookies if needed.                                                                                                                                                                                                                                                                                                                                                                                       |
 | timeout                    | `number`                                                                                               | `30000` / `60000` | You can set a request timeout in milliseconds. **Default is adaptive**: 30 seconds (30000 ms) for normal connections, 60 seconds (60000 ms) on slow connections (2G/3G). The timeout option applies to each individual request attempt including retries and polling. `0` means that the timeout is disabled.                                                                                                                                                                                                                                                                                                                                               |
-| dedupeTime                 | `number`                                                                                               | `0`               | Time window, in milliseconds, during which identical requests are deduplicated (treated as single request). If set to `0`, deduplication is disabled.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| dedupeTime                 | `number`                                                                                               | `0`               | Time window, in milliseconds, during which identical requests are deduplicated (treated as same request). If set to `0`, deduplication is disabled.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | cacheTime                  | `number`                                                                                               | `undefined`       | Specifies the duration, in seconds, for which a cache entry is considered "fresh." Once this time has passed, the entry is considered stale and may be refreshed with a new request. Set to -1 for indefinite cache. By default no caching.                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | staleTime                  | `number`                                                                                               | `undefined`       | Specifies the duration, in seconds, for which cached data is considered "fresh." During this period, cached data will be returned immediately, but a background revalidation (network request) will be triggered to update the cache. If set to `0`, background revalidation is disabled and revalidation is triggered on every access.                                                                                                                                                                                                                                                                                                                     |
 | refetchOnFocus             | `boolean`                                                                                              | `false`           | When set to `true`, automatically revalidates (refetches) data when the browser window regains focus. **Note: This bypasses the cache and always makes a fresh network request** to ensure users see the most up-to-date data when they return to your application from another tab or window. Particularly useful for applications that display real-time or frequently changing data, but should be used judiciously to avoid unnecessary network traffic.                                                                                                                                                                                                |
@@ -1801,26 +1801,34 @@ interface FetchResponse<
   status: number; // HTTP status code
   statusText: string; // HTTP status text
   headers: HeadersObject; // Response headers as a key-value object
+  isSuccess: boolean; // True if request is successful (2xx status codes).
+  isError: boolean; // True if the response contains an error
 }
 ```
 
-- **`data`**:  
+- **`data`**:
   The actual data returned from the API, or `null`/`defaultResponse` if not available.
 
-- **`error`**:  
+- **`error`**:
   An object containing error details if the request failed, or `null` otherwise. Includes properties such as `name`, `message`, `status`, `statusText`, `request`, `config`, and the full `response`.
 
-- **`config`**:  
+- **`config`**:
   The complete configuration object used for the request, including URL, method, headers, and parameters.
 
-- **`status`**:  
+- **`status`**:
   The HTTP status code of the response (e.g., 200, 404, 500).
 
-- **`statusText`**:  
+- **`statusText`**:
   The HTTP status text (e.g., 'OK', 'Not Found', 'Internal Server Error').
 
-- **`headers`**:  
+- **`headers`**:
   The response headers as a plain key-value object.
+
+- **`isSuccess`**:
+  Indicates whether the request was successful (2xx status codes).
+
+- **`isError`**:
+  True if the response is an error (non-2xx status code, network error, or request failed).
 
 The whole response of the native `fetch()` is attached as well.
 
@@ -2428,6 +2436,8 @@ Security is a core design principle of FetchFF, with sanitization mechanisms run
 
 FetchFF offers a high-performance React hook, `useFetcher(url, config)`, for efficient data fetching in React applications. This hook provides built-in caching, automatic request deduplication, comprehensive state management etc. Its API mirrors the native `fetch` and `fetchf(url, config)` signatures, allowing you to pass all standard and advanced configuration options seamlessly. Designed with React best practices in mind, `useFetcher` ensures optimal performance and a smooth developer experience.
 
+The hook exposes base flags providing <b>intuitive</b> mental model and improves UX defaults. The approach strikes a balance between simplicity and clarity, and avoids some of the confusion that arises with existing conventions in many other plugins. The other libraries toggle states too aggressively leading to poor performance.
+
 ### Basic Usage
 
 ```tsx
@@ -2454,24 +2464,30 @@ function UserProfile({ userId }: { userId: string }) {
 
 The `useFetcher(url, config)` hook returns an object with the following properties:
 
-- **`data: ResponseData | null`**  
+- `data: ResponseData | null`  
   The fetched data, typed as `T` (generic), or `null` if not available.
-- **`error: ResponseError | null`**  
+- `error: ResponseError | null`  
   Error object if the request failed, otherwise `null`.
-- **`isLoading: boolean`**  
-  `true` while data is being loaded for the first time or during a fetch.
-- **`isFetching: boolean`**  
-  `true` when currently fetching (fetch is in progress).
-- **`config: RequestConfig`**  
+- `isLoading: boolean` (alias: `isFetching`)  
+  It is true when currently fetching (fetch is in progress) excluding background revalidations. The background revalidations simply update data.
+- `isFirstLoad: boolean`  
+  It is true when data is fetched for the first time, and there is no data available yet.
+- `isRefetching: boolean`  
+  It is true when a subsequent fetch is in progress (not during initial load).
+- `isSuccess: boolean`  
+  It is true if the last request completed successfully (2xx status codes).
+- `isError: boolean`  
+  It is true in cases of: non-2xx status code, network error, request failed, or response parsing error.
+- `config: RequestConfig`  
   The configuration object used for the request.
-- **`headers: Record<string, string>`**  
+- `headers: Record<string, string>`  
   Response headers from the last successful request.
-- **`refetch: (forceRefresh: boolean = true, config: RequestConfig = {}) => Promise<FetchResponse<ResponseData, RequestBody, QueryParams, PathParams> | null>`**  
+- `refetch: (forceRefresh: boolean = true, config: RequestConfig = {}) => Promise<FetchResponse<ResponseData, RequestBody, QueryParams, PathParams> | null>`  
   Function to manually trigger a new request with the settings from the `useFetcher` hook.
   - It always uses `softFail` strategy and returns a new FetchResponse object.
   - The `forceRefresh` is `true` by default - it will bypass cache and force new request and cache refresh.
   - The `config` helps to modify the request on-fly (e.g. add `body` to POST requests etc.). This is very useful for high performance dynamic updates without triggering re-renders on frontend.
-- **`mutate: (data: ResponseData, settings: MutationSettings) => Promise<FetchResponse<ResponseData, RequestBody, QueryParams, PathParams> | null>`**  
+- `mutate: (data: ResponseData, settings: MutationSettings) => Promise<FetchResponse<ResponseData, RequestBody, QueryParams, PathParams> | null>`  
   Function to update cached data directly, by passing new data. The `settings` object contains currently `revalidate` (boolean) property. If set to `true`, a new request will be made after cache and component data are updated.
 
 ### Configuration Options

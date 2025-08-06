@@ -212,6 +212,7 @@ export async function fetchf<
         PathParams
       >;
 
+      // Custom fetcher may return a raw data object instead of a Response instance
       if (isObject(response)) {
         // Case 1: Native Response instance
         if (typeof Response === FUNCTION && response instanceof Response) {

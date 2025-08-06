@@ -160,9 +160,22 @@ export interface ExtendedResponse<
   > | null>;
 
   /**
-   * Indicates whether the request is currently being fetched.
+   * Indicates if the request is currently fetching data.
+   * This is true during any request in progress exluding background revalidations.
    */
   isFetching: boolean;
+
+  /**
+   * Indicates if the request was successful (2xx status codes).
+   * This is true if the response is OK (2xx) and no error was thrown.
+   */
+  isSuccess: boolean;
+
+  /**
+   * Indicates if the request resulted in an error.
+   * True in cases of: non-2xx status code, network error, request failed, or response parsing error.
+   */
+  isError: boolean;
 }
 
 /**
@@ -447,7 +460,7 @@ export interface ExtendedRequestConfig<
    * - `'reject'`: Rejects the promise with an error (default).
    * - `'silent'`: Silently handles errors without rejecting.
    * - `'defaultResponse'`: Returns a default response in case of an error.
-   * - `'softFail'`: Returns a partial response with error details.
+   * - `'softFail'`: Returns full response object even in case of error (no try/catch necessary).
    */
   strategy?: ErrorHandlingStrategy;
 

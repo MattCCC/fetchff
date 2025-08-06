@@ -53,17 +53,48 @@ export interface UseFetcherResult<
   error:
     | FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>['error']
     | null;
+
   /**
-   * Indicates if the request is currently validating or fetching data.
-   * This is true when the request is in progress, including revalidations.
+   * Indicates if this is the first fetching attempt for the request since the hook was mounted.
+   * Useful for showing loading indicators before any data is fetched.
+   * @returns true when there is no data nor error yet and during any request in progress or is about to start.
+   */
+  isFirstFetch: boolean;
+
+  /**
+   * This is an alias for `isLoading`.
+   * Indicates if the request is currently loading data.
+   * @returns true during any request in progress exluding background revalidations.
+   * @see isLoading
    */
   isFetching: boolean;
+
   /**
    * Indicates if the request is currently loading data.
-   * This is true when the request is in progress, including initial fetches.
-   * It will be false if the data is already cached and no new fetch is in progress.
+   * @returns true during any request in progress exluding background revalidations.
    */
   isLoading: boolean;
+
+  /**
+   * Indicates if the request was successful (2xx status codes).
+   * @returns true if the response is OK (2xx) and no error was thrown.
+   */
+  isSuccess: boolean;
+
+  /**
+   * Indicates if the request resulted in an error.
+   * @returns true in cases of: non-2xx status code, network error, request failed, or response parsing error.
+   */
+  isError: boolean;
+
+  /**
+   * Indicates if the request is currently refetching data.
+   * This is true when a fetch is in progress and there is already data displayed (i.e., not the initial load).
+   * Useful for showing a subtle loading indicator when updating existing data.
+   * @returns true when the request is refetching data.
+   */
+  isRefetching: boolean;
+
   /**
    * Function to mutate the cached data.
    * It updates the cache with new data and optionally triggers revalidation.

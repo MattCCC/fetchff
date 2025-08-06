@@ -275,9 +275,16 @@ export function useFetcher<
 
   const data = state.data;
   const isUnresolved = !data && !state.error;
-  const isFetching = state.isFetching;
-  const isLoading =
-    !!url && (isFetching || (isUnresolved && shouldTriggerOnMount));
+
+  // This indicates if the request is in progress or if it is about to start on first mount
+  // It is true when:
+  // - The request is currently ongoing, and it is not background revalidation
+  // - The request is unresolved (no data and no error) and shouldTriggerOnMount
+  //   is true (which means the request is about to start on mount)
+  const isFetching =
+    !!url && (state.isFetching || (isUnresolved && shouldTriggerOnMount));
+  const isFirstFetch = isFetching && isUnresolved;
+  const isRefetching = isFetching && !isUnresolved;
 
   // Consumers always destructure the return value and use the fields directly, so
   // memoizing the object doesn't change rerender behavior nor improve any performance here
@@ -286,8 +293,12 @@ export function useFetcher<
     error: state.error,
     config: state.config,
     headers: state.headers,
+    isFirstFetch,
     isFetching,
-    isLoading,
+    isLoading: isFetching,
+    isRefetching,
+    isError: state.isError,
+    isSuccess: state.isSuccess,
     mutate: state.mutate,
     refetch,
   };
