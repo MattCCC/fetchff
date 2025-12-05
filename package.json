@@ -1,7 +1,7 @@
 {
   "name": "fetchff",
   "version": "4.1.1",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "author": "Matt Czapliński <deindesign.pl@gmail.com>",
   "repository": {
     "type": "git",
