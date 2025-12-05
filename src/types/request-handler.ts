@@ -453,8 +453,8 @@ export interface ExtendedRequestConfig<
   RequestBody = any,
   QueryParams_ = any,
   PathParams = any,
-> extends Omit<RequestInit, 'body'>,
-    CacheOptions {
+>
+  extends Omit<RequestInit, 'body'>, CacheOptions {
   /**
    * Custom error handling strategy for the request.
    * - `'reject'`: Rejects the promise with an error (default).
