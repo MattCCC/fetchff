@@ -364,6 +364,28 @@ export function isBrowser(): boolean {
 }
 
 /**
+ * Creates an abort/timeout error compatible with all JS runtimes.
+ * Falls back to a plain Error with the correct `name` when DOMException is unavailable (e.g. React Native).
+ *
+ * @param {string} message - The error message.
+ * @param {string} name - The error name (e.g. 'AbortError', 'TimeoutError').
+ * @returns {DOMException | Error} - An error object with the specified name.
+ */
+export function createAbortError(
+  message: string,
+  name: string,
+): DOMException | Error {
+  if (typeof DOMException !== UNDEFINED) {
+    return new DOMException(message, name);
+  }
+
+  const error = new Error(message);
+  error.name = name;
+
+  return error;
+}
+
+/**
  * Detects if the user is on a slow network connection
  * @returns {boolean} True if connection is slow, false otherwise or if detection unavailable
  */

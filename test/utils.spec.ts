@@ -6,6 +6,7 @@ import {
   processHeaders,
   sortObject,
   sanitizeObject,
+  createAbortError,
 } from '../src/utils';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -694,6 +695,51 @@ describe('Utils', () => {
       const result = processHeaders(headers);
 
       expect(result).toEqual({});
+    });
+  });
+
+  describe('createAbortError()', () => {
+    it('should create a DOMException when DOMException is available', () => {
+      const error = createAbortError('test message', 'AbortError');
+
+      expect(error.message).toBe('test message');
+      expect(error.name).toBe('AbortError');
+      expect(error).toBeInstanceOf(DOMException);
+    });
+
+    it('should create a DOMException with TimeoutError name', () => {
+      const error = createAbortError('timeout message', 'TimeoutError');
+
+      expect(error.message).toBe('timeout message');
+      expect(error.name).toBe('TimeoutError');
+    });
+
+    it('should fall back to a plain Error when DOMException is unavailable (e.g. React Native)', () => {
+      const OriginalDOMException = globalThis.DOMException;
+
+      try {
+        // Simulate React Native environment where DOMException is not defined
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        delete (globalThis as any).DOMException;
+
+        const error = createAbortError('timeout', 'TimeoutError');
+
+        expect(error.message).toBe('timeout');
+        expect(error.name).toBe('TimeoutError');
+        expect(error).toBeInstanceOf(Error);
+      } finally {
+        globalThis.DOMException = OriginalDOMException;
+      }
+    });
+
+    it('should create errors usable with AbortController.abort()', () => {
+      const controller = new AbortController();
+      const error = createAbortError('aborted', 'AbortError');
+
+      controller.abort(error);
+
+      expect(controller.signal.aborted).toBe(true);
+      expect(controller.signal.reason).toBe(error);
     });
   });
 });

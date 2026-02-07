@@ -290,11 +290,12 @@ export function setCache<T = unknown>(
 
   const time = timeNow();
   const ttlMs = ttl ? ttl * 1000 : 0;
+  const staleTimeMs = staleTime ? staleTime * 1000 : 0; // Ensure default value for staleTime
 
   _cache.set(key, {
     data,
     time,
-    stale: staleTime && staleTime > 0 ? time + staleTime * 1000 : staleTime,
+    stale: staleTimeMs > 0 ? time + staleTimeMs : undefined, // Use undefined if staleTime is not set
     expiry: ttl === -1 ? undefined : time + ttlMs,
   });
 

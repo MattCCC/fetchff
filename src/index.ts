@@ -38,7 +38,7 @@ export { subscribe } from './pubsub-manager';
 export { abortRequest, getInFlightPromise } from './inflight-manager';
 
 /** Network and environment utilities (Browser Only) */
-export { isSlowConnection } from './utils';
+export { isSlowConnection, createAbortError } from './utils';
 
 /** Timeout management for delayed operations */
 export { addTimeout } from './timeout-wheel';

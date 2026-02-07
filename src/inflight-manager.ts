@@ -20,7 +20,7 @@
 
 import { ABORT_ERROR, TIMEOUT_ERROR } from './constants';
 import { addTimeout, removeTimeout } from './timeout-wheel';
-import { timeNow } from './utils';
+import { createAbortError, timeNow } from './utils';
 
 export type InFlightItem = [
   AbortController, // AbortController for the request
@@ -76,7 +76,7 @@ export function markInFlight(
     // Abort previous request, if applicable, and continue as usual
     if (prevIsCancellable) {
       prevController.abort(
-        new DOMException('Aborted due to new request', ABORT_ERROR),
+        createAbortError('Aborted due to new request', ABORT_ERROR),
       );
     }
 
@@ -100,7 +100,7 @@ export function markInFlight(
       () => {
         abortRequest(
           key,
-          new DOMException(url + ' aborted due to timeout', TIMEOUT_ERROR),
+          createAbortError(url + ' aborted due to timeout', TIMEOUT_ERROR),
         );
       },
       timeout as number,
@@ -119,7 +119,7 @@ export function markInFlight(
  */
 export async function abortRequest(
   key: string | null,
-  error: DOMException | null | string = null,
+  error: DOMException | Error | null | string = null,
 ): Promise<void> {
   // If the key is not in the queue, there's nothing to remove
   if (key) {
