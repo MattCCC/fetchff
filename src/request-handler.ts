@@ -26,9 +26,9 @@ import { enhanceError, withErrorHandling } from './error-handler';
 import { FUNCTION } from './constants';
 import { buildConfig } from './config-handler';
 
-const inFlightResponse = {
+const inFlightResponse = Object.freeze({
   isFetching: true,
-};
+});
 
 /**
  * Sends an HTTP request to the specified URL using the provided configuration and returns a typed response.
@@ -331,15 +331,18 @@ export async function fetchf<
       setInFlightPromise(_cacheKey, doRequestPromise);
     }
 
-    addRevalidator(
-      _cacheKey,
-      requestWithErrorHandling,
-      undefined,
-      staleTime,
-      requestWithErrorHandling,
-      !!refetchOnFocus,
-      !!refetchOnReconnect,
-    );
+    // Only register revalidator when revalidation features are actually requested
+    if (staleTime || refetchOnFocus || refetchOnReconnect) {
+      addRevalidator(
+        _cacheKey,
+        requestWithErrorHandling,
+        undefined,
+        staleTime,
+        requestWithErrorHandling,
+        !!refetchOnFocus,
+        !!refetchOnReconnect,
+      );
+    }
   }
 
   return doRequestPromise;
