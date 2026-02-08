@@ -49,12 +49,20 @@ describe('Utils', () => {
       );
     });
 
-    it('should return a new object reference', () => {
+    it('should return same reference when no dangerous properties exist', () => {
       const input = { a: 1, b: 2 };
       const output = sanitizeObject(input);
 
-      expect(output).not.toBe(input); // Different reference
+      expect(output).toBe(input); // Same reference (zero-copy fast path)
       expect(output).toEqual(input); // Same content
+    });
+
+    it('should return a new object reference when dangerous properties exist', () => {
+      const input = { a: 1, b: 2, constructor: 'unsafe' };
+      const output = sanitizeObject(input);
+
+      expect(output).not.toBe(input); // Different reference
+      expect(output).toEqual({ a: 1, b: 2 }); // Dangerous props removed
     });
 
     xit('should handle null and undefined inputs', () => {

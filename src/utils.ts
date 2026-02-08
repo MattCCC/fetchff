@@ -46,18 +46,27 @@ export function shallowSerialize(obj: Record<string, any>): string {
 /**
  * Removes properties that could lead to prototype pollution from an object.
  *
- * This function creates a shallow copy of the input object with dangerous
- * properties like '__proto__', 'constructor', and 'prototype' removed.
+ * This function checks for dangerous properties like '__proto__', 'constructor',
+ * and 'prototype'. If none are present, the object is returned as-is (zero-copy fast path).
+ * Otherwise, a shallow copy is created with the dangerous properties removed.
  *
  * @param obj - The object to sanitize
- * @returns A new object without dangerous properties
+ * @returns A safe object without dangerous properties
  */
 export function sanitizeObject<T extends Record<string, any>>(obj: T): T {
+  const hasProto = Object.prototype.hasOwnProperty.call(obj, '__proto__');
+  const hasCtor = Object.prototype.hasOwnProperty.call(obj, 'constructor');
+  const hasPrototype = Object.prototype.hasOwnProperty.call(obj, 'prototype');
+
+  if (!hasProto && !hasCtor && !hasPrototype) {
+    return obj;
+  }
+
   const safeObj = { ...obj };
 
-  delete safeObj.__proto__;
-  delete (safeObj as any).constructor;
-  delete safeObj.prototype;
+  if (hasProto) delete safeObj.__proto__;
+  if (hasCtor) delete (safeObj as any).constructor;
+  if (hasPrototype) delete safeObj.prototype;
 
   return safeObj;
 }
