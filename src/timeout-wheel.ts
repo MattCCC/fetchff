@@ -57,8 +57,8 @@ export const addTimeout = (
 ): void => {
   removeTimeout(key);
 
-  // Fallback to setTimeout if wheel size is exceeded or ms is not divisible by SECOND
-  if (ms > MAX_WHEEL_MS || ms % SECOND !== 0) {
+  // Fallback to setTimeout if wheel size is exceeded, ms is sub-second, or ms is not divisible by SECOND
+  if (ms < SECOND || ms > MAX_WHEEL_MS || ms % SECOND !== 0) {
     keyMap.set(key, [setTimeout(handleCallback.bind(null, [key, cb]), ms)]); // Store timeout ID instead of slot
 
     return;
@@ -74,8 +74,15 @@ export const addTimeout = (
   if (!timer) {
     timer = setInterval(() => {
       position = (position + 1) % WHEEL_SIZE;
-      wheel[position].forEach(handleCallback);
-      wheel[position] = [];
+      const slot = wheel[position];
+
+      // Use slot.length directly (not cached) so mid-iteration mutations
+      // from callbacks (e.g. removeTimeout) are handled correctly
+      for (let i = 0; i < slot.length; i++) {
+        handleCallback(slot[i]);
+      }
+
+      slot.length = 0; // Reuse array, avoid GC allocation
 
       if (!keyMap.size && timer) {
         clearInterval(timer);
@@ -93,10 +100,12 @@ export const removeTimeout = (key: string): void => {
     if (Array.isArray(slotOrTimeout)) {
       clearTimeout(slotOrTimeout[0]);
     } else {
-      wheel[slotOrTimeout].splice(
-        wheel[slotOrTimeout].findIndex(([k]) => k === key),
-        1,
-      );
+      const slotArr = wheel[slotOrTimeout];
+      const idx = slotArr.findIndex(([k]) => k === key);
+
+      if (idx !== -1) {
+        slotArr.splice(idx, 1);
+      }
     }
 
     keyMap.delete(key);
@@ -110,11 +119,11 @@ export const removeTimeout = (key: string): void => {
 
 export const clearAllTimeouts = () => {
   // Clear native setTimeout timeouts first!
-  keyMap.forEach((value) => {
+  for (const value of keyMap.values()) {
     if (Array.isArray(value)) {
       clearTimeout(value[0]);
     }
-  });
+  }
 
   if (timer) {
     clearInterval(timer);
@@ -122,6 +131,10 @@ export const clearAllTimeouts = () => {
   }
 
   keyMap.clear();
-  wheel.forEach((slot) => (slot.length = 0));
+
+  for (let i = 0; i < WHEEL_SIZE; i++) {
+    wheel[i].length = 0;
+  }
+
   position = 0;
 };
