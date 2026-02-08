@@ -847,7 +847,7 @@ describe('Performance & Caching Integration Tests', () => {
       });
 
       // Should start loading non-critical data
-      act(() => {
+      await act(async () => {
         jest.advanceTimersByTime(600);
       });
 
