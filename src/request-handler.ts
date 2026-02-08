@@ -296,8 +296,16 @@ export async function fetchf<
   };
 
   // Inline and minimize function wrappers for performance
+  // When retries are enabled, forward isStaleRevalidation so the first attempt
+  // of a background SWR revalidation doesn't incorrectly mark the request as in-flight
   const baseRequest =
-    retries > 0 ? () => withRetry(doRequestOnce, retryConfig) : doRequestOnce;
+    retries > 0
+      ? (isStaleRevalidation = false) =>
+          withRetry(
+            (_, attempt) => doRequestOnce(isStaleRevalidation, attempt),
+            retryConfig,
+          )
+      : doRequestOnce;
 
   const requestWithErrorHandling = (isStaleRevalidation = false) =>
     withErrorHandling<ResponseData, RequestBody, QueryParams, PathParams>(
