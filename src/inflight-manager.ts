@@ -55,6 +55,7 @@ export function markInFlight(
     return new AbortController();
   }
 
+  const now = timeNow();
   const item = inFlight.get(key);
   let prevPromise: Promise<unknown> | null = null;
 
@@ -66,7 +67,7 @@ export function markInFlight(
     // If the request is already in the queue and within the dedupeTime, reuse the existing controller
     if (
       !prevIsCancellable &&
-      timeNow() - item[2] < dedupeTime &&
+      now - item[2] < dedupeTime &&
       !prevController.signal.aborted
     ) {
       return prevController;
@@ -89,7 +90,7 @@ export function markInFlight(
   inFlight.set(key, [
     controller,
     isTimeoutEnabled,
-    timeNow(),
+    now,
     isCancellable,
     prevPromise,
   ]);
