@@ -65,27 +65,6 @@ describe('Utils', () => {
       expect(output).toEqual({ a: 1, b: 2 }); // Dangerous props removed
     });
 
-    xit('should handle null and undefined inputs', () => {
-      // @ts-expect-error Null and undefined are not objects
-      expect(sanitizeObject(null)).toBeNull();
-      // @ts-expect-error Null and undefined are not objects
-      expect(sanitizeObject(undefined)).toBeUndefined();
-    });
-
-    xit('should handle array inputs without modification', () => {
-      const input = [1, 2, 3];
-      expect(sanitizeObject(input)).toEqual(input);
-    });
-
-    xit('should handle primitive inputs without modification', () => {
-      // @ts-expect-error String, number, and boolean are not objects
-      expect(sanitizeObject('string')).toBe('string');
-      // @ts-expect-error String, number, and boolean are not objects
-      expect(sanitizeObject(123)).toBe(123);
-      // @ts-expect-error String, number, and boolean are not objects
-      expect(sanitizeObject(true)).toBe(true);
-    });
-
     it('should preserve all safe properties', () => {
       const date = new Date();
       const input = {
