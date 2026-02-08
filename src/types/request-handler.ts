@@ -497,12 +497,16 @@ export interface ExtendedRequestConfig<
 
   /**
    * If true, automatically revalidates the request when the window regains focus.
+   * In browsers, listens for the 'focus' window event.
+   * Custom providers can be registered via `setEventProvider('focus', provider)`.
    * @default false
    */
   refetchOnFocus?: boolean;
 
   /**
-   * If true, automatically revalidates the request when the browser regains network connectivity.
+   * If true, automatically revalidates the request when network connectivity is restored.
+   * In browsers, listens for the 'online' window event.
+   * Otherwise, requires a custom event provider via `setEventProvider('online', provider)`.
    * @default false
    */
   refetchOnReconnect?: boolean;

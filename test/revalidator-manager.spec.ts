@@ -7,6 +7,7 @@ import {
   revalidate,
   startRevalidatorCleanup,
   removeRevalidators,
+  setEventProvider,
 } from '../src/revalidator-manager';
 
 describe('Revalidator Manager', () => {
@@ -1255,6 +1256,122 @@ describe('Revalidator Manager', () => {
       expect(bgFn).toHaveBeenCalledTimes(1);
 
       jest.useFakeTimers(); // Restore fake timers
+    });
+  });
+
+  describe('setEventProvider', () => {
+    afterEach(() => {
+      removeRevalidators('focus');
+      removeRevalidators('online');
+    });
+
+    it('should use custom provider instead of window events for focus', () => {
+      const cleanup = jest.fn();
+      let capturedHandler: (() => void) | undefined;
+
+      setEventProvider('focus', (handler) => {
+        capturedHandler = handler;
+        return cleanup;
+      });
+
+      addRevalidator(
+        testKey,
+        mockRevalidatorFn,
+        undefined,
+        undefined,
+        mockRevalidatorFn,
+        true,
+      );
+
+      // Trigger focus via custom provider
+      capturedHandler!();
+
+      expect(mockRevalidatorFn).toHaveBeenCalledTimes(1);
+    });
+
+    it('should use custom provider for online events', () => {
+      const cleanup = jest.fn();
+      let capturedHandler: (() => void) | undefined;
+
+      setEventProvider('online', (handler) => {
+        capturedHandler = handler;
+        return cleanup;
+      });
+
+      addRevalidator(
+        testKey,
+        mockRevalidatorFn,
+        undefined,
+        undefined,
+        mockRevalidatorFn,
+        false,
+        true,
+      );
+
+      capturedHandler!();
+
+      expect(mockRevalidatorFn).toHaveBeenCalledTimes(1);
+    });
+
+    it('should call cleanup when removing revalidators', () => {
+      const cleanup = jest.fn();
+
+      setEventProvider('focus', () => cleanup);
+
+      addRevalidator(
+        testKey,
+        mockRevalidatorFn,
+        undefined,
+        undefined,
+        undefined,
+        true,
+      );
+
+      removeRevalidators('focus');
+
+      expect(cleanup).toHaveBeenCalledTimes(1);
+    });
+
+    it('should re-register handler when provider is set after revalidators', () => {
+      const cleanup = jest.fn();
+      let capturedHandler: (() => void) | undefined;
+
+      // First register with browser events
+      addRevalidator(
+        testKey,
+        mockRevalidatorFn,
+        undefined,
+        undefined,
+        mockRevalidatorFn,
+        true,
+      );
+
+      // Then set a custom provider — should re-register
+      setEventProvider('focus', (handler) => {
+        capturedHandler = handler;
+        return cleanup;
+      });
+
+      // Custom provider should now be active
+      capturedHandler!();
+
+      expect(mockRevalidatorFn).toHaveBeenCalledTimes(1);
+    });
+
+    it('should not trigger revalidators without the matching flag', () => {
+      let capturedHandler: (() => void) | undefined;
+
+      setEventProvider('focus', (handler) => {
+        capturedHandler = handler;
+        return jest.fn();
+      });
+
+      // Register without refetchOnFocus
+      addRevalidator(testKey, mockRevalidatorFn);
+
+      capturedHandler?.();
+
+      expect(mockRevalidatorFn).not.toHaveBeenCalled();
     });
   });
 });

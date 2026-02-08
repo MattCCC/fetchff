@@ -29,7 +29,10 @@ export {
   revalidate, // Revalidate specific cache entry
   revalidateAll, // Revalidate all entries by event type
   removeRevalidators, // Clean up all revalidators by type
+  setEventProvider, // Register custom event provider for focus/online events (e.g. React Native)
 } from './revalidator-manager';
+
+export type { EventProvider } from './revalidator-manager';
 
 /** Subscribe to cache updates via pub/sub */
 export { subscribe } from './pubsub-manager';
@@ -37,7 +40,7 @@ export { subscribe } from './pubsub-manager';
 /** Abort in-flight requests and check request status */
 export { abortRequest, getInFlightPromise } from './inflight-manager';
 
-/** Network and environment utilities (Browser Only) */
+/** Network and environment utilities */
 export { isSlowConnection, createAbortError } from './utils';
 
 /** Timeout management for delayed operations */

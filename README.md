@@ -1149,6 +1149,8 @@ const api = createApiFetcher({
 4. **Consider user experience** - Network revalidation happens silently in the background, providing smooth UX without loading spinners.
 
 > ⚠️ **Browser Support**: These features work in all modern browsers that support the `focus` and `online` events. In server-side environments (Node.js), these options are safely ignored.
+>
+> **React Native**: Use `setEventProvider()` to enable these features. See the [React Native](#react-native) section for details.
 
 </details>
 
@@ -3797,6 +3799,38 @@ For environments that do not support modern JavaScript features or APIs, you mig
 - **Fetch Polyfill**: For environments that do not support the native `fetch` API. You can use libraries like [whatwg-fetch](https://github.com/github/fetch) to provide a fetch implementation.
 - **Promise Polyfill**: For older browsers that do not support Promises. Libraries like [es6-promise](https://github.com/stefanpenner/es6-promise) can be used.
 - **AbortController Polyfill**: For environments that do not support the `AbortController` API used for aborting fetch requests. You can use the [abort-controller](https://github.com/mysticatea/abort-controller) polyfill.
+
+### React Native
+
+`fetchff` is fully compatible with React Native. Core features like caching, retries, deduplication, and the React hook work out of the box.
+
+To enable `refetchOnFocus` and `refetchOnReconnect`, register event providers at your app's entry point using `setEventProvider()`:
+
+```ts
+import { AppState } from 'react-native';
+import NetInfo from '@react-native-community/netinfo';
+import { setEventProvider } from 'fetchff';
+
+// Refetch when app comes to foreground
+setEventProvider('focus', (handler) => {
+  const sub = AppState.addEventListener('change', (state) => {
+    if (state === 'active') handler();
+  });
+  return () => sub.remove();
+});
+
+// Refetch when network reconnects
+setEventProvider('online', (handler) => {
+  let wasConnected = true;
+  const unsubscribe = NetInfo.addEventListener((state) => {
+    if (state.isConnected && !wasConnected) handler();
+    wasConnected = !!state.isConnected;
+  });
+  return unsubscribe;
+});
+```
+
+> **Note:** `@react-native-community/netinfo` is optional — only needed if you use `refetchOnReconnect`.
 
 ### Using `node-fetch` for Node.js < 18
 

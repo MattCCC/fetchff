@@ -40,14 +40,38 @@ const DEFAULT_TTL = 3 * 60 * 1000; // Default TTL of 3 minutes
 const revalidators = new Map<string, RevalidatorEntry>();
 
 /**
- * Stores global event handlers for cache revalidation events (e.g., focus, online).
- * This avoids attaching multiple event listeners by maintaining a single handler per event type.
- * Event handlers are registered as needed when revalidators are registered with the corresponding flags.
+ * Stores cleanup functions for active event handlers (browser or custom providers).
+ * Each entry removes the corresponding event listener when called.
  * @remarks
  * - Improves performance by reducing the number of event listeners.
  * - Enables efficient O(1) lookup and management of event handlers for revalidation.
  */
 const eventHandlers = new Map<string, () => void>();
+
+/** Subscribe to an event and return a cleanup function */
+export type EventProvider = (handler: () => void) => () => void;
+
+const customEventProviders = new Map<EventType, EventProvider>();
+
+/**
+ * Registers a custom event provider for 'focus' or 'online' events.
+ * Useful for non-browser environments like React Native.
+ *
+ * @param type - The event type ('focus' or 'online').
+ * @param provider - A function that subscribes to the event and returns a cleanup function.
+ */
+export function setEventProvider(
+  type: EventType,
+  provider: EventProvider,
+): void {
+  customEventProviders.set(type, provider);
+
+  // Re-register if already active
+  if (eventHandlers.has(type)) {
+    removeEventHandler(type);
+    addEventHandler(type);
+  }
+}
 
 /**
  * Triggers revalidation for all registered entries based on the given event type.
@@ -135,36 +159,47 @@ export function removeRevalidators(type: EventType) {
 
 /**
  * Registers a generic revalidation event handler for the specified event type.
- * Ensures the handler is only added once and only in browser environments.
+ * Supports browser window events and custom event providers (e.g. for React Native).
+ * Ensures the handler is only added once.
  *
- * @param event - The type of event to listen for (e.g., 'focus', 'visibilitychange').
+ * @param event - The type of event to listen for (e.g., 'focus', 'online').
  */
 function addEventHandler(event: EventType) {
-  if (!isBrowser() || eventHandlers.has(event)) {
+  if (eventHandlers.has(event)) {
     return;
   }
 
   const handler = revalidateAll.bind(null, event, true);
 
-  eventHandlers.set(event, handler);
-  window.addEventListener(event, handler);
+  // Priority 1: Custom event provider (works in any environment including React Native)
+  const customProvider = customEventProviders.get(event);
+
+  if (customProvider) {
+    const cleanup = customProvider(handler);
+
+    eventHandlers.set(event, cleanup);
+
+    return;
+  }
+
+  // Priority 2: Browser window events
+  if (isBrowser()) {
+    window.addEventListener(event, handler);
+
+    eventHandlers.set(event, () => window.removeEventListener(event, handler));
+  }
 }
 
 /**
- * Removes the generic event handler for the specified event type from the window object.
+ * Removes the event handler for the specified event type.
  *
  * @param event - The type of event whose handler should be removed.
  */
 function removeEventHandler(event: EventType) {
-  if (!isBrowser()) {
-    return;
-  }
+  const cleanup = eventHandlers.get(event);
 
-  const handler = eventHandlers.get(event);
-
-  if (handler) {
-    window.removeEventListener(event, handler);
-
+  if (cleanup) {
+    cleanup();
     eventHandlers.delete(event);
   }
 }
