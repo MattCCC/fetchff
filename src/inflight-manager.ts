@@ -174,10 +174,8 @@ export function setInFlightPromise(
 ): void {
   const item = inFlight.get(key);
   if (item) {
-    // store the promise at index 4
+    // store the promise at index 4 — item is already the Map's reference, no need to re-set
     item[4] = promise;
-
-    inFlight.set(key, item);
   }
 }
 
