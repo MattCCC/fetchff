@@ -191,6 +191,16 @@ export async function fetchf<
 
     try {
       if (fetcherConfig.onRequest) {
+        // Zero-allocation yield to microtask queue so the outer fetchf() can call setInFlightPromise()
+        // before onRequest interceptors run. This ensures that if onRequest triggers
+        // another fetchf() with the same cacheKey, getInFlightPromise() finds item[4].
+        // On retries (attempt > 0), setInFlightPromise() was already called during the first attempt.
+        // The promise stored in item[4] is the outer doRequestPromise which covers all retries.
+        // So the race only matters on the very first attempt when the outer scope hasn't had a chance to call setInFlightPromise() yet.
+        if (_cacheKey && dedupeTime && !attempt) {
+          await null;
+        }
+
         await applyInterceptors(fetcherConfig.onRequest, requestConfig);
       }
 
