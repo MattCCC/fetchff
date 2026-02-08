@@ -43,4 +43,42 @@ describe('getRetryAfterMs', () => {
       getRetryAfterMs({ headers: { 'retry-after': 'not-a-date' } } as any),
     ).toBeNull();
   });
+
+  it('parses ratelimit-reset-after header', () => {
+    expect(
+      getRetryAfterMs({ headers: { 'ratelimit-reset-after': '5' } } as any),
+    ).toBe(5000);
+  });
+
+  it('parses x-ratelimit-reset-after header', () => {
+    expect(
+      getRetryAfterMs({ headers: { 'x-ratelimit-reset-after': '3' } } as any),
+    ).toBe(3000);
+  });
+
+  it('parses ratelimit-reset-at header with future date', () => {
+    const future = new Date(Date.now() + 5000).toUTCString();
+    const ms = getRetryAfterMs({
+      headers: { 'ratelimit-reset-at': future },
+    } as any);
+    expect(ms).toBeGreaterThanOrEqual(0);
+    expect(ms).toBeLessThanOrEqual(5000);
+  });
+
+  it('parses x-ratelimit-reset-at header with future date', () => {
+    const future = new Date(Date.now() + 5000).toUTCString();
+    const ms = getRetryAfterMs({
+      headers: { 'x-ratelimit-reset-at': future },
+    } as any);
+    expect(ms).toBeGreaterThanOrEqual(0);
+    expect(ms).toBeLessThanOrEqual(5000);
+  });
+
+  it('returns null for invalid ratelimit-reset-at value', () => {
+    expect(
+      getRetryAfterMs({
+        headers: { 'ratelimit-reset-at': 'not-a-date' },
+      } as any),
+    ).toBeNull();
+  });
 });

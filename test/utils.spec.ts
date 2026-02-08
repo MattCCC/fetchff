@@ -7,6 +7,8 @@ import {
   sortObject,
   sanitizeObject,
   createAbortError,
+  shallowSerialize,
+  flattenData,
 } from '../src/utils';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -727,6 +729,68 @@ describe('Utils', () => {
 
       expect(controller.signal.aborted).toBe(true);
       expect(controller.signal.reason).toBe(error);
+    });
+  });
+
+  describe('shallowSerialize()', () => {
+    it('should serialize object properties to a string', () => {
+      const result = shallowSerialize({ a: 1, b: 'test' });
+      expect(result).toBe('a:1b:test');
+    });
+
+    it('should return empty string for empty object', () => {
+      expect(shallowSerialize({})).toBe('');
+    });
+
+    it('should skip inherited properties', () => {
+      const parent = { inherited: true };
+      const child = Object.create(parent);
+      child.own = 'value';
+      expect(shallowSerialize(child)).toBe('own:value');
+    });
+  });
+
+  describe('flattenData()', () => {
+    it('should flatten nested data property', () => {
+      expect(flattenData({ data: 'value' })).toBe('value');
+    });
+
+    it('should recursively flatten deeply nested data', () => {
+      expect(flattenData({ data: { data: 'deep' } })).toBe('deep');
+    });
+
+    it('should return non-object data as-is', () => {
+      expect(flattenData('string')).toBe('string');
+      expect(flattenData(42)).toBe(42);
+      expect(flattenData(null)).toBe(null);
+    });
+
+    it('should return object without data property as-is', () => {
+      const obj = { foo: 'bar' };
+      expect(flattenData(obj)).toEqual(obj);
+    });
+
+    it('should stop at max recursion depth', () => {
+      // Build a deeply nested structure beyond MAX_DEPTH (10)
+      let nested: any = 'bottom';
+      for (let i = 0; i < 15; i++) {
+        nested = { data: nested };
+      }
+      const result = flattenData(nested);
+      // Should not reach 'bottom' due to depth limit
+      expect(result).toHaveProperty('data');
+    });
+  });
+
+  describe('appendQueryParams() - max depth', () => {
+    it('should stop recursion at max depth for deeply nested params', () => {
+      let nested: any = 'value';
+      for (let i = 0; i < 15; i++) {
+        nested = { a: nested };
+      }
+      const result = appendQueryParams('https://example.com', nested);
+      // Should not throw — recursion stops before stack overflow
+      expect(result).toContain('https://example.com');
     });
   });
 });

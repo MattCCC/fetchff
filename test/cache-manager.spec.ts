@@ -1,6 +1,7 @@
 import {
   generateCacheKey,
   getCache,
+  getCacheData,
   setCache,
   deleteCache,
   getCachedResponse,
@@ -345,6 +346,30 @@ describe('Cache Manager', () => {
         fetcherConfig,
       );
       expect(result).toBeNull();
+    });
+
+    it('should return null when cache mode is reload', () => {
+      setCache(cacheKey, responseObj, cacheTime);
+      fetcherConfig.cache = 'reload';
+      const result = getCachedResponse(cacheKey, cacheTime, fetcherConfig);
+      expect(result).toBeNull();
+      delete fetcherConfig.cache;
+    });
+  });
+
+  describe('getCacheData', () => {
+    it('should return cached data for existing key', () => {
+      setCache('data-key', { data: 'test-value' });
+      const result = getCacheData('data-key');
+      expect(result).toEqual({ data: 'test-value' });
+    });
+
+    it('should return null for non-existent key', () => {
+      expect(getCacheData('missing-key')).toBeNull();
+    });
+
+    it('should return null for null key', () => {
+      expect(getCacheData(null)).toBeNull();
     });
   });
 
