@@ -399,12 +399,7 @@ export function createAbortError(
  * @returns {boolean} True if connection is slow, false otherwise or if detection unavailable
  */
 export const isSlowConnection = (): boolean => {
-  // Only works in browser environments
-  if (!isBrowser()) {
-    return false;
-  }
-
-  const conn = navigator && (navigator as any).connection;
+  const conn = typeof navigator !== UNDEFINED && (navigator as any).connection;
 
   return conn && ['slow-2g', '2g', '3g'].includes(conn.effectiveType);
 };
