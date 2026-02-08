@@ -23,7 +23,8 @@ export const IMMEDIATE_DISCARD_CACHE_TIME = 0; // Use it for cache entries that 
 const _cache = new Map<string, CacheEntry<any>>();
 const DELIMITER = '|';
 const MIN_LENGTH_TO_HASH = 64;
-const CACHE_KEY_SANITIZE_PATTERN = new RegExp('[^\\w\\-_|]', 'g');
+const CACHE_KEY_SANITIZE_PATTERN = /[^\w\-_|/:@.?=&~%#]/g;
+const CACHE_KEY_NEEDS_SANITIZE = /[^\w\-_|/:@.?=&~%#]/; // Non-global for fast test
 
 /**
  * Headers that may affect HTTP response content and should be included in cache key generation.
@@ -145,15 +146,18 @@ export function generateCacheKey(
 
   // For GET requests, return early with shorter cache key
   if (method === GET) {
-    return (
+    const cacheStr =
       method +
       DELIMITER +
       url +
       DELIMITER +
       credentials +
       DELIMITER +
-      headersString
-    ).replace(CACHE_KEY_SANITIZE_PATTERN, '');
+      headersString;
+
+    return CACHE_KEY_NEEDS_SANITIZE.test(cacheStr)
+      ? cacheStr.replace(CACHE_KEY_SANITIZE_PATTERN, '')
+      : cacheStr;
   }
 
   let bodyString = '';
@@ -187,7 +191,7 @@ export function generateCacheKey(
 
   // Concatenate all key parts into a cache key string
   // Template literals are apparently slower
-  return (
+  const cacheStr =
     method +
     DELIMITER +
     url +
@@ -196,8 +200,12 @@ export function generateCacheKey(
     DELIMITER +
     headersString +
     DELIMITER +
-    bodyString
-  ).replace(CACHE_KEY_SANITIZE_PATTERN, ''); // Prevent cache poisoning by removal of anything that isn't letters, numbers, -, _, or |
+    bodyString;
+
+  // Prevent cache poisoning by removal of control chars and unusual characters
+  return CACHE_KEY_NEEDS_SANITIZE.test(cacheStr)
+    ? cacheStr.replace(CACHE_KEY_SANITIZE_PATTERN, '')
+    : cacheStr;
 }
 
 /**
