@@ -182,7 +182,9 @@ describe('Cache Manager', () => {
         method: 'POST',
         body: 10,
       });
-      expect(key).toContain('POST|https://api.example.com/data|same-origin||10');
+      expect(key).toContain(
+        'POST|https://api.example.com/data|same-origin||10',
+      );
     });
 
     it('should handle Array body', () => {
@@ -192,7 +194,9 @@ describe('Cache Manager', () => {
         method: 'POST',
         body: arrayBody,
       });
-      expect(key).toContain('POST|https://api.example.com/data|same-origin||0:11:22:3');
+      expect(key).toContain(
+        'POST|https://api.example.com/data|same-origin||0:11:22:3',
+      );
     });
 
     it('should handle Object body and sort properties', () => {
@@ -203,7 +207,9 @@ describe('Cache Manager', () => {
         body: objectBody,
       });
 
-      expect(key).toContain('POST|https://api.example.com/data|same-origin||a:1b:2');
+      expect(key).toContain(
+        'POST|https://api.example.com/data|same-origin||a:1b:2',
+      );
     });
   });
 
