@@ -119,11 +119,11 @@ export const removeTimeout = (key: string): void => {
 
 export const clearAllTimeouts = () => {
   // Clear native setTimeout timeouts first!
-  for (const value of keyMap.values()) {
+  keyMap.forEach((value) => {
     if (Array.isArray(value)) {
       clearTimeout(value[0]);
     }
-  }
+  });
 
   if (timer) {
     clearInterval(timer);

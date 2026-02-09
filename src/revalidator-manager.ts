@@ -88,9 +88,9 @@ export function revalidateAll(
   const flagIndex = type === 'focus' ? 5 : 6;
   const now = timeNow();
 
-  for (const entry of revalidators.values()) {
+  revalidators.forEach((entry) => {
     if (!entry[flagIndex]) {
-      continue;
+      return;
     }
 
     entry[1] = now;
@@ -101,7 +101,7 @@ export function revalidateAll(
     if (revalidator) {
       Promise.resolve(revalidator(isStaleRevalidation)).catch(noop);
     }
-  }
+  });
 }
 
 /**
