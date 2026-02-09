@@ -224,20 +224,6 @@ function isCacheExpired(entry: CacheEntry<any>): boolean {
 }
 
 /**
- * Checks if the cache entry is stale based on its timestamp and the stale time.
- *
- * @param {CacheEntry<any>} entry - The cache entry to check.
- * @returns {boolean} - Returns true if the cache entry is stale, false otherwise.
- */
-function isCacheStale(entry: CacheEntry<any>): boolean {
-  if (!entry.stale) {
-    return false;
-  }
-
-  return timeNow() > entry.stale;
-}
-
-/**
  * Retrieves a cached response from the internal cache using the provided key.
  *
  * @param key - The unique key identifying the cached entry. If null, returns null.
@@ -453,7 +439,6 @@ export function getCachedResponse<
   }
 
   const isExpired = isCacheExpired(entry);
-  const isStale = isCacheStale(entry);
 
   // If completely expired, delete and return null
   if (isExpired) {
@@ -461,19 +446,8 @@ export function getCachedResponse<
     return null;
   }
 
-  // If fresh (not stale), return immediately
-  if (!isStale) {
-    return entry.data;
-  }
-
-  // SWR: Data is stale but not expired
-  if (isStale && !isExpired) {
-    // Triggering background revalidation here could cause race conditions
-    // So we return stale data immediately and leave it up to implementers to handle revalidation
-    return entry.data;
-  }
-
-  return null;
+  // Return data whether fresh or stale (SWR: serve stale, revalidation is timer-driven)
+  return entry.data;
 }
 
 /**
