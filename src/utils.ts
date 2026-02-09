@@ -343,17 +343,18 @@ export function processHeaders(
 
   const headersObject: HeadersObject = {};
 
-  // Handle Headers object with entries() method
+  // Normalize keys to lowercase as per RFC 2616 4.2
+  // https://datatracker.ietf.org/doc/html/rfc2616#section-4.2
   if (headers instanceof Headers) {
     headers.forEach((value, key) => {
-      headersObject[key] = value;
+      headersObject[key.toLowerCase()] = value;
     });
   } else if (isObject(headers)) {
-    // Handle plain object
-    for (const [key, value] of Object.entries(headers)) {
-      // Normalize keys to lowercase as per RFC 2616 4.2
-      // https://datatracker.ietf.org/doc/html/rfc2616#section-4.2
-      headersObject[key.toLowerCase()] = value;
+    // Handle plain object — use for...in to avoid Object.entries() allocation
+    for (const key in headers) {
+      if (Object.prototype.hasOwnProperty.call(headers, key)) {
+        headersObject[key.toLowerCase()] = headers[key];
+      }
     }
   }
 
