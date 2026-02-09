@@ -65,9 +65,7 @@ export function setDefaultConfig(
 ): Partial<RequestConfig> {
   const sanitized = sanitizeObject(customConfig);
 
-  Object.assign(defaultConfig, sanitized);
-
-  return defaultConfig;
+  return mergeConfigs({}, sanitized, defaultConfig);
 }
 
 /**
@@ -208,26 +206,40 @@ function setContentTypeIfNeeded(
   }
 }
 
+/**
+ * Merges two request configurations, applying overrides from the second config to the first.
+ * Handles special merging for nested properties like 'retry' and 'headers' (deep merge),
+ * and concatenates interceptor arrays for 'onRequest', 'onResponse', and 'onError'.
+ * If a target config is provided, it mutates that object; otherwise, creates a new one.
+ *
+ * @param {RequestConfig} baseConfig - The base configuration object to merge from.
+ * @param {RequestConfig} overrideConfig - The override configuration object to apply on top of the base.
+ * @param {RequestConfig} [targetConfig={}] - Optional target configuration object to merge into (mutated in place).
+ * @returns {RequestConfig} The merged configuration object.
+ *
+ * @example
+ * const base = { timeout: 5000, headers: { 'Accept': 'application/json' } };
+ * const override = { timeout: 10000, headers: { 'Authorization': 'Bearer token' } };
+ * const merged = mergeConfigs(base, override);
+ * // Result: { timeout: 10000, headers: { Accept: 'application/json', Authorization: 'Bearer token' } }
+ */
 export function mergeConfigs(
   baseConfig: RequestConfig,
   overrideConfig: RequestConfig,
+  targetConfig: RequestConfig = {},
 ): RequestConfig {
-  const mergedConfig: RequestConfig = Object.assign(
-    {},
-    baseConfig,
-    overrideConfig,
-  );
+  Object.assign(targetConfig, baseConfig, overrideConfig);
 
   // Ensure that retry and headers are merged correctly
-  mergeConfig('retry', mergedConfig, baseConfig, overrideConfig);
-  mergeConfig('headers', mergedConfig, baseConfig, overrideConfig);
+  mergeConfig('retry', baseConfig, overrideConfig, targetConfig);
+  mergeConfig('headers', baseConfig, overrideConfig, targetConfig);
 
   // Merge interceptors efficiently
-  mergeInterceptors('onRequest', mergedConfig, baseConfig, overrideConfig);
-  mergeInterceptors('onResponse', mergedConfig, baseConfig, overrideConfig);
-  mergeInterceptors('onError', mergedConfig, baseConfig, overrideConfig);
+  mergeInterceptors('onRequest', baseConfig, overrideConfig, targetConfig);
+  mergeInterceptors('onResponse', baseConfig, overrideConfig, targetConfig);
+  mergeInterceptors('onError', baseConfig, overrideConfig, targetConfig);
 
-  return mergedConfig;
+  return targetConfig;
 }
 
 /**
@@ -237,9 +249,9 @@ function mergeInterceptors<
   K extends 'onRequest' | 'onResponse' | 'onError' | 'onRetry',
 >(
   property: K,
-  targetConfig: RequestConfig,
   baseConfig: RequestConfig,
   overrideConfig: RequestConfig,
+  targetConfig: RequestConfig,
 ): void {
   const baseInterceptor = baseConfig[property];
   const newInterceptor = overrideConfig[property];
@@ -274,15 +286,15 @@ function mergeInterceptors<
  * Merges the specified property from the base configuration and the override configuration into the target configuration.
  *
  * @param {K} property - The property key to merge from the base and override configurations. Must be a key of RequestConfig.
- * @param {RequestConfig} targetConfig - The configuration object that will receive the merged properties.
  * @param {RequestConfig} baseConfig - The base configuration object that provides default values.
  * @param {RequestConfig} overrideConfig - The override configuration object that contains user-specific settings to merge.
+ * @param {RequestConfig} targetConfig - The configuration object that will receive the merged properties.
  */
 export function mergeConfig<K extends keyof RequestConfig>(
   property: K,
-  targetConfig: RequestConfig,
   baseConfig: RequestConfig,
   overrideConfig: RequestConfig,
+  targetConfig: RequestConfig,
 ): void {
   if (overrideConfig[property]) {
     targetConfig[property] = {
