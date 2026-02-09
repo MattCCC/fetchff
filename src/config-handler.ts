@@ -1,3 +1,4 @@
+import { processHeaders } from './utils';
 import {
   GET,
   APPLICATION_JSON,
@@ -297,9 +298,27 @@ export function mergeConfig<K extends keyof RequestConfig>(
   targetConfig: RequestConfig,
 ): void {
   if (overrideConfig[property]) {
-    targetConfig[property] = {
-      ...baseConfig[property],
-      ...overrideConfig[property],
-    };
+    const base = baseConfig[property];
+    const override = overrideConfig[property];
+
+    // Handle Headers instances which don't expose entries as own enumerable properties
+    if (
+      property === 'headers' &&
+      ((base as Headers | (HeadersObject & HeadersInit)) instanceof Headers ||
+        (override as Headers | (HeadersObject & HeadersInit)) instanceof
+          Headers)
+    ) {
+      const baseNormalized = processHeaders(base);
+      const overrideNormalized = processHeaders(override);
+      targetConfig[property] = {
+        ...baseNormalized,
+        ...overrideNormalized,
+      } as RequestConfig[K];
+    } else {
+      targetConfig[property] = {
+        ...base,
+        ...override,
+      };
+    }
   }
 }
