@@ -224,15 +224,28 @@ export function addRevalidator(
   refetchOnFocus?: boolean,
   refetchOnReconnect?: boolean,
 ) {
-  revalidators.set(key, [
-    revalidatorFn,
-    timeNow(),
-    ttl ?? DEFAULT_TTL,
-    staleTime,
-    bgRevalidatorFn,
-    refetchOnFocus,
-    refetchOnReconnect,
-  ]);
+  const existing = revalidators.get(key);
+
+  if (existing) {
+    // Update in-place to avoid allocating a new tuple array
+    existing[0] = revalidatorFn;
+    existing[1] = timeNow();
+    existing[2] = ttl ?? DEFAULT_TTL;
+    existing[3] = staleTime;
+    existing[4] = bgRevalidatorFn;
+    existing[5] = refetchOnFocus;
+    existing[6] = refetchOnReconnect;
+  } else {
+    revalidators.set(key, [
+      revalidatorFn,
+      timeNow(),
+      ttl ?? DEFAULT_TTL,
+      staleTime,
+      bgRevalidatorFn,
+      refetchOnFocus,
+      refetchOnReconnect,
+    ]);
+  }
 
   if (refetchOnFocus) {
     addEventHandler('focus');
