@@ -240,16 +240,12 @@ export async function getShouldStopRetrying<
     return true;
   }
 
-  let customDecision: boolean | null = null;
-
   // Get custom decision if shouldRetry is provided
   if (shouldRetry) {
     const result = await shouldRetry(output, attempt);
-    customDecision = result;
 
-    // Decision cascade:
-    if (customDecision !== null) {
-      return !customDecision;
+    if (result !== null) {
+      return !result;
     }
   }
 

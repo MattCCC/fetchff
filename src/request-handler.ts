@@ -267,7 +267,11 @@ export async function fetchf<
         // This is the pattern for fetch responses as per spec, but custom fetchers may not follow it so we check for `ok` property
         if (response.ok !== undefined && !response.ok) {
           throw new ResponseError(
-            `${requestConfig.method} to ${url} failed! Status: ${response.status || null}`,
+            requestConfig.method +
+              ' to ' +
+              url +
+              ' failed! Status: ' +
+              (response.status || null),
             requestConfig,
             response,
           );

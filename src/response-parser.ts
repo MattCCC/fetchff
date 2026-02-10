@@ -64,14 +64,7 @@ export async function parseResponseData<
       typeof response.formData === FUNCTION
     ) {
       data = await response.formData();
-    } else if (
-      mimeType.startsWith('image/') ||
-      mimeType.startsWith('video/') ||
-      mimeType.startsWith('audio/') ||
-      mimeType.includes(APPLICATION_CONTENT_TYPE + 'octet-stream') ||
-      mimeType.includes('pdf') ||
-      mimeType.includes('zip')
-    ) {
+    } else if (/^(image|video|audio)\/|octet-stream|pdf|zip/.test(mimeType)) {
       data = await response.arrayBuffer(); // Parse as ArrayBuffer for binary types
     } else {
       data = await response.text();

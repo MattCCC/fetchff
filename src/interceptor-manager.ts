@@ -25,22 +25,14 @@ export async function applyInterceptors<
     return;
   }
 
-  if (typeof interceptors === FUNCTION) {
-    const value = await (interceptors as InterceptorFunction<T, Args>)(
-      data,
-      ...args,
-    );
+  const merge = (v: unknown) =>
+    v && isObject(data) && isObject(v) && Object.assign(data, v);
 
-    if (value && isObject(data) && isObject(value)) {
-      Object.assign(data, value);
-    }
+  if (typeof interceptors === FUNCTION) {
+    merge(await (interceptors as InterceptorFunction<T, Args>)(data, ...args));
   } else if (Array.isArray(interceptors)) {
     for (const interceptor of interceptors) {
-      const value = await interceptor(data, ...args);
-
-      if (value && isObject(data) && isObject(value)) {
-        Object.assign(data, value);
-      }
+      merge(await interceptor(data, ...args));
     }
   }
 }

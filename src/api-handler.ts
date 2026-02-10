@@ -55,7 +55,7 @@ function createApiFetcher<
    * @returns {Promise}
    */
   function handleNonImplemented(endpointName: string): Promise<null> {
-    console.error(`Add ${endpointName} to 'endpoints'.`);
+    console.error('Add ' + endpointName + " to 'endpoints'.");
 
     return Promise.resolve(null);
   }
@@ -81,7 +81,7 @@ function createApiFetcher<
 
       // Block Protocol-relative URLs as they could lead to SSRF (Server-Side Request Forgery)
       if (url.startsWith('//')) {
-        throw new Error('Protocol-relative URLs are not allowed.');
+        throw new Error('Protocol-relative URLs not allowed.');
       }
 
       // Prevent potential Server-Side Request Forgery attack and leakage of credentials when same instance is used for external requests

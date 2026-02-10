@@ -10,6 +10,9 @@ import type {
 // Prevent stack overflow with recursion depth limit
 const MAX_DEPTH = 10;
 
+const hasOwn = (o: any, k: string) =>
+  Object.prototype.hasOwnProperty.call(o, k);
+
 export function isSearchParams(data: unknown): boolean {
   return data instanceof URLSearchParams;
 }
@@ -35,7 +38,7 @@ export function shallowSerialize(obj: Record<string, any>): string {
   let result = '';
 
   for (const key in obj) {
-    if (Object.prototype.hasOwnProperty.call(obj, key)) {
+    if (hasOwn(obj, key)) {
       result += key + ':' + obj[key];
     }
   }
@@ -54,9 +57,9 @@ export function shallowSerialize(obj: Record<string, any>): string {
  * @returns A safe object without dangerous properties
  */
 export function sanitizeObject<T extends Record<string, any>>(obj: T): T {
-  const hasProto = Object.prototype.hasOwnProperty.call(obj, '__proto__');
-  const hasCtor = Object.prototype.hasOwnProperty.call(obj, 'constructor');
-  const hasPrototype = Object.prototype.hasOwnProperty.call(obj, 'prototype');
+  const hasProto = hasOwn(obj, '__proto__');
+  const hasCtor = hasOwn(obj, 'constructor');
+  const hasPrototype = hasOwn(obj, 'prototype');
 
   if (!hasProto && !hasCtor && !hasPrototype) {
     return obj;
@@ -81,17 +84,11 @@ export function sanitizeObject<T extends Record<string, any>>(obj: T): T {
  * @returns {Object} - A new object with keys sorted in ascending order.
  */
 export function sortObject(obj: Record<string, any>): object {
-  const keys = Object.keys(obj);
-
-  keys.sort();
-
   const sortedObj = {} as Record<string, string>;
 
-  for (let i = 0, len = keys.length; i < len; i++) {
-    const key = keys[i];
-
-    sortedObj[key] = obj[key];
-  }
+  Object.keys(obj)
+    .sort()
+    .forEach((k) => (sortedObj[k] = obj[k]));
 
   return sortedObj;
 }
@@ -108,9 +105,7 @@ function appendQueryStringToUrl(baseUrl: string, queryString: string): string {
     return baseUrl;
   }
 
-  return baseUrl.includes('?')
-    ? `${baseUrl}&${queryString}`
-    : `${baseUrl}?${queryString}`;
+  return baseUrl + (baseUrl.includes('?') ? '&' : '?') + queryString;
 }
 
 /**
@@ -210,7 +205,7 @@ export function replaceUrlPathParams(
   // Use a replacer function that avoids extra work
   return url.replace(/:([a-zA-Z0-9_]+)/g, (match, key) => {
     // Use hasOwnProperty for strict key existence check
-    if (Object.prototype.hasOwnProperty.call(params, key)) {
+    if (hasOwn(params, key)) {
       const value = params[key];
 
       // Only replace if value is not undefined or null
@@ -295,13 +290,8 @@ export function isJSONSerializable(value: any): boolean {
   return false;
 }
 
-export async function delayInvocation(ms: number): Promise<boolean> {
-  return new Promise((resolve) =>
-    setTimeout(() => {
-      return resolve(true);
-    }, ms),
-  );
-}
+export const delayInvocation = (ms: number): Promise<boolean> =>
+  new Promise((resolve) => setTimeout(resolve, ms, true));
 
 /**
  * Recursively flattens the data object if it meets specific criteria.
@@ -349,10 +339,10 @@ export function processHeaders(
     headers.forEach((value, key) => {
       headersObject[key.toLowerCase()] = value;
     });
-  } else if (isObject(headers)) {
+  } else {
     // Handle plain object — use for...in to avoid Object.entries() allocation
     for (const key in headers) {
-      if (Object.prototype.hasOwnProperty.call(headers, key)) {
+      if (hasOwn(headers, key)) {
         headersObject[key.toLowerCase()] = headers[key];
       }
     }
