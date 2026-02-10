@@ -63,6 +63,22 @@ export async function fetchf<
     RequestBody
   > | null = null,
 ): Promise<FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>> {
+  // Ultra-fast early cache check if cacheKey is provided as a string
+  // For workloads dominated by repeated requests, this string caching optimization
+  // can potentially support millions of requests per second with minimal CPU overhead
+  if (reqConfig && typeof reqConfig.cacheKey === 'string') {
+    const cached = getCachedResponse<
+      ResponseData,
+      RequestBody,
+      QueryParams,
+      PathParams
+    >(reqConfig.cacheKey, reqConfig.cacheTime, reqConfig);
+
+    if (cached) {
+      return cached;
+    }
+  }
+
   const fetcherConfig = buildConfig<
     ResponseData,
     RequestBody,
