@@ -1,5 +1,5 @@
 // To run this benchmark, use the following command:
-// npx tsx test/benchmarks/generic.bench.mjs
+// npx tsx test/benchmarks/fetchf.bench.mjs
 import Benchmark from 'benchmark';
 import { fetchf } from '../../dist/browser/index.mjs';
 import { onComplete } from './utils.mjs';
