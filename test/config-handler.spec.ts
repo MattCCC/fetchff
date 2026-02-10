@@ -283,4 +283,53 @@ describe('request() Content-Type', () => {
       });
     },
   );
+
+  it('should set Content-Type on Headers instance when not already set', () => {
+    const headers = new Headers();
+    headers.set('Accept', 'application/json');
+    const result = buildFetcherConfig(apiUrl, {
+      method: 'POST',
+      body: { foo: 'bar' },
+      headers,
+    });
+    expect((result.headers as Headers).get('Content-Type')).toContain(
+      'application/json',
+    );
+  });
+
+  it('should not override Content-Type on Headers instance when already set', () => {
+    const headers = new Headers();
+    headers.set('Content-Type', 'text/plain');
+    const result = buildFetcherConfig(apiUrl, {
+      method: 'POST',
+      body: { foo: 'bar' },
+      headers,
+    });
+    expect((result.headers as Headers).get('Content-Type')).toBe('text/plain');
+  });
+
+  it('should set Content-Type to application/x-www-form-urlencoded for URLSearchParams body', () => {
+    const params = new URLSearchParams();
+    params.set('key', 'value');
+    const result = buildFetcherConfig(apiUrl, {
+      method: 'POST',
+      body: params,
+      headers: {},
+    });
+    expect((result.headers as Record<string, string>)['Content-Type']).toContain(
+      'x-www-form-urlencoded',
+    );
+  });
+
+  it('should set Content-Type to application/octet-stream for ArrayBuffer body', () => {
+    const buffer = new ArrayBuffer(8);
+    const result = buildFetcherConfig(apiUrl, {
+      method: 'POST',
+      body: buffer,
+      headers: {},
+    });
+    expect((result.headers as Record<string, string>)['Content-Type']).toContain(
+      'octet-stream',
+    );
+  });
 });

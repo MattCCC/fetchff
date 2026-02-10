@@ -36,7 +36,10 @@ describe('React Integration Tests', () => {
     jest.useFakeTimers();
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    await act(async () => {
+      cleanup();
+    });
     jest.useRealTimers();
     jest.resetAllMocks();
     clearAllTimeouts();
@@ -1030,7 +1033,10 @@ describe('React Integration Tests', () => {
         );
       };
 
-      const { rerender } = render(<OverlapComponent phase={1} />);
+      let rerender!: ReturnType<typeof render>['rerender'];
+      await act(async () => {
+        ({ rerender } = render(<OverlapComponent phase={1} />));
+      });
 
       await waitFor(() => {
         expect(screen.getByTestId('overlap-data1')).toHaveTextContent(
@@ -1038,10 +1044,14 @@ describe('React Integration Tests', () => {
         );
       });
 
-      rerender(<OverlapComponent phase={2} />);
-      fireEvent.click(screen.getByTestId('overlap-refetch'));
+      await act(async () => {
+        rerender(<OverlapComponent phase={2} />);
+        fireEvent.click(screen.getByTestId('overlap-refetch'));
+      });
 
-      rerender(<OverlapComponent phase={3} />);
+      await act(async () => {
+        rerender(<OverlapComponent phase={3} />);
+      });
       expect(screen.getByTestId('overlap-phase')).toHaveTextContent('3');
     });
 
@@ -1556,9 +1566,12 @@ describe('React Integration Tests', () => {
         const testCase = testCases[index];
         mockFetchResponse(`/api/types-${index}`, testCase);
 
-        const { unmount } = render(
-          <BasicComponent url={`/api/types-${index}`} />,
-        );
+        let unmount!: ReturnType<typeof render>['unmount'];
+        await act(async () => {
+          ({ unmount } = render(
+            <BasicComponent url={`/api/types-${index}`} />,
+          ));
+        });
 
         await waitFor(() => {
           const dataText = screen.getByTestId('data').textContent;
@@ -1570,7 +1583,9 @@ describe('React Integration Tests', () => {
         });
 
         // Clean up between iterations to avoid multiple elements
-        unmount();
+        await act(async () => {
+          unmount();
+        });
       }
     });
 

@@ -285,9 +285,11 @@ describe('useFetcher', () => {
     it('should show loading when no state and URL exists', async () => {
       const { result } = renderHook(() => useFetcher(testUrl));
 
-      await waitFor(() => {
-        expect(result.current.isLoading).toBe(true);
-      });
+      // isLoading is true synchronously before the fetch resolves
+      expect(result.current.isLoading).toBe(true);
+
+      // Drain pending microtasks from await null in request-handler
+      await act(async () => {});
     });
 
     it('should not show loading when no URL', () => {

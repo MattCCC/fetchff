@@ -265,13 +265,13 @@ describe('Timeout Wheel', () => {
   });
 
   describe('Edge Cases', () => {
-    it('should handle zero timeout', () => {
+    it('should handle zero timeout via setTimeout fallback', () => {
       const callback = jest.fn();
 
       addTimeout('zero', callback, 0);
 
       jest.advanceTimersByTime(1);
-      expect(callback).toHaveBeenCalledTimes(0); // Should not execute immediately
+      expect(callback).toHaveBeenCalledTimes(1); // Fires via setTimeout(cb, 0)
     });
 
     it('should handle timeout at wheel boundary', () => {

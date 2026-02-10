@@ -46,18 +46,27 @@ export function shallowSerialize(obj: Record<string, any>): string {
 /**
  * Removes properties that could lead to prototype pollution from an object.
  *
- * This function creates a shallow copy of the input object with dangerous
- * properties like '__proto__', 'constructor', and 'prototype' removed.
+ * This function checks for dangerous properties like '__proto__', 'constructor',
+ * and 'prototype'. If none are present, the object is returned as-is (zero-copy fast path).
+ * Otherwise, a shallow copy is created with the dangerous properties removed.
  *
  * @param obj - The object to sanitize
- * @returns A new object without dangerous properties
+ * @returns A safe object without dangerous properties
  */
 export function sanitizeObject<T extends Record<string, any>>(obj: T): T {
+  const hasProto = Object.prototype.hasOwnProperty.call(obj, '__proto__');
+  const hasCtor = Object.prototype.hasOwnProperty.call(obj, 'constructor');
+  const hasPrototype = Object.prototype.hasOwnProperty.call(obj, 'prototype');
+
+  if (!hasProto && !hasCtor && !hasPrototype) {
+    return obj;
+  }
+
   const safeObj = { ...obj };
 
-  delete safeObj.__proto__;
-  delete (safeObj as any).constructor;
-  delete safeObj.prototype;
+  if (hasProto) delete safeObj.__proto__;
+  if (hasCtor) delete (safeObj as any).constructor;
+  if (hasPrototype) delete safeObj.prototype;
 
   return safeObj;
 }
@@ -334,17 +343,18 @@ export function processHeaders(
 
   const headersObject: HeadersObject = {};
 
-  // Handle Headers object with entries() method
+  // Normalize keys to lowercase as per RFC 2616 4.2
+  // https://datatracker.ietf.org/doc/html/rfc2616#section-4.2
   if (headers instanceof Headers) {
     headers.forEach((value, key) => {
-      headersObject[key] = value;
+      headersObject[key.toLowerCase()] = value;
     });
   } else if (isObject(headers)) {
-    // Handle plain object
-    for (const [key, value] of Object.entries(headers)) {
-      // Normalize keys to lowercase as per RFC 2616 4.2
-      // https://datatracker.ietf.org/doc/html/rfc2616#section-4.2
-      headersObject[key.toLowerCase()] = value;
+    // Handle plain object — use for...in to avoid Object.entries() allocation
+    for (const key in headers) {
+      if (Object.prototype.hasOwnProperty.call(headers, key)) {
+        headersObject[key.toLowerCase()] = headers[key];
+      }
     }
   }
 
@@ -357,10 +367,32 @@ export function processHeaders(
  * @returns {boolean} - True if running in a browser environment, false otherwise.
  */
 export function isBrowser(): boolean {
-  // For node and and some mobile frameworks like React Native, `add/removeEventListener` doesn't exist on window!
+  // For node and some mobile frameworks like React Native, `add/removeEventListener` doesn't exist on window!
   return (
     typeof window !== UNDEFINED && typeof window.addEventListener === FUNCTION
   );
+}
+
+/**
+ * Creates an abort/timeout error compatible with all JS runtimes.
+ * Falls back to a plain Error with the correct `name` when DOMException is unavailable (e.g. React Native).
+ *
+ * @param {string} message - The error message.
+ * @param {string} name - The error name (e.g. 'AbortError', 'TimeoutError').
+ * @returns {DOMException | Error} - An error object with the specified name.
+ */
+export function createAbortError(
+  message: string,
+  name: string,
+): DOMException | Error {
+  if (typeof DOMException !== UNDEFINED) {
+    return new DOMException(message, name);
+  }
+
+  const error = new Error(message);
+  error.name = name;
+
+  return error;
 }
 
 /**
@@ -368,12 +400,7 @@ export function isBrowser(): boolean {
  * @returns {boolean} True if connection is slow, false otherwise or if detection unavailable
  */
 export const isSlowConnection = (): boolean => {
-  // Only works in browser environments
-  if (!isBrowser()) {
-    return false;
-  }
-
-  const conn = navigator && (navigator as any).connection;
+  const conn = typeof navigator !== UNDEFINED && (navigator as any).connection;
 
   return conn && ['slow-2g', '2g', '3g'].includes(conn.effectiveType);
 };

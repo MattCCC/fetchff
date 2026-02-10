@@ -1,5 +1,5 @@
 // To run this benchmark, use the following command:
-// npx tsx test/benchmarks/generic.bench.mjs
+// npx tsx test/benchmarks/fetchf.bench.mjs
 import Benchmark from 'benchmark';
 import { fetchf } from '../../dist/browser/index.mjs';
 import { onComplete } from './utils.mjs';
@@ -37,6 +37,13 @@ const requestWithCache = () =>
     strategy: 'softFail',
   });
 
+const requestWithStringCache = () =>
+  fetchf('https://api.example.com/posts/1', {
+    cacheKey: 'post-1',
+    cacheTime: 300,
+    strategy: 'softFail',
+  });
+
 suite
   .add('Simple fetchf request', () => {
     return simpleRequest();
@@ -46,6 +53,9 @@ suite
   })
   .add('fetchf with caching enabled', () => {
     return requestWithCache();
+  })
+  .add('fetchf with string cache key', () => {
+    return requestWithStringCache();
   })
   .on('cycle', (event) => {
     console.log(String(event.target));

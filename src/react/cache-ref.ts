@@ -12,7 +12,12 @@
  * @see deleteCache
  */
 
-import { addTimeout, abortRequest, deleteCache } from 'fetchff';
+import {
+  addTimeout,
+  abortRequest,
+  deleteCache,
+  createAbortError,
+} from 'fetchff';
 
 export const INFINITE_CACHE_TIME = -1;
 export const DEFAULT_DEDUPE_TIME_MS = 2000;
@@ -57,7 +62,7 @@ export const decrementRef = (
           // Abort any ongoing requests associated with this cache key
           abortRequest(
             key,
-            new DOMException('Request to ' + url + ' aborted', 'AbortError'),
+            createAbortError('Request to ' + url + ' aborted', 'AbortError'),
           );
 
           // Check if the reference count is still zero before deleting the cache as it might have been incremented again

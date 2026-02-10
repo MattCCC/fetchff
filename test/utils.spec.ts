@@ -6,6 +6,9 @@ import {
   processHeaders,
   sortObject,
   sanitizeObject,
+  createAbortError,
+  shallowSerialize,
+  flattenData,
 } from '../src/utils';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -48,33 +51,20 @@ describe('Utils', () => {
       );
     });
 
-    it('should return a new object reference', () => {
+    it('should return same reference when no dangerous properties exist', () => {
       const input = { a: 1, b: 2 };
       const output = sanitizeObject(input);
 
-      expect(output).not.toBe(input); // Different reference
+      expect(output).toBe(input); // Same reference (zero-copy fast path)
       expect(output).toEqual(input); // Same content
     });
 
-    xit('should handle null and undefined inputs', () => {
-      // @ts-expect-error Null and undefined are not objects
-      expect(sanitizeObject(null)).toBeNull();
-      // @ts-expect-error Null and undefined are not objects
-      expect(sanitizeObject(undefined)).toBeUndefined();
-    });
+    it('should return a new object reference when dangerous properties exist', () => {
+      const input = { a: 1, b: 2, constructor: 'unsafe' };
+      const output = sanitizeObject(input);
 
-    xit('should handle array inputs without modification', () => {
-      const input = [1, 2, 3];
-      expect(sanitizeObject(input)).toEqual(input);
-    });
-
-    xit('should handle primitive inputs without modification', () => {
-      // @ts-expect-error String, number, and boolean are not objects
-      expect(sanitizeObject('string')).toBe('string');
-      // @ts-expect-error String, number, and boolean are not objects
-      expect(sanitizeObject(123)).toBe(123);
-      // @ts-expect-error String, number, and boolean are not objects
-      expect(sanitizeObject(true)).toBe(true);
+      expect(output).not.toBe(input); // Different reference
+      expect(output).toEqual({ a: 1, b: 2 }); // Dangerous props removed
     });
 
     it('should preserve all safe properties', () => {
@@ -694,6 +684,113 @@ describe('Utils', () => {
       const result = processHeaders(headers);
 
       expect(result).toEqual({});
+    });
+  });
+
+  describe('createAbortError()', () => {
+    it('should create a DOMException when DOMException is available', () => {
+      const error = createAbortError('test message', 'AbortError');
+
+      expect(error.message).toBe('test message');
+      expect(error.name).toBe('AbortError');
+      expect(error).toBeInstanceOf(DOMException);
+    });
+
+    it('should create a DOMException with TimeoutError name', () => {
+      const error = createAbortError('timeout message', 'TimeoutError');
+
+      expect(error.message).toBe('timeout message');
+      expect(error.name).toBe('TimeoutError');
+    });
+
+    it('should fall back to a plain Error when DOMException is unavailable (e.g. React Native)', () => {
+      const OriginalDOMException = globalThis.DOMException;
+
+      try {
+        // Simulate React Native environment where DOMException is not defined
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        delete (globalThis as any).DOMException;
+
+        const error = createAbortError('timeout', 'TimeoutError');
+
+        expect(error.message).toBe('timeout');
+        expect(error.name).toBe('TimeoutError');
+        expect(error).toBeInstanceOf(Error);
+      } finally {
+        globalThis.DOMException = OriginalDOMException;
+      }
+    });
+
+    it('should create errors usable with AbortController.abort()', () => {
+      const controller = new AbortController();
+      const error = createAbortError('aborted', 'AbortError');
+
+      controller.abort(error);
+
+      expect(controller.signal.aborted).toBe(true);
+      expect(controller.signal.reason).toBe(error);
+    });
+  });
+
+  describe('shallowSerialize()', () => {
+    it('should serialize object properties to a string', () => {
+      const result = shallowSerialize({ a: 1, b: 'test' });
+      expect(result).toBe('a:1b:test');
+    });
+
+    it('should return empty string for empty object', () => {
+      expect(shallowSerialize({})).toBe('');
+    });
+
+    it('should skip inherited properties', () => {
+      const parent = { inherited: true };
+      const child = Object.create(parent);
+      child.own = 'value';
+      expect(shallowSerialize(child)).toBe('own:value');
+    });
+  });
+
+  describe('flattenData()', () => {
+    it('should flatten nested data property', () => {
+      expect(flattenData({ data: 'value' })).toBe('value');
+    });
+
+    it('should recursively flatten deeply nested data', () => {
+      expect(flattenData({ data: { data: 'deep' } })).toBe('deep');
+    });
+
+    it('should return non-object data as-is', () => {
+      expect(flattenData('string')).toBe('string');
+      expect(flattenData(42)).toBe(42);
+      expect(flattenData(null)).toBe(null);
+    });
+
+    it('should return object without data property as-is', () => {
+      const obj = { foo: 'bar' };
+      expect(flattenData(obj)).toEqual(obj);
+    });
+
+    it('should stop at max recursion depth', () => {
+      // Build a deeply nested structure beyond MAX_DEPTH (10)
+      let nested: any = 'bottom';
+      for (let i = 0; i < 15; i++) {
+        nested = { data: nested };
+      }
+      const result = flattenData(nested);
+      // Should not reach 'bottom' due to depth limit
+      expect(result).toHaveProperty('data');
+    });
+  });
+
+  describe('appendQueryParams() - max depth', () => {
+    it('should stop recursion at max depth for deeply nested params', () => {
+      let nested: any = 'value';
+      for (let i = 0; i < 15; i++) {
+        nested = { a: nested };
+      }
+      const result = appendQueryParams('https://example.com', nested);
+      // Should not throw — recursion stops before stack overflow
+      expect(result).toContain('https://example.com');
     });
   });
 });

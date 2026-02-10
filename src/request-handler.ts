@@ -26,9 +26,9 @@ import { enhanceError, withErrorHandling } from './error-handler';
 import { FUNCTION } from './constants';
 import { buildConfig } from './config-handler';
 
-const inFlightResponse = {
+const inFlightResponse = Object.freeze({
   isFetching: true,
-};
+});
 
 /**
  * Sends an HTTP request to the specified URL using the provided configuration and returns a typed response.
@@ -63,6 +63,22 @@ export async function fetchf<
     RequestBody
   > | null = null,
 ): Promise<FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>> {
+  // Ultra-fast early cache check if cacheKey is provided as a string
+  // For workloads dominated by repeated requests, this string caching optimization
+  // can potentially support millions of requests per second with minimal CPU overhead
+  if (reqConfig && typeof reqConfig.cacheKey === 'string') {
+    const cached = getCachedResponse<
+      ResponseData,
+      RequestBody,
+      QueryParams,
+      PathParams
+    >(reqConfig.cacheKey, reqConfig.cacheTime, reqConfig);
+
+    if (cached) {
+      return cached;
+    }
+  }
+
   const fetcherConfig = buildConfig<
     ResponseData,
     RequestBody,
@@ -191,6 +207,16 @@ export async function fetchf<
 
     try {
       if (fetcherConfig.onRequest) {
+        // Zero-allocation yield to microtask queue so the outer fetchf() can call setInFlightPromise()
+        // before onRequest interceptors run. This ensures that if onRequest triggers
+        // another fetchf() with the same cacheKey, getInFlightPromise() finds item[4].
+        // On retries (attempt > 0), setInFlightPromise() was already called during the first attempt.
+        // The promise stored in item[4] is the outer doRequestPromise which covers all retries.
+        // So the race only matters on the very first attempt when the outer scope hasn't had a chance to call setInFlightPromise() yet.
+        if (_cacheKey && dedupeTime && !attempt) {
+          await null;
+        }
+
         await applyInterceptors(fetcherConfig.onRequest, requestConfig);
       }
 
@@ -286,8 +312,16 @@ export async function fetchf<
   };
 
   // Inline and minimize function wrappers for performance
+  // When retries are enabled, forward isStaleRevalidation so the first attempt
+  // of a background SWR revalidation doesn't incorrectly mark the request as in-flight
   const baseRequest =
-    retries > 0 ? () => withRetry(doRequestOnce, retryConfig) : doRequestOnce;
+    retries > 0
+      ? (isStaleRevalidation = false) =>
+          withRetry(
+            (_, attempt) => doRequestOnce(isStaleRevalidation, attempt),
+            retryConfig,
+          )
+      : doRequestOnce;
 
   const requestWithErrorHandling = (isStaleRevalidation = false) =>
     withErrorHandling<ResponseData, RequestBody, QueryParams, PathParams>(
@@ -313,15 +347,18 @@ export async function fetchf<
       setInFlightPromise(_cacheKey, doRequestPromise);
     }
 
-    addRevalidator(
-      _cacheKey,
-      requestWithErrorHandling,
-      undefined,
-      staleTime,
-      requestWithErrorHandling,
-      !!refetchOnFocus,
-      !!refetchOnReconnect,
-    );
+    // Only register revalidator when revalidation features are actually requested
+    if (staleTime || refetchOnFocus || refetchOnReconnect) {
+      addRevalidator(
+        _cacheKey,
+        requestWithErrorHandling,
+        undefined,
+        staleTime,
+        requestWithErrorHandling,
+        !!refetchOnFocus,
+        !!refetchOnReconnect,
+      );
+    }
   }
 
   return doRequestPromise;

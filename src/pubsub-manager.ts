@@ -28,11 +28,14 @@ type Listener<T = any> = (response: T) => void;
 const listeners = new Map<string, Set<Listener>>();
 
 function ensureListenerSet(key: string) {
-  if (!listeners.has(key)) {
-    listeners.set(key, new Set());
+  let set = listeners.get(key);
+
+  if (!set) {
+    set = new Set();
+    listeners.set(key, set);
   }
 
-  return listeners.get(key)!;
+  return set;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

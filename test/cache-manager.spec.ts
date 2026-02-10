@@ -1,6 +1,7 @@
 import {
   generateCacheKey,
   getCache,
+  getCacheData,
   setCache,
   deleteCache,
   getCachedResponse,
@@ -47,7 +48,7 @@ describe('Cache Manager', () => {
           'Accept-Encoding': 'gzip, deflate, br',
         },
       });
-      expect(key).toContain('GET|httpsapiexamplecomdata');
+      expect(key).toContain('GET|https://api.example.com/data');
     });
 
     it('should generate a cache key for basic GET request with empty url', () => {
@@ -83,7 +84,7 @@ describe('Cache Manager', () => {
       } as never);
 
       expect(key).toContain(
-        'GET|httpsapiexamplecomdata|same-origin|1306150308',
+        'GET|https://api.example.com/data|same-origin|1306150308',
       );
     });
 
@@ -94,7 +95,7 @@ describe('Cache Manager', () => {
         headers: { 'Content-Type': 'application/json' },
       });
       expect(key).toContain(
-        'POST|httpsapiexamplecomdata|same-origin|395078312|',
+        'POST|https://api.example.com/data|same-origin|395078312|',
       );
     });
 
@@ -108,7 +109,7 @@ describe('Cache Manager', () => {
       });
       expect(spy).toHaveBeenCalled();
       expect(key).toContain(
-        'POST|httpsapiexamplecomdata|same-origin||655859486',
+        'POST|https://api.example.com/data|same-origin||655859486',
       );
     });
 
@@ -122,7 +123,7 @@ describe('Cache Manager', () => {
       });
       expect(spy).toHaveBeenCalled();
       expect(key).toContain(
-        'POST|httpsapiexamplecomdata|same-origin||-1171129837',
+        'POST|https://api.example.com/data|same-origin||-1171129837',
       );
     });
 
@@ -136,7 +137,7 @@ describe('Cache Manager', () => {
       });
       expect(spy).not.toHaveBeenCalled();
       expect(key).toContain(
-        'POST|httpsapiexamplecomdata|same-origin||nameAlice',
+        'POST|https://api.example.com/data|same-origin||name:Alice',
       );
     });
 
@@ -150,7 +151,7 @@ describe('Cache Manager', () => {
         body: formData,
       });
       expect(key).toContain(
-        'POST|httpsapiexamplecomdata|same-origin||1870802307',
+        'POST|https://api.example.com/data|same-origin||1870802307',
       );
     });
 
@@ -162,7 +163,7 @@ describe('Cache Manager', () => {
         body: blob,
       });
       expect(key).toContain(
-        'POST|httpsapiexamplecomdata|same-origin||BF4textplain',
+        'POST|https://api.example.com/data|same-origin||BF4text/plain',
       );
     });
 
@@ -182,7 +183,9 @@ describe('Cache Manager', () => {
         method: 'POST',
         body: 10,
       });
-      expect(key).toContain('POST|httpsapiexamplecomdata|same-origin||10');
+      expect(key).toContain(
+        'POST|https://api.example.com/data|same-origin||10',
+      );
     });
 
     it('should handle Array body', () => {
@@ -192,7 +195,9 @@ describe('Cache Manager', () => {
         method: 'POST',
         body: arrayBody,
       });
-      expect(key).toContain('POST|httpsapiexamplecomdata|same-origin||011223');
+      expect(key).toContain(
+        'POST|https://api.example.com/data|same-origin||0:11:22:3',
+      );
     });
 
     it('should handle Object body and sort properties', () => {
@@ -203,7 +208,9 @@ describe('Cache Manager', () => {
         body: objectBody,
       });
 
-      expect(key).toContain('POST|httpsapiexamplecomdata|same-origin||a1b2');
+      expect(key).toContain(
+        'POST|https://api.example.com/data|same-origin||a:1b:2',
+      );
     });
   });
 
@@ -339,6 +346,30 @@ describe('Cache Manager', () => {
         fetcherConfig,
       );
       expect(result).toBeNull();
+    });
+
+    it('should return null when cache mode is reload', () => {
+      setCache(cacheKey, responseObj, cacheTime);
+      fetcherConfig.cache = 'reload';
+      const result = getCachedResponse(cacheKey, cacheTime, fetcherConfig);
+      expect(result).toBeNull();
+      delete fetcherConfig.cache;
+    });
+  });
+
+  describe('getCacheData', () => {
+    it('should return cached data for existing key', () => {
+      setCache('data-key', { data: 'test-value' });
+      const result = getCacheData('data-key');
+      expect(result).toEqual({ data: 'test-value' });
+    });
+
+    it('should return null for non-existent key', () => {
+      expect(getCacheData('missing-key')).toBeNull();
+    });
+
+    it('should return null for null key', () => {
+      expect(getCacheData(null)).toBeNull();
     });
   });
 

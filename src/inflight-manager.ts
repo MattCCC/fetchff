@@ -20,7 +20,7 @@
 
 import { ABORT_ERROR, TIMEOUT_ERROR } from './constants';
 import { addTimeout, removeTimeout } from './timeout-wheel';
-import { timeNow } from './utils';
+import { createAbortError, timeNow } from './utils';
 
 export type InFlightItem = [
   AbortController, // AbortController for the request
@@ -55,6 +55,7 @@ export function markInFlight(
     return new AbortController();
   }
 
+  const now = timeNow();
   const item = inFlight.get(key);
   let prevPromise: Promise<unknown> | null = null;
 
@@ -66,7 +67,7 @@ export function markInFlight(
     // If the request is already in the queue and within the dedupeTime, reuse the existing controller
     if (
       !prevIsCancellable &&
-      timeNow() - item[2] < dedupeTime &&
+      now - item[2] < dedupeTime &&
       !prevController.signal.aborted
     ) {
       return prevController;
@@ -76,7 +77,7 @@ export function markInFlight(
     // Abort previous request, if applicable, and continue as usual
     if (prevIsCancellable) {
       prevController.abort(
-        new DOMException('Aborted due to new request', ABORT_ERROR),
+        createAbortError('Aborted due to new request', ABORT_ERROR),
       );
     }
 
@@ -89,7 +90,7 @@ export function markInFlight(
   inFlight.set(key, [
     controller,
     isTimeoutEnabled,
-    timeNow(),
+    now,
     isCancellable,
     prevPromise,
   ]);
@@ -100,7 +101,7 @@ export function markInFlight(
       () => {
         abortRequest(
           key,
-          new DOMException(url + ' aborted due to timeout', TIMEOUT_ERROR),
+          createAbortError(url + ' aborted due to timeout', TIMEOUT_ERROR),
         );
       },
       timeout as number,
@@ -119,7 +120,7 @@ export function markInFlight(
  */
 export async function abortRequest(
   key: string | null,
-  error: DOMException | null | string = null,
+  error: DOMException | Error | null | string = null,
 ): Promise<void> {
   // If the key is not in the queue, there's nothing to remove
   if (key) {
@@ -173,10 +174,8 @@ export function setInFlightPromise(
 ): void {
   const item = inFlight.get(key);
   if (item) {
-    // store the promise at index 4
+    // store the promise at index 4 — item is already the Map's reference, no need to re-set
     item[4] = promise;
-
-    inFlight.set(key, item);
   }
 }
 
