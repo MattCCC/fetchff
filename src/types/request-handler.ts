@@ -672,6 +672,23 @@ export interface ExtendedRequestConfig<
   >;
 
   /**
+   * A custom response parser function to handle response data parsing.
+   * When provided, this function is used instead of the default content-type based parsing.
+   * Useful for handling custom response formats like XML, CSV, or proprietary data formats.
+   *
+   * @example:
+   * // Parse XML responses
+   * const xmlParser = async (response: Response) => {
+   *   const text = await response.text();
+   *   return new DOMParser().parseFromString(text, 'application/xml');
+   * };
+   * const { data } = await fetchf('/api/data.xml', { parser: xmlParser });
+   *
+   * @default undefined (uses built-in content-type based parsing)
+   */
+  parser?: (response: Response) => Promise<any>;
+
+  /**
    * A custom fetcher instance to handle requests instead of the default implementation.
    * When `null`, the default fetch behavior is used.
    *

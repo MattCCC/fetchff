@@ -65,10 +65,14 @@ export async function parseResponseData<
     ) {
       data = await response.formData();
     } else if (
-      mimeType.includes(APPLICATION_CONTENT_TYPE + 'octet-stream') &&
-      typeof response.blob === FUNCTION
+      mimeType.startsWith('image/') ||
+      mimeType.startsWith('video/') ||
+      mimeType.startsWith('audio/') ||
+      mimeType.includes(APPLICATION_CONTENT_TYPE + 'octet-stream') ||
+      mimeType.includes('pdf') ||
+      mimeType.includes('zip')
     ) {
-      data = await response.blob(); // Parse as blob
+      data = await response.arrayBuffer(); // Parse as ArrayBuffer for binary types
     } else {
       data = await response.text();
 
@@ -191,13 +195,16 @@ export const prepareResponse = <
       statusText: response.statusText,
 
       // Convert methods to use arrow functions to preserve correct return types
-      blob: () => response.blob(),
-      json: () => response.json(),
-      text: () => response.text(),
+      blob: async () =>
+        data instanceof ArrayBuffer ? new Blob([data]) : new Blob(), // Lazily construct Blob from ArrayBuffer
+      json: () => Promise.resolve(data) as Promise<ResponseData>, // Return the already parsed JSON data
+      text: () => Promise.resolve(data) as Promise<string>, // Return the already parsed text data
       clone: () => response.clone(),
-      arrayBuffer: () => response.arrayBuffer(),
-      formData: () => response.formData(),
-      bytes: () => response.bytes(),
+      arrayBuffer: async () =>
+        data instanceof ArrayBuffer ? data : new ArrayBuffer(0), // Return the ArrayBuffer directly
+      formData: async () => (data instanceof FormData ? data : new FormData()), // Return the already parsed FormData
+      bytes: async () =>
+        data instanceof ArrayBuffer ? new Uint8Array(data) : new Uint8Array(0), // Return bytes from ArrayBuffer
 
       // Enhance the response with extra information
       error,
