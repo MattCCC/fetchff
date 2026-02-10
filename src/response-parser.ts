@@ -195,17 +195,25 @@ export const prepareResponse = <
       statusText: response.statusText,
 
       // Convert methods to use arrow functions to preserve correct return types
-      blob: async () =>
-        data instanceof ArrayBuffer ? new Blob([data]) : new Blob(), // Lazily construct Blob from ArrayBuffer
-      json: () => Promise.resolve(data) as Promise<ResponseData>, // Return the already parsed JSON data
-      text: () => Promise.resolve(data) as Promise<string>, // Return the already parsed text data
+      blob: () =>
+        Promise.resolve(
+          data instanceof ArrayBuffer ? new Blob([data]) : new Blob(),
+        ), // Lazily construct Blob from ArrayBuffer
+      json: () => Promise.resolve(data as ResponseData), // Return the already parsed JSON data
+      text: () => Promise.resolve(data as string), // Return the already parsed text data
       clone: () => response.clone(),
-      arrayBuffer: async () =>
-        data instanceof ArrayBuffer ? data : new ArrayBuffer(0), // Return the ArrayBuffer directly
-      formData: async () => (data instanceof FormData ? data : new FormData()), // Return the already parsed FormData
-      bytes: async () =>
-        data instanceof ArrayBuffer ? new Uint8Array(data) : new Uint8Array(0), // Return bytes from ArrayBuffer
-
+      arrayBuffer: () =>
+        Promise.resolve(
+          data instanceof ArrayBuffer ? data : new ArrayBuffer(0),
+        ), // Return the ArrayBuffer directly
+      formData: () =>
+        Promise.resolve(data instanceof FormData ? data : new FormData()), // Return the already parsed FormData
+      bytes: () =>
+        Promise.resolve(
+          new Uint8Array(
+            data instanceof ArrayBuffer ? data : new ArrayBuffer(0),
+          ),
+        ),
       // Enhance the response with extra information
       error,
       data,
