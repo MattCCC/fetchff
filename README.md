@@ -572,6 +572,7 @@ You can also use all native [`fetch()` settings](https://developer.mozilla.org/e
 | refetchOnReconnect         | `boolean`                                                                                              | `false`           | When set to `true`, automatically revalidates (refetches) data when the browser regains internet connectivity after being offline. **This uses background revalidation to silently update data** without showing loading states to users. Helps ensure your application displays fresh data after network interruptions. Works by listening to the browser's `online` event.                                                                                                                                                                                                                                                                                |
 | logger                     | `Logger`                                                                                               | `null`            | You can additionally specify logger object with your custom logger to automatically log the errors to the console. It should contain at least `error` and `warn` functions.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | fetcher                    | `CustomFetcher`                                                                                        | `undefined`       | A custom fetcher async function. By default, the native `fetch()` is used. If you use your own fetcher, default response parsing e.g. `await response.json()` call will be skipped. Your fetcher should return response object / data directly.                                                                                                                                                                                                                                                                                                                                                                                                             |
+| parser                     | `(response: Response) => Promise<any>`                                                                 | `undefined`       | A custom response parser function. When provided, it replaces the built-in content-type based parsing entirely. Receives the raw `Response` object and should return the parsed data. Useful for handling custom formats like XML, CSV, or proprietary data. Can be set globally or per-request.                                                                                                                                                                                                                                                                                                                                                            |
 
 > 📋 **Additional Settings Available:**  
 > The table above shows the most commonly used settings. Many more advanced configuration options are available and documented in their respective sections below, including:
@@ -1753,22 +1754,64 @@ If the header is an HTTP-date, the delay will be calculated as the difference be
   <summary><span style="cursor:pointer">Click to expand</span></summary>
   <br>
 
-The `fetchff` plugin automatically handles response data transformation for any instance of `Response` returned by the `fetch()` (or a custom `fetcher`) based on the `Content-Type` header, ensuring that data is parsed correctly according to its format.
+The `fetchff` plugin automatically handles response data transformation for any instance of `Response` returned by the `fetch()` (or a custom `fetcher`) based on the `Content-Type` header, ensuring that data is parsed correctly according to its format. It returns functions like `response.json()` that can be called idempotently without throwing errors or consuming the underlying stream multiple times. You can also use `parser` option to fully control returned response (useful for response streaming).
 
 ### **How It Works**
 
 - **JSON (`application/json`):** Parses the response as JSON.
 - **Form Data (`multipart/form-data`):** Parses the response as `FormData`.
-- **Binary Data (`application/octet-stream`):** Parses the response as a `Blob`.
+- **Binary Data (`application/octet-stream`, images, video, audio, pdf, zip):** Parses the response as an `ArrayBuffer`. Use `response.blob()` to get a `Blob`, or `response.bytes()` to get a `Uint8Array`.
 - **URL-encoded Form Data (`application/x-www-form-urlencoded`):** Parses the response as `FormData`.
 - **Text (`text/*`):** Parses the response as plain text.
+- **Other/Custom types (XML, CSV, etc.):** Returns raw text. Use the `parser` option for custom parsing.
 
-If the `Content-Type` header is missing or not recognized, the plugin defaults to attempting JSON parsing. If that fails, it will try to parse the response as text.
+If the `Content-Type` header is missing or not recognized, the plugin defaults to returning text. If the text looks like JSON (starts with `{` or `[`), it will be auto-parsed as JSON.
 
 This approach ensures that the `fetchff` plugin can handle a variety of response formats, providing a flexible and reliable method for processing data from API requests.
 
 > ⚠️ **When using in Node.js:**  
 > In Node.js, using FormData, Blob, or ReadableStream may require additional polyfills or will not work unless your fetch polyfill supports them.
+
+### Custom `parser` Option
+
+You can provide a custom `parser` function to override the default content-type based parsing. This is useful for formats like XML, CSV, or any proprietary format. The `parser` can be set globally (via `createApiFetcher()` or `setDefaultConfig()`) or per-request.
+
+```typescript
+import { fetchf } from 'fetchff';
+
+// Example: Parse XML responses
+const { data } = await fetchf('/api/data.xml', {
+  async parser(response) {
+    const text = await response.text();
+    return new DOMParser().parseFromString(text, 'application/xml');
+  },
+});
+
+// Example: Parse CSV responses
+const { data: csvData } = await fetchf('/api/report.csv', {
+  async parser(response) {
+    const text = await response.text();
+    return text.split('\n').map((row) => row.split(','));
+  },
+});
+```
+
+You can also set it globally:
+
+```typescript
+import { createApiFetcher } from 'fetchff';
+
+const api = createApiFetcher({
+  apiUrl: 'https://example.com/api',
+  parser: async (response) => {
+    const text = await response.text();
+    return new DOMParser().parseFromString(text, 'application/xml');
+  },
+  endpoints: {
+    getReport: { url: '/report' },
+  },
+});
+```
 
 ### `onResponse` Interceptor
 

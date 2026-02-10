@@ -242,7 +242,9 @@ export async function fetchf<
       if (isObject(response)) {
         // Case 1: Native Response instance
         if (typeof Response === FUNCTION && response instanceof Response) {
-          response.data = await parseResponseData(response);
+          response.data = requestConfig.parser
+            ? await requestConfig.parser(response)
+            : await parseResponseData(response);
         } else if (fn) {
           // Case 2: Custom fetcher that returns a response object
           if (!('data' in response && 'body' in response)) {
@@ -265,7 +267,11 @@ export async function fetchf<
         // This is the pattern for fetch responses as per spec, but custom fetchers may not follow it so we check for `ok` property
         if (response.ok !== undefined && !response.ok) {
           throw new ResponseError(
-            `${requestConfig.method} to ${url} failed! Status: ${response.status || null}`,
+            requestConfig.method +
+              ' to ' +
+              url +
+              ' failed! Status: ' +
+              (response.status || null),
             requestConfig,
             response,
           );

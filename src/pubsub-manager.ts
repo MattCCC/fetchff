@@ -27,20 +27,15 @@ type Listener<T = any> = (response: T) => void;
 
 const listeners = new Map<string, Set<Listener>>();
 
-function ensureListenerSet(key: string) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function addListener<T = any>(key: string, fn: Listener<T>): void {
   let set = listeners.get(key);
 
   if (!set) {
-    set = new Set();
-    listeners.set(key, set);
+    listeners.set(key, (set = new Set()));
   }
 
-  return set;
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function addListener<T = any>(key: string, fn: Listener<T>): void {
-  ensureListenerSet(key).add(fn);
+  set.add(fn);
 }
 
 export function removeListener<T>(key: string, fn: Listener<T>) {

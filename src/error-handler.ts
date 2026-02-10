@@ -52,8 +52,8 @@ export async function withErrorHandling<
   // Only handle the error if the request was not cancelled, or if it was cancelled and rejectCancelled is true.
   const isCancelled = error.isCancelled;
 
-  if (!isCancelled && requestConfig.logger) {
-    logger(requestConfig, 'FETCH ERROR', error as ResponseError);
+  if (!isCancelled && requestConfig.logger?.warn) {
+    requestConfig.logger.warn('FETCH ERROR', error as ResponseError);
   }
 
   // Handle cache and notifications FIRST (before strategy)
@@ -104,21 +104,4 @@ export function enhanceError<
   error.config = error.request = requestConfig;
   error.response = response;
   error.isCancelled = error.name === ABORT_ERROR;
-}
-
-/**
- * Logs messages or errors using the configured logger's `warn` method.
- *
- * @param {RequestConfig} reqConfig - Request config passed when making the request
- * @param {...(string | ResponseError<any>)} args - Messages or errors to log.
- */
-function logger(
-  reqConfig: RequestConfig,
-  ...args: (string | ResponseError)[]
-): void {
-  const logger = reqConfig.logger;
-
-  if (logger && logger.warn) {
-    logger.warn(...args);
-  }
 }

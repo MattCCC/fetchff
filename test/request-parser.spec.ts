@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { parseResponseData, prepareResponse } from '../src/response-parser';
 import type {
   FetchResponse,
@@ -52,15 +53,37 @@ describe('parseData()', () => {
     expect(data).toEqual(expectedData);
   });
 
-  it('should parse Blob when Content-Type is application/octet-stream', async () => {
+  it('should parse ArrayBuffer when Content-Type is application/octet-stream', async () => {
     (mockResponse.headers.get as jest.Mock).mockReturnValue(
       'application/octet-stream',
     );
-    const expectedData = new Blob(['test']);
-    (mockResponse.blob as jest.Mock).mockResolvedValue(expectedData);
+    const expectedArrayBuffer = new ArrayBuffer(8);
+    mockResponse.arrayBuffer = jest.fn().mockResolvedValue(expectedArrayBuffer);
 
     const data = await parseResponseData(mockResponse);
-    expect(data).toEqual(expectedData);
+    expect(data).toBeInstanceOf(ArrayBuffer);
+    expect(data).toEqual(expectedArrayBuffer);
+  });
+
+  it('should return a Blob from .blob() when binary ArrayBuffer is parsed', async () => {
+    // Use a real Response object to pass instanceof Response
+    const expectedArrayBuffer = new ArrayBuffer(8);
+    const realResponse = new Response(expectedArrayBuffer, {
+      status: 200,
+      headers: { 'Content-Type': 'application/octet-stream' },
+    });
+    // parseResponseData returns ArrayBuffer, but prepareResponse wraps it
+    const arrayBuffer = await parseResponseData(realResponse as any);
+    (realResponse as any).data = arrayBuffer;
+    const wrapped = prepareResponse(realResponse as any, {
+      cacheKey: 'test',
+      url: '/test',
+      method: 'GET',
+    });
+
+    const blob = await wrapped.blob();
+    expect(blob).toBeInstanceOf(Blob);
+    expect(blob.size).toBe(expectedArrayBuffer.byteLength);
   });
 
   it('should parse FormData when Content-Type is application/x-www-form-urlencoded', async () => {
@@ -192,6 +215,7 @@ describe('prepareResponse()', () => {
     } as unknown as FetchResponse;
     const config = {
       ...baseConfig,
+
       select: (data: any) => data.items,
     };
 
