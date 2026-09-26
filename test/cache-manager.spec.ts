@@ -130,13 +130,16 @@ describe('Cache Manager', () => {
 
     it('should not hash shorter body if provided', () => {
       const spy = jest.spyOn(hashM, 'hash');
+      const body = JSON.stringify({ name: 'Alice' });
 
       const key = generateCacheKey({
         url,
         method: 'POST',
-        body: JSON.stringify({ name: 'Alice' }),
+        body,
       });
-      expect(spy).not.toHaveBeenCalled();
+
+      // The body is kept as is. Only the complete key gets hashed, as sanitization removed characters from it.
+      expect(spy).not.toHaveBeenCalledWith(body);
       expect(key).toContain(
         'POST|https://api.example.com/data|same-origin||name:Alice',
       );
@@ -211,6 +214,29 @@ describe('Cache Manager', () => {
 
       expect(key).toContain(
         'POST|https://api.example.com/data|same-origin||a:1b:2',
+      );
+    });
+
+    it('should not generate the same key for URLs differing only in removed characters', () => {
+      expect(generateCacheKey({ url: url + '?a[]=1' })).not.toBe(
+        generateCacheKey({ url: url + '?a=1' }),
+      );
+      expect(generateCacheKey({ url: url + '?ids=1,2' })).not.toBe(
+        generateCacheKey({ url: url + '?ids=12' }),
+      );
+    });
+
+    it('should not generate the same key for bodies differing only in removed characters', () => {
+      const key = (body: unknown) =>
+        generateCacheKey({ url, method: 'POST', body: JSON.stringify(body) });
+
+      expect(key({ id: 1 })).not.toBe(key({ id: '1' }));
+      expect(key({ q: 'a b' })).not.toBe(key({ q: 'ab' }));
+    });
+
+    it('should keep keys without removed characters unchanged', () => {
+      expect(generateCacheKey({ url: url + '?a=1' })).toBe(
+        'GET|https://api.example.com/data?a=1|same-origin|',
       );
     });
   });

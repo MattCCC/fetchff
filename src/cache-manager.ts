@@ -155,9 +155,7 @@ export function generateCacheKey(
       DELIMITER +
       headersString;
 
-    return CACHE_KEY_NEEDS_SANITIZE.test(cacheStr)
-      ? cacheStr.replace(CACHE_KEY_SANITIZE_PATTERN, '')
-      : cacheStr;
+    return sanitizeCacheKey(cacheStr);
   }
 
   let bodyString = '';
@@ -202,9 +200,22 @@ export function generateCacheKey(
     DELIMITER +
     bodyString;
 
-  // Prevent cache poisoning by removal of control chars and unusual characters
+  return sanitizeCacheKey(cacheStr);
+}
+
+/**
+ * Prevents cache poisoning by removal of control chars and unusual characters.
+ * When anything is removed, a hash of the original key is appended so that keys
+ * differing only in the removed characters (e.g. `?a[]=1` and `?a=1`) don't collide.
+ *
+ * @param {string} cacheStr - The raw cache key.
+ * @returns {string} - The sanitized cache key.
+ */
+function sanitizeCacheKey(cacheStr: string): string {
   return CACHE_KEY_NEEDS_SANITIZE.test(cacheStr)
-    ? cacheStr.replace(CACHE_KEY_SANITIZE_PATTERN, '')
+    ? cacheStr.replace(CACHE_KEY_SANITIZE_PATTERN, '') +
+        DELIMITER +
+        hash(cacheStr)
     : cacheStr;
 }
 
