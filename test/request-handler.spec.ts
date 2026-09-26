@@ -1596,6 +1596,41 @@ describe('Request Handler', () => {
       expect(callCount).toBe(1);
     });
 
+    it('should send a new request after a failed one instead of serving the in-flight placeholder', async () => {
+      let callCount = 0;
+      fetchMock.get(apiUrl, () => {
+        callCount++;
+        return callCount === 1
+          ? { status: 500, body: { message: 'error' } }
+          : { status: 200, body: { value: 'fresh' } };
+      });
+      const config = {
+        cacheTime: 60,
+        staleTime: 30,
+        strategy: 'softFail' as const,
+      };
+
+      const firstResponse = await fetchf(apiUrl, config);
+      expect(firstResponse.error?.status).toBe(500);
+
+      const secondResponse = await fetchf(apiUrl, config);
+      expect(secondResponse.data).toEqual({ value: 'fresh' });
+      expect(callCount).toBe(2);
+    });
+
+    it('should not resolve concurrent requests with the in-flight placeholder', async () => {
+      fetchMock.get(apiUrl, { status: 200, body: { value: 'data' } });
+      const config = { cacheTime: 60, staleTime: 30 };
+
+      const [first, second] = await Promise.all([
+        fetchf(apiUrl, config),
+        fetchf(apiUrl, config),
+      ]);
+
+      expect(first.data).toEqual({ value: 'data' });
+      expect(second.data).toEqual({ value: 'data' });
+    });
+
     it('should bypass cache if cacheTime is undefined', async () => {
       let callCount = 0;
       fetchMock.get(apiUrl, () => {

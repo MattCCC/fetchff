@@ -8,8 +8,9 @@ import {
   mutate,
   pruneCache,
   IMMEDIATE_DISCARD_CACHE_TIME,
+  handleResponseCache,
 } from '../src/cache-manager';
-import { RequestConfig } from '../src/index';
+import type { FetchResponse, RequestConfig } from '../src/index';
 import * as hashM from '../src/hash';
 import * as pubsubManager from '../src/pubsub-manager';
 import * as revalidatorManager from '../src/revalidator-manager';
@@ -354,6 +355,37 @@ describe('Cache Manager', () => {
       const result = getCachedResponse(cacheKey, cacheTime, fetcherConfig);
       expect(result).toBeNull();
       delete fetcherConfig.cache;
+    });
+
+    it('should not return the placeholder stored while a request is in flight', () => {
+      setCache(cacheKey, { isFetching: true }, cacheTime);
+
+      expect(getCachedResponse(cacheKey, cacheTime, fetcherConfig)).toBeNull();
+    });
+  });
+
+  describe('handleResponseCache', () => {
+    const cacheKey = 'test-key';
+    const cacheTime = 60;
+    const errorOutput = {
+      data: { message: 'failed' },
+      error: new Error('failed'),
+    } as unknown as FetchResponse;
+
+    it('should remove the in-flight placeholder when an error is not cached', () => {
+      setCache(cacheKey, { isFetching: true }, cacheTime);
+
+      handleResponseCache(errorOutput, { cacheKey, cacheTime }, true);
+
+      expect(getCache(cacheKey)).toBeUndefined();
+    });
+
+    it('should keep cached data when an error is not cached', () => {
+      setCache(cacheKey, { data: 'cachedData' }, cacheTime);
+
+      handleResponseCache(errorOutput, { cacheKey, cacheTime }, true);
+
+      expect(getCacheData(cacheKey)).toEqual({ data: 'cachedData' });
     });
   });
 
