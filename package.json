@@ -113,7 +113,7 @@
     "ts-jest": "29.4.14",
     "tslib": "2.8.1",
     "tsup": "8.5.1",
-    "typescript": "5.9.3",
+    "typescript": "6.0.3",
     "typescript-eslint": "8.70.1"
   },
   "optionalDependencies": {
