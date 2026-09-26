@@ -1,5 +1,9 @@
 import { defineConfig } from 'tsup';
 
+// tsup always injects the deprecated `baseUrl` option into its DTS build,
+// which TypeScript 6 reports as an error (TS5101) unless silenced here.
+const dtsCompilerOptions = { ignoreDeprecations: '6.0' };
+
 export default defineConfig([
   {
     name: 'fetchff',
@@ -8,7 +12,7 @@ export default defineConfig([
     format: ['esm', 'iife'],
     target: 'es2018',
     bundle: true,
-    dts: true,
+    dts: { compilerOptions: dtsCompilerOptions },
     clean: true,
     outDir: 'dist/browser',
     platform: 'browser',
@@ -37,7 +41,7 @@ export default defineConfig([
     globalName: 'fetchffReact',
     entry: ['src/react/index.ts'],
     target: 'es2018',
-    dts: true,
+    dts: { compilerOptions: dtsCompilerOptions },
     format: ['esm', 'cjs'],
     outDir: 'dist/react',
     platform: 'neutral',

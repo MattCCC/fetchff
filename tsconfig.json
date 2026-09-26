@@ -13,12 +13,11 @@
     "noFallthroughCasesInSwitch": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "noEmit": true,
-    "baseUrl": ".",
     "jsx": "react-jsx",
     "types": ["node", "jest", "@testing-library/jest-dom"],
     "paths": {
