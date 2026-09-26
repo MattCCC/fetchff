@@ -106,9 +106,15 @@ function createApiFetcher<
   return new Proxy<ApiHandlerMethods<EndpointTypes, EndpointsSettings>>(
     apiHandler as ApiHandlerMethods<EndpointTypes, EndpointsSettings>,
     {
-      get(_target, prop: string) {
+      get(_target, prop: string | symbol) {
         if (prop in apiHandler) {
           return apiHandler[prop as unknown as keyof typeof apiHandler];
+        }
+
+        // Symbols (e.g. inspection hooks) are never endpoints, and returning a function
+        // for "then" would make the instance a thenable that never settles when awaited
+        if (typeof prop === 'symbol' || prop === 'then') {
+          return undefined;
         }
 
         // Prevent handler from triggering non-existent endpoints
