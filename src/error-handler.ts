@@ -56,6 +56,12 @@ export async function withErrorHandling<
     requestConfig.logger.warn('FETCH ERROR', error as ResponseError);
   }
 
+  // The defaultResponse strategy returns the default response in place of the error data.
+  // The original data stays available through error.response.
+  if (requestConfig.strategy === 'defaultResponse') {
+    output.data = (requestConfig.defaultResponse ?? null) as typeof output.data;
+  }
+
   // Handle cache and notifications FIRST (before strategy)
   handleResponseCache(output, requestConfig, true);
 

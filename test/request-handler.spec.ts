@@ -1516,6 +1516,38 @@ describe('Request Handler', () => {
       expect(result.data).toEqual({ foo: 'bar' });
     });
 
+    it('should return defaultResponse in place of the error data with the defaultResponse strategy', async () => {
+      fetchMock.getOnce('http://example.com/api/failing', {
+        status: 500,
+        body: { message: 'Internal error' },
+      });
+
+      const result = await fetchf('http://example.com/api/failing', {
+        strategy: 'defaultResponse',
+        defaultResponse: { theme: 'light' },
+      });
+
+      expect(result.error?.status).toBe(500);
+      expect(result.data).toEqual({ theme: 'light' });
+      expect(result.error?.response?.data).toEqual({
+        message: 'Internal error',
+      });
+    });
+
+    it('should return null in place of the error data with the defaultResponse strategy when no defaultResponse is set', async () => {
+      fetchMock.getOnce('http://example.com/api/failing', {
+        status: 500,
+        body: { message: 'Internal error' },
+      });
+
+      const result = await fetchf('http://example.com/api/failing', {
+        strategy: 'defaultResponse',
+      });
+
+      expect(result.error?.status).toBe(500);
+      expect(result.data).toBeNull();
+    });
+
     it('should show nested data object if flattening is off', async () => {
       fetcher = jest.fn().mockResolvedValue({ data: responseMock, ok: true });
 
