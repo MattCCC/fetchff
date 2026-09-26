@@ -66,7 +66,12 @@ export function setDefaultConfig(
 ): Partial<RequestConfig> {
   const sanitized = sanitizeObject(customConfig);
 
-  return mergeConfigs({}, sanitized, defaultConfig);
+  // Merge nested retry and headers settings into the current defaults instead of replacing them
+  return mergeConfigs(
+    { retry: defaultConfig.retry, headers: defaultConfig.headers },
+    sanitized,
+    defaultConfig,
+  );
 }
 
 /**
@@ -94,12 +99,12 @@ export function buildConfig<ResponseData, RequestBody, QueryParams, PathParams>(
     RequestBody
   > | null,
 ): RequestConfig<ResponseData, QueryParams, PathParams, RequestBody> {
-  if (!reqConfig) {
-    return buildFetcherConfig(url, getDefaultConfig());
-  }
-
-  const sanitized = sanitizeObject(reqConfig);
-  const merged = mergeConfigs(defaultConfig, sanitized);
+  // Merging gives the request its own copies of nested objects like headers, so that
+  // mutations (e.g. by interceptors) never leak into the global defaults
+  const merged = mergeConfigs(
+    defaultConfig,
+    reqConfig ? sanitizeObject(reqConfig) : {},
+  );
 
   return buildFetcherConfig(url, merged);
 }
@@ -201,7 +206,8 @@ function setContentTypeIfNeeded(
   } else if (
     isObject(headers) &&
     !Array.isArray(headers) &&
-    !headers[CONTENT_TYPE]
+    // Header names are case-insensitive, so check the normalized (lowercase) headers
+    !processHeaders(headers as HeadersObject)[CONTENT_TYPE.toLowerCase()]
   ) {
     headers[CONTENT_TYPE] = contentTypeValue;
   }
@@ -297,28 +303,49 @@ export function mergeConfig<K extends keyof RequestConfig>(
   overrideConfig: RequestConfig,
   targetConfig: RequestConfig,
 ): void {
-  if (overrideConfig[property]) {
-    const base = baseConfig[property];
-    const override = overrideConfig[property];
+  const base = baseConfig[property];
+  const override = overrideConfig[property];
 
-    // Handle Headers instances which don't expose entries as own enumerable properties
-    if (
-      property === 'headers' &&
-      ((base as Headers | (HeadersObject & HeadersInit)) instanceof Headers ||
+  if (override) {
+    if (property === 'headers') {
+      // Handle Headers instances which don't expose entries as own enumerable properties
+      const isInstance =
+        (base as Headers | (HeadersObject & HeadersInit)) instanceof Headers ||
         (override as Headers | (HeadersObject & HeadersInit)) instanceof
-          Headers)
-    ) {
-      const baseNormalized = processHeaders(base);
-      const overrideNormalized = processHeaders(override);
-      targetConfig[property] = {
-        ...baseNormalized,
-        ...overrideNormalized,
-      } as RequestConfig[K];
+          Headers;
+      const merged: HeadersObject = isInstance
+        ? processHeaders(base)
+        : { ...(base as HeadersObject) };
+      const overrides: HeadersObject = isInstance
+        ? processHeaders(override)
+        : (override as HeadersObject);
+
+      // Header names are case-insensitive, so replace existing entries instead of duplicating them
+      for (const key of Object.keys(overrides)) {
+        const lowerKey = key.toLowerCase();
+
+        for (const existingKey in merged) {
+          if (existingKey.toLowerCase() === lowerKey) {
+            delete merged[existingKey];
+          }
+        }
+
+        merged[key] = overrides[key];
+      }
+
+      targetConfig[property] = merged as RequestConfig[K];
     } else {
       targetConfig[property] = {
         ...base,
         ...override,
       };
     }
+  } else if (
+    override === undefined &&
+    isObject(base) &&
+    !((base as Headers | HeadersObject) instanceof Headers)
+  ) {
+    // Copy so that mutating the merged config never changes the base config
+    targetConfig[property] = { ...base } as RequestConfig[K];
   }
 }
