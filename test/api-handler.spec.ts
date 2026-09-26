@@ -138,8 +138,7 @@ describe('API Handler', () => {
       });
 
       const headers = result?.config?.headers as
-        | Record<string, string>
-        | undefined;
+        Record<string, string> | undefined;
       expect(headers?.['X-Request']).toBe('request');
       expect(headers?.['X-Endpoint']).toBe('endpoint');
       expect(headers?.['X-Global']).toBe('global');

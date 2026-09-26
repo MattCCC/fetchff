@@ -18,11 +18,7 @@ declare const emptyObjectSymbol: unique symbol;
 export type EmptyObject = { [emptyObjectSymbol]?: never };
 
 export type DefaultParams =
-  | Record<string, any>
-  | URLSearchParams
-  | NameValuePair[]
-  | EmptyObject
-  | null;
+  Record<string, any> | URLSearchParams | NameValuePair[] | EmptyObject | null;
 
 export type DefaultUrlParams = Record<string, any>;
 export type DefaultPayload = Record<string, any>;
@@ -42,10 +38,7 @@ export declare type UrlPathParams<UrlParamsType = DefaultUrlParams> =
   | null;
 
 export declare type BodyPayload<PayloadType = DefaultPayload> =
-  | BodyInit
-  | (PayloadType & EmptyObject)
-  | PayloadType[]
-  | null;
+  BodyInit | (PayloadType & EmptyObject) | PayloadType[] | null;
 
 type EndpointDefaults = Endpoint<DefaultRequestType>;
 
@@ -251,8 +244,7 @@ export type ApiHandlerDefaultMethods<EndpointTypes> = {
 };
 
 type RequireApiUrlOrBaseURL =
-  | { apiUrl: string; baseURL?: never }
-  | { apiUrl?: never; baseURL: string };
+  { apiUrl: string; baseURL?: never } | { apiUrl?: never; baseURL: string };
 
 /**
  * Configuration for the API handler, including API URL and endpoints.
