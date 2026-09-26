@@ -446,8 +446,11 @@ export function getCachedResponse<
     return null;
   }
 
+  const data = entry.data;
+
   // Return data whether fresh or stale (SWR: serve stale, revalidation is timer-driven)
-  return entry.data;
+  // The placeholder stored while a request is in flight is not a response, so treat it as a miss
+  return data && data.isFetching ? null : data;
 }
 
 /**
@@ -486,6 +489,13 @@ export function handleResponseCache<
       !(skipCache && skipCache(output, requestConfig))
     ) {
       setCache(cacheKey, output, cacheTime, requestConfig.staleTime);
+    } else {
+      const entry = getCache(cacheKey);
+
+      // Don't let the in-flight placeholder outlive a request whose result isn't cached
+      if (entry && entry.data && entry.data.isFetching) {
+        deleteCache(cacheKey);
+      }
     }
 
     notifySubscribers(cacheKey, output);
