@@ -95,10 +95,7 @@ export type CustomFetcher = <
   | PromiseLike<unknown>;
 
 export type ErrorHandlingStrategy =
-  | 'reject'
-  | 'silent'
-  | 'defaultResponse'
-  | 'softFail';
+  'reject' | 'silent' | 'defaultResponse' | 'softFail';
 
 export interface HeadersObject {
   [key: string]: string;
