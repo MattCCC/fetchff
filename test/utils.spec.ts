@@ -9,6 +9,7 @@ import {
   createAbortError,
   shallowSerialize,
   flattenData,
+  isAbsoluteUrl,
 } from '../src/utils';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -779,6 +780,21 @@ describe('Utils', () => {
       const result = flattenData(nested);
       // Should not reach 'bottom' due to depth limit
       expect(result).toHaveProperty('data');
+    });
+  });
+
+  describe('isAbsoluteUrl()', () => {
+    it('should detect URLs starting with a scheme', () => {
+      expect(isAbsoluteUrl('https://example.com/api')).toBe(true);
+      expect(isAbsoluteUrl('HTTP://example.com')).toBe(true);
+      expect(isAbsoluteUrl('custom-scheme+v1.0://host')).toBe(true);
+    });
+
+    it('should treat URLs without a leading scheme as relative', () => {
+      expect(isAbsoluteUrl('/api/users')).toBe(false);
+      expect(isAbsoluteUrl('api/users')).toBe(false);
+      expect(isAbsoluteUrl('//example.com/api')).toBe(false);
+      expect(isAbsoluteUrl('/redirect?to=https://example.com')).toBe(false);
     });
   });
 

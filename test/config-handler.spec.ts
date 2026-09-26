@@ -206,6 +206,16 @@ describe('buildFetcherConfig() with native fetch()', () => {
       params: { foo: 'bar' },
     });
   });
+
+  it('should keep the baseURL for relative URLs that contain :// in the query string', () => {
+    const result = buildFetcherConfig('/redirect?to=https://example.com', {
+      baseURL: 'https://api.example.com',
+    });
+
+    expect(result.url).toBe(
+      'https://api.example.com/redirect?to=https://example.com',
+    );
+  });
 });
 
 describe('request() Content-Type', () => {

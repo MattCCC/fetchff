@@ -221,13 +221,14 @@ export function replaceUrlPathParams(
 /**
  * Determines whether the provided URL is absolute.
  *
- * An absolute URL contains a scheme (e.g., "http://", "https://").
+ * An absolute URL starts with a scheme (e.g., "http://", "https://").
+ * A "://" appearing later, e.g. in a query string, does not make the URL absolute.
  *
  * @param url - The URL string to check.
  * @returns `true` if the URL is absolute, otherwise `false`.
  */
 export function isAbsoluteUrl(url: string): boolean {
-  return url.includes('://');
+  return /^[a-z][a-z\d+\-.]*:\/\//i.test(url);
 }
 
 export const timeNow = () => Date.now();
