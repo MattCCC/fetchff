@@ -570,6 +570,7 @@ You can also use all native [`fetch()` settings](https://developer.mozilla.org/e
 | cacheTime                  | `number`                                                                                               | `undefined`       | Specifies the duration, in seconds, for which a cache entry is considered "fresh." Once this time has passed, the entry is considered stale and may be refreshed with a new request. Set to -1 for indefinite cache. By default no caching.                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | staleTime                  | `number`                                                                                               | `undefined`       | Specifies the duration, in seconds, for which cached data is considered "fresh." During this period, cached data will be returned immediately, but a background revalidation (network request) will be triggered to update the cache. If set to `0`, background revalidation is disabled and revalidation is triggered on every access.                                                                                                                                                                                                                                                                                                                     |
 | cacheStore                 | `CacheStore`                                                                                           | `undefined`       | An object with `get`, `set` and `delete` methods that keeps cached responses beyond the in-memory cache, e.g. across page reloads. It can wrap localStorage, IndexedDB, AsyncStorage or any other storage, and its methods can be asynchronous. Cached successful responses are saved in it, and requests that miss the in-memory cache restore them from it. See **Persistent Cache** in the Cache Management section.                                                                                                                                                                                                                                     |
+| etag                       | `boolean`                                                                                              | `true`            | Revalidates cached responses of GET and HEAD requests with their `ETag`. It's sent in the `If-None-Match` header, and when the server answers `304 Not Modified`, the cached response is reused instead of being downloaded again. Requests with a custom `fetcher` only send it when set to `true`. See **ETag Revalidation** in the Cache Management section.                                                                                                                                                                                                                                                                                             |
 | refetchOnFocus             | `boolean`                                                                                              | `false`           | When set to `true`, automatically revalidates (refetches) data when the browser window regains focus. **Note: This bypasses the cache and always makes a fresh network request** to ensure users see the most up-to-date data when they return to your application from another tab or window. Particularly useful for applications that display real-time or frequently changing data, but should be used judiciously to avoid unnecessary network traffic.                                                                                                                                                                                                |
 | refetchOnReconnect         | `boolean`                                                                                              | `false`           | When set to `true`, automatically revalidates (refetches) data when the browser regains internet connectivity after being offline. **This uses background revalidation to silently update data** without showing loading states to users. Helps ensure your application displays fresh data after network interruptions. Works by listening to the browser's `online` event.                                                                                                                                                                                                                                                                                |
 | logger                     | `Logger`                                                                                               | `null`            | You can additionally specify logger object with your custom logger to automatically log the errors to the console. It should contain at least `error` and `warn` functions.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
@@ -1259,6 +1260,11 @@ The caching system can be fine-tuned using the following options when configurin
   An object with `get`, `set` and `delete` methods that keeps cached responses beyond the in-memory cache, e.g. across page reloads or app restarts. Its methods can be synchronous or asynchronous, so it can wrap localStorage, IndexedDB, AsyncStorage or any other storage. See [Persistent Cache](#persistent-cache) below.  
   _Default:_ `undefined` (in-memory cache only).
 
+- **`etag`**:  
+  Type: `boolean`  
+  Revalidates cached responses of GET and HEAD requests with their `ETag`, so that the server can answer `304 Not Modified` instead of sending them again. See [ETag Revalidation](#etag-revalidation) below.  
+  _Default:_ `true` (`false` for requests with a custom `fetcher`).
+
   ### How It Works
   1. **Cache Lookup**:  
      When a request is made, `fetchff` first checks the internal cache for a matching entry using the generated cache key. If a valid and "fresh" cache entry exists (within `cacheTime`), the cached response is returned immediately. If the native `fetch()` option `cache: 'reload'` is set, the internal cache is bypassed and a fresh request is made.
@@ -1277,6 +1283,9 @@ The caching system can be fine-tuned using the following options when configurin
 
   6. **Persistent Cache**:  
      With a `cacheStore`, successful responses are also saved in the store whenever they are cached. A request that misses the in-memory cache restores its response from the store before going to the network, unless the stored entry has expired.
+
+  7. **ETag Revalidation**:  
+     When a cached response has an `ETag`, requests that revalidate it send the ETag in the `If-None-Match` header. If the server answers `304 Not Modified`, the cached response is reused and cached again instead of being downloaded again.
 
 ### Persistent Cache
 
@@ -1324,6 +1333,29 @@ How the store is used:
 - **Updating**: `mutate()` and `deleteCache()` update or delete the stored copies of responses that were cached or restored since the app started. To clear the whole storage, e.g. on logout, clear it directly.
 - **Bypassing**: `cacheBuster` and `cache: 'reload'` bypass the store just like the in-memory cache.
 - **Errors**: Errors of the store, e.g. a full localStorage, are ignored, so requests never fail because of it.
+
+### ETag Revalidation
+
+Many servers identify each version of a response with an `ETag` header. When a cached response has one, the requests that revalidate it, e.g. background revalidations of stale data, `refetchOnFocus` or requests with a `cacheBuster`, ask the server whether it changed by sending the ETag in the `If-None-Match` header. If it didn't, the server answers `304 Not Modified` without a body, and the cached response is reused instead of being downloaded and parsed again. It works out of the box:
+
+```typescript
+// The response is cached along with its ETag, e.g. "v1"
+const { data } = await fetchf('https://api.example.com/books', {
+  cacheTime: 300,
+  staleTime: 60, // Once the books are a minute old, they are revalidated in the background
+});
+
+// The background revalidation sends "If-None-Match: v1". When the books haven't changed,
+// the server answers 304 Not Modified, and the cached response stays fresh for another minute.
+```
+
+- It applies to GET and HEAD requests that use the cache (with `cacheTime` or `staleTime`). Set `etag: false` to disable it.
+- A reused response is the same object with the same data. It isn't parsed, transformed with `select` or passed to `onResponse` again, and e.g. `useFetcher()` doesn't rerender after a background revalidation that is answered with `304`.
+- It pairs well with a `cacheStore`: after a page reload, a stale stored response is revalidated with its ETag too.
+- `mutate()` removes the ETag from the response it changes, as it no longer matches the data.
+- Requests with an `If-None-Match` header of their own are sent as they are, and handle `304` responses themselves.
+- Requests with a custom `fetcher` only send ETags with `etag: true`, as some fetchers, e.g. ones built on axios, treat `304` responses as errors.
+- In browsers, the ETag of a cross-origin response can only be read when the server exposes it with `Access-Control-Expose-Headers: ETag`. Such servers must also allow the `If-None-Match` header with `Access-Control-Allow-Headers`, otherwise set `etag: false`.
 
 ### 🔄 Cache and Deduplication Integration
 
