@@ -42,43 +42,20 @@ const CACHE_KEY_NEEDS_SANITIZE = /[^\w\-_|/:@.?=&~%#]/; // Non-global for fast t
 
 /**
  * Headers that may affect HTTP response content and should be included in cache key generation.
- * All header names must be lowercase to match normalized request headers.
+ * Header names are matched case-insensitively.
+ *
+ * - Content negotiation: accept (response format, e.g. JSON or HTML), accept-language (localization), accept-encoding (compression)
+ * - Authentication: authorization (access to protected resources)
+ * - Request body metadata: content-type (how the request body is interpreted)
+ * - Optional: referer (may influence behavior in some APIs), origin (CORS or tenant-specific APIs),
+ *   user-agent (if the server returns client-specific content), cookie (session-based responses; can fragment the cache heavily)
+ * - Custom headers that may affect response content: x-api-key (token-based access), x-requested-with (AJAX requests),
+ *   x-client-id (per-client/partner identity), x-tenant-id (multi-tenant segmentation), x-user-id (explicit user context),
+ *   x-app-version (version-specific behavior), x-feature-flag (feature rollout), x-device-id (per device/app instance),
+ *   x-platform (e.g. 'ios', 'android', 'web'), x-session-id (if it affects the response directly), x-locale (like accept-language)
  */
-const CACHE_KEY_HEADER_WHITELIST = new Set([
-  // Content negotiation
-  'accept', // Affects response format (e.g. JSON, HTML)
-  'accept-language', // Affects localization of the response
-  'accept-encoding', // Affects response compression (e.g. gzip, br)
-
-  // Authentication
-  'authorization', // Affects access to protected resources
-
-  // Request body metadata
-  'content-type', // Affects how the request body is interpreted
-
-  // Optional headers
-  'referer', // May influence behavior in some APIs
-  'origin', // Relevant in CORS or tenant-specific APIs
-  'user-agent', // Included only for reason if server returns client-specific content
-
-  // Cookies — only if server uses session-based responses
-  'cookie', // Can fragment cache heavily; use only if necessary
-
-  // Custom headers that may affect response content
-  'x-api-key', // Token-based access, often affects authorization
-  'x-requested-with', // AJAX requests (used historically for distinguishing frontend calls)
-  'x-client-id', // Per-client/partner identity; often used in multi-tenant APIs
-  'x-tenant-id', // Multi-tenant segmentation; often changes response per tenant
-  'x-user-id', // Explicit user context (less common, but may exist)
-
-  'x-app-version', // Used for version-specific behavior (e.g. mobile apps)
-  'x-feature-flag', // Controls feature rollout behavior server-side
-  'x-device-id', // Used when response varies per device/app instance
-  'x-platform', // e.g. 'ios', 'android', 'web' — used in apps that serve different content
-
-  'x-session-id', // Only if backend uses it to affect the response directly (rare)
-  'x-locale', // Sometimes used in addition to or instead of `accept-language`
-]);
+const CACHE_KEY_HEADERS =
+  /^(accept(-language|-encoding)?|authorization|content-type|referer|origin|user-agent|cookie|x-(api-key|requested-with|client-id|tenant-id|user-id|app-version|feature-flag|device-id|platform|session-id|locale))$/i;
 
 /**
  * Generates a unique cache key for a given URL and fetch options, ensuring that key factors
@@ -150,7 +127,7 @@ export function generateCacheKey(
 
     let str = '';
     for (let i = 0; i < len; ++i) {
-      if (CACHE_KEY_HEADER_WHITELIST.has(keys[i].toLowerCase())) {
+      if (CACHE_KEY_HEADERS.test(keys[i])) {
         str += keys[i] + ':' + obj[keys[i]] + ';';
       }
     }
@@ -158,17 +135,19 @@ export function generateCacheKey(
     headersString = hash(str);
   }
 
+  // Concatenate all key parts into a cache key string
+  // Template literals are apparently slower
+  const cacheStr =
+    method +
+    DELIMITER +
+    url +
+    DELIMITER +
+    credentials +
+    DELIMITER +
+    headersString;
+
   // For GET requests, return early with shorter cache key
   if (method === GET) {
-    const cacheStr =
-      method +
-      DELIMITER +
-      url +
-      DELIMITER +
-      credentials +
-      DELIMITER +
-      headersString;
-
     return sanitizeCacheKey(cacheStr);
   }
 
@@ -204,20 +183,7 @@ export function generateCacheKey(
     }
   }
 
-  // Concatenate all key parts into a cache key string
-  // Template literals are apparently slower
-  const cacheStr =
-    method +
-    DELIMITER +
-    url +
-    DELIMITER +
-    credentials +
-    DELIMITER +
-    headersString +
-    DELIMITER +
-    bodyString;
-
-  return sanitizeCacheKey(cacheStr);
+  return sanitizeCacheKey(cacheStr + DELIMITER + bodyString);
 }
 
 const objectIds = new WeakMap<object, number>();
@@ -341,14 +307,18 @@ export function setCache<T = unknown>(
   });
 
   if (ttlMs > 0) {
-    addTimeout(
-      'c:' + key,
-      () => {
-        deleteCache(key, true);
-      },
-      ttlMs,
-    );
+    scheduleExpiry(key, ttlMs);
   }
+}
+
+/**
+ * Deletes a cache entry once it expires.
+ *
+ * @param {string} key Cache key to utilize
+ * @param {number} ms - The time until the entry expires, in milliseconds.
+ */
+function scheduleExpiry(key: string, ms: number): void {
+  addTimeout('c:' + key, () => deleteCache(key, true), ms);
 }
 
 /**
@@ -475,13 +445,7 @@ export function restoreCache(
   stores.set(key, store);
 
   if (entry.expiry) {
-    addTimeout(
-      'c:' + key,
-      () => {
-        deleteCache(key, true);
-      },
-      entry.expiry - timeNow(),
-    );
+    scheduleExpiry(key, entry.expiry - timeNow());
   }
 
   notifySubscribers(key, entry.data);
@@ -532,8 +496,10 @@ export async function mutate<
   };
 
   // The ETag belongs to the original data, so the changed data must not be revalidated with it
-  if (updatedResponse.headers?.etag) {
-    updatedResponse.headers = { ...updatedResponse.headers };
+  const headers = updatedResponse.headers;
+
+  if (headers && headers.etag) {
+    updatedResponse.headers = { ...headers };
     delete updatedResponse.headers.etag;
   }
 

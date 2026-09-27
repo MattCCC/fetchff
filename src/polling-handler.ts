@@ -66,7 +66,7 @@ export async function withPolling<
       await delayInvocation(pollingInterval, signal);
 
       // Aborting the signal of the request stops polling
-      if (signal?.aborted) {
+      if (signal && signal.aborted) {
         return output;
       }
     } while (

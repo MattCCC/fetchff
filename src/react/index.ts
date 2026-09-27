@@ -34,7 +34,7 @@ const DEFAULT_RESULT = Object.freeze({
   data: null,
   error: null,
   isFetching: false,
-  mutate: () => Promise.resolve(null),
+  mutate: async () => null,
   config: {},
   headers: {},
 });
@@ -255,7 +255,7 @@ export function useFetcher<
       const [currUrl, currConfig, currCacheKey] = currentValuesRef.current;
 
       if (!currUrl) {
-        return Promise.resolve(null);
+        return null;
       }
 
       // Truthy check for forceRefresh to ensure it's a boolean. It is useful in onClick handlers so to avoid additional annonymous function calls.
@@ -266,7 +266,7 @@ export function useFetcher<
         const cached = getCachedResponse(currCacheKey, cacheTime, currConfig);
 
         if (cached) {
-          return Promise.resolve(cached);
+          return cached;
         }
       }
 

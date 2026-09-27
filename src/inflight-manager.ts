@@ -159,7 +159,7 @@ export async function getController(
 ): Promise<AbortController | undefined> {
   const item = inFlight.get(key);
 
-  return item?.[0];
+  return item && item[0];
 }
 
 /**
