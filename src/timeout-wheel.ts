@@ -112,10 +112,12 @@ export const removeTimeout = (key: string): void => {
       clearTimeout(slotOrTimeout[0]);
     } else {
       const slotArr = wheel[slotOrTimeout];
-      const idx = slotArr.findIndex(([k]) => k === key);
 
-      if (idx !== -1) {
-        slotArr.splice(idx, 1);
+      for (let i = 0; i < slotArr.length; i++) {
+        if (slotArr[i][0] === key) {
+          slotArr.splice(i, 1);
+          break;
+        }
       }
     }
 

@@ -145,7 +145,7 @@ export async function fetchf<
   const { retries = 0, resetTimeout } = retryConfig;
 
   // The actual request logic as a function (one poll attempt, with retries)
-  const doRequestOnce = async (isStaleRevalidation = false, attempt = 0) => {
+  const doRequestOnce = async (isStaleRevalidation: boolean, attempt = 0) => {
     // If cache key is specified, we will handle optimistic updates
     // and mark the request as in-flight, so to catch "fetching" state.
     // This is useful for Optimistic UI updates (e.g., showing loading spinners).
@@ -322,7 +322,7 @@ export async function fetchf<
   // of a background SWR revalidation doesn't incorrectly mark the request as in-flight
   const baseRequest =
     retries > 0
-      ? (isStaleRevalidation = false) =>
+      ? (isStaleRevalidation: boolean) =>
           withRetry(
             (_, attempt) => doRequestOnce(isStaleRevalidation, attempt),
             retryConfig,
