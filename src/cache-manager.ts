@@ -7,12 +7,17 @@ import type {
   MutationSettings,
   RequestConfig,
 } from './types/request-handler';
-import type { CacheEntry } from './types/cache-manager';
+import type {
+  CacheEntry,
+  CacheStore,
+  StoredResponse,
+} from './types/cache-manager';
 import { GET, STRING } from './constants';
 import {
   isJSONSerializable,
   isObject,
   isSearchParams,
+  noop,
   sanitizeObject,
   sortObject,
   timeNow,
@@ -28,6 +33,8 @@ import { processHeaders } from './utils';
 export const IMMEDIATE_DISCARD_CACHE_TIME = 0; // Use it for cache entries that need to be persistent until unused by components or manually deleted
 
 const _cache = new Map<string, CacheEntry<any>>();
+// The cache stores that keep copies of cache entries, by cache key
+const stores = new Map<string, CacheStore>();
 const DELIMITER = '|';
 const MIN_LENGTH_TO_HASH = 64;
 const CACHE_KEY_SANITIZE_PATTERN = /[^\w\-_|/:@.?=&~%#]/g;
@@ -361,6 +368,13 @@ export function deleteCache(key: string, removeExpired: boolean = false): void {
   }
 
   _cache.delete(key);
+
+  const store = stores.get(key);
+
+  if (store) {
+    stores.delete(key);
+    callStore(() => store.delete(key));
+  }
 }
 
 /**
@@ -368,6 +382,111 @@ export function deleteCache(key: string, removeExpired: boolean = false): void {
  */
 export function pruneCache(): void {
   _cache.clear();
+  stores.clear();
+}
+
+/**
+ * Calls a cache store method. Store errors, e.g. of a full localStorage, are ignored so that they can't break requests.
+ *
+ * @param {() => unknown} fn - The function calling the store.
+ */
+function callStore(fn: () => unknown): void {
+  try {
+    Promise.resolve(fn()).catch(noop);
+  } catch {
+    // Ignored
+  }
+}
+
+/**
+ * Saves a copy of a cached response in a cache store, so that it can be restored later, e.g. after a page reload.
+ *
+ * @param {string} key Cache key to utilize
+ * @param {CacheStore} [store] - The cache store. If not provided, nothing is saved.
+ */
+function persistCache(key: string, store?: CacheStore): void {
+  const entry = _cache.get(key);
+
+  if (store && entry) {
+    const { data, status, statusText, headers } = entry.data as FetchResponse;
+
+    stores.set(key, store);
+    callStore(() =>
+      store.set(key, { ...entry, data: { data, status, statusText, headers } }),
+    );
+  }
+}
+
+/**
+ * Reads the entry of a cache key from the cache store of a request, e.g. one saved during a previous page load.
+ * Expired entries are deleted from the store.
+ *
+ * @param {string} key Cache key to utilize
+ * @param {RequestConfig} requestConfig - The request configuration.
+ * @returns {Promise<CacheEntry<StoredResponse> | null>} - The stored entry, or null if there is no valid one or the in-memory cache has an entry already.
+ */
+export async function getStoredCache(
+  key: string,
+  requestConfig: RequestConfig,
+): Promise<CacheEntry<StoredResponse> | null> {
+  const store = requestConfig.cacheStore;
+
+  if (!store || isCacheBypassed(requestConfig)) {
+    return null;
+  }
+
+  let entry: CacheEntry<StoredResponse> | null | undefined;
+
+  try {
+    entry = await store.get(key);
+  } catch {
+    // A failing store is treated like an empty one
+    return null;
+  }
+
+  // Another request may have cached a response in the meantime
+  if (!entry || _cache.has(key)) {
+    return null;
+  }
+
+  if (isCacheExpired(entry)) {
+    callStore(() => store.delete(key));
+
+    return null;
+  }
+
+  return entry;
+}
+
+/**
+ * Caches a response restored from a cache store in memory, keeping its original stale and expiry times.
+ *
+ * @param {string} key Cache key to utilize
+ * @param {CacheEntry<FetchResponse>} entry - The cache entry with the restored response.
+ * @param {CacheStore} store - The cache store that the response was restored from.
+ * @returns {boolean} - True if the restored response is fresh, false if it's stale.
+ */
+export function restoreCache(
+  key: string,
+  entry: CacheEntry<FetchResponse>,
+  store: CacheStore,
+): boolean {
+  _cache.set(key, entry);
+  stores.set(key, store);
+
+  if (entry.expiry) {
+    addTimeout(
+      'c:' + key,
+      () => {
+        deleteCache(key, true);
+      },
+      entry.expiry - timeNow(),
+    );
+  }
+
+  notifySubscribers(key, entry.data);
+
+  return !entry.stale || timeNow() < entry.stale;
 }
 
 /**
@@ -418,6 +537,7 @@ export async function mutate<
   };
 
   _cache.set(key, updatedEntry);
+  persistCache(key, stores.get(key));
   notifySubscribers(key, updatedResponse);
 
   if (settings && settings.refetch) {
@@ -425,6 +545,20 @@ export async function mutate<
   }
 
   return null;
+}
+
+/**
+ * Checks whether a request should bypass the cache, because of its cache buster or `cache: 'reload'`.
+ *
+ * @param {RequestConfig} requestConfig - The request configuration.
+ * @returns {boolean} - True if the cache should be bypassed.
+ */
+function isCacheBypassed(requestConfig: RequestConfig): boolean {
+  const buster = requestConfig.cacheBuster || defaultConfig.cacheBuster;
+
+  return (
+    !!(buster && buster(requestConfig)) || requestConfig.cache === 'reload'
+  );
 }
 
 /**
@@ -459,14 +593,8 @@ export function getCachedResponse<
     return null;
   }
 
-  // Check if cache should be bypassed
-  const buster = requestConfig.cacheBuster || defaultConfig.cacheBuster;
-  if (buster && buster(requestConfig)) {
+  if (isCacheBypassed(requestConfig)) {
     return null;
-  }
-
-  if (requestConfig.cache && requestConfig.cache === 'reload') {
-    return null; // Skip cache lookup entirely
   }
 
   // Retrieve the cached entry
@@ -529,6 +657,11 @@ export function handleResponseCache<
       !(skipCache && skipCache(output, requestConfig))
     ) {
       setCache(cacheKey, output, cacheTime, requestConfig.staleTime);
+
+      // Error responses are only cached in memory
+      if (!isError) {
+        persistCache(cacheKey, requestConfig.cacheStore);
+      }
     } else {
       const entry = getCache(cacheKey);
 
