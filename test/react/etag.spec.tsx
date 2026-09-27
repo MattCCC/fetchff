@@ -43,13 +43,16 @@ describe('useFetcher() with ETags', () => {
     return { hook, getRenders: () => renders };
   };
 
+  // The user comes back to the page a minute later
   const focusWindow = () =>
     act(async () => {
+      jest.spyOn(Date, 'now').mockReturnValue(Date.now() + 60000);
       window.dispatchEvent(new Event('focus'));
       await new Promise((resolve) => setTimeout(resolve, 10));
     });
 
   afterEach(() => {
+    jest.restoreAllMocks();
     removeRevalidators('focus');
     pruneCache();
     clearAllTimeouts();
