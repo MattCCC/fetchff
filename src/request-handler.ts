@@ -20,8 +20,10 @@ import {
 import { parseResponseData, prepareResponse } from './response-parser';
 import {
   generateCacheKey,
+  getCacheData,
   getCachedResponse,
   getStoredCache,
+  isCacheBypassed,
   restoreCache,
   setCache,
 } from './cache-manager';
@@ -124,6 +126,14 @@ export async function fetchf<
     _cacheKey = generateCacheKey(fetcherConfig);
   }
 
+  // The initial data, which is used as the first response instead of sending the request
+  let initialResponse: FetchResponse<
+    ResponseData,
+    RequestBody,
+    QueryParams,
+    PathParams
+  > | null = null;
+
   // Cache handling logic
   if (_cacheKey && isCacheEnabled) {
     const cached = getCachedResponse<
@@ -160,6 +170,24 @@ export async function fetchf<
         return restored;
       }
     }
+
+    // While there's no cached response, the initial data, e.g. data rendered on the server, is cached as the response
+    if (
+      fetcherConfig.initialData !== undefined &&
+      !getCacheData(_cacheKey) &&
+      !isCacheBypassed(fetcherConfig)
+    ) {
+      initialResponse = toResponse(
+        {
+          data: fetcherConfig.initialData,
+          status: 200,
+          statusText: '',
+          headers: {},
+        },
+        _cacheKey,
+        fetcherConfig,
+      );
+    }
   }
 
   // Deduplication logic
@@ -182,6 +210,15 @@ export async function fetchf<
     // and mark the request as in-flight, so to catch "fetching" state.
     // This is useful for Optimistic UI updates (e.g., showing loading spinners).
     if (!attempt) {
+      // The initial data is only used once, as the first response
+      if (initialResponse) {
+        const response = initialResponse;
+
+        initialResponse = null;
+
+        return response;
+      }
+
       if (_cacheKey && !isStaleRevalidation) {
         if (staleTime) {
           const existingCache = getCachedResponse(

@@ -132,11 +132,29 @@ export function useFetcher<
   const currentValuesRef = useRef(DEFAULT_REF);
   currentValuesRef.current = [url, config, cacheKey];
 
+  // The initial data is shown while there's no cached response, e.g. during server-side rendering
+  const initialResult = useMemo(
+    () =>
+      config.initialData === undefined
+        ? null
+        : Object.freeze({ ...DEFAULT_RESULT, data: config.initialData }),
+    [cacheKey],
+  );
+
   // Attempt to get the cached response immediately and if not available, return null
   const getSnapshot = useCallback(() => {
     const cached = getCache<ResponseData, RequestBody, QueryParams, PathParams>(
       cacheKey,
     );
+
+    if (!cached && initialResult) {
+      return initialResult as unknown as FetchResponse<
+        ResponseData,
+        RequestBody,
+        QueryParams,
+        PathParams
+      >;
+    }
 
     // Only throw for Suspense if we're in 'reject' mode and have no data
     if (

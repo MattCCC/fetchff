@@ -565,6 +565,15 @@ export interface ExtendedRequestConfig<
   keepPreviousData?: boolean;
 
   /**
+   * Data to use as the response while there's no cached one, e.g. data rendered on the server.
+   * A request that uses the cache (with `cacheTime` or `staleTime`) caches it as its response instead of being sent,
+   * so it's fresh for `staleTime` and then revalidated like other cached responses. It isn't transformed by `select`.
+   * `useFetcher()` shows it right away, also during server-side rendering.
+   * @default undefined
+   */
+  initialData?: ResponseData;
+
+  /**
    * An object representing dynamic URL path parameters.
    * For example, `{ userId: 1 }` would replace `:userId` in the URL with `1`.
    */
@@ -860,7 +869,6 @@ export interface ExtendedRequestConfig<
   fallbackData?: any;
 
   // refetchIntervalInBackground?: boolean;
-  // initialData?: unknown;
   // isPaused?: boolean;
   // onLoading?: (data: any) => void;
   // broadcastChannel?: string;

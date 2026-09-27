@@ -14,8 +14,14 @@ const { renderToString } = jest.requireActual<{
   renderToString: (element: ReactElement) => string;
 }>('react-dom/server');
 
-function Component({ url }: { url: string }) {
-  const { data, isLoading } = useFetcher(url);
+function Component({
+  url,
+  initialData,
+}: {
+  url: string;
+  initialData?: unknown;
+}) {
+  const { data, isLoading } = useFetcher(url, { initialData });
 
   return createElement(
     'div',
@@ -28,6 +34,20 @@ describe('Server-side rendering', () => {
   afterEach(() => {
     pruneCache();
     clearAllTimeouts();
+  });
+
+  it('should render the initial data', () => {
+    global.fetch = jest.fn();
+
+    expect(
+      renderToString(
+        createElement(Component, {
+          url: '/api/ssr-initial',
+          initialData: { name: 'Ada' },
+        }),
+      ),
+    ).toBe('<div>{&quot;name&quot;:&quot;Ada&quot;}</div>');
+    expect(global.fetch).not.toHaveBeenCalled();
   });
 
   it('should render without window or document and without fetching', () => {

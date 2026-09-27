@@ -553,7 +553,7 @@ export async function mutate<
  * @param {RequestConfig} requestConfig - The request configuration.
  * @returns {boolean} - True if the cache should be bypassed.
  */
-function isCacheBypassed(requestConfig: RequestConfig): boolean {
+export function isCacheBypassed(requestConfig: RequestConfig): boolean {
   const buster = requestConfig.cacheBuster || defaultConfig.cacheBuster;
 
   return (
