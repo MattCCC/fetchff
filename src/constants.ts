@@ -16,3 +16,6 @@ export const GET = 'GET';
 export const HEAD = 'HEAD';
 
 export const REJECT = 'reject';
+
+// Larger timer delays overflow and fire immediately in browsers and Node.js (~24.8 days)
+export const MAX_DELAY_MS = 2147483647;

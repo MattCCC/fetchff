@@ -1,6 +1,6 @@
 import { FUNCTION } from './constants';
 import type { InterceptorFunction } from './types/interceptor-manager';
-import { isObject } from './utils';
+import { isObject, sanitizeObject } from './utils';
 
 /**
  * Applies interceptors to the object. Interceptors can be a single function or an array of functions.
@@ -26,7 +26,10 @@ export async function applyInterceptors<
   }
 
   const merge = (v: unknown) =>
-    v && isObject(data) && isObject(v) && Object.assign(data, v);
+    v &&
+    isObject(data) &&
+    isObject(v) &&
+    Object.assign(data, sanitizeObject(v));
 
   if (typeof interceptors === FUNCTION) {
     merge(await (interceptors as InterceptorFunction<T, Args>)(data, ...args));

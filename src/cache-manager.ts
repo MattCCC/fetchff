@@ -8,8 +8,15 @@ import type {
   RequestConfig,
 } from './types/request-handler';
 import type { CacheEntry } from './types/cache-manager';
-import { GET, STRING, UNDEFINED } from './constants';
-import { isObject, sanitizeObject, sortObject, timeNow } from './utils';
+import { GET, STRING } from './constants';
+import {
+  isJSONSerializable,
+  isObject,
+  isSearchParams,
+  sanitizeObject,
+  sortObject,
+  timeNow,
+} from './utils';
 import { revalidate } from './revalidator-manager';
 import { notifySubscribers } from './pubsub-manager';
 import type { DefaultPayload, DefaultParams, DefaultUrlParams } from './types';
@@ -160,24 +167,27 @@ export function generateCacheKey(
 
   let bodyString = '';
   if (body) {
-    if (typeof body === STRING) {
-      bodyString = body.length < MIN_LENGTH_TO_HASH ? body : hash(body); // hash only if large
+    if (typeof body === STRING || isSearchParams(body)) {
+      const str = String(body);
+
+      bodyString = str.length < MIN_LENGTH_TO_HASH ? str : hash(str); // hash only if large
     } else if (body instanceof FormData) {
       body.forEach((value, key) => {
-        // Append key=value and '&' directly to the result
-        bodyString += key + '=' + value + '&';
+        // Files can't be read synchronously, so they are identified by their object
+        bodyString +=
+          key +
+          '=' +
+          (typeof value === STRING ? value : 'F' + getObjectId(value as File)) +
+          '&';
       });
 
       if (bodyString.length > MIN_LENGTH_TO_HASH) {
         bodyString = hash(bodyString);
       }
-    } else if (
-      (typeof Blob !== UNDEFINED && body instanceof Blob) ||
-      (typeof File !== UNDEFINED && body instanceof File)
-    ) {
-      bodyString = 'BF' + body.size + body.type;
-    } else if (body instanceof ArrayBuffer || ArrayBuffer.isView(body)) {
-      bodyString = 'AB' + body.byteLength;
+    } else if (isObject(body) && !isJSONSerializable(body)) {
+      // Blobs, buffers, streams etc. can't be read synchronously, so they are identified by their object.
+      // Two different bodies never share a key, while the same body object is still deduplicated.
+      bodyString = 'B' + getObjectId(body);
     } else {
       const o = isObject(body)
         ? JSON.stringify(sortObject(body))
@@ -201,6 +211,25 @@ export function generateCacheKey(
     bodyString;
 
   return sanitizeCacheKey(cacheStr);
+}
+
+const objectIds = new WeakMap<object, number>();
+let lastObjectId = 0;
+
+/**
+ * Returns a unique id for an object, e.g. a request body that can't be serialized.
+ *
+ * @param {object} obj - The object to identify.
+ * @returns {number} - The id of the object.
+ */
+function getObjectId(obj: object): number {
+  let id = objectIds.get(obj);
+
+  if (!id) {
+    objectIds.set(obj, (id = ++lastObjectId));
+  }
+
+  return id;
 }
 
 /**

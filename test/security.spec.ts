@@ -321,6 +321,185 @@ describe('Cache poisoning', () => {
   });
 });
 
+describe('Endpoint names', () => {
+  it.each([['constructor'], ['__proto__'], ['toString'], ['hasOwnProperty']])(
+    'should treat the inherited name %j as a plain URL, not an endpoint',
+    async (name) => {
+      const api = lib.createApiFetcher({
+        baseURL: 'https://api.test/',
+        endpoints: {},
+      });
+
+      await api.request(name);
+
+      expect(sentRequests[0].url).toBe('https://api.test/' + name);
+    },
+  );
+});
+
+describe('Request identity', () => {
+  const key = (body: unknown) =>
+    lib.generateCacheKey({ url: '/upload', method: 'POST', body } as any);
+  const formWithFile = (content: string) => {
+    const form = new FormData();
+    form.append('file', new Blob([content]), 'file.txt');
+    return form;
+  };
+
+  it.each([
+    [
+      'URLSearchParams',
+      () => new URLSearchParams('a=1'),
+      () => new URLSearchParams('b=2'),
+    ],
+    ['FormData files', () => formWithFile('AAAA'), () => formWithFile('BBBB')],
+    [
+      'Blobs of the same size',
+      () => new Blob(['AAAA']),
+      () => new Blob(['BBBB']),
+    ],
+    [
+      'typed arrays of the same length',
+      () => new Uint8Array([1, 2]),
+      () => new Uint8Array([3, 4]),
+    ],
+    [
+      'ArrayBuffers of the same length',
+      () => new ArrayBuffer(8),
+      () => new ArrayBuffer(8),
+    ],
+    ['streams', () => new ReadableStream(), () => new ReadableStream()],
+    [
+      'objects differing in a __proto__ key',
+      () => JSON.parse('{"__proto__": {"admin": true}, "q": "x"}'),
+      () => ({ q: 'x' }),
+    ],
+  ])('should give different %s different cache keys', (_, first, second) => {
+    expect(key(first())).not.toBe(key(second()));
+  });
+
+  it('should give the same body object the same cache key', () => {
+    const body = formWithFile('AAAA');
+
+    expect(key(body)).toBe(key(body));
+  });
+
+  it('should not deduplicate two different uploads into one request', async () => {
+    const config = { method: 'POST', dedupeTime: 2000 } as const;
+
+    await Promise.all([
+      lib.fetchf('https://api.test/upload', {
+        ...config,
+        body: formWithFile('AAAA'),
+      }),
+      lib.fetchf('https://api.test/upload', {
+        ...config,
+        body: formWithFile('BBBB'),
+      }),
+    ]);
+
+    expect(sentRequests).toHaveLength(2);
+  });
+});
+
+describe('Timer limits', () => {
+  it.each([[Infinity], [2 ** 31]])(
+    'should not abort a request right away with timeout: %p',
+    async (timeout) => {
+      global.fetch = jest.fn(
+        (_url: string, init: RequestInit) =>
+          new Promise((resolve, reject) => {
+            init.signal?.addEventListener('abort', () =>
+              reject(init.signal?.reason),
+            );
+            setTimeout(() => resolve(new Response('{}')), 50);
+          }),
+      ) as any;
+
+      const { error } = await lib.fetchf('https://api.test/a', {
+        timeout,
+        strategy: 'softFail',
+      });
+
+      expect(error).toBeNull();
+    },
+  );
+
+  it('should not poll right away with a huge pollingInterval', async () => {
+    // Fake timers fire delays that don't fit in 32 bits right away, like browsers and Node.js
+    jest.useFakeTimers();
+
+    lib.fetchf('https://api.test/a', {
+      pollingInterval: 2 ** 31,
+      maxPollingAttempts: 2,
+    });
+
+    await jest.advanceTimersByTimeAsync(1000);
+
+    expect(sentRequests).toHaveLength(1);
+  });
+});
+
+describe('Hostile objects', () => {
+  const hostile = () => JSON.parse('{"__proto__": {"polluted": "yes"}}');
+
+  it('should not let interceptor results set the prototype of the config or response', async () => {
+    const { config } = await lib.fetchf<any>('https://api.test/a', {
+      onRequest: () => hostile(),
+      onResponse: (response: any) => {
+        Object.assign(response, { seen: true });
+        return hostile();
+      },
+    });
+
+    expect((config as any).polluted).toBeUndefined();
+  });
+
+  it('should skip __proto__ when normalizing headers', () => {
+    const { processHeaders } = jest.requireActual('../src/utils');
+
+    expect(processHeaders(hostile()).polluted).toBeUndefined();
+  });
+
+  it('should ignore __proto__ in nested retry settings', () => {
+    const config = lib.buildConfig('https://api.test/a', { retry: hostile() });
+
+    expect((config.retry as any).polluted).toBeUndefined();
+  });
+});
+
+describe('Header injection', () => {
+  it('should not send a request with CR/LF in header values', async () => {
+    const { error } = await lib.fetchf('https://api.test/a', {
+      headers: { 'X-A': 'a\r\nInjected: 1' },
+      strategy: 'softFail',
+    });
+
+    expect(error).toBeTruthy();
+    expect(sentRequests).toHaveLength(0);
+  });
+});
+
+describe('Credentials on external URLs', () => {
+  it('should not apply global withCredentials to external URLs', async () => {
+    let credentials: RequestCredentials | undefined;
+    global.fetch = jest.fn(async (_url: string, init: RequestInit) => {
+      credentials = init.credentials;
+      return new Response('{}');
+    }) as any;
+
+    await lib
+      .createApiFetcher({
+        baseURL: 'https://api.test',
+        withCredentials: true,
+        endpoints: {},
+      })
+      .request('https://evil.test/steal');
+
+    expect(credentials).not.toBe('include');
+  });
+});
+
 describe('Resource exhaustion guards', () => {
   it('should stop serializing deeply nested params', () => {
     let nested: any = 'bottom';
