@@ -236,14 +236,13 @@ export const prepareResponse = <
 
   // If it's a custom fetcher, and it does not return any Response instance, it may have its own internal handler
   if (isObject(response)) {
-    Object.assign(response, {
-      error,
-      headers,
-      isFetching: false,
-      mutate: mutatator,
-      isSuccess: response.ok && !error,
-      isError: !!error,
-    });
+    // Assigned one by one, as Object.assign() with an object literal is measurably slower here
+    response.error = error;
+    response.headers = headers;
+    response.isFetching = false;
+    response.mutate = mutatator;
+    response.isSuccess = response.ok && !error;
+    response.isError = !!error;
   }
 
   return response;
