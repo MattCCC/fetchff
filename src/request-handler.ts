@@ -344,6 +344,8 @@ export async function fetchf<
         fetcherConfig.shouldStopPolling,
         fetcherConfig.maxPollingAttempts,
         fetcherConfig.pollingDelay,
+        fetcherConfig.refreshWhenHidden,
+        fetcherConfig.refreshWhenOffline,
       )
     : requestWithErrorHandling();
 
