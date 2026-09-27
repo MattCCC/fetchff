@@ -106,7 +106,13 @@ export interface ExtendedResponse<
   RequestBody = DefaultPayload,
   QueryParams = DefaultParams,
   PathParams = DefaultUrlParams,
-> extends Omit<Response, 'headers'> {
+> extends Omit<Response, 'headers' | 'clone'> {
+  /**
+   * Returns a copy of this response. The body was already read into `data`,
+   * so it can't be cloned like a native Response.
+   */
+  clone(): ExtendedResponse<ResponseData, RequestBody, QueryParams, PathParams>;
+
   /**
    * Return response data as parsed JSON (default) or the raw response body.
    */
