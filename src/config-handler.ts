@@ -318,7 +318,7 @@ export function mergeConfig<K extends keyof RequestConfig>(
         : { ...(base as HeadersObject) };
       const overrides: HeadersObject = isInstance
         ? processHeaders(override)
-        : (override as HeadersObject);
+        : sanitizeObject(override as HeadersObject);
 
       // Header names are case-insensitive, so replace existing entries instead of duplicating them
       for (const key of Object.keys(overrides)) {

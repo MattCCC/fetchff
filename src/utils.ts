@@ -65,13 +65,16 @@ export function sanitizeObject<T extends Record<string, any>>(obj: T): T {
     return obj;
   }
 
-  const safeObj = { ...obj };
+  // Copy key by key, as a spread compiled to assignments would let "__proto__" set the prototype
+  const safeObj = {} as Record<string, any>;
 
-  if (hasProto) delete safeObj.__proto__;
-  if (hasCtor) delete (safeObj as any).constructor;
-  if (hasPrototype) delete safeObj.prototype;
+  for (const key of Object.keys(obj)) {
+    if (key !== '__proto__' && key !== 'constructor' && key !== 'prototype') {
+      safeObj[key] = obj[key];
+    }
+  }
 
-  return safeObj;
+  return safeObj as T;
 }
 
 /**
