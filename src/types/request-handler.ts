@@ -777,6 +777,21 @@ export interface ExtendedRequestConfig<
   parser?: (response: Response) => Promise<any>;
 
   /**
+   * How the response body is read into `data`, regardless of its `Content-Type` header:
+   * - `'json'`, `'text'`, `'blob'`, `'arrayBuffer'` or `'formData'` read it with the matching method of the response,
+   *   e.g. `'blob'` to download files, or `'text'` to get JSON as a string.
+   * - `'stream'` leaves it unread, so `data` is the body stream, e.g. to process large responses while they arrive.
+   * A custom `parser` takes precedence over it.
+   *
+   * @example:
+   * const { data: image } = await fetchf('/avatar.png', { responseType: 'blob' });
+   *
+   * @default undefined (parsed according to the Content-Type header)
+   */
+  responseType?:
+    'json' | 'text' | 'blob' | 'arrayBuffer' | 'formData' | 'stream';
+
+  /**
    * A custom fetcher instance to handle requests instead of the default implementation.
    * When `null`, the default fetch behavior is used.
    *

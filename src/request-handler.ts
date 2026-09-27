@@ -279,7 +279,7 @@ export async function fetchf<
         if (typeof Response === FUNCTION && response instanceof Response) {
           response.data = requestConfig.parser
             ? await requestConfig.parser(response)
-            : await parseResponseData(response);
+            : await parseResponseData(response, requestConfig.responseType);
         } else if (fn) {
           // Case 2: Custom fetcher that returns a response object
           if (!('data' in response && 'body' in response)) {

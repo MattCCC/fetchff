@@ -5,7 +5,6 @@ import {
   APPLICATION_JSON,
   CONTENT_TYPE,
   FUNCTION,
-  OBJECT,
   STRING,
 } from './constants';
 import {
@@ -20,9 +19,10 @@ import {
 import { flattenData, isObject, processHeaders } from './utils';
 
 /**
- * Parses the response data based on the Content-Type header.
+ * Parses the response data based on the Content-Type header, or reads it as the given response type.
  *
  * @param response - The Response object to parse.
+ * @param responseType - How to read the body regardless of its Content-Type, e.g. as a Blob, or `'stream'` to leave it unread.
  * @returns A Promise that resolves to the parsed data.
  */
 export async function parseResponseData<
@@ -32,6 +32,7 @@ export async function parseResponseData<
   PathParams = DefaultUrlParams,
 >(
   response: FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>,
+  responseType?: RequestConfig['responseType'],
 ): Promise<any> {
   // Bail early if response is null or undefined
   if (!response) {
@@ -54,7 +55,16 @@ export async function parseResponseData<
   let data;
 
   try {
-    if (mimeType.includes(APPLICATION_JSON) || mimeType.includes('+json')) {
+    if (responseType) {
+      // The body is read as requested, or left unread as a stream to be read by the caller
+      data =
+        responseType === 'stream'
+          ? response.body
+          : await response[responseType]();
+    } else if (
+      mimeType.includes(APPLICATION_JSON) ||
+      mimeType.includes('+json')
+    ) {
       data = await response.json(); // Parse JSON response
     } else if (
       (mimeType.includes('multipart/form-data') || // Parse as FormData
@@ -155,12 +165,16 @@ export const prepareResponse = <
 
   let data = response.data;
 
-  // Set the default response if the provided data is an empty object
+  // Set the default response if the provided data is an empty object or array
+  // Other objects, e.g. Blobs, buffers and streams, have no keys either, but aren't empty
   if (
     defaultResponse !== undefined &&
     (data === undefined ||
       data === null ||
-      (typeof data === OBJECT && Object.keys(data).length === 0))
+      (/^\[object (Object|Array)\]$/.test(
+        Object.prototype.toString.call(data),
+      ) &&
+        Object.keys(data).length === 0))
   ) {
     response.data = data = defaultResponse;
   }
