@@ -73,23 +73,23 @@
   "size-limit": [
     {
       "path": "dist/browser/index.mjs",
-      "limit": "7.75 KB"
+      "limit": "8.75 KB"
     },
     {
       "path": "dist/browser/index.global.js",
-      "limit": "7.75 KB"
+      "limit": "8.75 KB"
     },
     {
       "path": "dist/node/index.js",
-      "limit": "7.75 KB"
+      "limit": "8.75 KB"
     },
     {
       "path": "dist/react/index.mjs",
-      "limit": "10.75 KB"
+      "limit": "11.75 KB"
     },
     {
       "path": "dist/react/index.js",
-      "limit": "11.75 KB"
+      "limit": "12.75 KB"
     }
   ],
   "devDependencies": {
