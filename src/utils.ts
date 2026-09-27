@@ -213,7 +213,14 @@ export function replaceUrlPathParams(
 
       // Only replace if value is not undefined or null
       if (value !== undefined && value !== null) {
-        return encodeURIComponent(String(value));
+        const encoded = encodeURIComponent(String(value));
+
+        // These can't be encoded, and URL parsers would move the request to another path
+        if (encoded === '.' || encoded === '..') {
+          throw new Error('Path params "." and ".." not allowed.');
+        }
+
+        return encoded;
       }
     }
 

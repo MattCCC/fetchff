@@ -177,6 +177,38 @@ describe('URL injection', () => {
     expect(new URL(url as string).search).toBe('');
   });
 
+  it.each([['.'], ['..']])(
+    'should reject %j as a path param, as it would move the request to another path',
+    async (id) => {
+      expect(() =>
+        lib.buildConfig('https://api.test/orgs/:id/delete', {
+          urlPathParams: { id },
+        }),
+      ).toThrow('Path params "." and ".." not allowed.');
+
+      await expect(
+        lib.fetchf('https://api.test/orgs/:id/delete', {
+          urlPathParams: { id },
+          strategy: 'softFail',
+        }),
+      ).rejects.toThrow('Path params "." and ".." not allowed.');
+      expect(sentRequests).toHaveLength(0);
+    },
+  );
+
+  it.each([['...'], ['..foo'], ['../admin'], ['%2e%2e']])(
+    'should keep the harmless path param %j in its segment',
+    (id) => {
+      const { url } = lib.buildConfig('https://api.test/orgs/:id/delete', {
+        urlPathParams: { id },
+      });
+
+      expect(new URL(url as string).pathname).toBe(
+        '/orgs/' + encodeURIComponent(id) + '/delete',
+      );
+    },
+  );
+
   it('should not let query params inject extra params', () => {
     const { url } = lib.buildConfig('https://api.test/search', {
       params: { q: 'a&admin=true', 'x&role': 'admin' },
@@ -187,6 +219,44 @@ describe('URL injection', () => {
     expect(params.get('x&role')).toBe('admin');
     expect(params.has('admin')).toBe(false);
     expect(params.has('role')).toBe(false);
+  });
+});
+
+describe('Logging', () => {
+  it('should not log credential headers or the request body', async () => {
+    global.fetch = jest.fn(
+      async () => new Response('{}', { status: 500 }),
+    ) as any;
+    const warn = jest.fn();
+
+    const { error } = await lib.fetchf('https://api.test/login', {
+      method: 'POST',
+      body: { user: 'a', password: 'hunter2' },
+      headers: {
+        Authorization: 'Bearer secret',
+        Cookie: 'session=secret',
+        'X-Trace-Id': 'abc',
+      },
+      strategy: 'softFail',
+      logger: { warn },
+    });
+    const logged = warn.mock.calls[0][1];
+
+    expect(logged.message).toBe(
+      'POST to https://api.test/login failed! Status: 500',
+    );
+    expect(logged.status).toBe(500);
+    expect(logged.config.headers).toMatchObject({
+      authorization: '[REDACTED]',
+      cookie: '[REDACTED]',
+      'x-trace-id': 'abc',
+    });
+    expect(logged.config.body).toBeUndefined();
+    expect(logged.config.data).toBeUndefined();
+    expect(JSON.stringify(logged)).not.toMatch(/secret|hunter2/);
+
+    // The error returned to the caller is untouched
+    expect((error?.config.headers as any).Authorization).toBe('Bearer secret');
   });
 });
 
