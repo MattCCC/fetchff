@@ -431,7 +431,9 @@ export async function fetchf<
         PathParams
       >(response, requestConfig, error);
     } finally {
-      userSignal?.removeEventListener('abort', abort);
+      if (userSignal) {
+        userSignal.removeEventListener('abort', abort);
+      }
     }
 
     return output;
@@ -584,7 +586,7 @@ function withETag(
   config: RequestConfig,
   cached: FetchResponse | null | false,
 ): RequestConfig {
-  const etag = cached && !cached.error && cached.headers?.etag;
+  const etag = cached && !cached.error && cached.headers && cached.headers.etag;
   const headers = etag && processHeaders(config.headers as HeadersObject);
 
   return headers && !headers['if-none-match']
