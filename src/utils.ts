@@ -409,3 +409,17 @@ export const isSlowConnection = (): boolean => {
 
   return conn && ['slow-2g', '2g', '3g'].includes(conn.effectiveType);
 };
+
+/**
+ * Detects if the page is hidden, e.g. when its tab is in the background or the window is minimized
+ * @returns {boolean} True if the page is hidden, false otherwise or outside browsers
+ */
+export const isPageHidden = (): boolean =>
+  typeof document !== UNDEFINED && document.visibilityState === 'hidden';
+
+/**
+ * Detects if the browser is offline
+ * @returns {boolean} True if the browser is offline, false otherwise or if the connection state is unknown
+ */
+export const isOffline = (): boolean =>
+  typeof navigator !== UNDEFINED && navigator.onLine === false;

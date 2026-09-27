@@ -1,5 +1,6 @@
 import type { FetchResponse } from '../src';
 import { withPolling } from '../src/polling-handler';
+import { fetchf } from '../src';
 
 async function flushPollingTimers(ms: number, times: number) {
   for (let i = 0; i < times; i++) {
@@ -121,5 +122,144 @@ describe('withPolling', () => {
     await expect(withPolling(doRequestOnce, 1, undefined, 2)).rejects.toThrow(
       'fail',
     );
+  });
+});
+
+describe('withPolling() while the page is hidden or offline', () => {
+  const request = async () => ({ ok: true }) as FetchResponse;
+  let restore = () => {};
+
+  // Replaces a global like `document` or `navigator`, which Node.js lacks or doesn't let tests change
+  function stubGlobal(name: 'document' | 'navigator', value: object) {
+    const descriptor = Object.getOwnPropertyDescriptor(globalThis, name);
+
+    Object.defineProperty(globalThis, name, { value, configurable: true });
+
+    restore = () => {
+      if (descriptor) {
+        Object.defineProperty(globalThis, name, descriptor);
+      } else {
+        delete (globalThis as Record<string, unknown>)[name];
+      }
+    };
+  }
+
+  beforeEach(() => {
+    jest.useFakeTimers();
+  });
+
+  afterEach(() => {
+    restore();
+    restore = () => {};
+    jest.useRealTimers();
+  });
+
+  it('should pause while the page is hidden and resume once it is visible', async () => {
+    const page = { visibilityState: 'hidden' };
+    stubGlobal('document', page);
+    const requestFn = jest.fn(request);
+
+    const promise = withPolling(requestFn, 100, undefined, 3);
+
+    // The first request is sent right away, the next ones wait for the page
+    await jest.advanceTimersByTimeAsync(1000);
+    expect(requestFn).toHaveBeenCalledTimes(1);
+
+    page.visibilityState = 'visible';
+    await jest.advanceTimersByTimeAsync(200);
+
+    await promise;
+    expect(requestFn).toHaveBeenCalledTimes(3);
+  });
+
+  it('should keep polling while the page is hidden if refreshWhenHidden is true', async () => {
+    stubGlobal('document', { visibilityState: 'hidden' });
+    const requestFn = jest.fn(request);
+
+    const promise = withPolling(requestFn, 100, undefined, 3, 0, true);
+    await jest.advanceTimersByTimeAsync(200);
+
+    await promise;
+    expect(requestFn).toHaveBeenCalledTimes(3);
+  });
+
+  it('should pause while offline and resume once back online', async () => {
+    const connection = { onLine: false };
+    stubGlobal('navigator', connection);
+    const requestFn = jest.fn(request);
+
+    const promise = withPolling(requestFn, 100, undefined, 3);
+
+    await jest.advanceTimersByTimeAsync(1000);
+    expect(requestFn).toHaveBeenCalledTimes(1);
+
+    connection.onLine = true;
+    await jest.advanceTimersByTimeAsync(200);
+
+    await promise;
+    expect(requestFn).toHaveBeenCalledTimes(3);
+  });
+
+  it('should keep polling while offline if refreshWhenOffline is true', async () => {
+    stubGlobal('navigator', { onLine: false });
+    const requestFn = jest.fn(request);
+
+    const promise = withPolling(requestFn, 100, undefined, 3, 0, false, true);
+    await jest.advanceTimersByTimeAsync(200);
+
+    await promise;
+    expect(requestFn).toHaveBeenCalledTimes(3);
+  });
+
+  it('should keep polling where the connection state is unknown', async () => {
+    // Like in Node.js, where navigator exists without onLine
+    stubGlobal('navigator', {});
+    const requestFn = jest.fn(request);
+
+    const promise = withPolling(requestFn, 100, undefined, 3);
+    await jest.advanceTimersByTimeAsync(200);
+
+    await promise;
+    expect(requestFn).toHaveBeenCalledTimes(3);
+  });
+
+  it('should pause fetchf() polling while the page is hidden', async () => {
+    const page = { visibilityState: 'hidden' };
+    stubGlobal('document', page);
+    const fetcher = jest.fn(async () => ({ data: 'ok' }));
+
+    const promise = fetchf('/status', {
+      pollingInterval: 100,
+      maxPollingAttempts: 2,
+      timeout: 0,
+      fetcher,
+    });
+
+    await jest.advanceTimersByTimeAsync(1000);
+    expect(fetcher).toHaveBeenCalledTimes(1);
+
+    page.visibilityState = 'visible';
+    await jest.advanceTimersByTimeAsync(100);
+
+    await promise;
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
+  it('should keep fetchf() polling while the page is hidden if refreshWhenHidden is true', async () => {
+    stubGlobal('document', { visibilityState: 'hidden' });
+    const fetcher = jest.fn(async () => ({ data: 'ok' }));
+
+    const promise = fetchf('/status', {
+      pollingInterval: 100,
+      maxPollingAttempts: 2,
+      timeout: 0,
+      refreshWhenHidden: true,
+      fetcher,
+    });
+
+    await jest.advanceTimersByTimeAsync(100);
+
+    await promise;
+    expect(fetcher).toHaveBeenCalledTimes(2);
   });
 });

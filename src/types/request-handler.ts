@@ -675,6 +675,22 @@ export interface ExtendedRequestConfig<
   >;
 
   /**
+   * If `true`, polling continues while the page is hidden, e.g. when its tab is in the background or the window is minimized.
+   * By default, polling pauses while the page is hidden and resumes once it is visible again.
+   * Outside browsers, the page is never considered hidden.
+   * @default false
+   */
+  refreshWhenHidden?: boolean;
+
+  /**
+   * If `true`, polling continues while the browser is offline.
+   * By default, polling pauses while `navigator.onLine` is `false` and resumes once the browser is back online.
+   * Where the connection state is unknown (e.g. in Node.js), the browser is never considered offline.
+   * @default false
+   */
+  refreshWhenOffline?: boolean;
+
+  /**
    * A custom response parser function to handle response data parsing.
    * When provided, this function is used instead of the default content-type based parsing.
    * Useful for handling custom response formats like XML, CSV, or proprietary data formats.
@@ -830,10 +846,6 @@ export interface ExtendedRequestConfig<
    * This property is provided for compatibility with React Query and SWR.
    */
   queryKey?: string | null;
-
-  // pollingWhenHidden?: boolean;
-  // loadingTimeout?: number;
-  // refreshWhenHidden?: boolean;
 }
 
 export interface FetcherLogger extends Partial<Console> {

@@ -1,9 +1,10 @@
 import type { RequestConfig, FetchResponse } from './types';
-import { delayInvocation } from './utils';
+import { delayInvocation, isOffline, isPageHidden } from './utils';
 
 /**
  * Executes a request function with polling, stopping when shouldStopPolling returns true,
  * pollingInterval is not set, or maxAttempts is reached.
+ * Polling pauses while the page is hidden or the browser is offline, unless allowed by refreshWhenHidden or refreshWhenOffline.
  *
  * @template Output The type of the output returned by the request function.
  * @param requestFn - The function that performs a single request (with retries).
@@ -11,6 +12,8 @@ import { delayInvocation } from './utils';
  * @param shouldStopPolling - Function to determine if polling should stop.
  * @param maxAttempts - Maximum number of polling attempts, default: 0 (unlimited).
  * @param pollingDelay - Delay in ms before each polling attempt, default: 0.
+ * @param refreshWhenHidden - Whether to keep polling while the page is hidden, default: false.
+ * @param refreshWhenOffline - Whether to keep polling while the browser is offline, default: false.
  * @returns The final output from the last request.
  */
 export async function withPolling<
@@ -29,6 +32,8 @@ export async function withPolling<
   shouldStopPolling?: RequestConfig['shouldStopPolling'],
   maxAttempts = 0,
   pollingDelay = 0,
+  refreshWhenHidden = false,
+  refreshWhenOffline = false,
 ): Promise<FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>> {
   if (!pollingInterval) {
     return requestFn();
@@ -54,7 +59,13 @@ export async function withPolling<
       break;
     }
 
-    await delayInvocation(pollingInterval);
+    // Wait for the next attempt, and keep waiting while polling is paused
+    do {
+      await delayInvocation(pollingInterval);
+    } while (
+      (!refreshWhenHidden && isPageHidden()) ||
+      (!refreshWhenOffline && isOffline())
+    );
   }
 
   return output!;
