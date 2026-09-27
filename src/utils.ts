@@ -187,9 +187,9 @@ export function appendQueryParams(url: string, params: QueryParams): string {
 
 /**
  * Replaces dynamic URI parameters in a URL string with values from the provided `urlPathParams` object.
- * Parameters in the URL are denoted by `:<paramName>`, where `<paramName>` is a key in `urlPathParams`.
+ * Parameters in the URL are denoted by `:<paramName>` or `{<paramName>}` (like in OpenAPI paths), where `<paramName>` is a key in `urlPathParams`.
  *
- * @param {string} url - The URL string containing placeholders in the format `:<paramName>`.
+ * @param {string} url - The URL string containing placeholders in the format `:<paramName>` or `{<paramName>}`.
  * @param {Object} urlPathParams - An object containing the parameter values to replace placeholders.
  * @param {string} urlPathParams.paramName - The value to replace the placeholder `:<paramName>` in the URL.
  * @returns {string} - The URL string with placeholders replaced by corresponding values from `urlPathParams`.
@@ -198,7 +198,7 @@ export function replaceUrlPathParams(
   url: string,
   urlPathParams: UrlPathParams,
 ): string {
-  if (!urlPathParams || url.indexOf(':') === -1) {
+  if (!urlPathParams || (url.indexOf(':') === -1 && url.indexOf('{') === -1)) {
     return url;
   }
 
@@ -207,7 +207,9 @@ export function replaceUrlPathParams(
   const params = urlPathParams as DefaultUrlParams;
 
   // Use a replacer function that avoids extra work
-  return url.replace(/:([a-zA-Z0-9_]+)/g, (match, key) => {
+  return url.replace(/:(\w+)|\{(\w+)\}/g, (match, colonKey, braceKey) => {
+    const key = colonKey || braceKey;
+
     // Use hasOwnProperty for strict key existence check
     if (hasOwn(params, key)) {
       const value = params[key];
