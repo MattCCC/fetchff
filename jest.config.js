@@ -4,6 +4,16 @@ module.exports = {
   testEnvironment: 'node',
   workerThreads: true,
   coverageReporters: ['lcov', 'text', 'html'],
+  // Measure every source file, including ones no test imports, and require full coverage
+  collectCoverageFrom: ['src/**/*.ts'],
+  coverageThreshold: {
+    global: {
+      branches: 100,
+      functions: 100,
+      lines: 100,
+      statements: 100,
+    },
+  },
   coveragePathIgnorePatterns: [
     '/node_modules/',
     '/test/utils/',
