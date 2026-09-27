@@ -31,6 +31,7 @@ const defaultTimeoutMs = (isSlowConnection() ? 60 : 30) * 1000;
 export const defaultConfig: RequestConfig = {
   strategy: REJECT,
   timeout: defaultTimeoutMs, // 30 seconds (60 on slow connections)
+  loadingTimeout: defaultTimeoutMs / 10, // 3 seconds (6 on slow connections)
   headers: {
     Accept: APPLICATION_JSON + ', text/plain, */*',
     'Accept-Encoding': 'gzip, deflate, br',
@@ -223,7 +224,7 @@ function setContentTypeIfNeeded(
 /**
  * Merges two request configurations, applying overrides from the second config to the first.
  * Handles special merging for nested properties like 'retry' and 'headers' (deep merge),
- * and concatenates interceptor arrays for 'onRequest', 'onResponse', and 'onError'.
+ * and concatenates interceptor arrays for 'onRequest', 'onResponse', 'onError' and 'onLoadingSlow'.
  * If a target config is provided, it mutates that object; otherwise, creates a new one.
  *
  * @param {RequestConfig} baseConfig - The base configuration object to merge from.
@@ -252,6 +253,7 @@ export function mergeConfigs(
   mergeInterceptors('onRequest', baseConfig, overrideConfig, targetConfig);
   mergeInterceptors('onResponse', baseConfig, overrideConfig, targetConfig);
   mergeInterceptors('onError', baseConfig, overrideConfig, targetConfig);
+  mergeInterceptors('onLoadingSlow', baseConfig, overrideConfig, targetConfig);
 
   return targetConfig;
 }
@@ -260,7 +262,8 @@ export function mergeConfigs(
  * Efficiently merges interceptor functions from base and new configs
  */
 function mergeInterceptors<
-  K extends 'onRequest' | 'onResponse' | 'onError' | 'onRetry',
+  K extends
+    'onRequest' | 'onResponse' | 'onError' | 'onRetry' | 'onLoadingSlow',
 >(
   property: K,
   baseConfig: RequestConfig,
