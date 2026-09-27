@@ -3184,11 +3184,11 @@ _fetchff uniquely combines advanced input sanitization, prototype pollution prot
 | **Download Progress**                              | ✅          | --             | ✅           | --              | --          | ✅          | --             |
 | **Typed Endpoints from OpenAPI Schemas**           | ✅          | --             | --           | --              | --          | --          | --             |
 | **No Third-party Dependencies**                    | ✅          | ✅             | --           | --              | --          | ✅          | ✅             |
-| **Bundle Size (minified + gzipped) ²**             | 🟢 (9.1 KB) | 🔴 (13.6 KB)   | 🔴 (19.5 KB) | 🟢 (6.5 KB)     | 🟢 (4.1 KB) | 🟢 (1.8 KB) | 🟢 (0 KB)      |
+| **Bundle Size (minified + gzipped) ²**             | 🟢 (8.9 KB) | 🔴 (13.6 KB)   | 🔴 (19.5 KB) | 🟢 (6.5 KB)     | 🟢 (4.1 KB) | 🟢 (1.8 KB) | 🟢 (0 KB)      |
 
 ¹ Only where request bodies can be streamed: in Chromium over HTTPS and in Node.js.
 
-² The whole library bundled with esbuild, minified and gzipped, without React: 🟢 under 10 KB, 🟡 10–13 KB, 🔴 over 13 KB. Measured with fetchff 4.3.0, @tanstack/react-query 5.104.0, axios 1.20.0, swr 2.5.1, ofetch 1.5.1 and wretch 3.0.9. fetchff with its React hook is 9.9 KB. swr and TanStack Query also need an HTTP client, e.g. native `fetch()`.
+² The whole library bundled with esbuild, minified and gzipped, without React: 🟢 under 10 KB, 🟡 10–13 KB, 🔴 over 13 KB. Measured with fetchff 4.3.0, @tanstack/react-query 5.104.0, axios 1.20.0, swr 2.5.1, ofetch 1.5.1 and wretch 3.0.9. fetchff with its React hook is 9.7 KB. swr and TanStack Query also need an HTTP client, e.g. native `fetch()`.
 
 ## ✏️ Examples
 
