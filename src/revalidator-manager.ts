@@ -230,30 +230,19 @@ export function addRevalidator(
   refetchOnReconnect?: boolean,
   focusThrottleInterval?: number,
 ) {
-  const existing = revalidators.get(key);
+  // Existing entries are updated in place
+  const entry = revalidators.get(key) || ([] as unknown as RevalidatorEntry);
 
-  if (existing) {
-    // Update in-place to avoid allocating a new tuple array
-    existing[0] = revalidatorFn;
-    existing[1] = timeNow();
-    existing[2] = ttl ?? DEFAULT_TTL;
-    existing[3] = staleTime;
-    existing[4] = bgRevalidatorFn;
-    existing[5] = refetchOnFocus;
-    existing[6] = refetchOnReconnect;
-    existing[7] = focusThrottleInterval;
-  } else {
-    revalidators.set(key, [
-      revalidatorFn,
-      timeNow(),
-      ttl ?? DEFAULT_TTL,
-      staleTime,
-      bgRevalidatorFn,
-      refetchOnFocus,
-      refetchOnReconnect,
-      focusThrottleInterval,
-    ]);
-  }
+  entry[0] = revalidatorFn;
+  entry[1] = timeNow();
+  entry[2] = ttl ?? DEFAULT_TTL;
+  entry[3] = staleTime;
+  entry[4] = bgRevalidatorFn;
+  entry[5] = refetchOnFocus;
+  entry[6] = refetchOnReconnect;
+  entry[7] = focusThrottleInterval;
+
+  revalidators.set(key, entry);
 
   if (refetchOnFocus) {
     addEventHandler('focus');

@@ -40,7 +40,8 @@ export async function parseResponseData<
   }
 
   // Get the content-type header once
-  let contentType = (response as Response).headers?.get(CONTENT_TYPE);
+  const headers = (response as Response).headers;
+  let contentType = headers && headers.get(CONTENT_TYPE);
 
   if (contentType) {
     // Lowercase and trim for consistent matching
@@ -207,26 +208,18 @@ export const prepareResponse = <
       statusText: response.statusText,
 
       // Convert methods to use arrow functions to preserve correct return types
-      blob: () =>
-        Promise.resolve(
-          data instanceof ArrayBuffer ? new Blob([data]) : new Blob(),
-        ), // Lazily construct Blob from ArrayBuffer
-      json: () => Promise.resolve(data as ResponseData), // Return the already parsed JSON data
-      text: () => Promise.resolve(data as string), // Return the already parsed text data
+      // Lazily construct Blob from ArrayBuffer
+      blob: async () =>
+        data instanceof ArrayBuffer ? new Blob([data]) : new Blob(),
+      json: async () => data as ResponseData, // Return the already parsed JSON data
+      text: async () => data as string, // Return the already parsed text data
       // The body was already read, so a copy of this response is returned instead of Response.clone()
       clone: () => ({ ...output }),
-      arrayBuffer: () =>
-        Promise.resolve(
-          data instanceof ArrayBuffer ? data : new ArrayBuffer(0),
-        ), // Return the ArrayBuffer directly
-      formData: () =>
-        Promise.resolve(data instanceof FormData ? data : new FormData()), // Return the already parsed FormData
-      bytes: () =>
-        Promise.resolve(
-          new Uint8Array(
-            data instanceof ArrayBuffer ? data : new ArrayBuffer(0),
-          ),
-        ),
+      arrayBuffer: async () =>
+        data instanceof ArrayBuffer ? data : new ArrayBuffer(0), // Return the ArrayBuffer directly
+      formData: async () => (data instanceof FormData ? data : new FormData()), // Return the already parsed FormData
+      bytes: async () =>
+        new Uint8Array(data instanceof ArrayBuffer ? data : new ArrayBuffer(0)),
       // Enhance the response with extra information
       error,
       data,
@@ -243,12 +236,14 @@ export const prepareResponse = <
 
   // If it's a custom fetcher, and it does not return any Response instance, it may have its own internal handler
   if (isObject(response)) {
-    response.error = error;
-    response.headers = headers;
-    response.isFetching = false;
-    response.mutate = mutatator;
-    response.isSuccess = response.ok && !error;
-    response.isError = !!error;
+    Object.assign(response, {
+      error,
+      headers,
+      isFetching: false,
+      mutate: mutatator,
+      isSuccess: response.ok && !error,
+      isError: !!error,
+    });
   }
 
   return response;
