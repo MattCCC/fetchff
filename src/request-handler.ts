@@ -234,7 +234,7 @@ export async function fetchf<
       if (userSignal.aborted) {
         abort();
       } else {
-        userSignal?.addEventListener('abort', abort);
+        userSignal.addEventListener('abort', abort);
       }
     }
 
