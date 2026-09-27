@@ -4,8 +4,9 @@ module.exports = {
   testEnvironment: 'node',
   workerThreads: true,
   coverageReporters: ['lcov', 'text', 'html'],
-  // Measure every source file, including ones no test imports, and require full coverage
-  collectCoverageFrom: ['src/**/*.ts'],
+  // Measure every source file, including ones no test imports, and require full coverage.
+  // Type-only modules are skipped as they contain no runtime code.
+  collectCoverageFrom: ['src/**/*.ts', '!src/types/**'],
   coverageThreshold: {
     global: {
       branches: 100,
