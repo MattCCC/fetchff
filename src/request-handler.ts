@@ -176,6 +176,9 @@ export async function fetchf<
   const retryConfig = fetcherConfig.retry || {};
   const { retries = 0, resetTimeout } = retryConfig;
 
+  // The signal passed to the request. Each attempt replaces it in the config with a signal of its own.
+  const userSignal = fetcherConfig.signal;
+
   // The actual request logic as a function (one poll attempt, with retries)
   const doRequestOnce = async (isStaleRevalidation: boolean, attempt = 0) => {
     // If cache key is specified, we will handle optimistic updates
@@ -223,6 +226,17 @@ export async function fetchf<
     const requestConfig = fetcherConfig;
 
     requestConfig.signal = controller.signal;
+
+    // The request is aborted along with the signal passed to it, which may have been aborted already
+    const abort = () => controller.abort(userSignal!.reason);
+
+    if (userSignal) {
+      if (userSignal.aborted) {
+        abort();
+      } else {
+        userSignal.addEventListener('abort', abort);
+      }
+    }
 
     let output: FetchResponse<
       ResponseData,
@@ -347,6 +361,8 @@ export async function fetchf<
         QueryParams,
         PathParams
       >(response, requestConfig, error);
+    } finally {
+      userSignal?.removeEventListener('abort', abort);
     }
 
     return output;
@@ -405,6 +421,7 @@ export async function fetchf<
         fetcherConfig.pollingDelay,
         fetcherConfig.refreshWhenHidden,
         fetcherConfig.refreshWhenOffline,
+        userSignal,
       )
     : requestWithErrorHandling();
 

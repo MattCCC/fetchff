@@ -86,7 +86,7 @@ To address these challenges, the `fetchf()` provides several enhancements:
 - **Network Revalidation**: Automatically revalidate data on window focus and network reconnection for fresh data.
 - **Dynamic URLs Support**: Easily manage routes with dynamic parameters, such as `/user/:userId`.
 - **Error Handling**: Flexible error management at both global and individual request levels.
-- **Request Cancellation**: Utilizes `AbortController` to cancel previous requests automatically.
+- **Request Cancellation**: Utilizes `AbortController` to cancel previous requests automatically, or aborts requests with your own `signal`.
 - **Adaptive Timeouts**: Smart timeout adjustment based on connection speed for optimal user experience.
 - **Fetching Strategies**: Handle failed requests with various strategies - promise rejection, silent hang, soft fail, or default response.
 - **Requests Chaining**: Easily chain multiple requests using promises for complex API interactions.
@@ -582,7 +582,7 @@ You can also use all native [`fetch()` settings](https://developer.mozilla.org/e
 > - **🔄 Retry Mechanism** - `retries`, `delay`, `maxDelay`, `backoff`, `resetTimeout`, `retryOn`, `shouldRetry`
 > - **📶 Polling Configuration** - `pollingInterval`, `pollingDelay`, `maxPollingAttempts`, `shouldStopPolling`, `refreshWhenHidden`, `refreshWhenOffline`
 > - **🗄️ Cache Management** - `cacheKey`, `cacheBuster`, `skipCache`, `cacheErrors`
-> - **✋ Request Cancellation** - `cancellable`, `rejectCancelled`
+> - **✋ Request Cancellation** - `cancellable`, `rejectCancelled`, `signal`
 > - **🌀 Interceptors** - `onRequest`, `onResponse`, `onError`, `onRetry`, `onLoadingSlow`, `loadingTimeout`
 > - **🔍 Error Handling** - `strategy`
 
@@ -1586,6 +1586,24 @@ const sendRequest = () => {
 document.getElementById('message')?.addEventListener('keydown', sendRequest);
 ```
 
+### Aborting Requests With a Signal
+
+Like with native `fetch()`, you can pass the `signal` of your own `AbortController` to abort a request whenever you need, e.g. when a user leaves the page. Aborting it also stops its retries and polling.
+
+```javascript
+import { fetchf } from 'fetchff';
+
+const controller = new AbortController();
+
+fetchf('/api/reports', {
+  signal: controller.signal,
+  pollingInterval: 5000,
+});
+
+// Aborts the pending request and stops polling
+controller.abort();
+```
+
 ### Configuration
 
 - **`cancellable`**:
@@ -1596,7 +1614,12 @@ document.getElementById('message')?.addEventListener('keydown', sendRequest);
 - **`rejectCancelled`**:
   Type: `boolean`
   Default: `false`
-  Works in conjunction with the `cancellable` option. If set to `true`, the promise of a cancelled request will be rejected. By default (`false`), when a request is cancelled, instead of rejecting the promise, a `defaultResponse` will be returned, allowing graceful handling of cancellation without errors.
+  Works in conjunction with the `cancellable` and `signal` options. If set to `true`, the promise of a cancelled request will be rejected. By default (`false`), when a request is cancelled, instead of rejecting the promise, a `defaultResponse` will be returned, allowing graceful handling of cancellation without errors.
+
+- **`signal`**:
+  Type: `AbortSignal`
+  Default: `undefined`
+  Aborts the request when the signal is aborted. A request whose signal is aborted already is not sent at all. Aborted requests are not retried, and polling stops once the signal is aborted. Aborting with `controller.abort()` cancels the request like `cancellable` does, while a custom reason, e.g. the timeout of `AbortSignal.timeout()`, makes the request fail with it, like in native `fetch()`.
 
 </details>
 

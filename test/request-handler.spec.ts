@@ -242,8 +242,10 @@ describe('Request Handler', () => {
       // Ensure delay function was called for each polling attempt
       // 2 delays after the first request, as last one does not require a delay
       expect(mockDelayInvocation).toHaveBeenCalledTimes(2);
+      // The second argument is the signal of the request, which ends the waits early when aborted
       expect(mockDelayInvocation).toHaveBeenCalledWith(
         pollingConfig.pollingInterval,
+        undefined,
       );
     });
 

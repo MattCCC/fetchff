@@ -203,6 +203,7 @@ export async function withRetry<
  *
  * This function checks:
  * - If the maximum number of retries has been reached.
+ * - If the request was aborted, e.g. with its signal or by a newer request. Aborted requests are never retried.
  * - If a custom `shouldRetry` callback is provided, its result is used to decide.
  * - If no custom logic is provided, falls back to checking if the error status is included in the `retryOn` list.
  *
@@ -238,6 +239,11 @@ export async function getShouldStopRetrying<
   // We check retries provided regardless of the shouldRetry being provided so to avoid infinite loops.
   // It is a fail-safe so to prevent excessive retry attempts even if custom retry logic suggests a retry.
   if (attempt === maxRetries) {
+    return true;
+  }
+
+  // Aborted requests are never retried, as e.g. a retry of one cancelled by a newer request would cancel the newer one
+  if (output.error?.isCancelled) {
     return true;
   }
 

@@ -14,6 +14,7 @@ import { delayInvocation, isOffline, isPageHidden } from './utils';
  * @param pollingDelay - Delay in ms before each polling attempt, default: 0.
  * @param refreshWhenHidden - Whether to keep polling while the page is hidden, default: false.
  * @param refreshWhenOffline - Whether to keep polling while the browser is offline, default: false.
+ * @param signal - The signal passed to the request. Polling stops once it is aborted.
  * @returns The final output from the last request.
  */
 export async function withPolling<
@@ -34,6 +35,7 @@ export async function withPolling<
   pollingDelay = 0,
   refreshWhenHidden = false,
   refreshWhenOffline = false,
+  signal?: AbortSignal,
 ): Promise<FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>> {
   if (!pollingInterval) {
     return requestFn();
@@ -44,7 +46,7 @@ export async function withPolling<
 
   while (maxAttempts === 0 || pollingAttempt < maxAttempts) {
     if (pollingDelay > 0) {
-      await delayInvocation(pollingDelay);
+      await delayInvocation(pollingDelay, signal);
     }
 
     output = await requestFn();
@@ -61,7 +63,12 @@ export async function withPolling<
 
     // Wait for the next attempt, and keep waiting while polling is paused
     do {
-      await delayInvocation(pollingInterval);
+      await delayInvocation(pollingInterval, signal);
+
+      // Aborting the signal of the request stops polling
+      if (signal?.aborted) {
+        return output;
+      }
     } while (
       (!refreshWhenHidden && isPageHidden()) ||
       (!refreshWhenOffline && isOffline())

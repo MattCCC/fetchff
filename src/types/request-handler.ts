@@ -612,7 +612,8 @@ export interface ExtendedRequestConfig<
   withCredentials?: boolean;
 
   /**
-   * An `AbortSignal` object that can be used to cancel the request.
+   * An `AbortSignal` that aborts the request, like in native `fetch()`.
+   * Aborted requests are not retried, and polling stops once the signal is aborted.
    */
   signal?: AbortSignal;
 
