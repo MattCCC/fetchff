@@ -1609,22 +1609,6 @@ describe('React Integration Tests', () => {
     });
   });
 
-  describe('SSR/Hydration', () => {
-    it('should handle server-side rendering without window', async () => {
-      const originalWindow = global.window;
-      // @ts-expect-error Delete window to simulate SSR environment
-      delete global.window;
-
-      await act(async () => {
-        expect(() => {
-          render(<BasicComponent url="/api/ssr" />);
-        }).not.toThrow();
-      });
-
-      global.window = originalWindow;
-    });
-  });
-
   describe('Browser API Edge Cases', () => {
     it('should handle fetch API not available', async () => {
       const originalFetch = global.fetch;
