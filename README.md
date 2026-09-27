@@ -581,7 +581,7 @@ You can also use all native [`fetch()` settings](https://developer.mozilla.org/e
 > - **📶 Polling Configuration** - `pollingInterval`, `pollingDelay`, `maxPollingAttempts`, `shouldStopPolling`, `refreshWhenHidden`, `refreshWhenOffline`
 > - **🗄️ Cache Management** - `cacheKey`, `cacheBuster`, `skipCache`, `cacheErrors`
 > - **✋ Request Cancellation** - `cancellable`, `rejectCancelled`
-> - **🌀 Interceptors** - `onRequest`, `onResponse`, `onError`, `onRetry`
+> - **🌀 Interceptors** - `onRequest`, `onResponse`, `onError`, `onRetry`, `onLoadingSlow`, `loadingTimeout`
 > - **🔍 Error Handling** - `strategy`
 
 ### Performance Implications of Settings
@@ -902,7 +902,30 @@ The following options are available for configuring interceptors in the `fetchff
   A function or an array of functions that are invoked before each retry attempt. Each function receives the response object (containing error information) and the current attempt number as arguments, allowing you to implement custom retry logging, monitoring, or conditional retry logic.  
   _Default:_ `undefined` (no retry interception).
 
+- **`onLoadingSlow(config)`**:  
+  Type: `LoadingSlowInterceptor | LoadingSlowInterceptor[]`  
+  A function or an array of functions that are invoked once when a request, including its retries, is still pending after `loadingTimeout` milliseconds. Each function receives the request configuration, so you can let users know that the request takes longer than usual, e.g. by showing a message or offering to cancel it. They aren't invoked for background revalidations, and errors they throw are ignored so that they can't break the request.  
+  _Default:_ `undefined` (no slow request handling).
+
+- **`loadingTimeout`**:  
+  Type: `number`  
+  The time in milliseconds after which a pending request is considered slow and `onLoadingSlow` is invoked. Keep it lower than `timeout`, as requests that time out first are never considered slow. Set it to `0` to disable `onLoadingSlow`.  
+  _Default:_ `3000` (3 seconds, 6 seconds on slow connections).
+
 All interceptors are asynchronous and can modify the provided config or response objects. You don't have to return a value, but if you do, any returned properties will be merged into the original argument.
+
+### Slow Requests
+
+Use `onLoadingSlow` to react when a request takes longer than usual, before it times out:
+
+```typescript
+const { data } = await fetchf('https://api.example.com/reports', {
+  loadingTimeout: 2000, // Consider the request slow after 2 seconds
+  onLoadingSlow(config) {
+    showToast(`Loading ${config.url} takes longer than usual…`);
+  },
+});
+```
 
 ### Interceptor Execution Order
 
@@ -2894,6 +2917,7 @@ const api = createApiFetcher({
   defaultResponse: null, // Default response when there is no data or endpoint fails.
   withCredentials: true, // Pass cookies to all requests.
   timeout: 30000, // Request timeout in milliseconds. Defaults to 30s (60s on slow connections), can be overridden.
+  loadingTimeout: 3000, // Time in milliseconds after which a pending request is considered slow. Defaults to 3s (6s on slow connections).
   dedupeTime: 0, // Time window, in milliseconds, during which identical requests are deduplicated (treated as single request).
   immediate: false, // If false, disables automatic request on initialization (useful for POST or conditional requests, React-specific)
   staleTime: 600, // Data is considered fresh for 10 minutes before background revalidation (disabled by default)
@@ -2923,6 +2947,10 @@ const api = createApiFetcher({
   async onResponse(response) {
     // Interceptor on each response
     console.error('Fired on each response', response);
+  },
+  onLoadingSlow(config) {
+    // Interceptor called once when a request is still pending after loadingTimeout
+    console.warn('Request is taking longer than usual', config.url);
   },
   logger: {
     // Custom logger for logging errors.

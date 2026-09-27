@@ -10,7 +10,7 @@ import type {
 } from './types/api-handler';
 import { applyInterceptors } from './interceptor-manager';
 import { ResponseError } from './errors/response-error';
-import { isObject } from './utils';
+import { isObject, noop } from './utils';
 import {
   markInFlight,
   setInFlightPromise,
@@ -329,10 +329,34 @@ export async function fetchf<
           )
       : doRequestOnce;
 
+  const { onLoadingSlow, loadingTimeout } = fetcherConfig;
+
+  // Calls onLoadingSlow once a request, including its retries, is still pending after loadingTimeout.
+  // Background revalidations don't show a loading state, so they are never considered slow.
+  const request =
+    onLoadingSlow && loadingTimeout
+      ? async (isStaleRevalidation: boolean) => {
+          if (isStaleRevalidation) {
+            return baseRequest(isStaleRevalidation);
+          }
+
+          const timer = setTimeout(
+            () => applyInterceptors(onLoadingSlow, fetcherConfig).catch(noop),
+            loadingTimeout,
+          );
+
+          try {
+            return await baseRequest(isStaleRevalidation);
+          } finally {
+            clearTimeout(timer);
+          }
+        }
+      : baseRequest;
+
   const requestWithErrorHandling = (isStaleRevalidation = false) =>
     withErrorHandling<ResponseData, RequestBody, QueryParams, PathParams>(
       isStaleRevalidation,
-      baseRequest,
+      request,
       fetcherConfig,
     );
 

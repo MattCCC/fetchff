@@ -394,6 +394,7 @@ describe('Config handler', () => {
 
         expect(defaultConfig.timeout).toBe(60000);
         expect(defaultConfig.retry?.delay).toBe(2000);
+        expect(defaultConfig.loadingTimeout).toBe(6000);
       });
     } finally {
       if (descriptor) {

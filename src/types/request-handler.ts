@@ -9,6 +9,7 @@ import type {
 } from './api-handler';
 import type {
   ErrorInterceptor,
+  LoadingSlowInterceptor,
   RequestInterceptor,
   ResponseInterceptor,
   RetryInterceptor,
@@ -631,10 +632,37 @@ export interface ExtendedRequestConfig<
     | RetryInterceptor<ResponseData, RequestBody, QueryParams_, PathParams>[];
 
   /**
+   * A function or array of functions called once when a request, including its retries, is still pending after `loadingTimeout` milliseconds.
+   * Useful to let users know that the request takes longer than usual, e.g. by showing a message or offering to cancel it.
+   * It isn't called for background revalidations, and errors it throws are ignored so that they can't break the request.
+   * @param config - The request configuration.
+   */
+  onLoadingSlow?:
+    | LoadingSlowInterceptor<
+        ResponseData,
+        RequestBody,
+        QueryParams_,
+        PathParams
+      >
+    | LoadingSlowInterceptor<
+        ResponseData,
+        RequestBody,
+        QueryParams_,
+        PathParams
+      >[];
+
+  /**
    * The maximum time (in milliseconds) the request can take before automatically being aborted. 0 seconds disables the timeout.
    * @default 30000 (30 seconds)
    */
   timeout?: number;
+
+  /**
+   * The time (in milliseconds) after which a pending request is considered slow and `onLoadingSlow` is called.
+   * Keep it lower than `timeout`, as requests that time out first are never considered slow. 0 disables it.
+   * @default 3000 (3 seconds, 6 on slow connections)
+   */
+  loadingTimeout?: number;
 
   /**
    * Time window, in miliseconds, during which identical requests are deduplicated (treated as single request).

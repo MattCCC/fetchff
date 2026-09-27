@@ -60,3 +60,12 @@ export type RetryInterceptor<
   response: FetchResponse<ResponseData, RequestBody, QueryParams, PathParams>,
   retryAttempt: number,
 ) => void | Promise<void>;
+
+export type LoadingSlowInterceptor<
+  ResponseData = DefaultResponse,
+  RequestBody = DefaultPayload,
+  QueryParams = DefaultParams,
+  PathParams = DefaultUrlParams,
+> = (
+  config: RequestConfig<ResponseData, QueryParams, PathParams, RequestBody>,
+) => void | Promise<void>;
