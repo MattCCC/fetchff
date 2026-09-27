@@ -1,3 +1,4 @@
+import { getEventListeners } from 'events';
 import {
   isJSONSerializable,
   replaceUrlPathParams,
@@ -643,6 +644,45 @@ describe('Utils', () => {
       // Await the promise and check the result
       const result = await promise;
       expect(result).toBe(true);
+    });
+
+    it('should resolve early once the signal is aborted', async () => {
+      const controller = new AbortController();
+      const onResolve = jest.fn();
+
+      delayInvocation(1000, controller.signal).then(onResolve);
+
+      await jest.advanceTimersByTimeAsync(100);
+      expect(onResolve).not.toHaveBeenCalled();
+
+      controller.abort();
+      await Promise.resolve();
+
+      expect(onResolve).toHaveBeenCalledWith(true);
+      expect(jest.getTimerCount()).toBe(0);
+    });
+
+    it('should resolve immediately when the signal is aborted already', async () => {
+      const controller = new AbortController();
+
+      controller.abort();
+
+      await expect(delayInvocation(1000, controller.signal)).resolves.toBe(
+        true,
+      );
+      expect(jest.getTimerCount()).toBe(0);
+    });
+
+    it('should stop listening to the signal once the time has passed', async () => {
+      const controller = new AbortController();
+      const promise = delayInvocation(100, controller.signal);
+
+      expect(getEventListeners(controller.signal, 'abort')).toHaveLength(1);
+
+      jest.advanceTimersByTime(100);
+
+      await expect(promise).resolves.toBe(true);
+      expect(getEventListeners(controller.signal, 'abort')).toHaveLength(0);
     });
   });
 

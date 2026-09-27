@@ -302,10 +302,33 @@ export function isJSONSerializable(value: any): boolean {
   return false;
 }
 
-export const delayInvocation = (ms: number): Promise<boolean> =>
-  new Promise((resolve) =>
-    setTimeout(resolve, Math.min(ms, MAX_DELAY_MS), true),
-  );
+/**
+ * Waits for the given time. When a signal is passed, the wait ends early once it is aborted.
+ *
+ * @param {number} ms - The time to wait in milliseconds.
+ * @param {AbortSignal} [signal] - An optional signal that ends the wait when aborted.
+ * @returns {Promise<boolean>} - A promise that resolves with `true` once the wait is over.
+ */
+export const delayInvocation = (
+  ms: number,
+  signal?: AbortSignal,
+): Promise<boolean> =>
+  new Promise((resolve) => {
+    const done = () => {
+      clearTimeout(timer);
+      signal?.removeEventListener('abort', done);
+      resolve(true);
+    };
+    const timer = setTimeout(done, Math.min(ms, MAX_DELAY_MS));
+
+    if (signal) {
+      if (signal.aborted) {
+        done();
+      } else {
+        signal.addEventListener('abort', done);
+      }
+    }
+  });
 
 /**
  * Recursively flattens the data object if it meets specific criteria.
