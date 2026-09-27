@@ -577,6 +577,7 @@ You can also use all native [`fetch()` settings](https://developer.mozilla.org/e
 | logger                     | `Logger`                                                                                               | `null`            | You can additionally specify logger object with your custom logger to automatically log the errors to the console. It should contain at least `error` and `warn` functions.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | fetcher                    | `CustomFetcher`                                                                                        | `undefined`       | A custom fetcher async function. By default, the native `fetch()` is used. If you use your own fetcher, default response parsing e.g. `await response.json()` call will be skipped. Your fetcher should return response object / data directly.                                                                                                                                                                                                                                                                                                                                                                                                             |
 | parser                     | `(response: Response) => Promise<any>`                                                                 | `undefined`       | A custom response parser function. When provided, it replaces the built-in content-type based parsing entirely. Receives the raw `Response` object and should return the parsed data. Useful for handling custom formats like XML, CSV, or proprietary data. Can be set globally or per-request.                                                                                                                                                                                                                                                                                                                                                            |
+| responseType               | `'json'`<br>`'text'`<br>`'blob'`<br>`'arrayBuffer'`<br>`'formData'`<br>`'stream'`                      | `undefined`       | How the response body is read into `data`, regardless of its `Content-Type`: `'json'`, `'text'`, `'blob'`, `'arrayBuffer'` or `'formData'`, or `'stream'` to get the unread body stream, e.g. to process large responses while they arrive. By default, the body is parsed according to its `Content-Type`. A custom `parser` takes precedence. See **Response Data Transformation** section.                                                                                                                                                                                                                                                               |
 
 > 📋 **Additional Settings Available:**  
 > The table above shows the most commonly used settings. Many more advanced configuration options are available and documented in their respective sections below, including:
@@ -1996,6 +1997,8 @@ The `fetchff` plugin automatically handles response data transformation for any 
 
 If the `Content-Type` header is missing or not recognized, the plugin defaults to returning text. If the text looks like JSON (starts with `{` or `[`), it will be auto-parsed as JSON.
 
+To read a body in a particular way regardless of its `Content-Type`, set `responseType` (see below).
+
 This approach ensures that the `fetchff` plugin can handle a variety of response formats, providing a flexible and reliable method for processing data from API requests.
 
 > ⚠️ **When using in Node.js:**  
@@ -2041,6 +2044,33 @@ const api = createApiFetcher({
   },
 });
 ```
+
+### `responseType` Option
+
+Set `responseType` to read the body in a particular way, regardless of its `Content-Type` header. It can be set globally, per endpoint or per request:
+
+- **`'json'`**, **`'text'`**, **`'blob'`**, **`'arrayBuffer'`** or **`'formData'`**: Reads the body with the matching method of the response, e.g. `'blob'` to download a file, or `'text'` to get JSON as a string.
+- **`'stream'`**: Leaves the body unread, so `data` is its `ReadableStream`, e.g. to process a large response while it arrives. A stream can only be read once, so don't cache such responses.
+
+```typescript
+import { fetchf } from 'fetchff';
+
+// Download a file
+const { data: file } = await fetchf('/api/reports/2025.pdf', {
+  responseType: 'blob',
+});
+
+downloadLink.href = URL.createObjectURL(file);
+
+// Read a large response while it arrives
+const { data: stream } = await fetchf('/api/logs', { responseType: 'stream' });
+
+for await (const chunk of stream.pipeThrough(new TextDecoderStream())) {
+  console.log(chunk);
+}
+```
+
+Error responses are read the same way, and a body that can't be read as requested, e.g. invalid JSON, results in `null` data. A custom `parser` takes precedence over `responseType`.
 
 ### `onResponse` Interceptor
 
