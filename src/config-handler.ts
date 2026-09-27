@@ -54,6 +54,9 @@ export const defaultConfig: RequestConfig = {
       503, // Service Unavailable
       504, // Gateway Timeout
     ],
+
+    // Idempotent methods, which can be repeated safely, unlike e.g. POST requests that create resources
+    methods: ['GET', 'HEAD', 'PUT', 'DELETE', 'OPTIONS', 'TRACE'],
   },
 };
 

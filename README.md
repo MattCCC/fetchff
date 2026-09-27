@@ -583,7 +583,7 @@ You can also use all native [`fetch()` settings](https://developer.mozilla.org/e
 > 📋 **Additional Settings Available:**  
 > The table above shows the most commonly used settings. Many more advanced configuration options are available and documented in their respective sections below, including:
 >
-> - **🔄 Retry Mechanism** - `retries`, `delay`, `maxDelay`, `backoff`, `resetTimeout`, `retryOn`, `shouldRetry`
+> - **🔄 Retry Mechanism** - `retries`, `delay`, `maxDelay`, `backoff`, `jitter`, `resetTimeout`, `retryOn`, `methods`, `shouldRetry`
 > - **📶 Polling Configuration** - `pollingInterval`, `pollingDelay`, `maxPollingAttempts`, `shouldStopPolling`, `refreshWhenHidden`, `refreshWhenOffline`
 > - **🗄️ Cache Management** - `cacheKey`, `cacheBuster`, `skipCache`, `cacheErrors`
 > - **✋ Request Cancellation** - `cancellable`, `rejectCancelled`, `signal`
@@ -1846,7 +1846,9 @@ const { data } = await fetchf('https://api.example.com/', {
     maxDelay: 5000, // Override default adaptive maxDelay (normally 30s/60s based on connection)
     resetTimeout: true, // Resets the timeout for each retry attempt
     backoff: 1.5,
+    jitter: true, // Randomizes the delays, so that many clients don't retry all at once
     retryOn: [500, 503],
+    methods: ['GET', 'PUT'], // Only requests of these methods are retried on the retryOn statuses
     // Retry on specific errors or based on custom logic
     shouldRetry(response, attempt) {
       // Retry if the status text is Not Found (404)
@@ -1917,6 +1919,11 @@ The retry mechanism is configured via the `retry` option when instantiating the 
   Factor by which the delay is multiplied after each retry. For example, a `backoff` factor of `1.5` means each retry delay is 1.5 times the previous delay. It means that after the first failure, wait for x seconds. After the second failure, wait for x _ 1.5 seconds. After the third failure, wait for x _ 1.5^2 seconds, and so on.
   _Default:_ `1.5`.
 
+- **`jitter`**:  
+  Type: `boolean | (delay: number) => number`  
+  Randomizes the delays between retries. When a server fails, e.g. during an outage, all its clients fail at the same time, and without jitter they also retry at the same times, which can overload the server again. With `true`, each delay is a random time between 0 and the delay computed from `delay`, `backoff` and `maxDelay` ("full jitter"). A function is called with the computed delay and returns the delay to use, e.g. `(delay) => delay / 2 + Math.random() * delay / 2`. Delays that the server asks for with `Retry-After` are kept as they are.  
+  _Default:_ `false`.
+
 - **`resetTimeout`**:  
   Type: `boolean`  
   If set to `true`, the timeout for the request is reset for each retry attempt. This ensures that the timeout applies to each individual retry rather than the entire request lifecycle.  
@@ -1936,6 +1943,11 @@ The retry mechanism is configured via the `retry` option when instantiating the 
 
 If used in conjunction with `shouldRetry`, the `shouldRetry` function takes priority, and falls back to `retryOn` only if it returns `null`.
 
+- **`methods`**:  
+  Type: `string[]`  
+  The request methods that are retried on the `retryOn` statuses. Only idempotent methods are retried by default, as they can be repeated safely, while repeating e.g. a `POST` request could create a resource twice. Add `POST` or `PATCH` if your endpoints are idempotent too, e.g. with idempotency keys. `shouldRetry` can retry requests of any method.  
+  _Default:_ `['GET', 'HEAD', 'PUT', 'DELETE', 'OPTIONS', 'TRACE']`.
+
 - **`shouldRetry(response: FetchResponse, currentAttempt: Number) => boolean`**:  
   Type: `RetryFunction<ResponseData, RequestBody, QueryParams, PathParams>`  
   Function that determines whether a retry should be attempted <b>based on the error</b> or <b>successful response</b> (if `shouldRetry` is provided) object, and the current attempt number. This function receives the error object and the attempt number as arguments. The boolean returned indicates decision. If `true` then it should retry, if `false` then abort and don't retry, if `null` then fallback to `retryOn` status codes check.
@@ -1943,11 +1955,11 @@ If used in conjunction with `shouldRetry`, the `shouldRetry` function takes prio
 
 ### How It Works
 
-1. **Initial Request**: When a request fails, the retry mechanism captures the failure and checks if it should retry based on the `retryOn` configuration and the result of the `shouldRetry` function.
+1. **Initial Request**: When a request fails, the retry mechanism captures the failure and checks if it should retry based on the `retryOn` and `methods` configuration and the result of the `shouldRetry` function.
 
 2. **Retry Attempts**: If a retry is warranted:
    - The request is retried up to the specified number of attempts (`retries`).
-   - Each retry waits for a delay before making the next attempt. The delay starts at the initial `delay` value and increases exponentially based on the `backoff` factor, but will not exceed the `maxDelay`.
+   - Each retry waits for a delay before making the next attempt. The delay starts at the initial `delay` value and increases exponentially based on the `backoff` factor, but will not exceed the `maxDelay`. With `jitter`, each delay is randomized.
    - If `resetTimeout` is enabled, the timeout is reset for each retry attempt.
 
 3. **Logging**: During retries, the mechanism logs warnings indicating the retry attempts and the delay before the next attempt, which helps in debugging and understanding the retry behavior.
@@ -1960,7 +1972,7 @@ When a request receives a **429 Too Many Requests** response, `fetchff` will aut
 
 **How it works:**
 
-- If the server responds with 429 and a `Retry-After` header, the delay for the next retry will be set to the value from that header (in ms).
+- If the server responds with 429 and a `Retry-After` header, the delay for the next retry will be set to the value from that header (in ms). It isn't randomized with `jitter`.
 - If the header is missing or invalid, the default retry delay is used.
 
 **Example:**
