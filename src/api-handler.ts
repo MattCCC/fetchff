@@ -54,10 +54,10 @@ function createApiFetcher<
    * @param endpointName Endpoint Name
    * @returns {Promise}
    */
-  function handleNonImplemented(endpointName: string): Promise<null> {
+  async function handleNonImplemented(endpointName: string): Promise<null> {
     console.error('Add ' + endpointName + " to 'endpoints'.");
 
-    return Promise.resolve(null);
+    return null;
   }
 
   const apiHandler: ApiHandlerDefaultMethods<EndpointTypes> = {
@@ -98,7 +98,7 @@ function createApiFetcher<
       // Any scheme counts here, as e.g. "http:\\host" or "http:host" can also point to another host
       const mergedConfig = /^[a-z][a-z\d+\-.]*:/i.test(resolvedUrl)
         ? // Merge endpoints configs for absolute URLs only if urls match
-          endpointConfig?.url === url
+          endpointConfig && endpointConfig.url === url
           ? mergeConfigs(_endpointConfig, requestConfig)
           : requestConfig
         : mergeConfigs(mergeConfigs(config, _endpointConfig), requestConfig);

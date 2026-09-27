@@ -136,7 +136,7 @@ export function appendQueryParams(url: string, params: QueryParams): string {
   const encode = encodeURIComponent;
   const add = (k: string, v: any) => {
     v = typeof v === FUNCTION ? v() : v;
-    v = v === null ? '' : v === undefined ? '' : v;
+    v = v === null || v === undefined ? '' : v;
     s[s.length] = encode(k) + '=' + encode(v);
   };
 
@@ -318,7 +318,9 @@ export const delayInvocation = (
   new Promise((resolve) => {
     const done = () => {
       clearTimeout(timer);
-      signal?.removeEventListener('abort', done);
+      if (signal) {
+        signal.removeEventListener('abort', done);
+      }
       resolve(true);
     };
     const timer = setTimeout(done, Math.min(ms, MAX_DELAY_MS));

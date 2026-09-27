@@ -16,20 +16,33 @@ export class FetchError<
   QueryParams = DefaultParams,
   PathParams = DefaultUrlParams,
 > extends Error {
-  status: number;
-  statusText: string;
-  config: RequestConfig<ResponseData, QueryParams, PathParams, RequestBody>;
-  isCancelled: boolean;
+  // Declared only, and set in the constructor, as class fields would need a helper in the ES2018 bundle
+  declare status: number;
+  declare statusText: string;
+  declare config: RequestConfig<
+    ResponseData,
+    QueryParams,
+    PathParams,
+    RequestBody
+  >;
+  declare isCancelled: boolean;
+  declare request: RequestConfig<
+    ResponseData,
+    QueryParams,
+    PathParams,
+    RequestBody
+  >;
+  declare response: FetchResponse<
+    ResponseData,
+    RequestBody,
+    QueryParams,
+    PathParams
+  > | null;
 
   constructor(
     message: string,
-    public request: RequestConfig<
-      ResponseData,
-      QueryParams,
-      PathParams,
-      RequestBody
-    >,
-    public response: FetchResponse<
+    request: RequestConfig<ResponseData, QueryParams, PathParams, RequestBody>,
+    response: FetchResponse<
       ResponseData,
       RequestBody,
       QueryParams,
@@ -38,10 +51,12 @@ export class FetchError<
   ) {
     super(message);
 
-    this.name = 'FetchError';
+    this.request = request;
+    this.response = response;
     this.status = response ? response.status : 0;
     this.statusText = response ? response.statusText : '';
     this.config = request;
     this.isCancelled = false;
+    this.name = 'FetchError';
   }
 }

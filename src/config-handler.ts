@@ -56,7 +56,7 @@ export const defaultConfig: RequestConfig = {
     ],
 
     // Idempotent methods, which can be repeated safely, unlike e.g. POST requests that create resources
-    methods: ['GET', 'HEAD', 'PUT', 'DELETE', 'OPTIONS', 'TRACE'],
+    methods: [GET, HEAD, 'PUT', 'DELETE', 'OPTIONS', 'TRACE'],
   },
 };
 
@@ -191,8 +191,7 @@ function setContentTypeIfNeeded(
   // Types that should not have Content-Type set (browser handles these)
   if (
     body instanceof FormData || // Browser automatically sets multipart/form-data with boundary
-    (typeof Blob !== UNDEFINED && body instanceof Blob) || // Blob/File already have their own MIME types, don't override
-    (typeof File !== UNDEFINED && body instanceof File) ||
+    (typeof Blob !== UNDEFINED && body instanceof Blob) || // Blob/File (a File is a Blob) already have their own MIME types, don't override
     (typeof ReadableStream !== UNDEFINED && body instanceof ReadableStream) // Stream type should be determined by the stream source
   ) {
     return;
@@ -225,6 +224,14 @@ function setContentTypeIfNeeded(
   }
 }
 
+// The interceptors that are merged instead of replaced
+const INTERCEPTORS = [
+  'onRequest',
+  'onResponse',
+  'onError',
+  'onLoadingSlow',
+] as const;
+
 /**
  * Merges two request configurations, applying overrides from the second config to the first.
  * Handles special merging for nested properties like 'retry' and 'headers' (deep merge),
@@ -254,10 +261,9 @@ export function mergeConfigs(
   mergeConfig('headers', baseConfig, overrideConfig, targetConfig);
 
   // Merge interceptors efficiently
-  mergeInterceptors('onRequest', baseConfig, overrideConfig, targetConfig);
-  mergeInterceptors('onResponse', baseConfig, overrideConfig, targetConfig);
-  mergeInterceptors('onError', baseConfig, overrideConfig, targetConfig);
-  mergeInterceptors('onLoadingSlow', baseConfig, overrideConfig, targetConfig);
+  for (const property of INTERCEPTORS) {
+    mergeInterceptors(property, baseConfig, overrideConfig, targetConfig);
+  }
 
   return targetConfig;
 }
@@ -277,30 +283,16 @@ function mergeInterceptors<
   const baseInterceptor = baseConfig[property];
   const newInterceptor = overrideConfig[property];
 
-  if (!baseInterceptor && !newInterceptor) {
-    return;
+  if (baseInterceptor && newInterceptor) {
+    // This is the only LIFO interceptor, so we apply it after the response is prepared
+    targetConfig[property] = (
+      property === 'onResponse'
+        ? [].concat(newInterceptor as never, baseInterceptor as never)
+        : [].concat(baseInterceptor as never, newInterceptor as never)
+    ) as RequestConfig[K];
+  } else if (baseInterceptor || newInterceptor) {
+    targetConfig[property] = baseInterceptor || newInterceptor;
   }
-
-  if (!baseInterceptor) {
-    targetConfig[property] = newInterceptor;
-    return;
-  }
-
-  if (!newInterceptor) {
-    targetConfig[property] = baseInterceptor;
-    return;
-  }
-
-  const baseArr = Array.isArray(baseInterceptor)
-    ? baseInterceptor
-    : [baseInterceptor];
-  const newArr = Array.isArray(newInterceptor)
-    ? newInterceptor
-    : [newInterceptor];
-
-  // This is the only LIFO interceptor, so we apply it after the response is prepared
-  targetConfig[property] =
-    property === 'onResponse' ? newArr.concat(baseArr) : baseArr.concat(newArr);
 }
 
 /**

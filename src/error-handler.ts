@@ -58,11 +58,10 @@ export async function withErrorHandling<
   // Only handle the error if the request was not cancelled, or if it was cancelled and rejectCancelled is true.
   const isCancelled = error.isCancelled;
 
-  if (!isCancelled && requestConfig.logger?.warn) {
-    requestConfig.logger.warn(
-      'FETCH ERROR',
-      redactError(error as ResponseError),
-    );
+  const logger = requestConfig.logger;
+
+  if (!isCancelled && logger && logger.warn) {
+    logger.warn('FETCH ERROR', redactError(error as ResponseError));
   }
 
   // The defaultResponse strategy returns the default response in place of the error data.
@@ -81,7 +80,7 @@ export async function withErrorHandling<
     const strategy = requestConfig.strategy;
     // Reject the promise
     if (strategy === REJECT) {
-      return Promise.reject(error);
+      throw error;
     }
 
     // Hang the promise
@@ -155,8 +154,9 @@ export function enhanceError<
     RequestBody
   >,
 ): void {
-  error.status = error.status || response?.status || 0;
-  error.statusText = error.statusText || response?.statusText || '';
+  error.status = error.status || (response && response.status) || 0;
+  error.statusText =
+    error.statusText || (response && response.statusText) || '';
   error.config = error.request = requestConfig;
   error.response = response;
   error.isCancelled = error.name === ABORT_ERROR;

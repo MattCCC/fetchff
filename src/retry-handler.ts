@@ -149,43 +149,32 @@ export async function withRetry<
     output = await requestFn(attempt > 0, attempt);
     const error = output.error;
 
-    // Check if we should retry based on successful response
-    if (!error) {
-      if (shouldRetry && attempt < maxRetries) {
-        const shouldRetryResult = await shouldRetry(output, attempt);
-
-        if (shouldRetryResult) {
-          await delayInvocation(withJitter(waitTime, jitter));
-          waitTime *= backoff || 1;
-          waitTime = Math.min(waitTime, maxDelay || waitTime);
-          attempt++;
-          continue;
-        }
-      }
-
-      break;
-    }
-
-    // Determine if we should stop retrying
-    const shouldStopRetrying = await getShouldStopRetrying(
-      output,
-      attempt,
-      maxRetries,
-      shouldRetry,
-      retryOn,
-      methods,
-    );
-
-    if (shouldStopRetrying) {
+    // Stop unless a failed response should be retried according to the retry settings,
+    // or a successful one according to shouldRetry
+    if (
+      error
+        ? await getShouldStopRetrying(
+            output,
+            attempt,
+            maxRetries,
+            shouldRetry,
+            retryOn,
+            methods,
+          )
+        : !(
+            shouldRetry &&
+            attempt < maxRetries &&
+            (await shouldRetry(output, attempt))
+          )
+    ) {
       break;
     }
 
     // The delay before the next retry, randomized with jitter unless the server asks for one below
     let retryDelay = withJitter(waitTime, jitter);
 
-    // If we should not stop retrying, continue to the next attempt
     // Handle rate limiting if the error status is 429 (Too Many Requests) or 503 (Service Unavailable)
-    if (error.status === 429 || error.status === 503) {
+    if (error && (error.status === 429 || error.status === 503)) {
       // Try to extract the "Retry-After" value from the response headers
       const retryAfterMs = getRetryAfterMs(output);
 
