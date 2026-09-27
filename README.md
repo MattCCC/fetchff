@@ -578,7 +578,7 @@ You can also use all native [`fetch()` settings](https://developer.mozilla.org/e
 > The table above shows the most commonly used settings. Many more advanced configuration options are available and documented in their respective sections below, including:
 >
 > - **🔄 Retry Mechanism** - `retries`, `delay`, `maxDelay`, `backoff`, `resetTimeout`, `retryOn`, `shouldRetry`
-> - **📶 Polling Configuration** - `pollingInterval`, `pollingDelay`, `maxPollingAttempts`, `shouldStopPolling`
+> - **📶 Polling Configuration** - `pollingInterval`, `pollingDelay`, `maxPollingAttempts`, `shouldStopPolling`, `refreshWhenHidden`, `refreshWhenOffline`
 > - **🗄️ Cache Management** - `cacheKey`, `cacheBuster`, `skipCache`, `cacheErrors`
 > - **✋ Request Cancellation** - `cancellable`, `rejectCancelled`
 > - **🌀 Interceptors** - `onRequest`, `onResponse`, `onError`, `onRetry`
@@ -1525,7 +1525,7 @@ document.getElementById('message')?.addEventListener('keydown', sendRequest);
 <details>
   <summary><span style="cursor:pointer">Click to expand</span></summary>
   <br>
-  Polling can be configured to repeatedly make requests at defined intervals until certain conditions are met. This allows for continuously checking the status of a resource or performing background updates.
+  Polling can be configured to repeatedly make requests at defined intervals until certain conditions are met. This allows for continuously checking the status of a resource or performing background updates. In browsers, polling pauses while the page is hidden or offline, so background tabs don't keep sending requests.
 
 ### Example
 
@@ -1570,6 +1570,16 @@ The following options are available for configuring polling in the `RequestHandl
   A function to determine if polling should stop based on the response, error, or the current polling attempt number (attempt starts with `1`). Return `true` to stop polling, and `false` to continue polling. This allows for custom logic to decide when to stop polling based on the conditions of the response or error.  
   _Default:_ `(response, attempt) => false` (polling continues indefinitely unless manually stopped).
 
+- **`refreshWhenHidden`**:  
+  Type: `boolean`  
+  If `true`, polling continues while the page is hidden, e.g. when its tab is in the background or the window is minimized. By default, polling pauses while the page is hidden and resumes once it is visible again. Outside browsers, the page is never considered hidden.  
+  _Default:_ `false` (polling pauses while the page is hidden).
+
+- **`refreshWhenOffline`**:  
+  Type: `boolean`  
+  If `true`, polling continues while the browser is offline. By default, polling pauses while `navigator.onLine` is `false` and resumes once the browser is back online. Where the connection state is unknown (e.g. in Node.js), polling never pauses.  
+  _Default:_ `false` (polling pauses while offline).
+
 ### How It Works
 
 1. **Polling Interval**:  
@@ -1586,6 +1596,9 @@ The following options are available for configuring polling in the `RequestHandl
 
 5. **Custom Logic**:  
    The `shouldStopPolling` function provides flexibility to implement custom logic based on the response, error, or the number of attempts. This makes it easy to stop polling when the desired outcome is reached or after a maximum number of attempts.
+
+6. **Pausing in Hidden Tabs and Offline**:  
+   Before each polling attempt, `fetchff` checks whether the page is hidden (`document.visibilityState`) or the browser is offline (`navigator.onLine`). While either is the case, the attempt is postponed by another `pollingInterval`, and polling resumes once the page is visible and online again. Postponed attempts don't count towards `maxPollingAttempts`. Set `refreshWhenHidden` or `refreshWhenOffline` to `true` to keep polling regardless.
 
 </details>
 
@@ -2888,6 +2901,8 @@ const api = createApiFetcher({
   pollingDelay: 1000, // Wait 1 second before beginning each polling attempt
   maxPollingAttempts: 10, // Stop polling after 10 attempts
   shouldStopPolling: (response, attempt) => false, // Function to determine if polling should stop based on the response. Return true to stop polling, or false to continue.
+  refreshWhenHidden: false, // If true, keeps polling while the page is hidden (e.g. in a background tab). Polling pauses by default.
+  refreshWhenOffline: false, // If true, keeps polling while the browser is offline. Polling pauses by default.
   method: 'get', // Default request method.
   params: {}, // Default params added to all requests.
   urlPathParams: {}, // Dynamic URL path parameters for replacing segments like /user/:id
