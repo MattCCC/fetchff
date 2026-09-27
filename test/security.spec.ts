@@ -165,6 +165,31 @@ describe('Credential leaks through the API handler', () => {
   });
 });
 
+describe('URL injection', () => {
+  it('should not let path params inject a query, fragment or path segments', () => {
+    const { url } = lib.buildConfig('https://api.test/users/:id/posts', {
+      urlPathParams: { id: '1?admin=true#x/../../admin' },
+    });
+
+    expect(new URL(url as string).pathname).toBe(
+      '/users/1%3Fadmin%3Dtrue%23x%2F..%2F..%2Fadmin/posts',
+    );
+    expect(new URL(url as string).search).toBe('');
+  });
+
+  it('should not let query params inject extra params', () => {
+    const { url } = lib.buildConfig('https://api.test/search', {
+      params: { q: 'a&admin=true', 'x&role': 'admin' },
+    });
+    const params = new URL(url as string).searchParams;
+
+    expect(params.get('q')).toBe('a&admin=true');
+    expect(params.get('x&role')).toBe('admin');
+    expect(params.has('admin')).toBe(false);
+    expect(params.has('role')).toBe(false);
+  });
+});
+
 describe('Hostile servers', () => {
   it.each([['600'], ['999999999']])(
     'should wait for maxDelay, not Retry-After: %s',
