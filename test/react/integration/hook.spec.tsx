@@ -665,6 +665,7 @@ describe('React Integration Tests', () => {
           '/api/revalidate-data',
           {
             refetchOnFocus: true,
+            focusThrottleInterval: 0, // The window is focused right after the first request
             cacheTime: 5,
           },
         );

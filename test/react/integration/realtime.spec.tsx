@@ -268,6 +268,7 @@ describe('Real-time & WebSocket Integration Tests', () => {
       const FocusRevalidationComponent = () => {
         const { data } = useFetcher('/api/content', {
           refetchOnFocus: true,
+          focusThrottleInterval: 0, // The window is focused right after the first request
           cacheTime: 1000,
         });
 
@@ -319,6 +320,7 @@ describe('Real-time & WebSocket Integration Tests', () => {
       const FocusComponent = () => {
         const { data } = useFetcher('/api/status', {
           refetchOnFocus: true,
+          focusThrottleInterval: 0, // The window is focused right after the first request
           cacheTime: 500,
         });
 

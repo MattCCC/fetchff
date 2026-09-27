@@ -32,6 +32,7 @@ export const defaultConfig: RequestConfig = {
   strategy: REJECT,
   timeout: defaultTimeoutMs, // 30 seconds (60 on slow connections)
   loadingTimeout: defaultTimeoutMs / 10, // 3 seconds (6 on slow connections)
+  focusThrottleInterval: 5000, // 5 seconds
   headers: {
     Accept: APPLICATION_JSON + ', text/plain, */*',
     'Accept-Encoding': 'gzip, deflate, br',

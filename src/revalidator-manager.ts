@@ -34,6 +34,7 @@ type RevalidatorEntry = [
   RevalidatorFn?, // bgRevalidator
   boolean?, // refetchOnFocus
   boolean?, // refetchOnReconnect
+  number?, // focusThrottleInterval
 ];
 
 const DEFAULT_TTL = 3 * 60 * 1000; // Default TTL of 3 minutes
@@ -80,16 +81,18 @@ export function setEventProvider(
  *
  * @param type - The type of event that caused the revalidation (e.g., 'focus' or 'online').
  * @param isStaleRevalidation - If `true`, uses background revalidator and doesn't mark as in-flight.
+ * @param isThrottled - If `true`, skips entries that were requested or revalidated within their `focusThrottleInterval`.
  */
 export function revalidateAll(
   type: EventType,
   isStaleRevalidation: boolean = true,
+  isThrottled: boolean = false,
 ) {
   const flagIndex = type === 'focus' ? 5 : 6;
   const now = timeNow();
 
   revalidators.forEach((entry) => {
-    if (!entry[flagIndex]) {
+    if (!entry[flagIndex] || (isThrottled && now - entry[1] < entry[7]!)) {
       return;
     }
 
@@ -169,7 +172,8 @@ function addEventHandler(event: EventType) {
     return;
   }
 
-  const handler = revalidateAll.bind(null, event, true);
+  // Focus events are throttled, so that e.g. switching between tabs quickly doesn't revalidate every time
+  const handler = revalidateAll.bind(null, event, true, event === 'focus');
 
   // Priority 1: Custom event provider (works in any environment including React Native)
   const customProvider = customEventProviders.get(event);
@@ -214,6 +218,7 @@ function removeEventHandler(event: EventType) {
  * @param {RevalidatorFn} [bgRevalidatorFn] For stale revalidation (does not mark in-flight requests)
  * @param {boolean} [refetchOnFocus] Whether to revalidate on window focus
  * @param {boolean} [refetchOnReconnect] Whether to revalidate on network reconnect
+ * @param {number} [focusThrottleInterval] Time (in milliseconds) after a request or revalidation during which focus events don't revalidate it
  */
 export function addRevalidator(
   key: string,
@@ -223,6 +228,7 @@ export function addRevalidator(
   bgRevalidatorFn?: RevalidatorFn, // For stale revalidation (does not mark in-flight requests)
   refetchOnFocus?: boolean,
   refetchOnReconnect?: boolean,
+  focusThrottleInterval?: number,
 ) {
   const existing = revalidators.get(key);
 
@@ -235,6 +241,7 @@ export function addRevalidator(
     existing[4] = bgRevalidatorFn;
     existing[5] = refetchOnFocus;
     existing[6] = refetchOnReconnect;
+    existing[7] = focusThrottleInterval;
   } else {
     revalidators.set(key, [
       revalidatorFn,
@@ -244,6 +251,7 @@ export function addRevalidator(
       bgRevalidatorFn,
       refetchOnFocus,
       refetchOnReconnect,
+      focusThrottleInterval,
     ]);
   }
 

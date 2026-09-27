@@ -424,6 +424,7 @@ export async function fetchf<
         requestWithErrorHandling,
         !!refetchOnFocus,
         !!refetchOnReconnect,
+        fetcherConfig.focusThrottleInterval,
       );
     }
   }
