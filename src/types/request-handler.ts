@@ -360,6 +360,23 @@ export interface RetryConfig<
   retryOn?: number[];
 
   /**
+   * The request methods that are retried on the statuses in `retryOn`.
+   * Only idempotent methods are retried by default, as repeating e.g. a POST request could create a resource twice.
+   * `shouldRetry` can retry requests of any method.
+   * @default ['GET', 'HEAD', 'PUT', 'DELETE', 'OPTIONS', 'TRACE']
+   */
+  methods?: (Method | string)[];
+
+  /**
+   * Randomizes the delays between retries, so that clients that failed at the same time, e.g. during an outage, don't retry all at once.
+   * - `true` makes each delay a random time between 0 and the delay computed from `delay`, `backoff` and `maxDelay` ("full jitter").
+   * - A function is called with the computed delay, and returns the delay to use.
+   * Delays that the server asks for with `Retry-After` are kept as they are.
+   * @default false
+   */
+  jitter?: boolean | ((delay: number) => number);
+
+  /**
    * A function that determines whether a failed or successful request should be retried, based on the response and the current attempt number.
    * Return `true` to retry, or `false` to stop retrying.
    * @param response - The response object from the failed request.

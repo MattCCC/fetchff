@@ -2,6 +2,7 @@ import { applyInterceptors } from './interceptor-manager';
 import type { FetchResponse, RetryConfig, RetryFunction } from './types';
 import { delayInvocation, timeNow } from './utils';
 import { generateCacheKey } from './cache-manager';
+import { FUNCTION } from './constants';
 
 function getMsFromHttpDate(dateString: string): number | null {
   const ms = Date.parse(dateString) - timeNow();
@@ -114,6 +115,8 @@ export async function withRetry<
     maxDelay,
     retryOn = [],
     shouldRetry,
+    jitter,
+    methods,
   } = config;
 
   let attempt = 0;
@@ -152,7 +155,7 @@ export async function withRetry<
         const shouldRetryResult = await shouldRetry(output, attempt);
 
         if (shouldRetryResult) {
-          await delayInvocation(waitTime);
+          await delayInvocation(withJitter(waitTime, jitter));
           waitTime *= backoff || 1;
           waitTime = Math.min(waitTime, maxDelay || waitTime);
           attempt++;
@@ -170,11 +173,15 @@ export async function withRetry<
       maxRetries,
       shouldRetry,
       retryOn,
+      methods,
     );
 
     if (shouldStopRetrying) {
       break;
     }
+
+    // The delay before the next retry, randomized with jitter unless the server asks for one below
+    let retryDelay = withJitter(waitTime, jitter);
 
     // If we should not stop retrying, continue to the next attempt
     // Handle rate limiting if the error status is 429 (Too Many Requests) or 503 (Service Unavailable)
@@ -185,11 +192,14 @@ export async function withRetry<
       // If a valid retry-after value is found, override the wait time before next retry
       // Cap it with maxDelay so that a server can't make the client wait indefinitely
       if (retryAfterMs !== null) {
-        waitTime = Math.min(retryAfterMs, maxDelay || retryAfterMs);
+        retryDelay = waitTime = Math.min(
+          retryAfterMs,
+          maxDelay || retryAfterMs,
+        );
       }
     }
 
-    await delayInvocation(waitTime);
+    await delayInvocation(retryDelay);
     waitTime *= backoff || 1;
     waitTime = Math.min(waitTime, maxDelay || waitTime);
     attempt++;
@@ -204,7 +214,8 @@ export async function withRetry<
  * This function checks:
  * - If the maximum number of retries has been reached.
  * - If a custom `shouldRetry` callback is provided, its result is used to decide.
- * - If no custom logic is provided, falls back to checking if the error status is included in the `retryOn` list.
+ * - If no custom logic is provided, falls back to checking if the error status is included in the `retryOn` list,
+ *   and the request method in the `methods` list, if any.
  *
  * @typeParam ResponseData - The type of the response data.
  * @typeParam RequestBody - The type of the request body.
@@ -215,6 +226,7 @@ export async function withRetry<
  * @param maxRetries - The maximum number of retry attempts allowed.
  * @param shouldRetry - Optional custom function to determine if a retry should occur.
  * @param retryOn - Optional list of HTTP status codes that should trigger a retry.
+ * @param methods - Optional list of request methods that are retried on the `retryOn` statuses. All methods are retried without it.
  * @returns A promise resolving to `true` if retrying should stop, or `false` to continue retrying.
  */
 export async function getShouldStopRetrying<
@@ -233,6 +245,7 @@ export async function getShouldStopRetrying<
     PathParams
   > | null,
   retryOn: number[] = [],
+  methods?: string[],
 ): Promise<boolean> {
   // Safety first: always respect max retries
   // We check retries provided regardless of the shouldRetry being provided so to avoid infinite loops.
@@ -250,5 +263,24 @@ export async function getShouldStopRetrying<
     }
   }
 
-  return !(retryOn || []).includes(output.error?.status ?? 0);
+  return !(
+    (retryOn || []).includes(output.error?.status ?? 0) &&
+    (!methods ||
+      methods.some((method) => method.toUpperCase() === output.config.method))
+  );
+}
+
+/**
+ * Randomizes a retry delay with jitter, so that clients that failed at the same time, e.g. during an outage, don't retry all at once.
+ *
+ * @param delay - The delay computed from the `delay`, `backoff` and `maxDelay` settings, in milliseconds.
+ * @param jitter - `true` for a random delay between 0 and the computed one ("full jitter"), or a function that returns the delay to use.
+ * @returns The delay to wait before the retry, in milliseconds.
+ */
+function withJitter(delay: number, jitter: RetryConfig['jitter']): number {
+  return typeof jitter === FUNCTION
+    ? (jitter as (delay: number) => number)(delay)
+    : jitter
+      ? Math.random() * delay
+      : delay;
 }
