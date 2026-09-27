@@ -6,7 +6,6 @@ import type {
 } from './types/api-handler';
 import { fetchf } from '.';
 import { mergeConfigs } from './config-handler';
-import { isAbsoluteUrl } from './utils';
 
 /**
  * Creates an instance of API Handler.
@@ -79,13 +78,21 @@ function createApiFetcher<
         ({ url: String(endpointName) } as RequestConfigUrlRequired);
       const url = _endpointConfig.url;
 
+      // URL parsers ignore leading control characters and spaces, drop tabs and newlines,
+      // and treat backslashes like slashes, so check the URL the way it will be resolved
+      const resolvedUrl = url
+        .replace(/[\t\n\r]/g, '')
+        // eslint-disable-next-line no-control-regex -- matching control characters is the point
+        .replace(/^[\x00-\x20]+/, '');
+
       // Block Protocol-relative URLs as they could lead to SSRF (Server-Side Request Forgery)
-      if (url.startsWith('//')) {
+      if (/^[/\\]{2}/.test(resolvedUrl)) {
         throw new Error('Protocol-relative URLs not allowed.');
       }
 
       // Prevent potential Server-Side Request Forgery attack and leakage of credentials when same instance is used for external requests
-      const mergedConfig = isAbsoluteUrl(url)
+      // Any scheme counts here, as e.g. "http:\\host" or "http:host" can also point to another host
+      const mergedConfig = /^[a-z][a-z\d+\-.]*:/i.test(resolvedUrl)
         ? // Merge endpoints configs for absolute URLs only if urls match
           endpointConfig?.url === url
           ? mergeConfigs(_endpointConfig, requestConfig)

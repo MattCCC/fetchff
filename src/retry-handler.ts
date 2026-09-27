@@ -183,8 +183,9 @@ export async function withRetry<
       const retryAfterMs = getRetryAfterMs(output);
 
       // If a valid retry-after value is found, override the wait time before next retry
+      // Cap it with maxDelay so that a server can't make the client wait indefinitely
       if (retryAfterMs !== null) {
-        waitTime = retryAfterMs;
+        waitTime = Math.min(retryAfterMs, maxDelay || retryAfterMs);
       }
     }
 
