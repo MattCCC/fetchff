@@ -337,8 +337,8 @@ export function mergeConfig<K extends keyof RequestConfig>(
     } else {
       targetConfig[property] = {
         ...base,
-        ...override,
-      };
+        ...sanitizeObject(override as Record<string, unknown>),
+      } as RequestConfig[K];
     }
   } else if (
     override === undefined &&

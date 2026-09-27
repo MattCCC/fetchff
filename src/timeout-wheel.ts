@@ -21,6 +21,7 @@
  * - Automatically stops the internal timer when no timeouts remain.
  */
 
+import { MAX_DELAY_MS } from './constants';
 import { noop, timeNow } from './utils';
 
 type TimeoutCallback = () => unknown | Promise<unknown>;
@@ -64,7 +65,12 @@ export const addTimeout = (
 
   // Fallback to setTimeout if wheel size is exceeded, ms is sub-second, or ms is not divisible by SECOND
   if (ms < SECOND || seconds >= WHEEL_SIZE || ms % SECOND !== 0) {
-    keyMap.set(key, [setTimeout(handleCallback.bind(null, [key, cb]), ms)]); // Store timeout ID instead of slot
+    keyMap.set(key, [
+      setTimeout(
+        handleCallback.bind(null, [key, cb]),
+        Math.min(ms, MAX_DELAY_MS),
+      ),
+    ]); // Store timeout ID instead of slot
 
     return;
   }

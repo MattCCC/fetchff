@@ -6,6 +6,7 @@ import type {
 } from './types/api-handler';
 import { fetchf } from '.';
 import { mergeConfigs } from './config-handler';
+import { hasOwn } from './utils';
 
 /**
  * Creates an instance of API Handler.
@@ -72,7 +73,10 @@ function createApiFetcher<
      */
     async request(endpointName, requestConfig = {}) {
       // Use global and per-endpoint settings
-      const endpointConfig = endpoints[endpointName];
+      // Only own properties are endpoints, not ones inherited like "constructor"
+      const endpointConfig = hasOwn(endpoints, endpointName as string)
+        ? endpoints[endpointName]
+        : undefined;
       const _endpointConfig =
         endpointConfig ||
         ({ url: String(endpointName) } as RequestConfigUrlRequired);
@@ -125,7 +129,7 @@ function createApiFetcher<
         }
 
         // Prevent handler from triggering non-existent endpoints
-        if (endpoints[prop]) {
+        if (hasOwn(endpoints, prop)) {
           return apiHandler.request.bind(null, prop);
         }
 

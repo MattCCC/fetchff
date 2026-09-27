@@ -161,24 +161,31 @@ describe('Cache Manager', () => {
 
     it('should handle Blob body', () => {
       const blob = new Blob(['test'], { type: 'text/plain' });
-      const key = generateCacheKey({
-        url,
-        method: 'POST',
-        body: blob,
-      });
-      expect(key).toContain(
-        'POST|https://api.example.com/data|same-origin||BF4text/plain',
+      const key = generateCacheKey({ url, method: 'POST', body: blob });
+
+      // Blobs can't be read synchronously, so the key identifies the blob object
+      expect(key).toMatch(
+        /^POST\|https:\/\/api\.example\.com\/data\|same-origin\|\|B\d+$/,
       );
+      expect(generateCacheKey({ url, method: 'POST', body: blob })).toBe(key);
+      expect(
+        generateCacheKey({
+          url,
+          method: 'POST',
+          body: new Blob(['TEST'], { type: 'text/plain' }),
+        }),
+      ).not.toBe(key);
     });
 
     it('should handle ArrayBuffer body', () => {
       const buffer = new ArrayBuffer(8);
-      const key = generateCacheKey({
-        url,
-        method: 'POST',
-        body: buffer,
-      });
-      expect(key).toContain('AB8');
+      const key = generateCacheKey({ url, method: 'POST', body: buffer });
+
+      expect(key).toMatch(/\|B\d+$/);
+      expect(generateCacheKey({ url, method: 'POST', body: buffer })).toBe(key);
+      expect(
+        generateCacheKey({ url, method: 'POST', body: new ArrayBuffer(8) }),
+      ).not.toBe(key);
     });
 
     it('should handle numbers', () => {

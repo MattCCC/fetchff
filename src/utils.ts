@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { FUNCTION, OBJECT, STRING, UNDEFINED } from './constants';
+import { FUNCTION, MAX_DELAY_MS, OBJECT, STRING, UNDEFINED } from './constants';
 import type {
   DefaultUrlParams,
   HeadersObject,
@@ -10,7 +10,7 @@ import type {
 // Prevent stack overflow with recursion depth limit
 const MAX_DEPTH = 10;
 
-const hasOwn = (o: any, k: string) =>
+export const hasOwn = (o: any, k: string) =>
   Object.prototype.hasOwnProperty.call(o, k);
 
 export function isSearchParams(data: unknown): boolean {
@@ -87,7 +87,8 @@ export function sanitizeObject<T extends Record<string, any>>(obj: T): T {
  * @returns {Object} - A new object with keys sorted in ascending order.
  */
 export function sortObject(obj: Record<string, any>): object {
-  const sortedObj = {} as Record<string, string>;
+  // Without a prototype, a "__proto__" key is kept as a regular property instead of setting the prototype
+  const sortedObj = Object.create(null) as Record<string, string>;
 
   Object.keys(obj)
     .sort()
@@ -302,7 +303,9 @@ export function isJSONSerializable(value: any): boolean {
 }
 
 export const delayInvocation = (ms: number): Promise<boolean> =>
-  new Promise((resolve) => setTimeout(resolve, ms, true));
+  new Promise((resolve) =>
+    setTimeout(resolve, Math.min(ms, MAX_DELAY_MS), true),
+  );
 
 /**
  * Recursively flattens the data object if it meets specific criteria.
@@ -353,7 +356,8 @@ export function processHeaders(
   } else {
     // Handle plain object — use for...in to avoid Object.entries() allocation
     for (const key in headers) {
-      if (hasOwn(headers, key)) {
+      // Assigning "__proto__" would set the prototype of the result
+      if (hasOwn(headers, key) && key !== '__proto__') {
         headersObject[key.toLowerCase()] = headers[key];
       }
     }
