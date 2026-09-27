@@ -559,6 +559,7 @@ You can also use all native [`fetch()` settings](https://developer.mozilla.org/e
 | method                     | `string`                                                                                               | `'GET'`           | Default request method e.g. GET, POST, DELETE, PUT etc. All methods are supported.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | params                     | `object`<br>`URLSearchParams`<br>`NameValuePair[]`                                                     | `undefined`       | Query Parameters - a key-value pairs added to the URL to send extra information with a request. If you pass an object, it will be automatically converted. It works with nested objects, arrays and custom data structures similarly to what `jQuery` used to do in the past. If you use `createApiFetcher()` then it is the first argument of your `api.yourEndpoint()` function. You can still pass configuration in 3rd argument if want to.<br><br>You can pass key-value pairs where the values can be strings, numbers, or arrays. For example, if you pass `{ foo: [1, 2] }`, it will be automatically serialized into `foo[]=1&foo[]=2` in the URL. |
 | body<br>(alias: data)      | `object`<br>`string`<br>`FormData`<br>`URLSearchParams`<br>`Blob`<br>`ArrayBuffer`<br>`ReadableStream` | `undefined`       | The body is the data sent with the request, such as JSON, text, or form data, included in the request payload for POST, PUT, or PATCH requests.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| onUploadProgress           | `(progress: UploadProgress) => void`                                                                   | `undefined`       | A function called with the upload progress while the request body is being sent, e.g. to show a progress bar for file uploads. It receives the `loaded` and `total` bytes, and the `progress` from `0` to `1`. See **Upload Progress** section.                                                                                                                                                                                                                                                                                                                                                                                                             |
 | urlPathParams              | `object`                                                                                               | `undefined`       | It lets you dynamically replace segments of your URL with specific values in a clear and declarative manner. This feature is especially handy for constructing URLs with variable components or identifiers.<br><br>For example, suppose you need to update user details and have a URL template like `/user-details/update/:userId`. With `urlPathParams`, you can replace `:userId` with a real user ID, such as `123`, resulting in the URL `/user-details/update/123`.                                                                                                                                                                                  |
 | flattenResponse            | `boolean`                                                                                              | `false`           | When set to `true`, this option flattens the nested response data. This means you can access the data directly without having to use `response.data.data`. It works only if the response structure includes a single `data` property.                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | select                     | `(data: any) => any`                                                                                   | `undefined`       | Function to transform or select a subset of the response data before it is returned. Called with the raw response data and should return the transformed data. Useful for mapping, picking, or shaping the response.                                                                                                                                                                                                                                                                                                                                                                                                                                        |
@@ -1517,6 +1518,49 @@ document.getElementById('message')?.addEventListener('keydown', sendRequest);
   Type: `boolean`
   Default: `false`
   Works in conjunction with the `cancellable` option. If set to `true`, the promise of a cancelled request will be rejected. By default (`false`), when a request is cancelled, instead of rejecting the promise, a `defaultResponse` will be returned, allowing graceful handling of cancellation without errors.
+
+</details>
+
+## 📤 Upload Progress
+
+<details>
+  <summary><span style="cursor:pointer">Click to expand</span></summary>
+  <br>
+  Use `onUploadProgress` to track the progress of a request body while it's being sent, e.g. to show a progress bar for file uploads.
+
+### Example
+
+```typescript
+const form = new FormData();
+form.append('photo', fileInput.files[0]);
+
+const { data } = await fetchf('https://api.example.com/photos', {
+  method: 'POST',
+  body: form,
+  onUploadProgress({ loaded, total, progress }) {
+    // The progress is from 0 to 1, or undefined if the total size is unknown
+    progressBar.value = progress ?? 0;
+    console.log(`Uploaded ${loaded} of ${total} bytes`);
+  },
+});
+```
+
+### Configuration
+
+- **`onUploadProgress`**:  
+  Type: `(progress: UploadProgress) => void`  
+  A function called with the upload progress while the request body is being sent. It receives `loaded` (the bytes sent so far), `total` (the bytes to send, or `undefined` if unknown, e.g. for streams) and `progress` (from `0` to `1`, or `undefined` if the total is unknown).  
+  _Default:_ `undefined`.
+
+### How It Works
+
+Browsers don't report the upload progress of `fetch()`, so requests that have a body and `onUploadProgress` are sent depending on the environment:
+
+- **Browsers and React Native**: The request is sent with `XMLHttpRequest`, which reports the upload progress everywhere. Its response is handled like any other, so parsing, error handling, retries, timeouts and cancellation work the same. `XMLHttpRequest` doesn't support `fetch()` specific options like `mode`, `cache`, `redirect`, `integrity` or `keepalive`, and cross-origin uploads are sent with a CORS preflight request.
+- **Node.js, Deno and Bun**: The body is streamed with `fetch()` and counted while it's being sent. Bodies other than streams are read into memory first to know their size and content type.
+- **Retries**: Each retry sends the body again, so its progress starts from `0` again.
+
+Requests without a body, or with a custom `fetcher`, are sent as usual and don't report any progress.
 
 </details>
 
@@ -2892,6 +2936,7 @@ const api = createApiFetcher({
   params: {}, // Default params added to all requests.
   urlPathParams: {}, // Dynamic URL path parameters for replacing segments like /user/:id
   data: {}, // Alias for 'body'. Default data passed to POST, PUT, DELETE and PATCH requests.
+  onUploadProgress: ({ loaded, total, progress }) => {}, // Called with the upload progress of request bodies, e.g. file uploads.
   cacheTime: 300, // Cache time in seconds. In this case it is valid for 5 minutes (300 seconds)
   cacheKey: (config) => `${config.url}-${config.method}`, // Custom cache key based on URL and method
   cacheBuster: (config) => config.method === 'POST', // Bust cache for POST requests
