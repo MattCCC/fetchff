@@ -8,6 +8,7 @@ import type {
   DefaultPayload,
   DefaultUrlParams,
 } from './types/api-handler';
+import type { StoredResponse } from './types/cache-manager';
 import { applyInterceptors } from './interceptor-manager';
 import { ResponseError } from './errors/response-error';
 import { isObject, noop } from './utils';
@@ -17,7 +18,13 @@ import {
   getInFlightPromise,
 } from './inflight-manager';
 import { parseResponseData, prepareResponse } from './response-parser';
-import { generateCacheKey, getCachedResponse, setCache } from './cache-manager';
+import {
+  generateCacheKey,
+  getCachedResponse,
+  getStoredCache,
+  restoreCache,
+  setCache,
+} from './cache-manager';
 import { withRetry } from './retry-handler';
 import { withPolling } from './polling-handler';
 import { notifySubscribers } from './pubsub-manager';
@@ -127,6 +134,30 @@ export async function fetchf<
 
     if (cached) {
       return cached;
+    }
+
+    // Restore the response from the cache store, e.g. one saved during a previous page load
+    if (fetcherConfig.cacheStore) {
+      const stored = await getStoredCache(_cacheKey, fetcherConfig);
+      const restored =
+        stored &&
+        toResponse<ResponseData, RequestBody, QueryParams, PathParams>(
+          stored.data,
+          _cacheKey,
+          fetcherConfig,
+        );
+
+      // A stale response is shown until the request below revalidates it
+      if (
+        restored &&
+        restoreCache(
+          _cacheKey,
+          { ...stored, data: restored },
+          fetcherConfig.cacheStore,
+        )
+      ) {
+        return restored;
+      }
     }
   }
 
@@ -394,4 +425,57 @@ export async function fetchf<
   }
 
   return doRequestPromise;
+}
+
+/**
+ * Recreates a response from its copy in a cache store.
+ * The data was transformed before it was stored, so it isn't transformed again.
+ *
+ * @param stored - The stored copy of the response.
+ * @param cacheKey - The cache key of the request.
+ * @param config - The request configuration.
+ * @returns The response, or null if the stored copy is invalid, e.g. has an unknown status.
+ */
+function toResponse<ResponseData, RequestBody, QueryParams, PathParams>(
+  stored: StoredResponse,
+  cacheKey: string,
+  config: RequestConfig<ResponseData, QueryParams, PathParams, RequestBody>,
+): FetchResponse<ResponseData, RequestBody, QueryParams, PathParams> | null {
+  try {
+    // Without the Fetch API (e.g. with a custom fetcher in tests), a plain response object is used
+    const response = (typeof Response === FUNCTION
+      ? new Response(null, stored)
+      : {
+          ok: true,
+          status: stored.status,
+          statusText: stored.statusText,
+          headers: stored.headers,
+        }) as unknown as FetchResponse<
+      ResponseData,
+      RequestBody,
+      QueryParams,
+      PathParams
+    >;
+
+    response.data = stored.data as typeof response.data;
+    config.cacheKey = cacheKey;
+
+    const output = prepareResponse<
+      ResponseData,
+      RequestBody,
+      QueryParams,
+      PathParams
+    >(response, {
+      ...config,
+      select: undefined,
+      flattenResponse: false,
+      defaultResponse: undefined,
+    });
+
+    output.config = config;
+
+    return output;
+  } catch {
+    return null;
+  }
 }

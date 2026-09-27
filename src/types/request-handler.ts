@@ -14,6 +14,7 @@ import type {
   ResponseInterceptor,
   RetryInterceptor,
 } from './interceptor-manager';
+import type { CacheStore } from './cache-manager';
 
 export type Method =
   | 'get'
@@ -432,6 +433,17 @@ export interface CacheOptions<
    * @default false
    */
   cacheErrors?: boolean;
+
+  /**
+   * A store that keeps cached responses beyond the in-memory cache, e.g. across page reloads or app restarts.
+   * It's an object with `get`, `set` and `delete` methods, which can be synchronous or asynchronous,
+   * so it can wrap localStorage, IndexedDB, AsyncStorage or any other storage.
+   * - Successful responses are saved in it whenever they are cached.
+   * - A request that misses the in-memory cache restores the response from it, if it hasn't expired.
+   * - Error responses are only cached in memory.
+   * @default undefined (in-memory cache only)
+   */
+  cacheStore?: CacheStore;
 
   /**
    * INTERNAL, DO NOT USE.
