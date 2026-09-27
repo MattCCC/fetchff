@@ -570,6 +570,13 @@ export interface ExtendedRequestConfig<
   refetchOnFocus?: boolean;
 
   /**
+   * The time (in milliseconds) after a request or its revalidation during which the window regaining focus doesn't revalidate it again.
+   * It keeps `refetchOnFocus` from sending requests over and over, e.g. when switching between tabs quickly. 0 revalidates on every focus.
+   * @default 5000 (5 seconds)
+   */
+  focusThrottleInterval?: number;
+
+  /**
    * If true, automatically revalidates the request when network connectivity is restored.
    * In browsers, listens for the 'online' window event.
    * Otherwise, requires a custom event provider via `setEventProvider('online', provider)`.
