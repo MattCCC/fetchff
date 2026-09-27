@@ -568,6 +568,7 @@ You can also use all native [`fetch()` settings](https://developer.mozilla.org/e
 | dedupeTime                 | `number`                                                                                               | `0`               | Time window, in milliseconds, during which identical requests are deduplicated (treated as same request). If set to `0`, deduplication is disabled.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | cacheTime                  | `number`                                                                                               | `undefined`       | Specifies the duration, in seconds, for which a cache entry is considered "fresh." Once this time has passed, the entry is considered stale and may be refreshed with a new request. Set to -1 for indefinite cache. By default no caching.                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | staleTime                  | `number`                                                                                               | `undefined`       | Specifies the duration, in seconds, for which cached data is considered "fresh." During this period, cached data will be returned immediately, but a background revalidation (network request) will be triggered to update the cache. If set to `0`, background revalidation is disabled and revalidation is triggered on every access.                                                                                                                                                                                                                                                                                                                     |
+| cacheStore                 | `CacheStore`                                                                                           | `undefined`       | An object with `get`, `set` and `delete` methods that keeps cached responses beyond the in-memory cache, e.g. across page reloads. It can wrap localStorage, IndexedDB, AsyncStorage or any other storage, and its methods can be asynchronous. Cached successful responses are saved in it, and requests that miss the in-memory cache restore them from it. See **Persistent Cache** in the Cache Management section.                                                                                                                                                                                                                                     |
 | refetchOnFocus             | `boolean`                                                                                              | `false`           | When set to `true`, automatically revalidates (refetches) data when the browser window regains focus. **Note: This bypasses the cache and always makes a fresh network request** to ensure users see the most up-to-date data when they return to your application from another tab or window. Particularly useful for applications that display real-time or frequently changing data, but should be used judiciously to avoid unnecessary network traffic.                                                                                                                                                                                                |
 | refetchOnReconnect         | `boolean`                                                                                              | `false`           | When set to `true`, automatically revalidates (refetches) data when the browser regains internet connectivity after being offline. **This uses background revalidation to silently update data** without showing loading states to users. Helps ensure your application displays fresh data after network interruptions. Works by listening to the browser's `online` event.                                                                                                                                                                                                                                                                                |
 | logger                     | `Logger`                                                                                               | `null`            | You can additionally specify logger object with your custom logger to automatically log the errors to the console. It should contain at least `error` and `warn` functions.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
@@ -1164,7 +1165,7 @@ const api = createApiFetcher({
 <br><br>
 
 > ⚠️ **When using in Node.js:**  
-> Cache and deduplication are in-memory and per-process. For distributed or serverless environments, consider external caching if persistence is needed.
+> Cache and deduplication are in-memory and per-process by default. To keep cached responses across restarts, or to share them between processes, plug in a persistent store with `cacheStore`.
 
 ### Example
 
@@ -1229,6 +1230,11 @@ The caching system can be fine-tuned using the following options when configurin
   - Set to `undefined` to disable SWR: data is never considered stale and background revalidation is not performed.  
     _Default:_ `undefined` to disable SWR pattern (data is never considered stale) or `300` (5 minutes) in libraries like React.
 
+- **`cacheStore`**:  
+  Type: `CacheStore`  
+  An object with `get`, `set` and `delete` methods that keeps cached responses beyond the in-memory cache, e.g. across page reloads or app restarts. Its methods can be synchronous or asynchronous, so it can wrap localStorage, IndexedDB, AsyncStorage or any other storage. See [Persistent Cache](#persistent-cache) below.  
+  _Default:_ `undefined` (in-memory cache only).
+
   ### How It Works
   1. **Cache Lookup**:  
      When a request is made, `fetchff` first checks the internal cache for a matching entry using the generated cache key. If a valid and "fresh" cache entry exists (within `cacheTime`), the cached response is returned immediately. If the native `fetch()` option `cache: 'reload'` is set, the internal cache is bypassed and a fresh request is made.
@@ -1244,6 +1250,56 @@ The caching system can be fine-tuned using the following options when configurin
 
   5. **Network Request and Cache Update**:  
      If no valid cache entry is found, or if caching is skipped or busted, the request is sent to the network. The response is then cached according to your configuration, making it available for future requests.
+
+  6. **Persistent Cache**:  
+     With a `cacheStore`, successful responses are also saved in the store whenever they are cached. A request that misses the in-memory cache restores its response from the store before going to the network, unless the stored entry has expired.
+
+### Persistent Cache
+
+By default, the cache lives in memory, so it's gone after a page reload or app restart. Pass a `cacheStore` to keep cached responses in a persistent storage. It's an object with `get`, `set` and `delete` methods, which can be synchronous or return promises:
+
+```typescript
+import { fetchf, setDefaultConfig, type CacheStore } from 'fetchff';
+
+const localStorageStore: CacheStore = {
+  get: (key) => JSON.parse(localStorage.getItem('fetchff:' + key) ?? 'null'),
+  set: (key, entry) =>
+    localStorage.setItem('fetchff:' + key, JSON.stringify(entry)),
+  delete: (key) => localStorage.removeItem('fetchff:' + key),
+};
+
+const { data } = await fetchf('https://api.example.com/books', {
+  cacheTime: 86400, // Keep the books for a day, also across page reloads
+  staleTime: 300, // Revalidate them in the background once they are 5 minutes old
+  cacheStore: localStorageStore,
+});
+
+// Or use the store for all requests
+setDefaultConfig({ cacheStore: localStorageStore });
+```
+
+Other storages work the same way, e.g. IndexedDB through [idb-keyval](https://github.com/jakearchibald/idb-keyval) or AsyncStorage in React Native:
+
+```typescript
+import { get, set, del } from 'idb-keyval';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const indexedDbStore: CacheStore = { get, set, delete: del };
+
+const asyncStorageStore: CacheStore = {
+  get: async (key) => JSON.parse((await AsyncStorage.getItem(key)) ?? 'null'),
+  set: (key, entry) => AsyncStorage.setItem(key, JSON.stringify(entry)),
+  delete: (key) => AsyncStorage.removeItem(key),
+};
+```
+
+How the store is used:
+
+- **Saving**: Whenever a successful response is cached, a copy is saved with `set(key, entry)`. The entry contains the response `data`, `status`, `statusText` and `headers`, and when it was cached (`time`), becomes stale (`stale`) and expires (`expiry`), all in milliseconds. Error responses are only cached in memory.
+- **Restoring**: A request that misses the in-memory cache calls `get(key)` before going to the network. A valid entry is restored into the in-memory cache and returned like a cached response, e.g. `useFetcher()` shows it right away after a page reload. If it's stale, it's shown until the request revalidates it. Expired entries are deleted with `delete(key)`.
+- **Updating**: `mutate()` and `deleteCache()` update or delete the stored copies of responses that were cached or restored since the app started. To clear the whole storage, e.g. on logout, clear it directly.
+- **Bypassing**: `cacheBuster` and `cache: 'reload'` bypass the store just like the in-memory cache.
+- **Errors**: Errors of the store, e.g. a full localStorage, are ignored, so requests never fail because of it.
 
 ### 🔄 Cache and Deduplication Integration
 
@@ -2897,6 +2953,7 @@ const api = createApiFetcher({
   cacheBuster: (config) => config.method === 'POST', // Bust cache for POST requests
   skipCache: (response, config) => response.status !== 200, // Skip caching on non-200 responses
   cacheErrors: false, // Cache error responses as well as successful ones, default false
+  cacheStore: undefined, // Object with get/set/delete methods keeping cached responses, e.g. in localStorage. In-memory only by default.
   onError(error) {
     // Interceptor on error
     console.error('Request failed', error);
