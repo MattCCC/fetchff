@@ -27,6 +27,7 @@ import {
 } from './cache-manager';
 import { withRetry } from './retry-handler';
 import { withPolling } from './polling-handler';
+import { fetchWithUploadProgress } from './upload-progress';
 import { notifySubscribers } from './pubsub-manager';
 import { addRevalidator } from './revalidator-manager';
 import { enhanceError, withErrorHandling } from './error-handler';
@@ -259,10 +260,13 @@ export async function fetchf<
             url,
             requestConfig,
           )
-        : await fetch(
-            url,
-            requestConfig as RequestInit,
-          )) as unknown as FetchResponse<
+        : // Uploads with onUploadProgress are sent in a way that reports their progress
+          await (requestConfig.onUploadProgress && requestConfig.body
+            ? fetchWithUploadProgress(url, requestConfig)
+            : fetch(
+                url,
+                requestConfig as RequestInit,
+              ))) as unknown as FetchResponse<
         ResponseData,
         RequestBody,
         QueryParams,
