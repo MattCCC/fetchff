@@ -7,7 +7,13 @@ import type {
 import { applyInterceptors } from './interceptor-manager';
 import { handleResponseCache } from './cache-manager';
 import { ABORT_ERROR, REJECT } from './constants';
-import { DefaultParams, DefaultUrlParams, DefaultPayload } from './types';
+import {
+  DefaultParams,
+  DefaultUrlParams,
+  DefaultPayload,
+  HeadersObject,
+} from './types';
+import { processHeaders } from './utils';
 
 /**
  * Handles final processing for both success and error responses
@@ -53,7 +59,16 @@ export async function withErrorHandling<
   const isCancelled = error.isCancelled;
 
   if (!isCancelled && requestConfig.logger?.warn) {
-    requestConfig.logger.warn('FETCH ERROR', error as ResponseError);
+    requestConfig.logger.warn(
+      'FETCH ERROR',
+      redactError(error as ResponseError),
+    );
+  }
+
+  // The defaultResponse strategy returns the default response in place of the error data.
+  // The original data stays available through error.response.
+  if (requestConfig.strategy === 'defaultResponse') {
+    output.data = (requestConfig.defaultResponse ?? null) as typeof output.data;
   }
 
   // Handle cache and notifications FIRST (before strategy)
@@ -76,6 +91,47 @@ export async function withErrorHandling<
   }
 
   return output;
+}
+
+// Credential headers that must not end up in logs
+const SENSITIVE_HEADERS = [
+  'authorization',
+  'proxy-authorization',
+  'cookie',
+  'x-api-key',
+];
+
+/**
+ * Creates a copy of the error for logging, with credential headers masked and the request body removed.
+ * The error itself is left untouched.
+ */
+function redactError(error: ResponseError): ResponseError {
+  // Cache keys are dropped too, as they can contain short request bodies
+  const config = {
+    ...error.config,
+    body: undefined,
+    data: undefined,
+    cacheKey: undefined,
+    _prevKey: undefined,
+    headers: processHeaders(error.config.headers as HeadersObject),
+  };
+
+  for (const name of SENSITIVE_HEADERS) {
+    if (config.headers[name]) {
+      config.headers[name] = '[REDACTED]';
+    }
+  }
+
+  const copy = Object.assign(new Error(error.message), error, {
+    config,
+    request: config,
+    response: error.response && { ...error.response, config },
+  });
+
+  copy.name = error.name;
+  copy.stack = error.stack;
+
+  return copy;
 }
 
 export function enhanceError<

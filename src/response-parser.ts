@@ -177,7 +177,12 @@ export const prepareResponse = <
 
   // Native fetch Response extended by extra information
   if (isNativeResponse) {
-    return {
+    const output: FetchResponse<
+      ResponseData,
+      RequestBody,
+      QueryParams,
+      PathParams
+    > = {
       body: response.body,
       bodyUsed: response.bodyUsed,
       ok: response.ok,
@@ -194,7 +199,8 @@ export const prepareResponse = <
         ), // Lazily construct Blob from ArrayBuffer
       json: () => Promise.resolve(data as ResponseData), // Return the already parsed JSON data
       text: () => Promise.resolve(data as string), // Return the already parsed text data
-      clone: () => response.clone(),
+      // The body was already read, so a copy of this response is returned instead of Response.clone()
+      clone: () => ({ ...output }),
       arrayBuffer: () =>
         Promise.resolve(
           data instanceof ArrayBuffer ? data : new ArrayBuffer(0),
@@ -217,6 +223,8 @@ export const prepareResponse = <
       isSuccess: response.ok && !error,
       isError: !!error,
     };
+
+    return output;
   }
 
   // If it's a custom fetcher, and it does not return any Response instance, it may have its own internal handler

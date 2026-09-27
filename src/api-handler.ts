@@ -6,7 +6,7 @@ import type {
 } from './types/api-handler';
 import { fetchf } from '.';
 import { mergeConfigs } from './config-handler';
-import { isAbsoluteUrl } from './utils';
+import { hasOwn } from './utils';
 
 /**
  * Creates an instance of API Handler.
@@ -73,19 +73,30 @@ function createApiFetcher<
      */
     async request(endpointName, requestConfig = {}) {
       // Use global and per-endpoint settings
-      const endpointConfig = endpoints[endpointName];
+      // Only own properties are endpoints, not ones inherited like "constructor"
+      const endpointConfig = hasOwn(endpoints, endpointName as string)
+        ? endpoints[endpointName]
+        : undefined;
       const _endpointConfig =
         endpointConfig ||
         ({ url: String(endpointName) } as RequestConfigUrlRequired);
       const url = _endpointConfig.url;
 
+      // URL parsers ignore leading control characters and spaces, drop tabs and newlines,
+      // and treat backslashes like slashes, so check the URL the way it will be resolved
+      const resolvedUrl = url
+        .replace(/[\t\n\r]/g, '')
+        // eslint-disable-next-line no-control-regex -- matching control characters is the point
+        .replace(/^[\x00-\x20]+/, '');
+
       // Block Protocol-relative URLs as they could lead to SSRF (Server-Side Request Forgery)
-      if (url.startsWith('//')) {
+      if (/^[/\\]{2}/.test(resolvedUrl)) {
         throw new Error('Protocol-relative URLs not allowed.');
       }
 
       // Prevent potential Server-Side Request Forgery attack and leakage of credentials when same instance is used for external requests
-      const mergedConfig = isAbsoluteUrl(url)
+      // Any scheme counts here, as e.g. "http:\\host" or "http:host" can also point to another host
+      const mergedConfig = /^[a-z][a-z\d+\-.]*:/i.test(resolvedUrl)
         ? // Merge endpoints configs for absolute URLs only if urls match
           endpointConfig?.url === url
           ? mergeConfigs(_endpointConfig, requestConfig)
@@ -106,13 +117,19 @@ function createApiFetcher<
   return new Proxy<ApiHandlerMethods<EndpointTypes, EndpointsSettings>>(
     apiHandler as ApiHandlerMethods<EndpointTypes, EndpointsSettings>,
     {
-      get(_target, prop: string) {
+      get(_target, prop: string | symbol) {
         if (prop in apiHandler) {
           return apiHandler[prop as unknown as keyof typeof apiHandler];
         }
 
+        // Symbols (e.g. inspection hooks) are never endpoints, and returning a function
+        // for "then" would make the instance a thenable that never settles when awaited
+        if (typeof prop === 'symbol' || prop === 'then') {
+          return undefined;
+        }
+
         // Prevent handler from triggering non-existent endpoints
-        if (endpoints[prop]) {
+        if (hasOwn(endpoints, prop)) {
           return apiHandler.request.bind(null, prop);
         }
 

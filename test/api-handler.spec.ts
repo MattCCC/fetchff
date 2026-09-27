@@ -50,6 +50,20 @@ describe('API Handler', () => {
       expect(api.request).not.toHaveBeenCalled();
       expect(response).toBeNull();
     });
+
+    it('should not be a thenable, so that awaiting the instance resolves', async () => {
+      const api = createApiFetcher(config);
+
+      expect((api as any).then).toBeUndefined();
+      await expect(Promise.resolve(api)).resolves.toBe(api);
+    });
+
+    it('should not treat symbol properties as endpoints', () => {
+      const api = createApiFetcher(config);
+
+      expect((api as any)[Symbol.toPrimitive]).toBeUndefined();
+      expect(String(api)).toBe('[object Object]');
+    });
   });
 
   describe('request()', () => {
@@ -138,8 +152,7 @@ describe('API Handler', () => {
       });
 
       const headers = result?.config?.headers as
-        | Record<string, string>
-        | undefined;
+        Record<string, string> | undefined;
       expect(headers?.['X-Request']).toBe('request');
       expect(headers?.['X-Endpoint']).toBe('endpoint');
       expect(headers?.['X-Global']).toBe('global');

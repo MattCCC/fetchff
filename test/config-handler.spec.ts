@@ -1,5 +1,6 @@
 import { buildFetcherConfig } from '../src/config-handler';
 import { GET, CONTENT_TYPE } from '../src/constants';
+import type { HeadersObject } from '../src/types/request-handler';
 
 describe('buildFetcherConfig() with native fetch()', () => {
   const contentTypeValue = 'application/json;charset=utf-8';
@@ -206,6 +207,16 @@ describe('buildFetcherConfig() with native fetch()', () => {
       params: { foo: 'bar' },
     });
   });
+
+  it('should keep the baseURL for relative URLs that contain :// in the query string', () => {
+    const result = buildFetcherConfig('/redirect?to=https://example.com', {
+      baseURL: 'https://api.example.com',
+    });
+
+    expect(result.url).toBe(
+      'https://api.example.com/redirect?to=https://example.com',
+    );
+  });
 });
 
 describe('request() Content-Type', () => {
@@ -331,5 +342,88 @@ describe('request() Content-Type', () => {
     expect((result.headers as Record<string, string>)['Content-Type']).toContain(
       'octet-stream',
     );
+  });
+});
+
+describe('buildConfig() and setDefaultConfig()', () => {
+  const url = 'https://example.com/api';
+  let configHandler: typeof import('../src/config-handler');
+
+  // Global defaults are module state, so each test gets a fresh module
+  beforeEach(async () => {
+    await jest.isolateModulesAsync(async () => {
+      configHandler = await import('../src/config-handler');
+    });
+  });
+
+  it('should not leak the automatic Content-Type into the default headers', () => {
+    const { buildConfig, getDefaultConfig } = configHandler;
+
+    buildConfig(url, { method: 'POST', body: { foo: 'bar' } });
+
+    expect(getDefaultConfig().headers).not.toHaveProperty(CONTENT_TYPE);
+    expect(
+      buildConfig(url, { method: 'POST', body: new FormData() }).headers,
+    ).not.toHaveProperty(CONTENT_TYPE);
+  });
+
+  it('should give each request its own headers so that mutating them does not change the defaults', () => {
+    const { buildConfig, getDefaultConfig } = configHandler;
+
+    (buildConfig(url, {}).headers as HeadersObject).Authorization = 'secret';
+    (buildConfig(url).headers as HeadersObject)['X-Request-Id'] = '1';
+
+    expect(getDefaultConfig().headers).not.toHaveProperty('Authorization');
+    expect(getDefaultConfig().headers).not.toHaveProperty('X-Request-Id');
+  });
+
+  it('should not add a second Content-Type when it is set in lowercase', () => {
+    const result = configHandler.buildConfig(url, {
+      method: 'POST',
+      body: { foo: 'bar' },
+      headers: { 'content-type': 'application/vnd.api+json' },
+    });
+
+    expect(new Headers(result.headers).get(CONTENT_TYPE)).toBe(
+      'application/vnd.api+json',
+    );
+  });
+
+  it('should not add a second Content-Type when it is set on a Headers instance', () => {
+    const result = configHandler.buildConfig(url, {
+      method: 'POST',
+      body: { foo: 'bar' },
+      headers: new Headers({ 'Content-Type': 'application/vnd.api+json' }),
+    });
+
+    expect(new Headers(result.headers).get(CONTENT_TYPE)).toBe(
+      'application/vnd.api+json',
+    );
+  });
+
+  it('should replace default headers regardless of the letter case', () => {
+    const result = configHandler.buildConfig(url, {
+      headers: { accept: 'text/html' },
+    });
+
+    expect(new Headers(result.headers).get('Accept')).toBe('text/html');
+  });
+
+  it('should merge nested retry and headers settings into the defaults', () => {
+    const { setDefaultConfig, getDefaultConfig } = configHandler;
+
+    setDefaultConfig({
+      retry: { retries: 2, delay: 1500 },
+      headers: { Authorization: 'Bearer token' },
+    });
+
+    const { retry, headers } = getDefaultConfig();
+
+    expect(retry).toMatchObject({ retries: 2, delay: 1500, backoff: 1.5 });
+    expect(retry?.retryOn).toContain(500);
+    expect(headers).toMatchObject({
+      Accept: 'application/json, text/plain, */*',
+      Authorization: 'Bearer token',
+    });
   });
 });

@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { FUNCTION, OBJECT, STRING, UNDEFINED } from './constants';
+import { FUNCTION, MAX_DELAY_MS, OBJECT, STRING, UNDEFINED } from './constants';
 import type {
   DefaultUrlParams,
   HeadersObject,
@@ -10,7 +10,7 @@ import type {
 // Prevent stack overflow with recursion depth limit
 const MAX_DEPTH = 10;
 
-const hasOwn = (o: any, k: string) =>
+export const hasOwn = (o: any, k: string) =>
   Object.prototype.hasOwnProperty.call(o, k);
 
 export function isSearchParams(data: unknown): boolean {
@@ -65,13 +65,16 @@ export function sanitizeObject<T extends Record<string, any>>(obj: T): T {
     return obj;
   }
 
-  const safeObj = { ...obj };
+  // Copy key by key, as a spread compiled to assignments would let "__proto__" set the prototype
+  const safeObj = {} as Record<string, any>;
 
-  if (hasProto) delete safeObj.__proto__;
-  if (hasCtor) delete (safeObj as any).constructor;
-  if (hasPrototype) delete safeObj.prototype;
+  for (const key of Object.keys(obj)) {
+    if (key !== '__proto__' && key !== 'constructor' && key !== 'prototype') {
+      safeObj[key] = obj[key];
+    }
+  }
 
-  return safeObj;
+  return safeObj as T;
 }
 
 /**
@@ -84,7 +87,8 @@ export function sanitizeObject<T extends Record<string, any>>(obj: T): T {
  * @returns {Object} - A new object with keys sorted in ascending order.
  */
 export function sortObject(obj: Record<string, any>): object {
-  const sortedObj = {} as Record<string, string>;
+  // Without a prototype, a "__proto__" key is kept as a regular property instead of setting the prototype
+  const sortedObj = Object.create(null) as Record<string, string>;
 
   Object.keys(obj)
     .sort()
@@ -210,7 +214,14 @@ export function replaceUrlPathParams(
 
       // Only replace if value is not undefined or null
       if (value !== undefined && value !== null) {
-        return encodeURIComponent(String(value));
+        const encoded = encodeURIComponent(String(value));
+
+        // These can't be encoded, and URL parsers would move the request to another path
+        if (encoded === '.' || encoded === '..') {
+          throw new Error('Path params "." and ".." not allowed.');
+        }
+
+        return encoded;
       }
     }
 
@@ -221,13 +232,14 @@ export function replaceUrlPathParams(
 /**
  * Determines whether the provided URL is absolute.
  *
- * An absolute URL contains a scheme (e.g., "http://", "https://").
+ * An absolute URL starts with a scheme (e.g., "http://", "https://").
+ * A "://" appearing later, e.g. in a query string, does not make the URL absolute.
  *
  * @param url - The URL string to check.
  * @returns `true` if the URL is absolute, otherwise `false`.
  */
 export function isAbsoluteUrl(url: string): boolean {
-  return url.includes('://');
+  return /^[a-z][a-z\d+\-.]*:\/\//i.test(url);
 }
 
 export const timeNow = () => Date.now();
@@ -291,7 +303,9 @@ export function isJSONSerializable(value: any): boolean {
 }
 
 export const delayInvocation = (ms: number): Promise<boolean> =>
-  new Promise((resolve) => setTimeout(resolve, ms, true));
+  new Promise((resolve) =>
+    setTimeout(resolve, Math.min(ms, MAX_DELAY_MS), true),
+  );
 
 /**
  * Recursively flattens the data object if it meets specific criteria.
@@ -342,7 +356,8 @@ export function processHeaders(
   } else {
     // Handle plain object — use for...in to avoid Object.entries() allocation
     for (const key in headers) {
-      if (hasOwn(headers, key)) {
+      // Assigning "__proto__" would set the prototype of the result
+      if (hasOwn(headers, key) && key !== '__proto__') {
         headersObject[key.toLowerCase()] = headers[key];
       }
     }

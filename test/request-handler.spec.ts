@@ -1516,6 +1516,38 @@ describe('Request Handler', () => {
       expect(result.data).toEqual({ foo: 'bar' });
     });
 
+    it('should return defaultResponse in place of the error data with the defaultResponse strategy', async () => {
+      fetchMock.getOnce('http://example.com/api/failing', {
+        status: 500,
+        body: { message: 'Internal error' },
+      });
+
+      const result = await fetchf('http://example.com/api/failing', {
+        strategy: 'defaultResponse',
+        defaultResponse: { theme: 'light' },
+      });
+
+      expect(result.error?.status).toBe(500);
+      expect(result.data).toEqual({ theme: 'light' });
+      expect(result.error?.response?.data).toEqual({
+        message: 'Internal error',
+      });
+    });
+
+    it('should return null in place of the error data with the defaultResponse strategy when no defaultResponse is set', async () => {
+      fetchMock.getOnce('http://example.com/api/failing', {
+        status: 500,
+        body: { message: 'Internal error' },
+      });
+
+      const result = await fetchf('http://example.com/api/failing', {
+        strategy: 'defaultResponse',
+      });
+
+      expect(result.error?.status).toBe(500);
+      expect(result.data).toBeNull();
+    });
+
     it('should show nested data object if flattening is off', async () => {
       fetcher = jest.fn().mockResolvedValue({ data: responseMock, ok: true });
 
@@ -1594,6 +1626,41 @@ describe('Request Handler', () => {
       const secondResponse = await fetchf(apiUrl, { cacheTime: 60 });
       expect(secondResponse.data).toEqual({ value: 'cached' });
       expect(callCount).toBe(1);
+    });
+
+    it('should send a new request after a failed one instead of serving the in-flight placeholder', async () => {
+      let callCount = 0;
+      fetchMock.get(apiUrl, () => {
+        callCount++;
+        return callCount === 1
+          ? { status: 500, body: { message: 'error' } }
+          : { status: 200, body: { value: 'fresh' } };
+      });
+      const config = {
+        cacheTime: 60,
+        staleTime: 30,
+        strategy: 'softFail' as const,
+      };
+
+      const firstResponse = await fetchf(apiUrl, config);
+      expect(firstResponse.error?.status).toBe(500);
+
+      const secondResponse = await fetchf(apiUrl, config);
+      expect(secondResponse.data).toEqual({ value: 'fresh' });
+      expect(callCount).toBe(2);
+    });
+
+    it('should not resolve concurrent requests with the in-flight placeholder', async () => {
+      fetchMock.get(apiUrl, { status: 200, body: { value: 'data' } });
+      const config = { cacheTime: 60, staleTime: 30 };
+
+      const [first, second] = await Promise.all([
+        fetchf(apiUrl, config),
+        fetchf(apiUrl, config),
+      ]);
+
+      expect(first.data).toEqual({ value: 'data' });
+      expect(second.data).toEqual({ value: 'data' });
     });
 
     it('should bypass cache if cacheTime is undefined', async () => {

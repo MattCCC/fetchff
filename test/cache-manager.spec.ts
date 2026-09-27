@@ -8,8 +8,9 @@ import {
   mutate,
   pruneCache,
   IMMEDIATE_DISCARD_CACHE_TIME,
+  handleResponseCache,
 } from '../src/cache-manager';
-import { RequestConfig } from '../src/index';
+import type { FetchResponse, RequestConfig } from '../src/index';
 import * as hashM from '../src/hash';
 import * as pubsubManager from '../src/pubsub-manager';
 import * as revalidatorManager from '../src/revalidator-manager';
@@ -129,13 +130,16 @@ describe('Cache Manager', () => {
 
     it('should not hash shorter body if provided', () => {
       const spy = jest.spyOn(hashM, 'hash');
+      const body = JSON.stringify({ name: 'Alice' });
 
       const key = generateCacheKey({
         url,
         method: 'POST',
-        body: JSON.stringify({ name: 'Alice' }),
+        body,
       });
-      expect(spy).not.toHaveBeenCalled();
+
+      // The body is kept as is. Only the complete key gets hashed, as sanitization removed characters from it.
+      expect(spy).not.toHaveBeenCalledWith(body);
       expect(key).toContain(
         'POST|https://api.example.com/data|same-origin||name:Alice',
       );
@@ -157,24 +161,31 @@ describe('Cache Manager', () => {
 
     it('should handle Blob body', () => {
       const blob = new Blob(['test'], { type: 'text/plain' });
-      const key = generateCacheKey({
-        url,
-        method: 'POST',
-        body: blob,
-      });
-      expect(key).toContain(
-        'POST|https://api.example.com/data|same-origin||BF4text/plain',
+      const key = generateCacheKey({ url, method: 'POST', body: blob });
+
+      // Blobs can't be read synchronously, so the key identifies the blob object
+      expect(key).toMatch(
+        /^POST\|https:\/\/api\.example\.com\/data\|same-origin\|\|B\d+$/,
       );
+      expect(generateCacheKey({ url, method: 'POST', body: blob })).toBe(key);
+      expect(
+        generateCacheKey({
+          url,
+          method: 'POST',
+          body: new Blob(['TEST'], { type: 'text/plain' }),
+        }),
+      ).not.toBe(key);
     });
 
     it('should handle ArrayBuffer body', () => {
       const buffer = new ArrayBuffer(8);
-      const key = generateCacheKey({
-        url,
-        method: 'POST',
-        body: buffer,
-      });
-      expect(key).toContain('AB8');
+      const key = generateCacheKey({ url, method: 'POST', body: buffer });
+
+      expect(key).toMatch(/\|B\d+$/);
+      expect(generateCacheKey({ url, method: 'POST', body: buffer })).toBe(key);
+      expect(
+        generateCacheKey({ url, method: 'POST', body: new ArrayBuffer(8) }),
+      ).not.toBe(key);
     });
 
     it('should handle numbers', () => {
@@ -210,6 +221,29 @@ describe('Cache Manager', () => {
 
       expect(key).toContain(
         'POST|https://api.example.com/data|same-origin||a:1b:2',
+      );
+    });
+
+    it('should not generate the same key for URLs differing only in removed characters', () => {
+      expect(generateCacheKey({ url: url + '?a[]=1' })).not.toBe(
+        generateCacheKey({ url: url + '?a=1' }),
+      );
+      expect(generateCacheKey({ url: url + '?ids=1,2' })).not.toBe(
+        generateCacheKey({ url: url + '?ids=12' }),
+      );
+    });
+
+    it('should not generate the same key for bodies differing only in removed characters', () => {
+      const key = (body: unknown) =>
+        generateCacheKey({ url, method: 'POST', body: JSON.stringify(body) });
+
+      expect(key({ id: 1 })).not.toBe(key({ id: '1' }));
+      expect(key({ q: 'a b' })).not.toBe(key({ q: 'ab' }));
+    });
+
+    it('should keep keys without removed characters unchanged', () => {
+      expect(generateCacheKey({ url: url + '?a=1' })).toBe(
+        'GET|https://api.example.com/data?a=1|same-origin|',
       );
     });
   });
@@ -354,6 +388,37 @@ describe('Cache Manager', () => {
       const result = getCachedResponse(cacheKey, cacheTime, fetcherConfig);
       expect(result).toBeNull();
       delete fetcherConfig.cache;
+    });
+
+    it('should not return the placeholder stored while a request is in flight', () => {
+      setCache(cacheKey, { isFetching: true }, cacheTime);
+
+      expect(getCachedResponse(cacheKey, cacheTime, fetcherConfig)).toBeNull();
+    });
+  });
+
+  describe('handleResponseCache', () => {
+    const cacheKey = 'test-key';
+    const cacheTime = 60;
+    const errorOutput = {
+      data: { message: 'failed' },
+      error: new Error('failed'),
+    } as unknown as FetchResponse;
+
+    it('should remove the in-flight placeholder when an error is not cached', () => {
+      setCache(cacheKey, { isFetching: true }, cacheTime);
+
+      handleResponseCache(errorOutput, { cacheKey, cacheTime }, true);
+
+      expect(getCache(cacheKey)).toBeUndefined();
+    });
+
+    it('should keep cached data when an error is not cached', () => {
+      setCache(cacheKey, { data: 'cachedData' }, cacheTime);
+
+      handleResponseCache(errorOutput, { cacheKey, cacheTime }, true);
+
+      expect(getCacheData(cacheKey)).toEqual({ data: 'cachedData' });
     });
   });
 

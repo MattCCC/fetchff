@@ -78,6 +78,37 @@ describe('Timeout Wheel', () => {
     it('should handle removing non-existent timeout', () => {
       expect(() => removeTimeout('non-existent')).not.toThrow();
     });
+
+    it('should not fire early when added part-way through a second of a running wheel', () => {
+      const callback = jest.fn();
+
+      addTimeout('running', jest.fn(), 10000);
+      jest.advanceTimersByTime(900);
+
+      addTimeout('test-1', callback, 1000);
+
+      jest.advanceTimersByTime(999);
+      expect(callback).not.toHaveBeenCalled();
+
+      // Second-level granularity means firing up to 1 second late
+      jest.advanceTimersByTime(1000);
+      expect(callback).toHaveBeenCalledTimes(1);
+    });
+
+    it('should fire on time when added exactly on a tick of a running wheel', () => {
+      const callback = jest.fn();
+
+      addTimeout('running', jest.fn(), 10000);
+      jest.advanceTimersByTime(2000);
+
+      addTimeout('test-1', callback, 3000);
+
+      jest.advanceTimersByTime(2999);
+      expect(callback).not.toHaveBeenCalled();
+
+      jest.advanceTimersByTime(1);
+      expect(callback).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('Key Management', () => {

@@ -8,8 +8,15 @@ import type {
   RequestConfig,
 } from './types/request-handler';
 import type { CacheEntry } from './types/cache-manager';
-import { GET, STRING, UNDEFINED } from './constants';
-import { isObject, sanitizeObject, sortObject, timeNow } from './utils';
+import { GET, STRING } from './constants';
+import {
+  isJSONSerializable,
+  isObject,
+  isSearchParams,
+  sanitizeObject,
+  sortObject,
+  timeNow,
+} from './utils';
 import { revalidate } from './revalidator-manager';
 import { notifySubscribers } from './pubsub-manager';
 import type { DefaultPayload, DefaultParams, DefaultUrlParams } from './types';
@@ -155,31 +162,32 @@ export function generateCacheKey(
       DELIMITER +
       headersString;
 
-    return CACHE_KEY_NEEDS_SANITIZE.test(cacheStr)
-      ? cacheStr.replace(CACHE_KEY_SANITIZE_PATTERN, '')
-      : cacheStr;
+    return sanitizeCacheKey(cacheStr);
   }
 
   let bodyString = '';
   if (body) {
-    if (typeof body === STRING) {
-      bodyString = body.length < MIN_LENGTH_TO_HASH ? body : hash(body); // hash only if large
+    if (typeof body === STRING || isSearchParams(body)) {
+      const str = String(body);
+
+      bodyString = str.length < MIN_LENGTH_TO_HASH ? str : hash(str); // hash only if large
     } else if (body instanceof FormData) {
       body.forEach((value, key) => {
-        // Append key=value and '&' directly to the result
-        bodyString += key + '=' + value + '&';
+        // Files can't be read synchronously, so they are identified by their object
+        bodyString +=
+          key +
+          '=' +
+          (typeof value === STRING ? value : 'F' + getObjectId(value as File)) +
+          '&';
       });
 
       if (bodyString.length > MIN_LENGTH_TO_HASH) {
         bodyString = hash(bodyString);
       }
-    } else if (
-      (typeof Blob !== UNDEFINED && body instanceof Blob) ||
-      (typeof File !== UNDEFINED && body instanceof File)
-    ) {
-      bodyString = 'BF' + body.size + body.type;
-    } else if (body instanceof ArrayBuffer || ArrayBuffer.isView(body)) {
-      bodyString = 'AB' + body.byteLength;
+    } else if (isObject(body) && !isJSONSerializable(body)) {
+      // Blobs, buffers, streams etc. can't be read synchronously, so they are identified by their object.
+      // Two different bodies never share a key, while the same body object is still deduplicated.
+      bodyString = 'B' + getObjectId(body);
     } else {
       const o = isObject(body)
         ? JSON.stringify(sortObject(body))
@@ -202,9 +210,41 @@ export function generateCacheKey(
     DELIMITER +
     bodyString;
 
-  // Prevent cache poisoning by removal of control chars and unusual characters
+  return sanitizeCacheKey(cacheStr);
+}
+
+const objectIds = new WeakMap<object, number>();
+let lastObjectId = 0;
+
+/**
+ * Returns a unique id for an object, e.g. a request body that can't be serialized.
+ *
+ * @param {object} obj - The object to identify.
+ * @returns {number} - The id of the object.
+ */
+function getObjectId(obj: object): number {
+  let id = objectIds.get(obj);
+
+  if (!id) {
+    objectIds.set(obj, (id = ++lastObjectId));
+  }
+
+  return id;
+}
+
+/**
+ * Prevents cache poisoning by removal of control chars and unusual characters.
+ * When anything is removed, a hash of the original key is appended so that keys
+ * differing only in the removed characters (e.g. `?a[]=1` and `?a=1`) don't collide.
+ *
+ * @param {string} cacheStr - The raw cache key.
+ * @returns {string} - The sanitized cache key.
+ */
+function sanitizeCacheKey(cacheStr: string): string {
   return CACHE_KEY_NEEDS_SANITIZE.test(cacheStr)
-    ? cacheStr.replace(CACHE_KEY_SANITIZE_PATTERN, '')
+    ? cacheStr.replace(CACHE_KEY_SANITIZE_PATTERN, '') +
+        DELIMITER +
+        hash(cacheStr)
     : cacheStr;
 }
 
@@ -446,8 +486,11 @@ export function getCachedResponse<
     return null;
   }
 
+  const data = entry.data;
+
   // Return data whether fresh or stale (SWR: serve stale, revalidation is timer-driven)
-  return entry.data;
+  // The placeholder stored while a request is in flight is not a response, so treat it as a miss
+  return data && data.isFetching ? null : data;
 }
 
 /**
@@ -486,6 +529,13 @@ export function handleResponseCache<
       !(skipCache && skipCache(output, requestConfig))
     ) {
       setCache(cacheKey, output, cacheTime, requestConfig.staleTime);
+    } else {
+      const entry = getCache(cacheKey);
+
+      // Don't let the in-flight placeholder outlive a request whose result isn't cached
+      if (entry && entry.data && entry.data.isFetching) {
+        deleteCache(cacheKey);
+      }
     }
 
     notifySubscribers(cacheKey, output);
