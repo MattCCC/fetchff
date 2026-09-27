@@ -466,6 +466,16 @@ export interface CacheOptions<
   cacheStore?: CacheStore;
 
   /**
+   * If `true`, cached responses of GET and HEAD requests are revalidated with their ETag.
+   * The request sends it in the `If-None-Match` header, and when the server answers `304 Not Modified`,
+   * the cached response is reused instead of being downloaded and parsed again.
+   * Requests with an `If-None-Match` header of their own are sent as they are.
+   * Cross-origin servers must expose the `ETag` header and allow the `If-None-Match` header for it.
+   * @default true (false for requests with a custom `fetcher`, which may not handle 304 responses)
+   */
+  etag?: boolean;
+
+  /**
    * INTERNAL, DO NOT USE.
    * This is used internally to mark requests that have cache keys generated automatically.
    */

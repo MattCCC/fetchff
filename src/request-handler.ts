@@ -2,6 +2,7 @@ import type {
   DefaultResponse,
   RequestConfig,
   FetchResponse,
+  HeadersObject,
 } from './types/request-handler';
 import type {
   DefaultParams,
@@ -11,7 +12,7 @@ import type {
 import type { StoredResponse } from './types/cache-manager';
 import { applyInterceptors } from './interceptor-manager';
 import { ResponseError } from './errors/response-error';
-import { isObject, noop } from './utils';
+import { isObject, noop, processHeaders } from './utils';
 import {
   markInFlight,
   setInFlightPromise,
@@ -20,6 +21,7 @@ import {
 import { parseResponseData, prepareResponse } from './response-parser';
 import {
   generateCacheKey,
+  getCacheData,
   getCachedResponse,
   getStoredCache,
   restoreCache,
@@ -31,7 +33,7 @@ import { fetchWithUploadProgress } from './upload-progress';
 import { notifySubscribers } from './pubsub-manager';
 import { addRevalidator } from './revalidator-manager';
 import { enhanceError, withErrorHandling } from './error-handler';
-import { FUNCTION } from './constants';
+import { FUNCTION, GET, HEAD } from './constants';
 import { buildConfig } from './config-handler';
 
 const inFlightResponse = Object.freeze({
@@ -106,6 +108,14 @@ export async function fetchf<
     pollingInterval = 0,
   } = fetcherConfig;
   const isCacheEnabled = cacheTime !== undefined || staleTime !== undefined;
+  const method = fetcherConfig.method;
+
+  // Cached responses of GET and HEAD requests are revalidated with their ETag.
+  // Custom fetchers may not handle 304 responses, so they only send it when it's enabled for them.
+  const isETagEnabled =
+    isCacheEnabled &&
+    (method === GET || method === HEAD) &&
+    (fetcherConfig.etag ?? !fetcherConfig.fetcher);
 
   const needsCacheKey = !!(
     cacheKey ||
@@ -181,6 +191,13 @@ export async function fetchf<
 
   // The actual request logic as a function (one poll attempt, with retries)
   const doRequestOnce = async (isStaleRevalidation: boolean, attempt = 0) => {
+    // The cached response to revalidate. It's read before the cache is marked as fetching below.
+    const cached =
+      isETagEnabled &&
+      getCacheData<ResponseData, RequestBody, QueryParams, PathParams>(
+        _cacheKey,
+      );
+
     // If cache key is specified, we will handle optimistic updates
     // and mark the request as in-flight, so to catch "fetching" state.
     // This is useful for Optimistic UI updates (e.g., showing loading spinners).
@@ -268,19 +285,17 @@ export async function fetchf<
 
       // Custom fetcher
       const fn = fetcherConfig.fetcher;
+      const init = withETag(requestConfig, cached);
 
       response = (fn
         ? await fn<ResponseData, RequestBody, QueryParams, PathParams>(
             url,
-            requestConfig,
+            init,
           )
         : // Uploads with onUploadProgress are sent in a way that reports their progress
           await (requestConfig.onUploadProgress && requestConfig.body
             ? fetchWithUploadProgress(url, requestConfig)
-            : fetch(
-                url,
-                requestConfig as RequestInit,
-              ))) as unknown as FetchResponse<
+            : fetch(url, init as RequestInit))) as unknown as FetchResponse<
         ResponseData,
         RequestBody,
         QueryParams,
@@ -289,6 +304,17 @@ export async function fetchf<
 
       // Custom fetcher may return a raw data object instead of a Response instance
       if (isObject(response)) {
+        // The server answered that the cached response is still valid, so it's reused instead of being sent again.
+        // Like other cached responses, it has been parsed and transformed already.
+        if (init !== requestConfig && response.status === 304) {
+          return cached as FetchResponse<
+            ResponseData,
+            RequestBody,
+            QueryParams,
+            PathParams
+          >;
+        }
+
         // Case 1: Native Response instance
         if (typeof Response === FUNCTION && response instanceof Response) {
           response.data = requestConfig.parser
@@ -499,4 +525,25 @@ function toResponse<ResponseData, RequestBody, QueryParams, PathParams>(
   } catch {
     return null;
   }
+}
+
+/**
+ * Asks the server whether a cached response is still valid, by sending its ETag in the If-None-Match header.
+ * Then the server can answer 304 Not Modified instead of sending the response again.
+ * Requests with an If-None-Match header of their own are sent as they are.
+ *
+ * @param config - The request configuration.
+ * @param cached - The cached response of the request, if any.
+ * @returns A copy of the configuration with the If-None-Match header, or the configuration itself if the cached response has no ETag.
+ */
+function withETag(
+  config: RequestConfig,
+  cached: FetchResponse | null | false,
+): RequestConfig {
+  const etag = cached && !cached.error && cached.headers?.etag;
+  const headers = etag && processHeaders(config.headers as HeadersObject);
+
+  return headers && !headers['if-none-match']
+    ? { ...config, headers: { ...headers, 'if-none-match': etag } }
+    : config;
 }

@@ -531,6 +531,12 @@ export async function mutate<
     data: updatedData,
   };
 
+  // The ETag belongs to the original data, so the changed data must not be revalidated with it
+  if (updatedResponse.headers?.etag) {
+    updatedResponse.headers = { ...updatedResponse.headers };
+    delete updatedResponse.headers.etag;
+  }
+
   const updatedEntry = {
     ...entry,
     data: updatedResponse,
