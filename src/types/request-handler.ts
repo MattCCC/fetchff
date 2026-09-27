@@ -257,6 +257,26 @@ export interface UploadProgress {
   progress?: number;
 }
 
+/**
+ * The download progress of a response body.
+ */
+export interface DownloadProgress {
+  /**
+   * The number of bytes downloaded so far.
+   */
+  loaded: number;
+
+  /**
+   * The total number of bytes to download, or `undefined` if it's unknown, e.g. without a `Content-Length` header or for compressed responses.
+   */
+  total?: number;
+
+  /**
+   * The download progress from 0 to 1, or `undefined` if the total is unknown.
+   */
+  progress?: number;
+}
+
 export type CacheKeyFunction<
   _ResponseData = DefaultResponse,
   _RequestBody = DefaultPayload,
@@ -635,6 +655,14 @@ export interface ExtendedRequestConfig<
    * @param progress - The number of bytes uploaded so far, the total and the progress from 0 to 1.
    */
   onUploadProgress?: (progress: UploadProgress) => void;
+
+  /**
+   * A function called with the download progress while the response body is being received, e.g. to show the progress of file downloads.
+   * It's called whenever a part of the body arrives. The total is known when the response has a `Content-Length` header and isn't compressed.
+   * It requires streamed responses, which all modern browsers, Node.js, Deno and Bun support, while e.g. React Native doesn't.
+   * @param progress - The number of bytes downloaded so far, the total and the progress from 0 to 1.
+   */
+  onDownloadProgress?: (progress: DownloadProgress) => void;
 
   /**
    * A function or array of functions to intercept the request before it is sent.

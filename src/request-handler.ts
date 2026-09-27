@@ -28,6 +28,7 @@ import {
 import { withRetry } from './retry-handler';
 import { withPolling } from './polling-handler';
 import { fetchWithUploadProgress } from './upload-progress';
+import { withDownloadProgress } from './download-progress';
 import { notifySubscribers } from './pubsub-manager';
 import { addRevalidator } from './revalidator-manager';
 import { enhanceError, withErrorHandling } from './error-handler';
@@ -272,6 +273,12 @@ export async function fetchf<
         QueryParams,
         PathParams
       >;
+
+      // Reports the download progress while the body is read
+      response = withDownloadProgress(
+        response,
+        requestConfig.onDownloadProgress,
+      );
 
       // Custom fetcher may return a raw data object instead of a Response instance
       if (isObject(response)) {
