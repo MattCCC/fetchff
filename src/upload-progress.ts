@@ -14,7 +14,7 @@ const FORBIDDEN_HEADERS =
 const isStream = (body: unknown): body is ReadableStream<Uint8Array> =>
   typeof ReadableStream !== UNDEFINED && body instanceof ReadableStream;
 
-const toProgress = (loaded: number, total?: number): UploadProgress => ({
+export const toProgress = (loaded: number, total?: number): UploadProgress => ({
   loaded,
   total,
   progress: total ? loaded / total : undefined,

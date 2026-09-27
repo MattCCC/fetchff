@@ -560,6 +560,7 @@ You can also use all native [`fetch()` settings](https://developer.mozilla.org/e
 | params                     | `object`<br>`URLSearchParams`<br>`NameValuePair[]`                                                     | `undefined`       | Query Parameters - a key-value pairs added to the URL to send extra information with a request. If you pass an object, it will be automatically converted. It works with nested objects, arrays and custom data structures similarly to what `jQuery` used to do in the past. If you use `createApiFetcher()` then it is the first argument of your `api.yourEndpoint()` function. You can still pass configuration in 3rd argument if want to.<br><br>You can pass key-value pairs where the values can be strings, numbers, or arrays. For example, if you pass `{ foo: [1, 2] }`, it will be automatically serialized into `foo[]=1&foo[]=2` in the URL. |
 | body<br>(alias: data)      | `object`<br>`string`<br>`FormData`<br>`URLSearchParams`<br>`Blob`<br>`ArrayBuffer`<br>`ReadableStream` | `undefined`       | The body is the data sent with the request, such as JSON, text, or form data, included in the request payload for POST, PUT, or PATCH requests.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | onUploadProgress           | `(progress: UploadProgress) => void`                                                                   | `undefined`       | A function called with the upload progress while the request body is being sent, e.g. to show a progress bar for file uploads. It receives the `loaded` and `total` bytes, and the `progress` from `0` to `1`. See **Upload Progress** section.                                                                                                                                                                                                                                                                                                                                                                                                             |
+| onDownloadProgress         | `(progress: DownloadProgress) => void`                                                                 | `undefined`       | A function called with the download progress while the response body is being received, e.g. to show a progress bar for file downloads. It receives the `loaded` and `total` bytes, and the `progress` from `0` to `1`. See **Download Progress** section.                                                                                                                                                                                                                                                                                                                                                                                                  |
 | urlPathParams              | `object`                                                                                               | `undefined`       | It lets you dynamically replace segments of your URL with specific values in a clear and declarative manner. This feature is especially handy for constructing URLs with variable components or identifiers.<br><br>For example, suppose you need to update user details and have a URL template like `/user-details/update/:userId`. With `urlPathParams`, you can replace `:userId` with a real user ID, such as `123`, resulting in the URL `/user-details/update/123`.                                                                                                                                                                                  |
 | flattenResponse            | `boolean`                                                                                              | `false`           | When set to `true`, this option flattens the nested response data. This means you can access the data directly without having to use `response.data.data`. It works only if the response structure includes a single `data` property.                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | select                     | `(data: any) => any`                                                                                   | `undefined`       | Function to transform or select a subset of the response data before it is returned. Called with the raw response data and should return the transformed data. Useful for mapping, picking, or shaping the response.                                                                                                                                                                                                                                                                                                                                                                                                                                        |
@@ -1695,6 +1696,43 @@ Browsers don't report the upload progress of `fetch()`, so requests that have a 
 - **Retries**: Each retry sends the body again, so its progress starts from `0` again.
 
 Requests without a body, or with a custom `fetcher`, are sent as usual and don't report any progress.
+
+</details>
+
+## 📥 Download Progress
+
+<details>
+  <summary><span style="cursor:pointer">Click to expand</span></summary>
+  <br>
+  Use `onDownloadProgress` to track the progress of a response body while it's being received, e.g. to show a progress bar for file downloads.
+
+### Example
+
+```typescript
+const { data } = await fetchf('https://api.example.com/reports/2025.pdf', {
+  onDownloadProgress({ loaded, total, progress }) {
+    // The progress is from 0 to 1, or undefined if the total size is unknown
+    progressBar.value = progress ?? 0;
+    console.log(`Downloaded ${loaded} of ${total} bytes`);
+  },
+});
+```
+
+### Configuration
+
+- **`onDownloadProgress`**:  
+  Type: `(progress: DownloadProgress) => void`  
+  A function called with the download progress whenever a part of the response body arrives. It receives `loaded` (the bytes received so far), `total` (the bytes to receive, or `undefined` if unknown) and `progress` (from `0` to `1`, or `undefined` if the total is unknown).  
+  _Default:_ `undefined`.
+
+### How It Works
+
+- **Streaming**: The response body is counted while it's being received and parsed, so the progress follows the download. It works wherever `fetch()` streams response bodies, i.e. in all modern browsers, Node.js, Deno and Bun, but not e.g. in React Native.
+- **Total size**: The total is taken from the `Content-Length` header. It's unknown for responses without it, and for compressed responses, as their `Content-Length` is the compressed size. When a body turns out to be larger than its `Content-Length`, e.g. because browsers hide the `Content-Encoding` header of cross-origin responses, the progress doesn't go beyond `1`.
+- **Uploads**: Responses to uploads sent with `XMLHttpRequest` (see **Upload Progress**) are received completely before their body is read, so their progress is reported all at once when they arrive.
+- **Retries**: Each retry downloads the response again, so its progress starts from `0` again.
+
+Responses without a body, e.g. of `HEAD` requests, and responses of custom fetchers that aren't native `Response` objects don't report any progress.
 
 </details>
 
