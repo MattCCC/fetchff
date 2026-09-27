@@ -150,7 +150,14 @@ export function buildFetcherConfig(
     ? ''
     : requestConfig.baseURL || requestConfig.apiUrl || '';
 
-  requestConfig.url = baseURL + urlPath;
+  // Join as a path, as plain concatenation could extend the host of the baseURL,
+  // e.g. "https://api.example.com" + ".evil.com" would point to another host
+  const separator =
+    baseURL && urlPath && !baseURL.endsWith('/') && !/^[/?#]/.test(urlPath)
+      ? '/'
+      : '';
+
+  requestConfig.url = baseURL + separator + urlPath;
   requestConfig.method = method;
   requestConfig.credentials = credentials;
   requestConfig.body = body;

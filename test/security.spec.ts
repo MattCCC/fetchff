@@ -321,6 +321,269 @@ describe('Cache poisoning', () => {
   });
 });
 
+describe('Credential containment (property test)', () => {
+  // Deterministic PRNG, so that failures are reproducible
+  const random = (() => {
+    let seed = 1234567;
+
+    return () => {
+      seed = (seed + 0x6d2b79f5) | 0;
+      let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  })();
+  const tokens = [
+    '',
+    '/',
+    '//',
+    '\\',
+    '\\\\',
+    '.',
+    '..',
+    '@',
+    ':',
+    '-',
+    '_',
+    'x',
+    '8080',
+    'http:',
+    'https:',
+    'HTTPS:',
+    'javascript:',
+    'evil.test',
+    'api.test',
+    '?',
+    '#',
+    '%2F',
+    '%5C',
+    '%2E',
+    ' ',
+    '\t',
+    '\n',
+    '\u0000',
+  ];
+  const randomUrl = () =>
+    Array.from(
+      { length: 1 + Math.floor(random() * 6) },
+      () => tokens[Math.floor(random() * tokens.length)],
+    ).join('');
+
+  it.each([
+    ['https://api.test'],
+    ['https://api.test/'],
+    ['https://api.test/v1'],
+  ])(
+    'should only send global headers to the API host with baseURL %s',
+    async (baseURL) => {
+      const api = lib.createApiFetcher({
+        baseURL,
+        headers: { Authorization: 'Bearer secret' },
+        endpoints: {},
+      });
+
+      for (let i = 0; i < 500; i++) {
+        const url = randomUrl();
+
+        sentRequests.length = 0;
+        await api.request(url).catch(() => null);
+
+        for (const { url: sentUrl, headers } of sentRequests) {
+          if (!headers.get('authorization')) {
+            continue;
+          }
+
+          let host: string | undefined;
+
+          try {
+            host = new URL(sentUrl, 'https://app.test').host;
+          } catch {
+            // An invalid URL can't be requested
+            continue;
+          }
+
+          if (host !== 'api.test') {
+            throw new Error(
+              JSON.stringify(url) + ' sent credentials to ' + host,
+            );
+          }
+        }
+      }
+    },
+  );
+
+  it.each([
+    ['.evil.test/steal'],
+    ['-evil.test/steal'],
+    ['@evil.test/steal'],
+    ['x.evil.test/steal'],
+  ])(
+    'should join %j as a path of the baseURL, not as part of its host',
+    (url) => {
+      const config = lib.buildConfig(url, { baseURL: 'https://api.test' });
+
+      expect(new URL(config.url as string).host).toBe('api.test');
+    },
+  );
+
+  it.each([
+    ['users', 'https://api.test', 'https://api.test/users'],
+    ['users', 'https://api.test/', 'https://api.test/users'],
+    ['/users', 'https://api.test', 'https://api.test/users'],
+    ['?page=2', 'https://api.test/users', 'https://api.test/users?page=2'],
+    ['#top', 'https://api.test/users', 'https://api.test/users#top'],
+    ['', 'https://api.test/users', 'https://api.test/users'],
+  ])('should join %j and %j as %j', (url, baseURL, expected) => {
+    expect(lib.buildConfig(url, { baseURL }).url).toBe(expected);
+  });
+});
+
+describe('Fuzzing', () => {
+  let seed = 42;
+  const random = () => {
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  const pieces = [
+    'a',
+    'Z',
+    '0',
+    ' ',
+    '+',
+    '&',
+    '=',
+    '?',
+    '#',
+    '/',
+    '\\',
+    '%',
+    '%20',
+    '%2F',
+    '.',
+    '..',
+    '[',
+    ']',
+    '[]',
+    '"',
+    "'",
+    '<',
+    '>',
+    ':',
+    ';',
+    ',',
+    '@',
+    '$',
+    '\t',
+    '\n',
+    'ą',
+    '日本',
+    '😀',
+    '__proto__',
+    'constructor',
+  ];
+  const randomString = (maxPieces = 5) =>
+    Array.from(
+      { length: Math.floor(random() * (maxPieces + 1)) },
+      () => pieces[Math.floor(random() * pieces.length)],
+    ).join('');
+
+  beforeEach(() => {
+    seed = 42;
+  });
+
+  it('should round-trip random query params exactly, without injecting others', () => {
+    for (let i = 0; i < 1000; i++) {
+      const entries = Array.from(
+        { length: 1 + Math.floor(random() * 4) },
+        () => [randomString() || 'k', randomString()],
+      );
+      const params = Object.fromEntries(entries);
+      const { url } = lib.buildConfig('https://api.test/search', { params });
+      const parsed = new URL(url as string).searchParams;
+
+      expect([...new Set(parsed.keys())].sort()).toEqual(
+        Object.keys(params).sort(),
+      );
+
+      for (const key of Object.keys(params)) {
+        expect(parsed.get(key)).toBe(params[key]);
+      }
+    }
+  });
+
+  it('should keep random path params inside their own segment', () => {
+    for (let i = 0; i < 1000; i++) {
+      const value = randomString();
+
+      if (value === '.' || value === '..') {
+        continue;
+      }
+
+      const { url } = lib.buildConfig('https://api.test/a/:p/b', {
+        urlPathParams: { p: value },
+      });
+      const parsed = new URL(url as string);
+      const segments = parsed.pathname.split('/');
+
+      expect(segments).toHaveLength(4);
+      expect(decodeURIComponent(segments[2])).toBe(value);
+      expect(parsed.search).toBe('');
+      expect(parsed.hash).toBe('');
+      expect(parsed.host).toBe('api.test');
+    }
+  });
+
+  it('should never give different requests the same cache key', () => {
+    const seen = new Map<string, string>();
+
+    for (let i = 0; i < 3000; i++) {
+      const url = '/' + randomString(3);
+      const body = randomString(8);
+      const request = JSON.stringify([url, body]);
+      const key = lib.generateCacheKey({ url, method: 'POST', body });
+      const previous = seen.get(key);
+
+      if (previous !== undefined && previous !== request) {
+        throw new Error(previous + ' and ' + request + ' share key ' + key);
+      }
+
+      seen.set(key, request);
+    }
+  });
+
+  it('should always strip dangerous keys when sanitizing', () => {
+    const { sanitizeObject } = jest.requireActual('../src/utils');
+    const dangerous = ['__proto__', 'constructor', 'prototype'];
+
+    for (let i = 0; i < 500; i++) {
+      const entries = Array.from({ length: Math.floor(random() * 6) }, () => [
+        random() < 0.3
+          ? dangerous[Math.floor(random() * 3)]
+          : randomString(2) || 'k',
+        { polluted: true },
+      ]);
+      const input = Object.fromEntries(entries);
+      const output = sanitizeObject(input);
+
+      expect(Object.getPrototypeOf(output)).toBe(Object.prototype);
+
+      for (const key of dangerous) {
+        expect(Object.prototype.hasOwnProperty.call(output, key)).toBe(false);
+      }
+
+      for (const key of Object.keys(input)) {
+        if (!dangerous.includes(key)) {
+          expect(output[key]).toBe(input[key]);
+        }
+      }
+    }
+  });
+});
+
 describe('Endpoint names', () => {
   it.each([['constructor'], ['__proto__'], ['toString'], ['hasOwnProperty']])(
     'should treat the inherited name %j as a plain URL, not an endpoint',
