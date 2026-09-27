@@ -235,6 +235,26 @@ export type PollingFunction<
   attempts: number,
 ) => boolean;
 
+/**
+ * The upload progress of a request body.
+ */
+export interface UploadProgress {
+  /**
+   * The number of bytes uploaded so far.
+   */
+  loaded: number;
+
+  /**
+   * The total number of bytes to upload, or `undefined` if it's unknown, e.g. for streams.
+   */
+  total?: number;
+
+  /**
+   * The upload progress from 0 to 1, or `undefined` if the total is unknown.
+   */
+  progress?: number;
+}
+
 export type CacheKeyFunction<
   _ResponseData = DefaultResponse,
   _RequestBody = DefaultPayload,
@@ -593,6 +613,15 @@ export interface ExtendedRequestConfig<
    * Alias for "body"
    */
   data?: BodyPayload<RequestBody>;
+
+  /**
+   * A function called with the upload progress while the request body is being sent, e.g. to show the progress of file uploads.
+   * As browsers don't report the upload progress of fetch(), requests with a body and this function are sent with XMLHttpRequest there,
+   * which doesn't support fetch() specific options like `mode`, `cache`, `redirect` or `keepalive`.
+   * Elsewhere, e.g. in Node.js, the body is streamed with fetch().
+   * @param progress - The number of bytes uploaded so far, the total and the progress from 0 to 1.
+   */
+  onUploadProgress?: (progress: UploadProgress) => void;
 
   /**
    * A function or array of functions to intercept the request before it is sent.
